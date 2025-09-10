@@ -14996,6 +14996,302 @@ export class DatabaseStorage implements IStorage {
 
 
 
+  async exportTransactionsToCSV(
+    merchantId?: string, 
+    startDate?: string, 
+    endDate?: string,
+    type?: string,
+    transactionId?: string
+  ): Promise<string> {
+    try {
+      // Use ACH transactions table
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      
+      let whereConditions: string[] = [];
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (merchantId) {
+        whereConditions.push(`merchant_id = $${paramIndex++}`);
+        queryParams.push(merchantId);
+      }
+      
+      if (startDate) {
+        whereConditions.push(`transaction_date >= $${paramIndex++}`);
+        queryParams.push(startDate);
+      }
+      
+      if (endDate) {
+        whereConditions.push(`transaction_date <= $${paramIndex++}`);
+        queryParams.push(endDate);
+      }
+      
+      if (type) {
+        whereConditions.push(`description = $${paramIndex++}`);
+        queryParams.push(type);
+      }
+      
+      if (transactionId) {
+        whereConditions.push(`id = $${paramIndex++}`);
+        queryParams.push(transactionId);
+      }
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const query = `
+        SELECT 
+          id as "Transaction ID",
+          merchant_id as "Merchant ID",
+          merchant_name as "Merchant Name",
+          account_number as "Account Number",
+          amount as "Amount",
+          transaction_date as "Date",
+          description as "Type",
+          code as "Code",
+          company as "Company",
+          trace_number as "Trace Number"
+        FROM ${achTransactionsTableName}
+        ${whereClause}
+        ORDER BY transaction_date DESC, created_at DESC
+      `;
+      
+      const result = await pool.query(query, queryParams);
+      
+      // Generate CSV file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `transactions_export_${timestamp}.csv`;
+      const filepath = path.join(os.tmpdir(), filename);
+      
+      return new Promise((resolve, reject) => {
+        const writeStream = createWriteStream(filepath);
+        const csvStream = formatCSV({ headers: true });
+        
+        csvStream.pipe(writeStream);
+        
+        result.rows.forEach(row => {
+          csvStream.write(row);
+        });
+        
+        csvStream.end();
+        
+        writeStream.on('finish', () => {
+          resolve(filepath);
+        });
+        
+        writeStream.on('error', reject);
+      });
+      
+    } catch (error) {
+      console.error('Error exporting transactions to CSV:', error);
+      throw error;
+    }
+  }
+
+  async exportMerchantsToCSV(
+    startDate?: string, 
+    endDate?: string
+  ): Promise<string> {
+    try {
+      // Use VSB API merchants table first, then check legacy table
+      const vsbMerchantsTableName = getTableName('api_merchants');
+      const legacyMerchantsTableName = getTableName('merchants');
+      
+      let whereConditions: string[] = [];
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (startDate) {
+        whereConditions.push(`last_upload_date >= $${paramIndex++}`);
+        queryParams.push(startDate);
+      }
+      
+      if (endDate) {
+        whereConditions.push(`last_upload_date <= $${paramIndex++}`);
+        queryParams.push(endDate);
+      }
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Try VSB API table first
+      let query = `
+        SELECT 
+          id as "ID",
+          name as "Name",
+          client_mid as "Client MID",
+          merchant_type as "Type",
+          status as "Status",
+          address as "Address",
+          city as "City",
+          state as "State",
+          zip_code as "Zip Code",
+          country as "Country",
+          category as "Category",
+          created_at as "Created Date",
+          last_upload_date as "Last Upload Date"
+        FROM ${vsbMerchantsTableName}
+        ${whereClause}
+        ORDER BY name ASC
+      `;
+      
+      let result = await pool.query(query, queryParams);
+      
+      // If no results from VSB table, try legacy table
+      if (result.rows.length === 0) {
+        query = `
+          SELECT 
+            id as "ID",
+            name as "Name",
+            'ACH' as "Type",
+            'Active' as "Status",
+            NULL as "Address",
+            NULL as "City", 
+            NULL as "State",
+            NULL as "Zip Code",
+            NULL as "Country",
+            NULL as "Category",
+            created_at as "Created Date",
+            last_upload_date as "Last Upload Date"
+          FROM ${legacyMerchantsTableName}
+          ${whereClause}
+          ORDER BY name ASC
+        `;
+        
+        result = await pool.query(query, queryParams);
+      }
+      
+      // Generate CSV file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `merchants_export_${timestamp}.csv`;
+      const filepath = path.join(os.tmpdir(), filename);
+      
+      return new Promise((resolve, reject) => {
+        const writeStream = createWriteStream(filepath);
+        const csvStream = formatCSV({ headers: true });
+        
+        csvStream.pipe(writeStream);
+        
+        result.rows.forEach(row => {
+          csvStream.write(row);
+        });
+        
+        csvStream.end();
+        
+        writeStream.on('finish', () => {
+          resolve(filepath);
+        });
+        
+        writeStream.on('error', reject);
+      });
+      
+    } catch (error) {
+      console.error('Error exporting merchants to CSV:', error);
+      throw error;
+    }
+  }
+
+  async exportAllMerchantsForDateToCSV(targetDate: string): Promise<string> {
+    return this.exportMerchantsToCSV(targetDate, targetDate);
+  }
+
+  async exportBatchSummaryToCSV(targetDate: string): Promise<string> {
+    try {
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      
+      const query = `
+        SELECT 
+          merchant_name as "Merchant Name",
+          COUNT(*) as "Transaction Count",
+          SUM(amount) as "Total Amount",
+          MIN(transaction_date) as "First Transaction",
+          MAX(transaction_date) as "Last Transaction"
+        FROM ${achTransactionsTableName}
+        WHERE DATE(transaction_date) = $1
+        GROUP BY merchant_name
+        ORDER BY SUM(amount) DESC
+      `;
+      
+      const result = await pool.query(query, [targetDate]);
+      
+      // Generate CSV file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `batch_summary_${targetDate}_${timestamp}.csv`;
+      const filepath = path.join(os.tmpdir(), filename);
+      
+      return new Promise((resolve, reject) => {
+        const writeStream = createWriteStream(filepath);
+        const csvStream = formatCSV({ headers: true });
+        
+        csvStream.pipe(writeStream);
+        
+        result.rows.forEach(row => {
+          csvStream.write(row);
+        });
+        
+        csvStream.end();
+        
+        writeStream.on('finish', () => {
+          resolve(filepath);
+        });
+        
+        writeStream.on('error', reject);
+      });
+      
+    } catch (error) {
+      console.error('Error exporting batch summary to CSV:', error);
+      throw error;
+    }
+  }
+
+  async exportAllDataForDateToCSV(targetDate: string): Promise<{ filePaths: string[]; zipPath: string }> {
+    try {
+      const filePaths: string[] = [];
+      
+      // Export transactions for the date
+      const transactionsFile = await this.exportTransactionsToCSV(undefined, targetDate, targetDate);
+      filePaths.push(transactionsFile);
+      
+      // Export merchants for the date
+      const merchantsFile = await this.exportMerchantsToCSV(targetDate, targetDate);
+      filePaths.push(merchantsFile);
+      
+      // Export batch summary for the date
+      const batchSummaryFile = await this.exportBatchSummaryToCSV(targetDate);
+      filePaths.push(batchSummaryFile);
+      
+      // Create ZIP file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const zipFilename = `all_data_${targetDate}_${timestamp}.zip`;
+      const zipPath = path.join(os.tmpdir(), zipFilename);
+      
+      return new Promise((resolve, reject) => {
+        const output = createWriteStream(zipPath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        
+        output.on('close', () => {
+          console.log(`Archive created: ${zipPath} (${archive.pointer()} total bytes)`);
+          resolve({ filePaths, zipPath });
+        });
+        
+        archive.on('error', (err) => {
+          reject(err);
+        });
+        
+        archive.pipe(output);
+        
+        // Add files to archive
+        archive.file(transactionsFile, { name: `transactions_${targetDate}.csv` });
+        archive.file(merchantsFile, { name: `merchants_${targetDate}.csv` });
+        archive.file(batchSummaryFile, { name: `batch_summary_${targetDate}.csv` });
+        
+        archive.finalize();
+      });
+      
+    } catch (error) {
+      console.error('Error exporting all data to CSV:', error);
+      throw error;
+    }
+  }
+
 }
 
 // Default to database storage
