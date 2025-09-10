@@ -23,6 +23,7 @@ import poolRoutes from "./routes/pool_routes";
 import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
+import { NODE_ENV } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
