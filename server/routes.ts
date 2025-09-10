@@ -213,6 +213,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
 
+  // AUTHENTICATION DIAGNOSTICS: Comprehensive login debugging endpoint
+  app.get("/api/auth/diagnostics", async (req, res) => {
+    try {
+      console.log("[AUTH-DIAGNOSTICS] Starting authentication diagnostic check...");
+      
+      // Get environment configuration
+      const { getEnvironment } = await import('./env-config');
+      const { NODE_ENV, isProd, isDev } = getEnvironment();
+      
+      // Get table configuration  
+      const { getTableName } = await import('./table-config');
+      const usersTable = getTableName('users');
+      const sessionTable = getTableName('session');
+      
+      // Check database connection info (redact sensitive data)
+      const dbUrl = process.env.DATABASE_URL || process.env.NEON_DEV_DATABASE_URL || process.env.NEON_PROD_DATABASE_URL || '';
+      const dbHost = dbUrl ? new URL(dbUrl).hostname : 'unknown';
+      const dbName = dbUrl ? new URL(dbUrl).pathname.slice(1) : 'unknown';
+      
+      console.log(`[AUTH-DIAGNOSTICS] Environment: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
+      console.log(`[AUTH-DIAGNOSTICS] Database host: ${dbHost}, database: ${dbName}`);
+      console.log(`[AUTH-DIAGNOSTICS] Target users table: ${usersTable}`);
+      console.log(`[AUTH-DIAGNOSTICS] Target session table: ${sessionTable}`);
+      
+      // Check table existence
+      const [usersExists, devUsersExists, sessionExists, devSessionExists] = await Promise.all([
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')`)
+          .then(r => r.rows[0]?.exists || false)
+          .catch(() => false),
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_users')`)
+          .then(r => r.rows[0]?.exists || false)  
+          .catch(() => false),
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'session')`)
+          .then(r => r.rows[0]?.exists || false)
+          .catch(() => false),
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_session')`)
+          .then(r => r.rows[0]?.exists || false)
+          .catch(() => false)
+      ]);
+      
+      // Check admin user existence (no sensitive data)
+      const [adminInUsers, adminInDevUsers] = await Promise.all([
+        usersExists ? 
+          db.execute(sql`SELECT COUNT(*) as count FROM users WHERE username = 'admin'`)
+            .then(r => r.rows[0]?.count > 0)
+            .catch(() => false) : false,
+        devUsersExists ?
+          db.execute(sql`SELECT COUNT(*) as count FROM dev_users WHERE username = 'admin'`) 
+            .then(r => r.rows[0]?.count > 0)
+            .catch(() => false) : false
+      ]);
+      
+      const diagnostics = {
+        environment: {
+          NODE_ENV,
+          isProd, 
+          isDev,
+          dbHost,
+          dbName: dbName === 'neondb' ? 'neondb' : 'other'
+        },
+        tables: {
+          targetUsersTable: usersTable,
+          targetSessionTable: sessionTable,
+          exists: {
+            users: usersExists,
+            dev_users: devUsersExists, 
+            session: sessionExists,
+            dev_session: devSessionExists
+          }
+        },
+        admin: {
+          existsInUsers: adminInUsers,
+          existsInDevUsers: adminInDevUsers,
+          targetTableHasAdmin: usersTable === 'users' ? adminInUsers : adminInDevUsers
+        }
+      };
+      
+      console.log(`[AUTH-DIAGNOSTICS] Results:`, JSON.stringify(diagnostics, null, 2));
+      
+      // Create session table if missing and needed
+      if (!diagnostics.tables.exists.session && !diagnostics.tables.exists.dev_session) {
+        try {
+          await db.execute(sql`
+            CREATE TABLE IF NOT EXISTS session (
+              sid varchar PRIMARY KEY,
+              sess json NOT NULL,
+              expire timestamp(6) NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IDX_session_expire ON session(expire);
+          `);
+          console.log("[AUTH-DIAGNOSTICS] ✅ Created missing session table");
+          diagnostics.tables.exists.session = true;
+        } catch (sessionError) {
+          console.log("[AUTH-DIAGNOSTICS] ⚠️ Failed to create session table:", sessionError);
+        }
+      }
+      
+      res.json(diagnostics);
+      
+    } catch (error) {
+      console.error("[AUTH-DIAGNOSTICS] Error:", error);
+      res.status(500).json({
+        error: "Diagnostics failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // DATABASE REPAIR: Copy admin from dev_users to users table for production
   app.post("/api/system/fix-admin-tables", async (req, res) => {
     try {

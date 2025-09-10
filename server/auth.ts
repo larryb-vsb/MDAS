@@ -125,26 +125,30 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log(`[Debug] Login attempt for user: ${username}`);
+        console.log(`[AUTH] Login attempt for username: ${username}`);
         const user = await storage.getUserByUsername(username);
         
         if (!user) {
-          console.log(`[Debug] User not found: ${username}`);
+          console.log(`[AUTH] ❌ User not found: ${username}`);
           return done(null, false, { message: "Invalid username or password" });
         }
         
-        console.log(`[Debug] User found, comparing passwords`);
+        console.log(`[AUTH] ✅ Found user: ${username}, role: ${user.role}, checking password...`);
         const passwordMatch = await comparePasswords(password, user.password);
+        console.log(`[AUTH] Password validation result for ${username}: ${passwordMatch ? '✅ SUCCESS' : '❌ FAILED'}`);
         
         if (!passwordMatch) {
-          console.log(`[Debug] Password does not match for user: ${username}`);
+          console.log(`[AUTH] ❌ Invalid password for user: ${username}`);
+          console.log(`[AUTH] ❌ Password comparison: supplied vs stored hash check failed`);
           return done(null, false, { message: "Invalid username or password" });
         }
         
-        console.log(`[Debug] Authentication successful for: ${username}`);
+        console.log(`[AUTH] ✅ Login successful for user: ${username}`);
+        // Log successful serializeUser execution
+        console.log(`[AUTH] ✅ About to serialize user ID: ${user.id}`);
         return done(null, user);
       } catch (err) {
-        console.error(`[Debug] Authentication error:`, err);
+        console.error(`[AUTH] ❌ Authentication error for ${username}:`, err);
         return done(err);
       }
     }),

@@ -604,13 +604,11 @@ export class DatabaseStorage implements IStorage {
   // @ENVIRONMENT-CRITICAL - User authentication lookup
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming  
   async getUserByUsername(username: string): Promise<User | undefined> {
-    console.log(`[DEBUG storage] Looking up user by username: ${username}`);
     try {
-      // PRODUCTION FIX: Use environment-aware table naming
-      const isProduction = process.env.NODE_ENV === 'production';
-      const usersTable = isProduction ? 'users' : 'dev_users';
-      console.log(`[DEBUG storage] Using table: ${usersTable} (NODE_ENV: ${process.env.NODE_ENV})`);
+      const usersTableName = getTableName('users');
+      console.log(`[STORAGE] getUserByUsername: Looking up user '${username}' in table '${usersTableName}'`);
       
+      // Try primary table first
       let result;
       try {
         result = await pool.query(`
@@ -627,31 +625,56 @@ export class DatabaseStorage implements IStorage {
             theme_preference as "themePreference",
             created_at as "createdAt",
             last_login as "lastLogin"
-          FROM ${usersTable}
+          FROM ${usersTableName}
           WHERE LOWER(username) = LOWER($1)
         `, [username]);
-        console.log(`[DEBUG storage] Tried ${usersTable} table directly`);
-      } catch (tableError) {
-        console.log(`[DEBUG storage] ${usersTable} failed:`, tableError.message);
-        throw tableError;
+        
+        if (result.rows.length > 0) {
+          const user = result.rows[0];
+          console.log(`[STORAGE] getUserByUsername: Found user '${username}' in PRIMARY table '${usersTableName}' with role '${user.role}'`);
+          return user;
+        }
+      } catch (primaryError) {
+        console.log(`[STORAGE] getUserByUsername: Primary table '${usersTableName}' query failed:`, primaryError.message);
       }
-      const user = result.rows[0];
-      if (user) {
-        console.log(`[DEBUG storage] Found user: ${JSON.stringify({
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          defaultDashboard: user.defaultDashboard,
-          themePreference: user.themePreference,
-          passwordLength: user.password?.length || 0
-        })}`);
-      } else {
-        console.log(`[DEBUG storage] User not found: ${username}`);
+      
+      // FALLBACK: Try the alternate table namespace (users ↔ dev_users)
+      const fallbackTable = usersTableName === 'users' ? 'dev_users' : 'users';
+      console.log(`[STORAGE] getUserByUsername: User '${username}' not found in '${usersTableName}', trying FALLBACK table '${fallbackTable}'`);
+      
+      try {
+        result = await pool.query(`
+          SELECT 
+            id,
+            username,
+            password,
+            email,
+            first_name as "firstName",
+            last_name as "lastName",
+            role,
+            developer_flag as "developerFlag",
+            default_dashboard as "defaultDashboard",
+            theme_preference as "themePreference",
+            created_at as "createdAt",
+            last_login as "lastLogin"
+          FROM ${fallbackTable}
+          WHERE LOWER(username) = LOWER($1)
+        `, [username]);
+        
+        if (result.rows.length > 0) {
+          const user = result.rows[0];
+          console.log(`[STORAGE] ⚠️  getUserByUsername: Found user '${username}' in FALLBACK table '${fallbackTable}' with role '${user.role}' - ENVIRONMENT MISMATCH DETECTED`);
+          return user;
+        }
+      } catch (fallbackError) {
+        console.log(`[STORAGE] getUserByUsername: Fallback table '${fallbackTable}' query failed:`, fallbackError.message);
       }
-      return user || undefined;
-    } catch (error) {
-      console.error(`[DEBUG storage] Error looking up user:`, error);
+      
+      console.log(`[STORAGE] getUserByUsername: User '${username}' not found in either '${usersTableName}' or '${fallbackTable}'`);
       return undefined;
+    } catch (error) {
+      console.error(`[STORAGE] Error in getUserByUsername for '${username}':`, error);
+      throw error;
     }
   }
   
