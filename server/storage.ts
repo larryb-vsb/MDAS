@@ -5976,9 +5976,29 @@ export class DatabaseStorage implements IStorage {
             
             while (insertAttempts < 100) { // Prevent infinite loop
               try {
-                // Prepare values for insertion
-                const columns = Object.keys(finalTransaction);
-                const values = Object.values(finalTransaction);
+                // Map camelCase object properties to snake_case database columns for ACH
+                const fieldMapping = {
+                  'merchantId': 'merchant_id',
+                  'merchantName': 'merchant_name',
+                  'accountNumber': 'account_number', 
+                  'date': 'transaction_date',  // Map date to transaction_date
+                  'transactionDate': 'transaction_date',
+                  'traceNumber': 'trace_number',
+                  'fileSource': 'file_source',
+                  'createdAt': 'created_at',
+                  'updatedAt': 'updated_at'
+                };
+                
+                // Convert finalTransaction to use database column names
+                const dbTransaction = {};
+                Object.keys(finalTransaction).forEach(key => {
+                  const dbColumn = fieldMapping[key] || key; // Use mapping or original key
+                  dbTransaction[dbColumn] = finalTransaction[key];
+                });
+                
+                // Prepare values for insertion with mapped column names
+                const columns = Object.keys(dbTransaction);
+                const values = Object.values(dbTransaction);
                 const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
                 
                 const insertQuery = `
