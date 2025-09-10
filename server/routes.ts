@@ -946,11 +946,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Use environment-specific table names
       const uploadedFilesTableName = getTableName('uploaded_files');
-      const transactionsTableName = getTableName('transactions');
+      const achTransactionsTableName = getTableName('api_achtransactions');
       const tddfRecordsTableName = getTableName('tddf_records');
       const tddfRawImportTableName = getTableName('tddf_raw_import');
       
-      console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}, ${tddfRecordsTableName}`);
+      console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${achTransactionsTableName}, ${tddfRecordsTableName}`);
       
       // Get real-time file processing statistics using new processing_status field
       const result = await pool.query(`
@@ -971,8 +971,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const transactionSpeedResult = await pool.query(`
         SELECT COUNT(*) as recent_transactions
-        FROM ${transactionsTableName} 
-        WHERE recorded_at >= $1
+        FROM ${achTransactionsTableName} 
+        WHERE created_at >= $1
       `, [tenMinutesAgo]);
 
       // Calculate TDDF records per second from recent TDDF processing (last 10 minutes)
@@ -1212,7 +1212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get environment-specific table names for data tables, use shared tables for system tables
       const envMerchants = getTableName('merchants');
-      const envTransactions = getTableName('transactions');
+      const envAchTransactions = getTableName('api_achtransactions');
       const envUploadedFiles = getTableName('uploaded_files');
       
       // System tables are shared across environments (no prefixes)
@@ -1222,7 +1222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get table information using environment-specific table names for data, shared for system
       const tables = [
         { name: 'merchants', tableName: envMerchants, tableObj: merchantsTable },
-        { name: 'transactions', tableName: envTransactions, tableObj: transactionsTable },
+        { name: 'ach_transactions', tableName: envAchTransactions, tableObj: null },
         { name: 'uploaded_files', tableName: envUploadedFiles, tableObj: uploadedFilesTable },
         { name: 'backup_history', tableName: systemBackupHistory, tableObj: backupHistory },
         { name: 'schema_versions', tableName: systemSchemaVersions, tableObj: schemaVersions }
@@ -1643,15 +1643,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // @ENVIRONMENT-CRITICAL - Analytics data query with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses raw SQL for environment awareness 
-      const transactionsTableName = getTableName('transactions');
+      const achTransactionsTableName = getTableName('api_achtransactions');
       const merchantsTableName = getTableName('merchants');
       
       // Get transaction history data for the charts using raw SQL
       const transactionQuery = `
         SELECT t.*, m.name as merchant_name 
-        FROM ${transactionsTableName} t
+        FROM ${achTransactionsTableName} t
         INNER JOIN ${merchantsTableName} m ON t.merchant_id = m.id
-        ORDER BY t.date
+        ORDER BY t.transaction_date
       `;
       const transactionsResult = await pool.query(transactionQuery);
       const allTransactions = transactionsResult.rows.map(row => ({
@@ -11999,7 +11999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mmcMerchantCount = parseInt(mmcMerchantResult.rows[0]?.count || '0');
       
       // Get transaction data
-      const achTransactionQuery = `SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM ${getTableName('transactions')}`;
+      const achTransactionQuery = `SELECT COUNT(*) as count, COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total FROM ${getTableName('api_achtransactions')}`;
       const achTransactionResult = await db.query(achTransactionQuery);
       const achTransactionCount = parseInt(achTransactionResult.rows[0]?.count || '0');
       const achTransactionTotal = parseFloat(achTransactionResult.rows[0]?.total || '0');
@@ -12018,8 +12018,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get today's transactions
       const today = new Date().toISOString().split('T')[0];
       const achTodayQuery = `
-        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
-        FROM ${getTableName('transactions')} 
+        SELECT COUNT(*) as count, COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total 
+        FROM ${getTableName('api_achtransactions')} 
         WHERE DATE(transaction_date) = $1
       `;
       const achTodayResult = await db.query(achTodayQuery, [today]);
@@ -17633,7 +17633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get corrected metrics with fixed MCC count of 480
       const merchantsTableName = getTableName('merchants');
-      const transactionsTableName = getTableName('transactions');
+      const achTransactionsTableName = getTableName('api_achtransactions');
       const tddfRecordsTableName = getTableName('tddf_records');
       const terminalsTableName = getTableName('terminals');
       
@@ -17662,15 +17662,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName}`), // All are ACH for now
         pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE created_at >= NOW() - INTERVAL '30 days'`),
         pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE created_at >= NOW() - INTERVAL '30 days'`),
-        pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM ${transactionsTableName} WHERE DATE_TRUNC('month', transaction_date) = DATE_TRUNC('month', NOW())`),
+        pool.query(`SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total FROM ${achTransactionsTableName} WHERE DATE_TRUNC('month', transaction_date) = DATE_TRUNC('month', NOW())`),
         pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE_TRUNC('month', CAST(extracted_fields->>'transactionDate' AS DATE)) = DATE_TRUNC('month', NOW())`),
-        pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
+        pool.query(`SELECT COUNT(*) as count FROM ${achTransactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
         pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
-        pool.query(`SELECT COALESCE(AVG(amount), 0) as avg FROM ${transactionsTableName}`),
+        pool.query(`SELECT COALESCE(AVG(CAST(amount AS NUMERIC)), 0) as avg FROM ${achTransactionsTableName}`),
         pool.query(`SELECT COALESCE(AVG(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as avg FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT'`),
-        pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM ${transactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
+        pool.query(`SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total FROM ${achTransactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
         pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
-        pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM ${transactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
+        pool.query(`SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total FROM ${achTransactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
         pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
         pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName}`),
         pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT'`),
