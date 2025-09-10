@@ -251,7 +251,7 @@ class FileProcessorService {
     try {
       // Import table-config for environment-specific table names
       const { getTableName } = await import("../table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = getTableName('uploader_uploads');
       
       console.log(`[FILE PROCESSOR] Using table: ${uploadsTableName} for environment: ${currentEnvironment}, server: ${serverId}`);
       
@@ -270,19 +270,19 @@ class FileProcessorService {
       const result = await db.execute(sql`
         SELECT 
           id,
-          original_filename,
+          filename as original_filename,
           storage_path,
           file_type,
           uploaded_at,
-          processed,
+          CASE WHEN current_phase IN ('encoded', 'completed') THEN true ELSE false END as processed,
           processing_errors,
-          deleted,
-          processing_status,
-          processing_started_at,
+          false as deleted,
+          current_phase as processing_status,
+          started_at as processing_started_at,
           processing_server_id
         FROM ${sql.identifier(uploadsTableName)}
-        WHERE processing_status = 'queued'
-          AND deleted = false
+        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
+          AND final_file_type IS NOT NULL
         ORDER BY 
           CASE 
             WHEN file_type = 'tddf' THEN 1 
@@ -458,17 +458,18 @@ class FileProcessorService {
     
     try {
       const { getTableName } = await import("../table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = getTableName('uploader_uploads');
       
       // Atomic update: only set processing status if it's not already processing
       const result = await db.execute(sql`
         UPDATE ${sql.identifier(uploadsTableName)}
         SET 
-          processing_status = 'processing',
-          processing_started_at = ${currentTime.toISOString()},
+          current_phase = 'processing',
+          processing_at = ${currentTime.toISOString()},
           processing_server_id = ${serverId}
         WHERE id = ${fileId}
-          AND (processing_status IS NULL OR processing_status != 'processing')
+          AND current_phase IN ('uploaded', 'identified', 'encoded')
+          AND (processing_server_id IS NULL OR processing_server_id = '')
         RETURNING id
       `);
       

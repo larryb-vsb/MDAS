@@ -2999,7 +2999,7 @@ export class DatabaseStorage implements IStorage {
       for (const fileId of fileIds) {
         try {
           // Use environment-specific table for file lookups
-          const uploadedFilesTableName = getTableName('uploaded_files');
+          const uploadedFilesTableName = getTableName('uploader_uploads');
           console.log(`[FILE PROCESSOR] Using table: ${uploadedFilesTableName} for file: ${fileId}`);
           
           // Get the individual file information using raw SQL for environment separation
