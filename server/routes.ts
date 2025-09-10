@@ -3715,8 +3715,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const merchantId = req.params.id;
       
-      // Use VSB API merchants table directly
-      const result = await pool.query(`
+      // Try VSB API merchants table first
+      let result = await pool.query(`
         SELECT 
           id,
           name,
@@ -3737,8 +3737,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE id = $1
       `, [merchantId]);
       
+      // If not found in VSB API table, try legacy merchants table
       if (result.rows.length === 0) {
-        return res.status(404).json({ error: `VSB Merchant with ID ${merchantId} not found` });
+        result = await pool.query(`
+          SELECT 
+            id,
+            name,
+            NULL as client_mid,
+            'ACH' as merchant_type,
+            'Active' as status,
+            NULL as address,
+            NULL as city,
+            NULL as state,
+            NULL as zip_code,
+            NULL as country,
+            NULL as category,
+            created_at,
+            last_upload_date,
+            NULL as edit_date,
+            NULL as updated_by
+          FROM dev_merchants 
+          WHERE id = $1
+        `, [merchantId]);
+      }
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: `Merchant with ID ${merchantId} not found in either VSB API or legacy tables` });
       }
       
       const merchant = result.rows[0];
