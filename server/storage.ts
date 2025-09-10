@@ -5983,6 +5983,9 @@ export class DatabaseStorage implements IStorage {
                   'accountNumber': 'account_number', 
                   'date': 'transaction_date',  // Map date to transaction_date
                   'transactionDate': 'transaction_date',
+                  'type': 'code',  // Map type to code column
+                  'transactionType': 'code',
+                  'originalMerchantName': 'company',  // Map originalMerchantName to company column
                   'traceNumber': 'trace_number',
                   'fileSource': 'file_source',
                   'createdAt': 'created_at',
