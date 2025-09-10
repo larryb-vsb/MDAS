@@ -5388,6 +5388,11 @@ export class DatabaseStorage implements IStorage {
   async processTransactionFile(filePath: string): Promise<void> {
     console.log(`Processing transaction file: ${filePath}`);
     
+    // Set sourceFileId for tracking (extract from file path if possible)
+    const sourceFileId = filePath.includes('uploader_') 
+      ? filePath.match(/uploader_[^\/]+/)?.[0] || 'unknown_file'
+      : 'unknown_file';
+    
     // Import field mappings and utility functions
     const { 
       transactionFieldMappings, 
