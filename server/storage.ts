@@ -4573,7 +4573,7 @@ export class DatabaseStorage implements IStorage {
     } = await import("@shared/field-mappings");
     
     // Import TraceNumberMapper for unique transaction ID generation
-    const { TraceNumberMapper } = await import("../services/trace-number-mapper");
+    const { TraceNumberMapper } = await import("./services/trace-number-mapper");
     
     // Reset trace number counter for this file processing session
     TraceNumberMapper.resetCounter();
