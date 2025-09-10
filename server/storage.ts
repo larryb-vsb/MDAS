@@ -6649,6 +6649,53 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Helper method to ensure audit log table exists
+  private async ensureAuditLogTableExists(tableName: string): Promise<void> {
+    try {
+      // Check if table exists first
+      const tableExists = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = $1
+        )
+      `, [tableName]);
+      
+      if (!tableExists.rows[0].exists) {
+        console.log(`[AUDIT LOG] Creating missing audit logs table: ${tableName}`);
+        
+        // Create the audit logs table with the correct schema
+        await pool.query(`
+          CREATE TABLE ${tableName} (
+            id SERIAL PRIMARY KEY,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            user_id INTEGER,
+            username TEXT NOT NULL,
+            timestamp TIMESTAMP DEFAULT NOW() NOT NULL,
+            old_values JSONB,
+            new_values JSONB,
+            changed_fields TEXT[],
+            ip_address TEXT,
+            user_agent TEXT,
+            notes TEXT
+          )
+        `);
+        
+        // Create indexes for better performance
+        await pool.query(`CREATE INDEX ${tableName}_entity_type_idx ON ${tableName}(entity_type)`);
+        await pool.query(`CREATE INDEX ${tableName}_entity_id_idx ON ${tableName}(entity_id)`);
+        await pool.query(`CREATE INDEX ${tableName}_timestamp_idx ON ${tableName}(timestamp)`);
+        await pool.query(`CREATE INDEX ${tableName}_user_id_idx ON ${tableName}(user_id)`);
+        
+        console.log(`[AUDIT LOG] Successfully created audit logs table: ${tableName}`);
+      }
+    } catch (error) {
+      console.error(`[AUDIT LOG] Error ensuring table exists:`, error);
+      // Don't throw error here - let the audit log creation proceed and fail gracefully
+    }
+  }
+
   // Create audit log entry
   async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
     try {
@@ -6657,6 +6704,9 @@ export class DatabaseStorage implements IStorage {
       // Use environment-aware table name for audit logs
       const tableName = getTableName("audit_logs");
       console.log(`[AUDIT LOG] Using table: ${tableName} in ${process.env.NODE_ENV || 'production'} environment`);
+      
+      // First, ensure the audit logs table exists
+      await this.ensureAuditLogTableExists(tableName);
       
       // Use raw SQL to insert into the correct environment table
       const result = await pool.query(`
