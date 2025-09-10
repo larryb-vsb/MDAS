@@ -6223,21 +6223,6 @@ export class DatabaseStorage implements IStorage {
             console.log(`When duplicates were found, they were automatically incremented:`);
             console.log(`Example: trace123 -> trace123-1, trace123-2, etc.`);
           }
-          console.log(`Total trace numbers processed: ${mappingStats.totalProcessed}`);
-          console.log(`Unique trace numbers: ${mappingStats.totalUniqueTraces}`);
-          console.log(`Duplicate trace numbers found: ${mappingStats.duplicatesFound}`);
-          console.log(`Duplication rate: ${mappingStats.duplicationRate.toFixed(1)}%`);
-          
-          if (mappingStats.duplicatesFound > 0) {
-            const detailedStats = TraceNumberMapper.getDetailedStats();
-            console.log(`\n--- DUPLICATE TRACE NUMBER DETAILS ---`);
-            detailedStats.duplicateDetails.slice(0, 5).forEach((detail, idx) => {
-              console.log(`${idx + 1}. Trace ${detail.traceNumber}: ${detail.occurrences} occurrences (mapped to ${detail.traceNumber}, ${detail.traceNumber}-1, ${detail.traceNumber}-2, etc.)`);
-            });
-            if (detailedStats.duplicateDetails.length > 5) {
-              console.log(`... and ${detailedStats.duplicateDetails.length - 5} more duplicates`);
-            }
-          }
           
           if (createdMerchants > 0) {
             console.log(`\n--- NEWLY CREATED MERCHANTS (${createdMerchants}) ---`);
