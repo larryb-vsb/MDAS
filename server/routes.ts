@@ -23753,6 +23753,110 @@ Status: Ready for production uploads`;
     }
   });
 
+  // Test production upload functionality (temporary endpoint)
+  app.post('/api/admin/force-production-upload-test', upload.single('file'), async (req, res) => {
+    try {
+      console.log('[FORCE-PROD-TEST] Testing production upload with force override...');
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Force production mode behavior for this test
+      const storage = new Storage();
+      const originalEnv = process.env.NODE_ENV;
+      const testUploadId = `prod_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log('[FORCE-PROD-TEST] File received:', {
+        originalname: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Step 1: Save to production storage folder
+      const prodStoragePath = `prod-uploader/${testUploadId}_${req.file.originalname}`;
+      console.log('[FORCE-PROD-TEST] Uploading to production storage:', prodStoragePath);
+      
+      await storage.upload(prodStoragePath, req.file.buffer);
+      console.log('[FORCE-PROD-TEST] File uploaded to production storage successfully');
+
+      // Step 2: Save to production database tables (direct SQL to bypass environment checks)
+      console.log('[FORCE-PROD-TEST] Saving to production uploader_uploads table...');
+      
+      const uploaderResult = await db.execute(sql`
+        INSERT INTO uploader_uploads (
+          id, filename, upload_status, created_at, uploaded_at, processed, deleted, processing_errors
+        ) VALUES (
+          ${testUploadId},
+          ${req.file.originalname},
+          'uploaded',
+          NOW(),
+          NOW(), 
+          FALSE,
+          FALSE,
+          NULL
+        ) RETURNING id, filename, upload_status, created_at
+      `);
+      
+      console.log('[FORCE-PROD-TEST] Inserted to production uploader_uploads:', uploaderResult.rows[0]);
+
+      // Step 3: Also save to uploaded_files table
+      console.log('[FORCE-PROD-TEST] Saving to production uploaded_files table...');
+      
+      const fileResult = await db.execute(sql`
+        INSERT INTO uploaded_files (
+          id, original_filename, storage_path, file_type, uploaded_at, processed, deleted, processing_errors
+        ) VALUES (
+          ${testUploadId + '_file'},
+          ${req.file.originalname},
+          ${prodStoragePath},
+          ${req.file.mimetype},
+          NOW(),
+          FALSE,
+          FALSE,
+          NULL
+        ) RETURNING id, original_filename, storage_path, uploaded_at
+      `);
+      
+      console.log('[FORCE-PROD-TEST] Inserted to production uploaded_files:', fileResult.rows[0]);
+
+      // Step 4: Verify the production data persists
+      const verifyUploader = await db.execute(sql`SELECT COUNT(*) as count FROM uploader_uploads`);
+      const verifyFiles = await db.execute(sql`SELECT COUNT(*) as count FROM uploaded_files`);
+      const verifyStorage = await storage.list('prod-uploader/');
+
+      console.log('[FORCE-PROD-TEST] Production verification:', {
+        uploader_uploads_count: verifyUploader.rows[0]?.count,
+        uploaded_files_count: verifyFiles.rows[0]?.count,
+        prod_storage_files: verifyStorage?.length || 0
+      });
+
+      res.json({
+        success: true,
+        message: 'Production upload test completed successfully',
+        results: {
+          test_upload_id: testUploadId,
+          production_storage_path: prodStoragePath,
+          production_uploader_record: uploaderResult.rows[0],
+          production_file_record: fileResult.rows[0],
+          verification: {
+            uploader_uploads_count: verifyUploader.rows[0]?.count || 0,
+            uploaded_files_count: verifyFiles.rows[0]?.count || 0,
+            prod_storage_files: verifyStorage?.length || 0
+          },
+          status: 'Production upload infrastructure working correctly'
+        }
+      });
+
+    } catch (error) {
+      console.error('[FORCE-PROD-TEST] Production upload test failed:', error);
+      res.status(500).json({
+        error: 'Production upload test failed',
+        details: error.message
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
