@@ -1444,19 +1444,34 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Use environment-specific table
-      const merchantsTableName = getTableName('merchants');
-      console.log(`[GET MERCHANT] Using table: ${merchantsTableName} for merchant ID: ${merchantId}`);
+      // Try VSB API merchants table first, then fallback to legacy merchants table
+      let merchant;
+      let merchantQuery;
       
-      // Use raw SQL to avoid Drizzle ORM issues
-      const merchantQuery = await db.execute(sql`
-        SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
-      `);
-      
-      const merchant = merchantQuery.rows[0];
+      try {
+        // Try dev_api_merchants first (VSB API table)
+        const apiMerchantsTableName = getTableName('api_merchants');
+        console.log(`[GET MERCHANT] Trying VSB API table: ${apiMerchantsTableName} for merchant ID: ${merchantId}`);
+        merchantQuery = await db.execute(sql`
+          SELECT * FROM ${sql.identifier(apiMerchantsTableName)} WHERE id = ${merchantId} LIMIT 1
+        `);
+        merchant = merchantQuery.rows[0];
+      } catch (error) {
+        console.log(`[GET MERCHANT] VSB API table failed, trying legacy table`);
+      }
       
       if (!merchant) {
-        throw new Error(`Merchant with ID ${merchantId} not found`);
+        // Fallback to legacy merchants table
+        const merchantsTableName = getTableName('merchants');
+        console.log(`[GET MERCHANT] Using legacy table: ${merchantsTableName} for merchant ID: ${merchantId}`);
+        merchantQuery = await db.execute(sql`
+          SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
+        `);
+        merchant = merchantQuery.rows[0];
+      }
+      
+      if (!merchant) {
+        throw new Error(`Merchant with ID ${merchantId} not found in either VSB API or legacy tables`);
       }
       
       // updatedBy field requires explicit string conversion due to database encoding
@@ -1465,13 +1480,33 @@ export class DatabaseStorage implements IStorage {
       const transactionsTableName = getTableName('transactions');
       
       // Get merchant transactions using raw SQL to avoid Drizzle issues
-      const transactionsQuery = await db.execute(sql`
-        SELECT id, merchant_id, amount, date, type, raw_data, source_file_id, source_row_number, recorded_at
-        FROM ${sql.identifier(transactionsTableName)}
-        WHERE merchant_id = ${merchantId} 
-        ORDER BY date DESC 
-        LIMIT 100
-      `);
+      // Check both dev_transactions (legacy) and dev_api_achtransactions (new VSB API) tables
+      let transactionsQuery;
+      try {
+        // Try dev_api_achtransactions first (VSB API table)
+        const apiTransactionsTableName = getTableName('api_achtransactions');
+        transactionsQuery = await db.execute(sql`
+          SELECT id, merchant_id, amount, transaction_date as date, description as type, created_at as recorded_at
+          FROM ${sql.identifier(apiTransactionsTableName)}
+          WHERE merchant_id = ${merchantId} 
+          ORDER BY transaction_date DESC 
+          LIMIT 100
+        `);
+      } catch (error) {
+        // Fallback to legacy transactions table if it exists
+        try {
+          transactionsQuery = await db.execute(sql`
+            SELECT id, merchant_id, amount, date, type, created_at as recorded_at
+            FROM ${sql.identifier(transactionsTableName)}
+            WHERE merchant_id = ${merchantId} 
+            ORDER BY date DESC 
+            LIMIT 100
+          `);
+        } catch (fallbackError) {
+          console.log(`No transactions found for merchant ${merchantId} in either table`);
+          transactionsQuery = { rows: [] };
+        }
+      }
       
       const transactions = transactionsQuery.rows;
       
@@ -1512,16 +1547,16 @@ export class DatabaseStorage implements IStorage {
           }, {} as Record<string, string>);
       }
 
-      // Format transactions for display
+      // Format transactions for display (handle different column names from different tables)
       const formattedTransactions = transactions.map(t => ({
         transactionId: t.id,
         merchantId: t.merchant_id,
         amount: parseFloat(t.amount.toString()),
         date: new Date(t.date).toISOString(),
-        type: t.type,
-        rawData: t.raw_data,
+        type: t.type || t.description || 'Unknown',
+        rawData: t.raw_data || null,
         sourceFileName: t.source_file_id ? sourceFiles[t.source_file_id] || 'Unknown' : null,
-        sourceRowNumber: t.source_row_number,
+        sourceRowNumber: t.source_row_number || null,
         recordedAt: t.recorded_at ? new Date(t.recorded_at).toISOString() : null
       }));
       
