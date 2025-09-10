@@ -2968,11 +2968,12 @@ export class DatabaseStorage implements IStorage {
       // Calculate daily revenue
       const dailyRevenue = dailyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
+        const transactionType = tx.transaction_type || '';
         // Credit means money into the account (positive)
         // Debit means money out of the account (negative)
-        if (tx.type === "Credit") {
+        if (transactionType === "Credit") {
           return sum + amount;
-        } else if (tx.type === "Debit") {
+        } else if (transactionType === "Debit") {
           return sum - amount;
         }
         // For other types like "Sale", treat as positive revenue
@@ -2988,11 +2989,12 @@ export class DatabaseStorage implements IStorage {
       // Calculate monthly revenue
       const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
+        const transactionType = tx.transaction_type || '';
         // Credit means money into the account (positive)
         // Debit means money out of the account (negative)
-        if (tx.type === "Credit") {
+        if (transactionType === "Credit") {
           return sum + amount;
-        } else if (tx.type === "Debit") {
+        } else if (transactionType === "Debit") {
           return sum - amount;
         }
         // For other types like "Sale", treat as positive revenue
@@ -3006,15 +3008,16 @@ export class DatabaseStorage implements IStorage {
         // Calculate all-time revenue
         const allTimeRevenue = allTransactions.reduce((sum, tx) => {
           const amount = parseFloat(tx.amount.toString());
+          const transactionType = tx.transaction_type || '';
           // Credit means money into the account (positive)
           // Debit means money out of the account (negative)
-          if (tx.type === "Credit") {
+          if (transactionType === "Credit") {
             return sum + amount;
-          } else if (tx.type === "Debit") {
+          } else if (transactionType === "Debit") {
             return sum - amount;
           }
-          // For other types like "Sale", continue using previous logic
-          return sum + (tx.type === "Sale" ? amount : -amount);
+          // For other types, treat as positive revenue
+          return sum + amount;
         }, 0);
         
         // Calculate average daily transactions and revenue
