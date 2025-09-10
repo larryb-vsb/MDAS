@@ -29,12 +29,9 @@ export class TraceNumberMapper {
     // Clean trace number (remove any non-alphanumeric characters and handle scientific notation)
     let cleanTrace = traceNumber.toString();
     
-    // Handle scientific notation (e.g., "7.11E+13" -> "71100000000000")
+    // Handle scientific notation (e.g., "7.11E+13" -> "71100000000000") as pure string operation
     if (cleanTrace.includes('E+') || cleanTrace.includes('e+')) {
-      const num = parseFloat(cleanTrace);
-      if (!isNaN(num)) {
-        cleanTrace = Math.floor(num).toString();
-      }
+      cleanTrace = this.convertScientificNotationToString(cleanTrace);
     }
     
     // Remove any non-alphanumeric characters
@@ -106,6 +103,41 @@ export class TraceNumberMapper {
   }
   
   /**
+   * Convert scientific notation to string without using parseFloat to avoid overflow
+   * e.g., "7.11E+13" -> "71100000000000"
+   */
+  private static convertScientificNotationToString(input: string): string {
+    try {
+      // Handle basic scientific notation pattern
+      const match = input.match(/^(\d+\.?\d*)[eE]\+(\d+)$/);
+      if (match) {
+        const [, coefficient, exponent] = match;
+        const exp = parseInt(exponent, 10);
+        
+        // For simple cases, expand manually
+        if (coefficient.includes('.')) {
+          const [whole, decimal] = coefficient.split('.');
+          const totalDigits = whole.length + decimal.length;
+          if (exp >= totalDigits - whole.length) {
+            // Can safely expand: move decimal point
+            const zerosToAdd = exp - (decimal.length);
+            return whole + decimal + '0'.repeat(Math.max(0, zerosToAdd));
+          }
+        } else {
+          // Whole number with exponent: just add zeros
+          return coefficient + '0'.repeat(exp);
+        }
+      }
+      
+      // Fallback: return cleaned input
+      return input.replace(/[eE]\+\d+/, '');
+    } catch (error) {
+      console.warn(`[TRACE-MAPPER] Failed to convert scientific notation: ${input}, using original`);
+      return input;
+    }
+  }
+  
+  /**
    * Check if a trace number would be a duplicate without incrementing
    */
   static wouldBeDuplicate(traceNumber: string | null): boolean {
@@ -113,10 +145,7 @@ export class TraceNumberMapper {
     
     let cleanTrace = traceNumber.toString();
     if (cleanTrace.includes('E+') || cleanTrace.includes('e+')) {
-      const num = parseFloat(cleanTrace);
-      if (!isNaN(num)) {
-        cleanTrace = Math.floor(num).toString();
-      }
+      cleanTrace = this.convertScientificNotationToString(cleanTrace);
     }
     cleanTrace = cleanTrace.replace(/[^a-zA-Z0-9]/g, '');
     
