@@ -242,8 +242,8 @@ export function normalizeMerchantType(value: any): string | null {
 // Find a merchant ID in a CSV record, trying various possible column names
 export function findMerchantId(record: Record<string, any>, aliases: string[]): string | null {
   for (const alias of aliases) {
-    if (record[alias] && typeof record[alias] === 'string') {
-      return record[alias];
+    if (record[alias] && (typeof record[alias] === 'string' || typeof record[alias] === 'number')) {
+      return record[alias].toString();
     }
   }
   return null;
