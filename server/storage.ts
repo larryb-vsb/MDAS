@@ -607,7 +607,8 @@ export class DatabaseStorage implements IStorage {
     console.log(`[DEBUG storage] Looking up user by username: ${username}`);
     try {
       // PRODUCTION FIX: Use environment-aware table naming
-      const usersTable = process.env.NODE_ENV === 'production' ? 'users' : 'dev_users';
+      const isProduction = process.env.NODE_ENV === 'production';
+      const usersTable = isProduction ? 'users' : 'dev_users';
       console.log(`[DEBUG storage] Using table: ${usersTable} (NODE_ENV: ${process.env.NODE_ENV})`);
       
       let result;
