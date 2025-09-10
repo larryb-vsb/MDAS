@@ -5140,7 +5140,20 @@ export class DatabaseStorage implements IStorage {
                     // @ENVIRONMENT-CRITICAL - Transaction duplicate checking
                     // @DEPLOYMENT-CHECK - Uses environment-aware table naming
                     const transactionsTableName = getTableName('transactions');
-                    const existingTransactionResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [originalId]);
+                    
+                    // Normalize trace number for comparison (remove leading zeros and special chars)
+                    const normalizeTraceNumber = (traceNum: string): string => {
+                      return traceNum.replace(/[^a-zA-Z0-9]/g, '').replace(/^0+/, '') || '0';
+                    };
+                    
+                    const normalizedOriginalId = normalizeTraceNumber(originalId);
+                    
+                    // Check for exact ID match first, then normalized match
+                    let existingTransactionResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [originalId]);
+                    if (existingTransactionResult.rows.length === 0) {
+                      // Try normalized version (remove leading zeros)
+                      existingTransactionResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [normalizedOriginalId]);
+                    }
                     const existingTransaction = existingTransactionResult.rows;
                     
                     if (existingTransaction.length > 0) {
@@ -6096,9 +6109,24 @@ export class DatabaseStorage implements IStorage {
                   console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
                   
                   try {
-                    const existingTransactionResult = await pool.query(`
+                    // Normalize trace number for comparison (remove leading zeros and special chars)
+                    const normalizeTraceNumber = (traceNum: string): string => {
+                      return traceNum.replace(/[^a-zA-Z0-9]/g, '').replace(/^0+/, '') || '0';
+                    };
+                    
+                    const normalizedOriginalId = normalizeTraceNumber(originalId);
+                    
+                    // Check for exact ID match first, then normalized match
+                    let existingTransactionResult = await pool.query(`
                       SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1
                     `, [originalId]);
+                    
+                    if (existingTransactionResult.rows.length === 0) {
+                      // Try normalized version (remove leading zeros)
+                      existingTransactionResult = await pool.query(`
+                        SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1
+                      `, [normalizedOriginalId]);
+                    }
                     
                     if (existingTransactionResult.rows.length > 0) {
                       const existing = existingTransactionResult.rows[0];
