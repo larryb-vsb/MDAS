@@ -2888,8 +2888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Processing metrics endpoint for detailed evidence
   app.get("/api/uploads/processing-metrics", isAuthenticated, async (req, res) => {
     try {
-      const processorStatus = fileProcessorService.isRunning ? 'running' : 'stopped';
-      const currentlyProcessing = fileProcessorService.currentlyProcessingFile || null;
+      const processorStatus = (fileProcessorService as any).isRunning ? 'running' : 'stopped';
+      const currentlyProcessing = (fileProcessorService as any).currentlyProcessingFile || null;
       
       // Get recent processing times from database with evidence
       const { getTableName } = await import("./table-config");
@@ -3058,7 +3058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `);
             
             orphanedCount++;
-            cleanedUpIds.push(file.id);
+            cleanedUpIds.push(file.id as string);
           }
         } catch (checkError) {
           console.error(`Error checking file ${file.id}:`, checkError);
@@ -5160,7 +5160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[TERMINAL-REPROCESS] Error:', error);
       res.status(500).json({ 
         error: 'Failed to re-process terminal CSV', 
-        details: error.message 
+        details: (error as Error).message 
       });
     }
   });
@@ -5326,7 +5326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
         } catch (rowError) {
-          console.error(`❌ [SIMPLE-TERMINAL-IMPORT] Error processing row ${i}:`, rowError.message);
+          console.error(`❌ [SIMPLE-TERMINAL-IMPORT] Error processing row ${i}:`, (rowError as Error).message);
           errors++;
         }
       }
@@ -5351,7 +5351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error) {
       console.error('❌ [SIMPLE-TERMINAL-IMPORT] Error:', error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: (error as Error).message });
     }
   });
 
