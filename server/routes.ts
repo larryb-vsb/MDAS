@@ -23753,6 +23753,119 @@ Status: Ready for production uploads`;
     }
   });
 
+  // Fix production database schema - missing upload_status column (temporarily public for testing)
+  app.get('/api/admin/fix-production-schema', async (req, res) => {
+    try {
+      console.log('[PROD-SCHEMA-FIX] Starting production database schema fix...');
+      
+      // Connect to production database directly
+      const { neon } = await import('@neondatabase/serverless');
+      const prodDatabaseUrl = process.env.NEON_PROD_DATABASE_URL || process.env.DATABASE_URL;
+      
+      if (!prodDatabaseUrl) {
+        return res.status(500).json({ 
+          error: 'Production database URL not found',
+          details: 'NEON_PROD_DATABASE_URL or DATABASE_URL environment variable is required'
+        });
+      }
+      
+      const prodDb = neon(prodDatabaseUrl);
+      console.log('[PROD-SCHEMA-FIX] Connected to production database');
+      
+      // Check if uploader_uploads table exists
+      const tableCheck = await prodDb`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'uploader_uploads'
+      `;
+      
+      if (tableCheck.length === 0) {
+        return res.status(404).json({
+          error: 'Production uploader_uploads table not found',
+          details: 'The uploader_uploads table does not exist in the production database'
+        });
+      }
+      
+      console.log('[PROD-SCHEMA-FIX] uploader_uploads table exists, checking for upload_status column...');
+      
+      // Check if upload_status column exists
+      const columnCheck = await prodDb`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'uploader_uploads' 
+        AND column_name = 'upload_status'
+      `;
+      
+      if (columnCheck.length > 0) {
+        console.log('[PROD-SCHEMA-FIX] upload_status column already exists');
+        return res.json({
+          success: true,
+          message: 'upload_status column already exists in production database',
+          status: 'no_action_needed'
+        });
+      }
+      
+      console.log('[PROD-SCHEMA-FIX] upload_status column missing, adding it now...');
+      
+      // Add the missing upload_status column
+      await prodDb`
+        ALTER TABLE uploader_uploads 
+        ADD COLUMN upload_status TEXT NOT NULL DEFAULT 'started'
+      `;
+      
+      console.log('[PROD-SCHEMA-FIX] Added upload_status column');
+      
+      // Add constraint for valid status values
+      await prodDb`
+        ALTER TABLE uploader_uploads 
+        ADD CONSTRAINT uploader_uploads_upload_status_check 
+        CHECK (upload_status IN ('started', 'uploading', 'uploaded', 'failed'))
+      `;
+      
+      console.log('[PROD-SCHEMA-FIX] Added status validation constraint');
+      
+      // Create index for performance
+      await prodDb`
+        CREATE INDEX IF NOT EXISTS uploader_uploads_upload_status_idx 
+        ON uploader_uploads (upload_status)
+      `;
+      
+      console.log('[PROD-SCHEMA-FIX] Created performance index');
+      
+      // Verify the fix worked
+      const verifyCheck = await prodDb`
+        SELECT column_name, data_type, column_default, is_nullable
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'uploader_uploads' 
+        AND column_name = 'upload_status'
+      `;
+      
+      console.log('[PROD-SCHEMA-FIX] ✅ Schema fix completed successfully');
+      
+      res.json({
+        success: true,
+        message: 'Production database schema fixed - upload_status column added',
+        details: {
+          table: 'uploader_uploads',
+          column_added: 'upload_status',
+          constraints_added: ['NOT NULL DEFAULT started', 'CHECK constraint for valid values'],
+          indexes_added: ['upload_status performance index'],
+          verification: verifyCheck[0] || null
+        },
+        status: 'fixed'
+      });
+      
+    } catch (error: any) {
+      console.error('[PROD-SCHEMA-FIX] ❌ Production schema fix failed:', error);
+      res.status(500).json({
+        error: 'Failed to fix production database schema',
+        details: error.message
+      });
+    }
+  });
+
   // Test production upload functionality (temporary endpoint)
   app.post('/api/admin/force-production-upload-test', upload.single('file'), async (req, res) => {
     try {
