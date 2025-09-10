@@ -57,6 +57,7 @@ import { eq, gt, gte, lt, lte, and, or, count, desc, asc, sql, between, like, il
 import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { TraceNumberMapper } from './services/trace-number-mapper';
 
 
 // Utility function to detect decommission-related terms in terminal names
@@ -4572,8 +4573,7 @@ export class DatabaseStorage implements IStorage {
       normalizeMerchantId 
     } = await import("@shared/field-mappings");
     
-    // Import TraceNumberMapper for unique transaction ID generation
-    const { TraceNumberMapper } = await import("./services/trace-number-mapper");
+    // TraceNumberMapper is imported at the top of the file
     
     // Reset trace number counter for this file processing session
     TraceNumberMapper.resetCounter();
