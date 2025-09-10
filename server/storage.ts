@@ -5157,8 +5157,25 @@ export class DatabaseStorage implements IStorage {
                     const existingTransaction = existingTransactionResult.rows;
                     
                     if (existingTransaction.length > 0) {
-                      const existingDate = new Date(existingTransaction[0].date);
-                      const newDate = new Date(finalTransaction.date);
+                      // Robust date parsing with fallback
+                      const parseDate = (dateValue) => {
+                        if (!dateValue) return null;
+                        try {
+                          const date = new Date(dateValue);
+                          if (isNaN(date.getTime())) return null;
+                          return date;
+                        } catch (e) {
+                          return null;
+                        }
+                      };
+                      
+                      const existingDate = parseDate(existingTransaction[0].date);
+                      const newDate = parseDate(finalTransaction.date);
+                      
+                      if (!existingDate || !newDate) {
+                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existingTransaction[0].date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
+                        throw new Error('Date parsing failed');
+                      }
                       
                       const existingDateStr = existingDate.toISOString().split('T')[0];
                       const newDateStr = newDate.toISOString().split('T')[0];
@@ -6115,8 +6132,26 @@ export class DatabaseStorage implements IStorage {
                     
                     if (existingTransactionResult.rows.length > 0) {
                       const existing = existingTransactionResult.rows[0];
-                      const existingDate = new Date(existing.date);
-                      const newDate = new Date(finalTransaction.date);
+                      
+                      // Robust date parsing with fallback
+                      const parseDate = (dateValue) => {
+                        if (!dateValue) return null;
+                        try {
+                          const date = new Date(dateValue);
+                          if (isNaN(date.getTime())) return null;
+                          return date;
+                        } catch (e) {
+                          return null;
+                        }
+                      };
+                      
+                      const existingDate = parseDate(existing.date);
+                      const newDate = parseDate(finalTransaction.date);
+                      
+                      if (!existingDate || !newDate) {
+                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existing.date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
+                        throw new Error('Date parsing failed');
+                      }
                       
                       // Compare dates (only date part, not time)
                       const existingDateStr = existingDate.toISOString().split('T')[0];
