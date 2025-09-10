@@ -23706,6 +23706,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create production storage folder endpoint
+  app.post('/api/admin/create-production-folder', async (req, res) => {
+    try {
+      console.log('[PROD-FOLDER] Creating production storage folder...');
+      
+      const storage = new Storage();
+      
+      // Create a test file in prod-uploader/ to initialize the folder
+      const testFileName = `prod-uploader/README.txt`;
+      const testContent = `Production Upload Folder
+Created: ${new Date().toISOString()}
+Purpose: This folder stores production environment uploads
+Environment: Production
+Status: Ready for production uploads`;
+
+      console.log('[PROD-FOLDER] Creating test file to initialize folder:', testFileName);
+      
+      await storage.upload(testFileName, Buffer.from(testContent));
+      
+      // Verify folder was created by listing files
+      const prodFiles = await storage.list('prod-uploader/');
+      console.log('[PROD-FOLDER] Production folder files:', prodFiles?.length || 0);
+      
+      // Also check what folders exist
+      const devFiles = await storage.list('dev-uploader/');
+      console.log('[PROD-FOLDER] Development folder files:', devFiles?.length || 0);
+
+      res.json({
+        success: true,
+        message: 'Production storage folder created successfully',
+        results: {
+          created_file: testFileName,
+          production_files: prodFiles?.length || 0,
+          development_files: devFiles?.length || 0,
+          status: 'prod-uploader/ folder is now ready for production uploads'
+        }
+      });
+      
+    } catch (error) {
+      console.error('[PROD-FOLDER] Error creating production folder:', error);
+      res.status(500).json({ 
+        error: 'Failed to create production storage folder', 
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
