@@ -23560,62 +23560,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Emergency fix for specific missing columns
+  // Emergency fix for specific missing columns (both dev AND production tables)
   app.post('/api/admin/emergency-column-fix', async (req, res) => {
     try {
-      console.log('[EMERGENCY-FIX] Adding specific missing columns...');
+      console.log('[EMERGENCY-FIX] Adding specific missing columns to BOTH dev and production tables...');
       
       const results = {
         columnsAdded: [],
         errors: []
       };
       
-      // Add missing columns to dev_uploaded_files
-      const uploadedFilesTable = getTableName('uploaded_files');
-      try {
-        // Add processed column
-        await db.execute(sql`
-          ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
-          ADD COLUMN IF NOT EXISTS processed BOOLEAN DEFAULT FALSE
-        `);
-        results.columnsAdded.push(`${uploadedFilesTable}.processed`);
-        
-        // Add deleted column
-        await db.execute(sql`
-          ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
-          ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE
-        `);
-        results.columnsAdded.push(`${uploadedFilesTable}.deleted`);
-        
-        // Add processing_errors column
-        await db.execute(sql`
-          ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
-          ADD COLUMN IF NOT EXISTS processing_errors TEXT
-        `);
-        results.columnsAdded.push(`${uploadedFilesTable}.processing_errors`);
-        
-        console.log(`[EMERGENCY-FIX] Added missing columns to ${uploadedFilesTable}`);
-      } catch (error) {
-        results.errors.push(`Error fixing ${uploadedFilesTable}: ${error.message}`);
+      // Fix both development and production uploaded_files tables
+      const tables = [
+        { table: getTableName('uploaded_files'), env: 'development' },
+        { table: 'uploaded_files', env: 'production' },
+        { table: 'uploader_uploads', env: 'production' }
+      ];
+      
+      for (const {table, env} of tables) {
+        try {
+          console.log(`[EMERGENCY-FIX] Fixing ${env} table: ${table}`);
+          
+          // Add processed column
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(table)} 
+            ADD COLUMN IF NOT EXISTS processed BOOLEAN DEFAULT FALSE
+          `);
+          results.columnsAdded.push(`${table}.processed`);
+          
+          // Add deleted column
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(table)} 
+            ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE
+          `);
+          results.columnsAdded.push(`${table}.deleted`);
+          
+          // Add processing_errors column
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(table)} 
+            ADD COLUMN IF NOT EXISTS processing_errors TEXT
+          `);
+          results.columnsAdded.push(`${table}.processing_errors`);
+          
+          console.log(`[EMERGENCY-FIX] Added missing columns to ${env} table: ${table}`);
+        } catch (error) {
+          results.errors.push(`Error fixing ${env} ${table}: ${error.message}`);
+        }
       }
       
-      // Add scan_status to dev_duplicate_finder_cache
-      const cacheTable = getTableName('duplicate_finder_cache');
-      try {
-        await db.execute(sql`
-          ALTER TABLE ${sql.identifier(cacheTable)} 
-          ADD COLUMN IF NOT EXISTS scan_status TEXT DEFAULT 'pending'
-        `);
-        results.columnsAdded.push(`${cacheTable}.scan_status`);
-        console.log(`[EMERGENCY-FIX] Added scan_status to ${cacheTable}`);
-      } catch (error) {
-        results.errors.push(`Error fixing ${cacheTable}: ${error.message}`);
+      // Add scan_status to duplicate finder cache tables
+      const cacheTables = [
+        { table: getTableName('duplicate_finder_cache'), env: 'development' },
+        { table: 'duplicate_finder_cache', env: 'production' }
+      ];
+      
+      for (const {table, env} of cacheTables) {
+        try {
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(table)} 
+            ADD COLUMN IF NOT EXISTS scan_status TEXT DEFAULT 'pending'
+          `);
+          results.columnsAdded.push(`${table}.scan_status`);
+          console.log(`[EMERGENCY-FIX] Added scan_status to ${env} table: ${table}`);
+        } catch (error) {
+          results.errors.push(`Error fixing ${env} ${table}: ${error.message}`);
+        }
       }
       
-      console.log('[EMERGENCY-FIX] Emergency column fix completed');
+      console.log('[EMERGENCY-FIX] Emergency column fix completed for both environments');
       res.json({
         success: true,
-        message: 'Emergency column fixes applied',
+        message: 'Emergency column fixes applied to both dev and production tables',
         results: results
       });
       
