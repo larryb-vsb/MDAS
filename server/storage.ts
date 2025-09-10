@@ -5971,8 +5971,8 @@ export class DatabaseStorage implements IStorage {
             let duplicateInfo: { increments: number; wasSkipped: boolean } | undefined;
             
             // @ENVIRONMENT-CRITICAL - Transaction insertion with duplicate handling
-            // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-            const transactionsTableName = getTableName('transactions');
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming for ACH transactions
+            const transactionsTableName = getTableName('api_achtransactions');
             
             while (insertAttempts < 100) { // Prevent infinite loop
               try {
