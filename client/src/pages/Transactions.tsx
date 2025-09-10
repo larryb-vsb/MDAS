@@ -869,7 +869,7 @@ export default function Transactions() {
                           }
                           onCheckedChange={(checked) => {
                             if (checked && data?.transactions) {
-                              setSelectedTransactions(data.transactions.map(t => t.transactionId));
+                              setSelectedTransactions(data.transactions.map(t => t.id));
                             } else {
                               setSelectedTransactions([]);
                             }
@@ -928,24 +928,24 @@ export default function Transactions() {
                   </TableHeader>
                   <TableBody>
                     {data?.transactions.map((transaction) => (
-                      <TableRow key={transaction.transactionId}>
+                      <TableRow key={transaction.id}>
                         <TableCell>
                           <Checkbox
-                            checked={selectedTransactions.includes(transaction.transactionId)}
+                            checked={selectedTransactions.includes(transaction.id)}
                             onCheckedChange={(checked) => {
                               if (checked) {
-                                setSelectedTransactions([...selectedTransactions, transaction.transactionId]);
+                                setSelectedTransactions([...selectedTransactions, transaction.id]);
                               } else {
                                 setSelectedTransactions(
-                                  selectedTransactions.filter(id => id !== transaction.transactionId)
+                                  selectedTransactions.filter(id => id !== transaction.id)
                                 );
                               }
                             }}
-                            aria-label={`Select transaction ${transaction.transactionId}`}
+                            aria-label={`Select transaction ${transaction.id}`}
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {transaction.transactionId}
+                          {transaction.transactionId || `ID: ${transaction.id}`}
                         </TableCell>
                         <TableCell>
                           <Link href={`/merchants/${transaction.merchantId}`} className="text-blue-600 hover:underline">
