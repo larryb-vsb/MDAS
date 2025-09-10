@@ -1985,7 +1985,7 @@ export const tddf1Totals = pgTable(getTableName("tddf1_totals"), {
   total_records: integer("total_records").notNull().default(0),
   total_transaction_value: numeric("total_transaction_value", { precision: 15, scale: 2 }).notNull().default('0'),
   record_type_breakdown: jsonb("record_type_breakdown").notNull().default('{}'),
-  active_tables: text("active_tables").array().notNull().default('{}'),
+  active_tables: text("active_tables").array().notNull().default([]),
   last_processed_date: timestamp("last_processed_date"),
   
   // Enhanced fields for comprehensive tracking
@@ -2533,8 +2533,8 @@ export const tddf1Merchants = pgTable(getTableName("tddf1_merchants"), {
   
   // Volume analytics
   totalTransactions: integer("total_transactions").notNull().default(0),
-  totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).notNull().default(0),
-  totalNetDeposits: numeric("total_net_deposits", { precision: 15, scale: 2 }).notNull().default(0),
+  totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).notNull().default("0"),
+  totalNetDeposits: numeric("total_net_deposits", { precision: 15, scale: 2 }).notNull().default("0"),
   uniqueTerminals: integer("unique_terminals").notNull().default(0),
   
   // Date ranges

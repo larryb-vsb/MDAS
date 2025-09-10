@@ -17959,11 +17959,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (result.rows.length === 0) {
         // Initialize default status
+        const uniqueId = `duplicate_status_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         await pool.query(`
           INSERT INTO ${getTableName('duplicate_finder_cache')} 
-          (cache_key, scan_status, duplicate_count, total_scanned)
-          VALUES ('duplicate_scan_status', 'gray', 0, 0)
-        `);
+          (id, cache_key, scan_status, duplicate_count, total_scanned)
+          VALUES ($1, 'duplicate_scan_status', 'gray', 0, 0)
+        `, [uniqueId]);
         
         return res.json({
           status: 'gray',
