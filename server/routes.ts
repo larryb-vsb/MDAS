@@ -213,6 +213,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
 
+  // DATABASE REPAIR: Copy admin from dev_users to users table for production
+  app.post("/api/system/fix-admin-tables", async (req, res) => {
+    try {
+      const { secret } = req.body;
+      
+      if (secret !== "emergency-admin-init-2025") {
+        return res.status(403).json({ error: "Invalid secret" });
+      }
+      
+      console.log("[DATABASE REPAIR] Starting admin table repair...");
+      
+      // Check if admin exists in both tables
+      const devAdminResult = await db.execute(sql`
+        SELECT * FROM dev_users WHERE username = 'admin' LIMIT 1
+      `);
+      
+      const prodAdminResult = await db.execute(sql`
+        SELECT * FROM users WHERE username = 'admin' LIMIT 1
+      `);
+      
+      console.log(`[DATABASE REPAIR] Dev admin found: ${devAdminResult.rows.length > 0}`);
+      console.log(`[DATABASE REPAIR] Prod admin found: ${prodAdminResult.rows.length > 0}`);
+      
+      if (devAdminResult.rows.length > 0 && prodAdminResult.rows.length === 0) {
+        // Copy admin from dev_users to users
+        const devAdmin = devAdminResult.rows[0];
+        console.log("[DATABASE REPAIR] Copying admin from dev_users to users...");
+        
+        await db.execute(sql`
+          INSERT INTO users (username, password, email, first_name, last_name, role, developer_flag, default_dashboard, theme_preference, created_at, last_login)
+          VALUES (${devAdmin.username}, ${devAdmin.password}, ${devAdmin.email}, ${devAdmin.first_name}, ${devAdmin.last_name}, ${devAdmin.role}, ${devAdmin.developer_flag}, ${devAdmin.default_dashboard}, ${devAdmin.theme_preference}, ${devAdmin.created_at}, ${devAdmin.last_login})
+          ON CONFLICT (username) DO UPDATE SET 
+            password = EXCLUDED.password,
+            role = EXCLUDED.role,
+            developer_flag = EXCLUDED.developer_flag
+        `);
+        
+        console.log("[DATABASE REPAIR] ✅ Admin copied successfully");
+        res.json({ 
+          success: true, 
+          message: "Admin user copied from dev_users to users table",
+          credentials: "admin/admin123"
+        });
+      } else {
+        res.json({ 
+          success: false, 
+          message: "Admin already exists in production table or missing from dev table",
+          devAdmin: devAdminResult.rows.length > 0,
+          prodAdmin: prodAdminResult.rows.length > 0
+        });
+      }
+      
+    } catch (error) {
+      console.error("[DATABASE REPAIR] Error:", error);
+      res.status(500).json({ 
+        error: "Database repair failed", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // EMERGENCY: Admin user initialization endpoint for production database fixes
   app.post("/api/system/init-admin", async (req, res) => {
     try {

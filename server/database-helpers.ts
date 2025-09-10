@@ -158,11 +158,37 @@ export async function fixBackupSchedulesTable() {
  */
 export async function ensureAdminUser() {
   try {
-    console.log('Checking for admin user...');
+    console.log('=== ADMIN USER INITIALIZATION DEBUG ===');
+    
+    // Get environment info
+    const { getEnvironment } = await import('./env-config');
+    const { NODE_ENV, isProd, isDev } = getEnvironment();
+    console.log(`[ADMIN INIT] Environment: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
     
     // Get environment-specific table name
     const usersTableName = getTableName('users');
+    console.log(`[ADMIN INIT] Target users table: ${usersTableName}`);
     
+    // List all existing tables for debugging
+    try {
+      console.log('[ADMIN INIT] Checking all existing tables...');
+      const allTablesResult = await db.execute(sql`
+        SELECT table_name FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name;
+      `);
+      const existingTables = allTablesResult.rows.map(row => row.table_name);
+      console.log(`[ADMIN INIT] Existing tables: ${existingTables.join(', ')}`);
+      
+      // Check for both users and dev_users
+      const hasUsers = existingTables.includes('users');
+      const hasDevUsers = existingTables.includes('dev_users');
+      console.log(`[ADMIN INIT] Has 'users' table: ${hasUsers}`);
+      console.log(`[ADMIN INIT] Has 'dev_users' table: ${hasDevUsers}`);
+    } catch (error) {
+      console.error('[ADMIN INIT] Error listing tables:', error);
+    }
+
     // First check if the users table exists
     try {
       const result = await db.execute(sql`
@@ -172,36 +198,55 @@ export async function ensureAdminUser() {
         );
       `);
       
+      console.log(`[ADMIN INIT] Table ${usersTableName} exists: ${result.rows[0].exists}`);
+      
       if (!result.rows[0].exists) {
-        console.log(`${usersTableName} table does not exist yet, it will be created with migrations`);
+        console.log(`[ADMIN INIT] ${usersTableName} table does not exist yet, it will be created with migrations`);
         return false;
       }
     } catch (error) {
-      console.error(`Error checking if ${usersTableName} table exists:`, error);
+      console.error(`[ADMIN INIT] Error checking if ${usersTableName} table exists:`, error);
       return false;
     }
     
     // Check if the admin user exists
     try {
+      console.log(`[ADMIN INIT] Checking for admin user in table: ${usersTableName}`);
       const adminResult = await db.execute(sql`
         SELECT * FROM ${sql.identifier(usersTableName)} WHERE username = 'admin' LIMIT 1
       `);
       
+      console.log(`[ADMIN INIT] Admin user query returned ${adminResult.rows.length} rows`);
+      
       // Hash the default password (admin123) - this is a known bcrypt hash for 'admin123'
       const passwordHash = '$2b$10$hIJ9hSuT7PJwlSxZu5ibbOGh7v3yMHGBITKrMpkpyaZFdHFvQhfIK';
+      console.log(`[ADMIN INIT] Using password hash: ${passwordHash}`);
       
       if (adminResult.rows.length === 0) {
-        console.log('Admin user does not exist, creating default admin...');
+        console.log('[ADMIN INIT] Admin user does not exist, creating default admin...');
         
-        await db.execute(sql`
-          INSERT INTO ${sql.identifier(usersTableName)} (username, password, email, role, created_at)
-          VALUES ('admin', ${passwordHash}, 'admin@example.com', 'admin', CURRENT_TIMESTAMP)
-        `);
-        
-        console.log('Default admin user created successfully');
-        console.log('You can login with username "admin" and password "admin123"');
+        try {
+          await db.execute(sql`
+            INSERT INTO ${sql.identifier(usersTableName)} (username, password, email, first_name, last_name, role, developer_flag, default_dashboard, theme_preference, created_at, last_login)
+            VALUES ('admin', ${passwordHash}, 'admin@example.com', 'System', 'Administrator', 'admin', true, 'merchants', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `);
+          
+          console.log('[ADMIN INIT] ✅ Default admin user created successfully');
+          console.log('[ADMIN INIT] ✅ You can login with username "admin" and password "admin123"');
+        } catch (insertError) {
+          console.error('[ADMIN INIT] ❌ Error creating admin user:', insertError);
+          
+          // Try with minimal fields if full insert fails
+          console.log('[ADMIN INIT] Trying with minimal fields...');
+          await db.execute(sql`
+            INSERT INTO ${sql.identifier(usersTableName)} (username, password, email, role, created_at)
+            VALUES ('admin', ${passwordHash}, 'admin@example.com', 'admin', CURRENT_TIMESTAMP)
+          `);
+          console.log('[ADMIN INIT] ✅ Admin user created with minimal fields');
+        }
       } else {
-        console.log('Admin user exists, checking if password needs update...');
+        console.log('[ADMIN INIT] Admin user exists, checking if password needs update...');
+        console.log(`[ADMIN INIT] Current admin user data:`, JSON.stringify(adminResult.rows[0], null, 2));
         
         // Only update password if it's still the default or empty
         const currentPassword = adminResult.rows[0].password;
@@ -213,10 +258,10 @@ export async function ensureAdminUser() {
             UPDATE ${sql.identifier(usersTableName)} SET password = ${passwordHash} WHERE username = 'admin'
           `);
           
-          console.log('Admin password updated to default');
-          console.log('You can login with username "admin" and password "admin123"');
+          console.log('[ADMIN INIT] ✅ Admin password updated to default');
+          console.log('[ADMIN INIT] ✅ You can login with username "admin" and password "admin123"');
         } else {
-          console.log('Admin user has custom password - keeping existing password');
+          console.log('[ADMIN INIT] Admin user has custom password - keeping existing password');
         }
       }
       
