@@ -7,48 +7,25 @@ import * as schema from "@shared/schema";
 // Required for Neon serverless driver
 neonConfig.webSocketConstructor = ws;
 
-// KING SERVER FIX: FORCE use of King server (ep-shy-king-aasxdlh7) for ALL processing
-// ABSOLUTE OVERRIDE: Disconnect from ep-young-frog and FORCE King server connection
-const FORCE_KING_SERVER_URL = "postgresql://neondb_owner:npg_Dzy4oGqcr3SH@ep-shy-king-aasxdlh7-pooler.westus3.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
+// Import environment configuration
+import { config, NODE_ENV, getDatabaseUrl } from "./env-config";
 
-// IMMEDIATELY override environment variable
-process.env.DATABASE_URL = FORCE_KING_SERVER_URL;
-
-console.log('🔧 [DATABASE-OVERRIDE] Forcing disconnection from ep-young-frog-a6mno10h');
-console.log('🔧 [DATABASE-OVERRIDE] Forcing connection to King server ep-shy-king-aasxdlh7');
-
-// Check what environment variable is being used
-console.log(`🔍 [ENV-CHECK] DATABASE_URL: ${process.env.DATABASE_URL?.includes('ep-young-frog') ? 'ep-young-frog (WRONG)' : process.env.DATABASE_URL?.includes('ep-shy-king') ? 'ep-shy-king (CORRECT)' : 'unknown'}`);
-console.log(`🔍 [ENV-CHECK] NEON_DEV_DATABASE_URL: ${process.env.NEON_DEV_DATABASE_URL?.includes('ep-shy-king') ? 'ep-shy-king (CORRECT)' : 'unknown'}`);
-
-// FORCE King server - ABSOLUTE OVERRIDE to King server
-const databaseUrl = FORCE_KING_SERVER_URL;
-
-// Override ALL environment variables AGAIN to ensure King server connection
-process.env.DATABASE_URL = FORCE_KING_SERVER_URL;
-process.env.NEON_DATABASE_URL = FORCE_KING_SERVER_URL;
-process.env.NEON_DEV_DATABASE_URL = FORCE_KING_SERVER_URL;
-
-console.log(`🔧 [ABSOLUTE-FORCE] Hardcoded King server URL: ${databaseUrl.substring(0, 50)}...${databaseUrl.includes('ep-shy-king') ? ' (KING SERVER ✅)' : databaseUrl.includes('ep-young-frog') ? ' (FROG SERVER ❌)' : ' (UNKNOWN)'}`);
-
-console.log(`🔧 [FORCED] Using King server URL: ${databaseUrl?.includes('ep-shy-king') ? 'ep-shy-king (SUCCESS)' : 'FAILED'}`);
-
-// Import config after environment override
-import { config, NODE_ENV } from "./env-config";
+// Get environment-appropriate database URL
+const databaseUrl = getDatabaseUrl();
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 
-console.log(`[FORCED FIX] Database URL for ${NODE_ENV}: ${databaseUrl.substring(0, 80)}...`);
+console.log(`[DB] Database URL for ${NODE_ENV}: ${databaseUrl.substring(0, 80)}...`);
 
-// Verify we're connecting to the correct database
-if (databaseUrl.includes('ep-shy-king-aasxdlh7')) {
-  console.log(`✅ [DB-FIX] Connected to NEON DEV database (ep-shy-king-aasxdlh7)`);
-} else if (databaseUrl.includes('ep-young-frog')) {
-  console.log(`❌ [DB-FIX] WARNING: Still connecting to wrong database (ep-young-frog)`);
+// Verify we're connecting to the correct database for the environment
+if (NODE_ENV === 'development' && databaseUrl.includes('ep-shy-king-aasxdlh7')) {
+  console.log(`✅ [DB] Connected to DEVELOPMENT database (ep-shy-king-aasxdlh7)`);
+} else if (NODE_ENV === 'production' && databaseUrl.includes('ep-young-frog')) {
+  console.log(`✅ [DB] Connected to PRODUCTION database (ep-young-frog)`);
 } else {
-  console.log(`⚠️ [DB-FIX] Unknown database connection`);
+  console.log(`⚠️ [DB] Environment mismatch or unknown database connection`);
 }
 
 // Extract database name from URL for logging
@@ -90,7 +67,7 @@ const getPoolConfig = (poolType: 'app' | 'batch' | 'session') => {
   };
   
   return {
-    connectionString: FORCE_KING_SERVER_URL, // FORCE King server connection
+    connectionString: databaseUrl, // Use environment-appropriate database URL
     ...configs[poolType]
   };
 };
