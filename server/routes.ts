@@ -23322,27 +23322,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manual database schema sync endpoint to fix missing columns and production tables
   app.post('/api/admin/sync-database-schema', async (req, res) => {
     try {
-      console.log('[SCHEMA-SYNC] Starting manual database schema sync...');
+      console.log('[SCHEMA-SYNC] Starting comprehensive database schema sync...');
       
       const results = {
         columnsAdded: [],
         tablesCreated: [],
-        errors: []
+        errors: [],
+        columnsFixed: []
       };
       
-      // Fix uploaded_files table missing storage_path column
+      // Fix uploaded_files table schema issues
       const uploadedFilesTable = getTableName('uploaded_files');
       try {
-        // Check if storage_path column exists
-        const columnCheck = await db.execute(sql`
+        // Check what columns exist in the uploaded_files table
+        const existingColumns = await db.execute(sql`
           SELECT column_name 
           FROM information_schema.columns 
-          WHERE table_name = ${uploadedFilesTable} 
-            AND column_name = 'storage_path'
+          WHERE table_name = ${uploadedFilesTable}
         `);
         
-        if (columnCheck.rows.length === 0) {
-          // Add missing storage_path column
+        const columnNames = existingColumns.rows.map(row => row.column_name);
+        console.log(`[SCHEMA-SYNC] Existing columns in ${uploadedFilesTable}:`, columnNames);
+        
+        // Fix uploaded_at vs updated_at column naming issue
+        if (!columnNames.includes('uploaded_at') && columnNames.includes('updated_at')) {
+          // Rename updated_at to uploaded_at to match schema
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
+            RENAME COLUMN updated_at TO uploaded_at
+          `);
+          results.columnsFixed.push(`${uploadedFilesTable}.updated_at → uploaded_at`);
+          console.log(`[SCHEMA-SYNC] Renamed updated_at to uploaded_at in ${uploadedFilesTable}`);
+        } else if (columnNames.includes('uploaded_at')) {
+          console.log(`[SCHEMA-SYNC] uploaded_at column already correct in ${uploadedFilesTable}`);
+        }
+        
+        // Add missing storage_path column if needed
+        if (!columnNames.includes('storage_path')) {
           await db.execute(sql`
             ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
             ADD COLUMN storage_path TEXT
@@ -23352,9 +23368,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           console.log(`[SCHEMA-SYNC] storage_path column already exists in ${uploadedFilesTable}`);
         }
+        
+        // Add other missing columns for file processing
+        const missingColumns = [
+          { name: 'file_content', type: 'TEXT' },
+          { name: 'file_size', type: 'INTEGER' },
+          { name: 'mime_type', type: 'TEXT' },
+          { name: 'processed_at', type: 'TIMESTAMP' },
+          { name: 'processing_status', type: 'TEXT DEFAULT \'queued\'' },
+          { name: 'processing_started_at', type: 'TIMESTAMP' },
+          { name: 'processing_completed_at', type: 'TIMESTAMP' },
+          { name: 'processing_server_id', type: 'TEXT' },
+          { name: 'records_processed', type: 'INTEGER DEFAULT 0' },
+          { name: 'records_skipped', type: 'INTEGER DEFAULT 0' }
+        ];
+        
+        for (const col of missingColumns) {
+          if (!columnNames.includes(col.name)) {
+            await db.execute(sql`
+              ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
+              ADD COLUMN ${sql.identifier(col.name)} ${sql.raw(col.type)}
+            `);
+            results.columnsAdded.push(`${uploadedFilesTable}.${col.name}`);
+            console.log(`[SCHEMA-SYNC] Added ${col.name} column to ${uploadedFilesTable}`);
+          }
+        }
+        
       } catch (error) {
         results.errors.push(`Error fixing ${uploadedFilesTable}: ${error.message}`);
         console.error(`[SCHEMA-SYNC] Error fixing ${uploadedFilesTable}:`, error);
+      }
+      
+      // Fix other missing database elements
+      try {
+        // Create missing duplicate_finder_cache table
+        const duplicateCacheTable = getTableName('duplicate_finder_cache');
+        const cacheTableExists = await db.execute(sql`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_name = ${duplicateCacheTable}
+            AND table_schema = 'public'
+        `);
+        
+        if (cacheTableExists.rows.length === 0) {
+          await db.execute(sql`
+            CREATE TABLE ${sql.identifier(duplicateCacheTable)} (
+              id TEXT PRIMARY KEY,
+              created_at TIMESTAMP DEFAULT NOW(),
+              status TEXT DEFAULT 'active'
+            )
+          `);
+          results.tablesCreated.push(duplicateCacheTable);
+          console.log(`[SCHEMA-SYNC] Created missing table: ${duplicateCacheTable}`);
+        }
+        
+        // Add missing tddf_processing_datetime column to various tables that need it
+        const tddfTables = [
+          getTableName('tddf_jsonb'),
+          getTableName('system_logs'),
+          getTableName('processing_metrics')
+        ];
+        
+        for (const tableName of tddfTables) {
+          // Check if table exists first
+          const tableExists = await db.execute(sql`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_name = ${tableName}
+              AND table_schema = 'public'
+          `);
+          
+          if (tableExists.rows.length > 0) {
+            // Check if column exists
+            const colExists = await db.execute(sql`
+              SELECT column_name 
+              FROM information_schema.columns 
+              WHERE table_name = ${tableName} 
+                AND column_name = 'tddf_processing_datetime'
+            `);
+            
+            if (colExists.rows.length === 0) {
+              await db.execute(sql`
+                ALTER TABLE ${sql.identifier(tableName)} 
+                ADD COLUMN tddf_processing_datetime TIMESTAMP
+              `);
+              results.columnsAdded.push(`${tableName}.tddf_processing_datetime`);
+              console.log(`[SCHEMA-SYNC] Added tddf_processing_datetime to ${tableName}`);
+            }
+          }
+        }
+        
+      } catch (error) {
+        results.errors.push(`Error creating missing tables/columns: ${error.message}`);
+        console.error(`[SCHEMA-SYNC] Error creating missing elements:`, error);
       }
       
       // Create production tables if they don't exist (for when user switches to production)
@@ -23410,10 +23516,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log('[SCHEMA-SYNC] Manual schema sync completed');
+      console.log('[SCHEMA-SYNC] Comprehensive database schema sync completed');
+      console.log('[SCHEMA-SYNC] Summary:', {
+        columnsAdded: results.columnsAdded.length,
+        columnsFixed: results.columnsFixed.length,
+        tablesCreated: results.tablesCreated.length,
+        errors: results.errors.length
+      });
+      
       res.json({
         success: true,
-        message: 'Database schema sync completed',
+        message: 'Comprehensive database schema synchronization completed',
         results: results
       });
       
