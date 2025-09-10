@@ -74,9 +74,9 @@ function getCacheTableName(target: string, source: string, year?: number): strin
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   console.log(`[AUTH-DEBUG] Checking authentication for ${req.method} ${req.path}`);
   
-  // For TDDF API routes, temporarily bypass auth for testing
-  if (req.path.startsWith('/api/tddf-api/') || req.path.includes('/jsonb-data') || req.path.includes('/re-encode') || req.path.includes('/uploader/uploader_') || req.path.includes('/global-merchant-search')) {
-    console.log(`[AUTH-DEBUG] TDDF API route - bypassing auth for testing`);
+  // For TDDF API routes, bypass auth only in development environment
+  if ((req.path.startsWith('/api/tddf-api/') || req.path.includes('/jsonb-data') || req.path.includes('/re-encode') || req.path.includes('/uploader/uploader_') || req.path.includes('/global-merchant-search')) && process.env.NODE_ENV === 'development') {
+    console.log(`[AUTH-DEBUG] TDDF API route - bypassing auth for development testing`);
     // Set a mock user for the request
     (req as any).user = { username: 'test-user' };
     return next();
@@ -7821,8 +7821,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // NEW: Switch-based TDDF processing API (Alternative approach)
   app.post("/api/tddf/process-switch", (req, res, next) => {
-    // Allow internal requests from processing watcher to bypass authentication
-    if (req.headers['x-internal-request'] === 'true') {
+    // Allow internal requests from processing watcher to bypass authentication (development only)
+    if (req.headers['x-internal-request'] === 'true' && process.env.NODE_ENV === 'development') {
       return next();
     }
     return isAuthenticated(req, res, next);
@@ -9016,8 +9016,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Force process all identified transaction CSV files
   app.post('/api/uploader/force-process-transaction-csv', async (req, res) => {
-    // Bypass authentication for processing operations
-    console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for processing');
+    // Bypass authentication for processing operations (development only)
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for development processing');
     try {
       console.log('[FORCE-PROCESS-TXN] Starting force processing of all identified transaction CSV files...');
       
@@ -9313,9 +9316,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint to examine failed CSV files (bypass auth)
+  // Debug endpoint to examine failed CSV files (development only)
   app.get('/api/debug/csv-content/:uploadId', async (req, res) => {
-    console.log('[CSV-DEBUG] Bypassing auth to examine failed CSV file');
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Debug endpoints only available in development' });
+    }
+    console.log('[CSV-DEBUG] Development debug endpoint accessed');
     try {
       const uploadId = req.params.uploadId;
       const uploadsTable = getTableName('uploader_uploads');
@@ -9358,9 +9364,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Force reprocess failed CSV file with enhanced extraction (bypass auth for debugging)
+  // Force reprocess failed CSV file with enhanced extraction (development only)
   app.post('/api/debug/reprocess-csv/:uploadId', async (req, res) => {
-    console.log('[CSV-REPROCESS] Force reprocessing failed CSV with enhanced extraction');
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Debug endpoints only available in development' });
+    }
+    console.log('[CSV-REPROCESS] Development debug reprocessing');
     try {
       const uploadId = req.params.uploadId;
       const uploadsTable = getTableName('uploader_uploads');
@@ -9405,9 +9414,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check ACH transaction data in database (bypass auth for debugging)
+  // Check ACH transaction data in database (development only)
   app.get('/api/debug/ach-data-check', async (req, res) => {
-    console.log('[ACH-DEBUG] Checking ACH transaction data in database');
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Debug endpoints only available in development' });
+    }
+    console.log('[ACH-DEBUG] Development debug ACH data check');
     try {
       const tables = ['transactions', 'api_achtransactions', 'api_merchants'];
       const results = {};
@@ -9454,9 +9466,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create dashboard cache table if missing (bypass auth for debugging)
+  // Create dashboard cache table if missing (development only)
   app.post('/api/debug/create-dashboard-table', async (req, res) => {
-    console.log('[DASHBOARD-DEBUG] Creating missing dashboard cache table');
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Debug endpoints only available in development' });
+    }
+    console.log('[DASHBOARD-DEBUG] Development debug dashboard table creation');
     try {
       const tableName = getTableName('dashboard_cache');
       
@@ -9507,9 +9522,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create API terminals table using existing terminals schema (bypass auth for debugging)
+  // Create API terminals table using existing terminals schema (development only)
   app.post('/api/debug/create-api-terminals-table', async (req, res) => {
-    console.log('[TERMINALS-DEBUG] Creating dev_api_terminals table');
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Debug endpoints only available in development' });
+    }
+    console.log('[TERMINALS-DEBUG] Development debug terminals table creation');
     try {
       const tableName = getTableName('api_terminals');
       
@@ -9614,9 +9632,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quick status check for uploader files (bypass auth for debugging)  
+  // Quick status check for uploader files (development only)  
   app.get('/api/uploader/debug-status', async (req, res) => {
-    console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(401).json({ error: 'Debug endpoints only available in development' });
+    }
+    console.log('[AUTH-DEBUG] Development debug status check');
     try {
       const uploadsTable = getTableName('uploader_uploads');
       const result = await pool.query(`
