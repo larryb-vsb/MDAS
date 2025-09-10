@@ -5159,8 +5159,8 @@ export class DatabaseStorage implements IStorage {
                         
                         console.log(`[DATE MATCH] Same date ${newDateStr}. Existing: $${existingAmount} (${existingType}), New: $${newAmount} (${newType})`);
                         
-                        // If values are different, update the existing transaction
-                        if (existingAmount !== newAmount || existingType !== newType) {
+                        // If values are different (use floating point safe comparison), update the existing transaction
+                        if (Math.abs(existingAmount - newAmount) > 0.01 || existingType !== newType) {
                           console.log(`[UPDATING] Values differ, updating existing transaction ${originalId}`);
                           
                           await db.update(transactionsTable)
@@ -5174,7 +5174,7 @@ export class DatabaseStorage implements IStorage {
                           console.log(`[UPDATED] Transaction ${originalId} updated with new values`);
                           break; // Exit without counting as inserted
                         } else {
-                          console.log(`[SKIPPING] Identical transaction ${originalId} already exists`);
+                          console.log(`[SKIP] Identical transaction ${originalId} (trace number, date, and amount all match) already exists. Skipping duplicate...`);
                           break; // Exit without counting as inserted
                         }
                       } else {
