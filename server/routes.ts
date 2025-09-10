@@ -22,7 +22,7 @@ import logTestRoutes from "./routes/log_test_routes";
 import poolRoutes from "./routes/pool_routes";
 import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
-import { getTableName, getEnvironmentPrefix } from "./table-config";
+import { getTableName, getEnvironmentPrefix, UPLOAD_TABLE_NAMES, getUploadTableName, getUploadStoragePrefix } from "./table-config";
 import { NODE_ENV } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
@@ -1385,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/processing/real-time-stats", async (req, res) => {
     try {
       // Use environment-specific table names
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       const achTransactionsTableName = getTableName('api_achtransactions');
       const tddfRecordsTableName = getTableName('tddf_records');
       const tddfRawImportTableName = getTableName('tddf_raw_import');
@@ -1653,7 +1653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get environment-specific table names for data tables, use shared tables for system tables
       const envMerchants = getTableName('merchants');
       const envAchTransactions = getTableName('api_achtransactions');
-      const envUploadedFiles = getTableName('uploaded_files');
+      const envUploadedFiles = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // System tables are shared across environments (no prefixes)
       const systemBackupHistory = 'backup_history';
@@ -2371,7 +2371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { getTableName } = await import("./table-config");
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       const currentEnvironment = process.env.NODE_ENV || 'production';
       const placeholderEntries = [];
 
@@ -2487,7 +2487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const uploads = [];
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       const currentEnvironment = process.env.NODE_ENV || 'production';
 
       for (const file of req.files as Express.Multer.File[]) {
@@ -2773,7 +2773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Storing file content for ${fileId}: ${fileContent.length} characters, ${fileContentBase64.length} base64 chars`);
       
       // Use environment-specific table for file uploads
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       const currentEnvironment = process.env.NODE_ENV || 'production';
       console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}, environment: ${currentEnvironment}`);
       
@@ -3001,7 +3001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Processing ${fileIds.length} files with IDs:`, fileIds);
 
       // Mark these files as "pending processing" in the database using environment-specific table
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       for (const fileId of fileIds) {
         try {
@@ -3043,7 +3043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = (pageNum - 1) * limitNum;
       
       // Use environment-specific table for uploads
-      const tableName = getTableName('uploaded_files');
+      const tableName = UPLOAD_TABLE_NAMES.uploaded_files();
       console.log(`[UPLOADS API] Using table: ${tableName} for environment: ${process.env.NODE_ENV}`);
       
       // PERFORMANCE FIX: Exclude file_content field which can be massive (hundreds of KB)
@@ -3168,7 +3168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Build query based on status filter to get relevant files
       const { getTableName } = await import("./table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       let baseQuery = sql`
         SELECT 
@@ -3333,7 +3333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get recent processing times from database with evidence
       const { getTableName } = await import("./table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       const recentCompletedFiles = await db.execute(sql`
         SELECT id, original_filename, file_type, processed_at, 
@@ -3471,7 +3471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all non-deleted uploaded files using environment-specific table
       const { getTableName } = await import("./table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       const result = await db.execute(sql`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
@@ -3529,7 +3529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get file info including content from database using environment-specific table
       const { getTableName } = await import("./table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       const result = await pool.query(`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
@@ -3580,7 +3580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get file info including content and processing status from database using environment-specific table
       const { getTableName } = await import("./table-config");
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       const result = await pool.query(`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content, processing_status, raw_lines_count
@@ -3705,7 +3705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // @ENVIRONMENT-CRITICAL - File reprocess query with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Get file info using environment-aware table name
       const result = await pool.query(`
@@ -3773,7 +3773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/uploads/:id", async (req, res) => {
     try {
       const fileId = req.params.id;
-      const tableName = getTableName('uploaded_files');
+      const tableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Check if file exists and is not already deleted
       const result = await pool.query(`
@@ -4723,7 +4723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // @ENVIRONMENT-CRITICAL - Upload log verification with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Verify the upload log was actually inserted using environment-aware table name
       const verifyResult = await pool.query(`
@@ -4930,7 +4930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/uploads/fix-placeholder-errors", async (req, res) => {
     try {
       const { getTableName } = await import('./table-config');
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Find files with placeholder upload errors
       const placeholderFiles = await db.execute(sql`
@@ -4984,7 +4984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/uploads/fix-stuck-uploads", async (req, res) => {
     try {
       const { getTableName } = await import('./table-config');
-      const uploadsTableName = getTableName('uploaded_files');
+      const uploadsTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Find files stuck in uploading status for more than 1 minute
       const stuckFiles = await db.execute(sql`
@@ -5804,7 +5804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/subterminals/raw-data", isAuthenticated, async (req, res) => {
     try {
       // Find the uploaded "Terminals Unused in Last 6 months.xlsx" file
-      const uploaderUploadsTableName = getTableName('uploader_uploads');
+      const uploaderUploadsTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const result = await pool.query(`
         SELECT id, filename, file_size, created_at 
         FROM ${uploaderUploadsTableName} 
@@ -6483,7 +6483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Store in database
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       const currentEnvironment = process.env.NODE_ENV || 'development';
       const fileId = `chunked_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -6548,7 +6548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique file ID for this batch
       const fileId = `json_stream_${streamId}_batch_${batchId}_${Date.now()}`;
       const currentEnvironment = process.env.NODE_ENV || 'production';
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Create file record for tracking
       await pool.query(`
@@ -6785,7 +6785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileContentBase64 = Buffer.from(fileContent).toString('base64');
       
       // Store in database with environment-specific table
-      const uploadedFilesTableName = getTableName('uploaded_files');
+      const uploadedFilesTableName = UPLOAD_TABLE_NAMES.uploaded_files();
       const currentEnvironment = process.env.NODE_ENV || 'development';
       
       console.log(`[TDDF API UPLOAD] Storing in table: ${uploadedFilesTableName}, environment: ${currentEnvironment}`);
@@ -9023,7 +9023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all identified transaction CSV files directly from database
       const { getTableName } = await import("./table-config");
-      const uploadsTable = getTableName('uploader_uploads');
+      const uploadsTable = UPLOAD_TABLE_NAMES.uploader_uploads();
       const identifiedFiles = await pool.query(`
         SELECT * FROM ${uploadsTable}
         WHERE current_phase = $1 AND detected_file_type = $2
@@ -9222,7 +9222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[CSV-DEBUG] Bypassing auth to examine failed CSV file');
     try {
       const uploadId = req.params.uploadId;
-      const uploadsTable = getTableName('uploader_uploads');
+      const uploadsTable = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       // Get upload info
       const uploadResult = await pool.query(`SELECT * FROM ${uploadsTable} WHERE id = $1`, [uploadId]);
@@ -9267,7 +9267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[CSV-REPROCESS] Force reprocessing failed CSV with enhanced extraction');
     try {
       const uploadId = req.params.uploadId;
-      const uploadsTable = getTableName('uploader_uploads');
+      const uploadsTable = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       // Get upload info
       const uploadResult = await pool.query(`SELECT * FROM ${uploadsTable} WHERE id = $1`, [uploadId]);
@@ -9522,7 +9522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/uploader/debug-status', async (req, res) => {
     console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
     try {
-      const uploadsTable = getTableName('uploader_uploads');
+      const uploadsTable = UPLOAD_TABLE_NAMES.uploader_uploads();
       const result = await pool.query(`
         SELECT 
           current_phase,
@@ -9575,7 +9575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[ORPHAN-SCAN] Found ${storageFiles.length} files in ${actualPrefix}/ storage location`);
       
       // Get all upload records from database  
-      const uploaderUploadsTableName = getTableName('uploader_uploads');
+      const uploaderUploadsTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const databaseRecordsResult = await db.execute(sql`
         SELECT id, filename, s3_key
         FROM ${sql.identifier(uploaderUploadsTableName)}
@@ -9703,7 +9703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[ORPHAN-DETECTION] Found ${allStorageFiles.length} files in object storage`);
       
       // Get all registered filenames from database
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const registeredResult = await pool.query(`
         SELECT DISTINCT filename, storage_path 
         FROM ${uploaderTableName}
@@ -9918,7 +9918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const filename = fileKey.split('/').pop() || fileKey;
           
           // Check if file already exists in upload system
-          const uploaderTableName = getTableName('uploader_uploads');
+          const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
           const existingResult = await pool.query(`
             SELECT id FROM ${uploaderTableName} 
             WHERE filename = $1 
@@ -10093,7 +10093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[ORPHAN-IDENTIFY] Identifying orphan file: ${storageKey}`);
       
       // Check if file already exists in upload system
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const existingResult = await pool.query(`
         SELECT id FROM ${uploaderTableName} 
         WHERE filename = $1 OR storage_path = $2
@@ -10177,7 +10177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Uploader dashboard statistics with cache building functionality
   app.get("/api/uploader/dashboard-stats", isAuthenticated, async (req, res) => {
     try {
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       console.log('[V2-DASHBOARD] Building uploader dashboard statistics cache...');
       
@@ -10273,7 +10273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get processing status for real-time monitor
   app.get("/api/uploader/processing-status", isAuthenticated, async (req, res) => {
     try {
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const tddfJsonbTableName = getTableName('uploader_tddf_jsonb_records');
       
       // Get processing statistics
@@ -10315,7 +10315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get last new data date from uploader uploads
   app.get("/api/uploader/last-new-data-date", isAuthenticated, async (req, res) => {
     try {
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       // Get last new data date and count (most recent upload that completed)
       const lastDataResult = await pool.query(`
@@ -10748,7 +10748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[CROSS-ENV-ENCODE] Starting cross-environment encoding for ${uploadIds.length} files to ${targetEnvironment}`);
       
-      const devUploaderTableName = getTableName('uploader_uploads');
+      const devUploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const results = [];
       let successCount = 0;
       let errorCount = 0;
@@ -11504,7 +11504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recordsPerSecond = totalRecords > 0 ? 400 : 0; // ~400 records/second typical
       
       // Get data volume metrics from uploader table
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       const volumeResult = await pool.query(`
         SELECT 
           SUM(file_size) as total_file_size,
@@ -11544,7 +11544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Performance metrics for V2 dashboard with cache building
   app.get("/api/uploader/performance-metrics", isAuthenticated, async (req, res) => {
     try {
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       console.log('[V2-DASHBOARD] Building performance metrics cache...');
       
@@ -11869,7 +11869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[UPLOADER-DEBUG] Parsed parameters:', { phase, sessionId, limit, offset, environment });
       
       // Support cross-environment viewing: use specific table if environment is specified
-      let tableName = getTableName('uploader_uploads'); // Default to current environment
+      let tableName = UPLOAD_TABLE_NAMES.uploader_uploads(); // Default to current environment
       if (environment === 'production') {
         tableName = 'uploader_uploads'; // Production table
       } else if (environment === 'development') {
@@ -12135,7 +12135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           -- Get upload filename for source tracking (gracefully handle missing uploads)
           COALESCE(uu.filename, CONCAT('Upload-', tjr.upload_id)) as filename
         FROM ${tableName} tjr
-        LEFT JOIN ${getTableName('uploader_uploads')} uu ON uu.id = tjr.upload_id
+        LEFT JOIN ${UPLOAD_TABLE_NAMES.uploader_uploads()} uu ON uu.id = tjr.upload_id
         WHERE (
           tjr.merchant_account_number ILIKE $1
           OR tjr.record_data->>'merchantAccountNumber' ILIKE $1
@@ -13352,7 +13352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[TDDF-STORAGE-REPORT] Starting object storage row count report...');
       
       const startTime = Date.now();
-      const tableName = getTableName('uploaded_files');
+      const tableName = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Get all TDDF files from database
       const filesResult = await pool.query(`
@@ -14925,7 +14925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get timing metadata from uploader uploads table
       let timingMetadata = null;
       try {
-        const uploaderTableName = getTableName('uploader_uploads');
+        const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
         const timingQuery = `
           SELECT processing_notes, created_at, updated_at
           FROM ${uploaderTableName}
@@ -16552,7 +16552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Last New Data Date API - get most recent upload date
   app.get("/api/uploader/last-new-data-date", isAuthenticated, async (req, res) => {
     try {
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       // Get last new data date (most recent upload that completed)
       const lastDataResult = await pool.query(`
@@ -16586,7 +16586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Build Uploader Page Pre-Cache
       try {
-        const uploaderTableName = getTableName('uploader_uploads');
+        const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
         const uploaderPagePreCacheTable = getTableName('uploader_page_pre_cache_2025');
         
         // Get uploader metrics from main table
@@ -16686,7 +16686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/uploader/dashboard-metrics", isAuthenticated, async (req, res) => {
     try {
       const startTime = Date.now();
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       // Try to get cached metrics from uploader dashboard cache first
       const cacheResult = await pool.query(`
@@ -17046,7 +17046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[STORAGE-STEP-4] Starting identification for object ${objectId}...`);
       
       const masterKeysTable = getTableName('master_object_keys');
-      const uploadedFilesTable = getTableName('uploaded_files');
+      const uploadedFilesTable = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Get storage object details
       const objectResult = await pool.query(`
@@ -17246,7 +17246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[STORAGE-FULL-PROCESS] Starting full processing for object ${objectId}...`);
       
       const masterKeysTable = getTableName('master_object_keys');
-      const uploadedFilesTable = getTableName('uploaded_files');
+      const uploadedFilesTable = UPLOAD_TABLE_NAMES.uploaded_files();
       
       // Get storage object details
       const objectResult = await pool.query(`
@@ -19412,7 +19412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[TDDF1-PROGRESS] Getting encoding progress for upload: ${uploadId}`);
       
       // Get upload info from uploader table
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       const uploadResult = await pool.query(`
         SELECT filename, current_phase, file_size, final_file_type
@@ -19608,7 +19608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check for currently encoding files (real-time progress)
         const encodingFiles = await pool.query(`
           SELECT id, filename, current_phase 
-          FROM ${getTableName('uploader_uploads')} 
+          FROM ${UPLOAD_TABLE_NAMES.uploader_uploads()} 
           WHERE current_phase = 'encoding' 
             AND final_file_type = 'tddf'
         `);
@@ -21887,7 +21887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TDDF1 Pipeline Status - Get uploader metrics for TDDF1 Dashboard
   app.get("/api/tddf1/pipeline-status", isAuthenticated, async (req, res) => {
     try {
-      const uploaderTableName = getTableName('uploader_uploads');
+      const uploaderTableName = UPLOAD_TABLE_NAMES.uploader_uploads();
       
       // Get counts by phase for TDDF files only
       const pipelineStatsResult = await pool.query(`
@@ -23338,7 +23338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Fix uploaded_files table schema issues
-      const uploadedFilesTable = getTableName('uploaded_files');
+      const uploadedFilesTable = UPLOAD_TABLE_NAMES.uploaded_files();
       try {
         // Check what columns exist in the uploaded_files table
         const existingColumns = await db.execute(sql`
@@ -23578,7 +23578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fix both development and production uploaded_files tables
       const tables = [
-        { table: getTableName('uploaded_files'), env: 'development' },
+        { table: UPLOAD_TABLE_NAMES.uploaded_files(), env: 'development' },
         { table: 'uploaded_files', env: 'production' },
         { table: 'uploader_uploads', env: 'production' }
       ];
