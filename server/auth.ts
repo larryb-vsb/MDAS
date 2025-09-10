@@ -110,6 +110,7 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    proxy: true, // Trust proxy for secure cookies
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
@@ -117,7 +118,7 @@ export function setupAuth(app: Express) {
     }
   };
 
-  app.set("trust proxy", 1);
+  app.set("trust proxy", true); // Trust all proxies for Replit deployments
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
