@@ -939,7 +939,6 @@ export default function MerchantDetail() {
                             aria-label="Select all transactions"
                           />
                         </TableHead>
-                        <TableHead>Transaction ID</TableHead>
                         <TableHead>Trace Number</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
@@ -968,8 +967,7 @@ export default function MerchantDetail() {
                                     aria-label={`Select transaction ${transaction.transactionId}`}
                                   />
                                 </TableCell>
-                                <TableCell className="font-medium">{transaction.transactionId}</TableCell>
-                                <TableCell className="font-mono text-sm">{(transaction as any).traceNumber || transaction.transactionId}</TableCell>
+                                <TableCell className="font-mono text-sm font-medium">{(transaction as any).traceNumber || transaction.transactionId}</TableCell>
                                 <TableCell>{formatDate(transaction.date)}</TableCell>
                                 <TableCell>
                                   <span 
@@ -1004,7 +1002,7 @@ export default function MerchantDetail() {
                           } else {
                             return (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                                <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                                   No transactions found for the selected time period.
                                   <div className="mt-2">
                                     <span className="text-sm text-muted-foreground">
@@ -1018,7 +1016,7 @@ export default function MerchantDetail() {
                         } else {
                           return (
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                              <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                                 No transactions found for this merchant.
                               </TableCell>
                             </TableRow>
