@@ -1,5 +1,5 @@
 // Table configuration for environment separation
-import { getEnvironment, getUploadEnvironment } from './env-config';
+import { getEnvironment } from './env-config';
 
 const { NODE_ENV } = getEnvironment();
 
@@ -30,25 +30,6 @@ export const TABLE_NAMES = {
   backup_schedules: getTableName('backup_schedules'),
   session: getTableName('session')
 };
-
-// Upload-specific table configuration (respects production override)
-export function getUploadTableName(baseName: string): string {
-  const uploadEnv = getUploadEnvironment();
-  const uploadPrefix = uploadEnv.isProd ? '' : 'dev_';
-  return `${uploadPrefix}${baseName}`;
-}
-
-// Upload-specific table names
-export const UPLOAD_TABLE_NAMES = {
-  uploader_uploads: () => getUploadTableName('uploader_uploads'),
-  uploaded_files: () => getUploadTableName('uploaded_files')
-};
-
-// Storage prefix for uploads (respects production override)
-export function getUploadStoragePrefix(): string {
-  const uploadEnv = getUploadEnvironment();
-  return uploadEnv.isProd ? 'prod-uploader' : 'dev-uploader';
-}
 
 console.log(`[TABLE CONFIG] ${NODE_ENV} mode - Table prefix: "${TABLE_PREFIX}"`);
 console.log(`[TABLE CONFIG] Merchants table: ${TABLE_NAMES.merchants}`);
