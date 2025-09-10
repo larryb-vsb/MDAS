@@ -5987,6 +5987,7 @@ export class DatabaseStorage implements IStorage {
                   'transactionType': 'code',
                   'originalMerchantName': 'company',  // Map originalMerchantName to company column
                   'sourceFileId': 'file_source',  // Map sourceFileId to file_source column
+                  'recordedAt': 'created_at',  // Map recordedAt to created_at column
                   'traceNumber': 'trace_number',
                   'fileSource': 'file_source',
                   'createdAt': 'created_at',
