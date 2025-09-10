@@ -63,9 +63,9 @@ console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev:
 // Use same database with dev_ table prefixes for complete separation
 console.log(`[DB CONFIG] ${NODE_ENV} mode: Using table-level separation`);
 if (NODE_ENV === 'development') {
-  console.log(`[DB CONFIG] Development tables: dev_merchants, dev_transactions, etc.`);
+  console.log(`[DB CONFIG] Development tables: dev_merchants, dev_api_achtransactions, dev_uploaded_files, etc.`);
 } else {
-  console.log(`[DB CONFIG] Production tables: merchants, transactions, etc.`);
+  console.log(`[DB CONFIG] Production tables: merchants, api_achtransactions, uploaded_files, etc.`);
 }
 
 // Base paths for file storage
