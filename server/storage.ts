@@ -5800,7 +5800,8 @@ export class DatabaseStorage implements IStorage {
               const merchantNameFromTransaction = merchantNameMapping.get(transaction.merchantId);
               
               // Try to find a merchant with a similar ID pattern
-              const similarMerchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id LIKE $1 LIMIT 5`, [`${transaction.merchantId.substring(0, 2)}%`]);
+              const merchantIdStr = String(transaction.merchantId);
+              const similarMerchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id::text LIKE $1 LIMIT 5`, [`${merchantIdStr.substring(0, 2)}%`]);
               const similarMerchants = similarMerchantsResult.rows;
               
               if (merchantNameFromTransaction) {
