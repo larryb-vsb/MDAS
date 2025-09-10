@@ -1491,14 +1491,11 @@ export class DatabaseStorage implements IStorage {
       
       // updatedBy field requires explicit string conversion due to database encoding
       
-      // Get merchant transactions using environment-specific table
-      const transactionsTableName = getTableName('transactions');
-      
       // Get merchant transactions using raw SQL to avoid Drizzle issues
-      // Check both dev_transactions (legacy) and dev_api_achtransactions (new VSB API) tables
+      // Use the correct API ACH transactions table
       let transactionsQuery;
       try {
-        // Try dev_api_achtransactions first (VSB API table)
+        // Use api_achtransactions table (VSB API)
         const apiTransactionsTableName = getTableName('api_achtransactions');
         transactionsQuery = await db.execute(sql`
           SELECT id, merchant_id, amount, transaction_date as date, description as type, created_at as recorded_at
@@ -1508,19 +1505,8 @@ export class DatabaseStorage implements IStorage {
           LIMIT 100
         `);
       } catch (error) {
-        // Fallback to legacy transactions table if it exists
-        try {
-          transactionsQuery = await db.execute(sql`
-            SELECT id, merchant_id, amount, date, type, created_at as recorded_at
-            FROM ${sql.identifier(transactionsTableName)}
-            WHERE merchant_id = ${merchantId} 
-            ORDER BY date DESC 
-            LIMIT 100
-          `);
-        } catch (fallbackError) {
-          console.log(`No transactions found for merchant ${merchantId} in either table`);
-          transactionsQuery = { rows: [] };
-        }
+        console.log(`No transactions found for merchant ${merchantId} in API transactions table`);
+        transactionsQuery = { rows: [] };
       }
       
       const transactions = transactionsQuery.rows;
