@@ -389,9 +389,13 @@ export default function Transactions() {
       });
       setSelectedTransactions([]);
       setShowDeleteDialog(false);
-      // Force invalidate and refetch the transactions cache
+      // Force invalidate ALL transaction queries and refetch
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-      refetch(); // Refetch the transactions list
+      queryClient.removeQueries({ queryKey: ['/api/transactions'] });
+      // Force refetch with a small delay to ensure cache is cleared
+      setTimeout(() => {
+        refetch();
+      }, 100);
     },
     onError: (error: Error) => {
       toast({
