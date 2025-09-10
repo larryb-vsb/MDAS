@@ -6529,19 +6529,22 @@ export class DatabaseStorage implements IStorage {
       
       const result = await pool.query(`
         INSERT INTO ${tableName} (
-          event_type, user_id, username, timestamp, ip_address, user_agent, details, severity, message
+          event_type, result, user_id, username, timestamp, ip_address, user_agent, details, severity, message, source, session_id
         ) VALUES (
-          $1, $2, $3, NOW(), $4, $5, $6, $7, $8
+          $1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10, $11
         ) RETURNING *
       `, [
         securityLogData.eventType,
+        securityLogData.result,
         securityLogData.userId,
         securityLogData.username,
         securityLogData.ipAddress,
         securityLogData.userAgent,
         JSON.stringify(securityLogData.details || {}),
         severity,
-        message
+        message,
+        'authentication',
+        securityLogData.details?.sessionId || null
       ]);
       
       const securityLog = result.rows[0];
