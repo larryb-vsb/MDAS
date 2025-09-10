@@ -23602,6 +23602,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `);
           results.columnsAdded.push(`${table}.processing_errors`);
           
+          // Add uploaded_at column (CRITICAL for production uploads)
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(table)} 
+            ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP
+          `);
+          results.columnsAdded.push(`${table}.uploaded_at`);
+          
           console.log(`[EMERGENCY-FIX] Added missing columns to ${env} table: ${table}`);
         } catch (error) {
           results.errors.push(`Error fixing ${env} ${table}: ${error.message}`);
@@ -23638,6 +23645,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[EMERGENCY-FIX] Fatal error during emergency fix:', error);
       res.status(500).json({ 
         error: 'Emergency fix failed', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Production upload test endpoint (force production tables)
+  app.post('/api/admin/test-production-upload', async (req, res) => {
+    try {
+      console.log('[PROD-TEST] Testing production upload functionality...');
+      
+      // Force query production tables (no dev_ prefix)
+      const prodUploaderCount = await db.execute(sql`SELECT COUNT(*) as count FROM uploader_uploads`);
+      const prodUploadedCount = await db.execute(sql`SELECT COUNT(*) as count FROM uploaded_files`);
+      
+      // Check for recent production uploads
+      const recentProdUploads = await db.execute(sql`
+        SELECT id, filename, upload_status, created_at 
+        FROM uploader_uploads 
+        ORDER BY created_at DESC 
+        LIMIT 5
+      `);
+      
+      const recentProdFiles = await db.execute(sql`
+        SELECT id, original_filename, status, uploaded_at 
+        FROM uploaded_files 
+        ORDER BY uploaded_at DESC 
+        LIMIT 5
+      `);
+      
+      console.log('[PROD-TEST] Production table counts:', {
+        uploader_uploads: prodUploaderCount.rows[0]?.count,
+        uploaded_files: prodUploadedCount.rows[0]?.count
+      });
+      
+      res.json({
+        success: true,
+        message: 'Production upload test completed',
+        results: {
+          production_tables: {
+            uploader_uploads: {
+              count: prodUploaderCount.rows[0]?.count || 0,
+              recent: recentProdUploads.rows
+            },
+            uploaded_files: {
+              count: prodUploadedCount.rows[0]?.count || 0,
+              recent: recentProdFiles.rows
+            }
+          },
+          development_mode_warning: 'System running in development mode - production uploads would go to dev_ tables'
+        }
+      });
+      
+    } catch (error) {
+      console.error('[PROD-TEST] Error testing production upload:', error);
+      res.status(500).json({ 
+        error: 'Production upload test failed', 
         details: error.message 
       });
     }
