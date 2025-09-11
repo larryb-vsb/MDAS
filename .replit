@@ -18,6 +18,10 @@ NODE_ENV = "production"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 41925
+externalPort = 3000
+
 [workflows]
 runButton = "Start application"
 
