@@ -1418,7 +1418,7 @@ export default function MMSUploader() {
                 {/* File Type Selection - Light Bulb Buttons */}
                 <div className="space-y-3">
                   <label className="text-sm font-medium">Quick Select:</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                     {FILE_TYPES.map((type) => (
                       <button
                         key={type.value}
