@@ -125,13 +125,19 @@ async function migrateTddfData() {
       console.log(`\n📁 Migrating ${upload_id}: ${record_count} records...`);
       
       try {
-        // Copy all records for this upload_id
+        // Copy all records for this upload_id (excluding columns not in production)
         const result = await pool.query(`
           INSERT INTO uploader_tddf_jsonb_records (
-            upload_id, record_type, record_data, processing_status, created_at, processed_at
+            upload_id, record_type, record_data, processing_status, created_at,
+            field_count, line_number, raw_line, record_identifier,
+            file_processing_date, file_processing_time, file_sequence_number,
+            file_system_id, mainframe_process_data, merchant_account_number, original_filename
           )
           SELECT 
-            upload_id, record_type, record_data, processing_status, created_at, processed_at
+            upload_id, record_type, record_data, processing_status, created_at,
+            field_count, line_number, raw_line, record_identifier,
+            file_processing_date, file_processing_time, file_sequence_number,
+            file_system_id, mainframe_process_data, merchant_account_number, original_filename
           FROM dev_uploader_tddf_jsonb_records 
           WHERE upload_id = $1
         `, [upload_id]);
