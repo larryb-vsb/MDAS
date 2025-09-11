@@ -262,7 +262,7 @@ class FileProcessorService {
         `);
         console.log(`[FILE PROCESSOR] Total records in ${uploadsTableName}: ${tableCheck.rows[0]?.count || 0}`);
       } catch (error) {
-        console.log(`[FILE PROCESSOR] Error checking table ${uploadsTableName}:`, error.message);
+        console.log(`[FILE PROCESSOR] Error checking table ${uploadsTableName}:`, error instanceof Error ? error.message : String(error));
       }
       
       // Database-level concurrency control: only fetch files that are NOT currently being processed
@@ -404,7 +404,7 @@ class FileProcessorService {
           this.currentlyProcessingFile = null;
           
         } catch (error) {
-          console.error(`❌ [${serverId}] FAILED: ${file.originalFilename} - ${error.message}`);
+          console.error(`❌ [${serverId}] FAILED: ${file.originalFilename} - ${error instanceof Error ? error.message : String(error)}`);
           if (error instanceof Error) {
             this.processingErrors[file.id] = error.message;
           }
@@ -416,7 +416,7 @@ class FileProcessorService {
       }
       
     } catch (error) {
-      console.error(`[${serverId}] Error in file processor:`, error);
+      console.error(`[${serverId}] Error in file processor:`, error instanceof Error ? error.message : String(error));
     } finally {
       this.queuedFiles = [];
       this.isRunning = false;
@@ -439,7 +439,7 @@ class FileProcessorService {
         WHERE processing_status = 'processing'
       `);
       
-      const processingCount = parseInt(result.rows[0]?.processing_count || '0');
+      const processingCount = parseInt(String(result.rows[0]?.processing_count || '0'));
       return processingCount > 0;
     } catch (error) {
       console.error('Error checking global processing status:', error);
@@ -468,7 +468,7 @@ class FileProcessorService {
           processing_at = ${currentTime.toISOString()},
           processing_server_id = ${serverId}
         WHERE id = ${fileId}
-          AND current_phase IN ('uploaded', 'identified', 'encoded')
+          AND current_phase IN ('uploaded', 'identified')
           AND (processing_server_id IS NULL OR processing_server_id = '')
         RETURNING id
       `);
