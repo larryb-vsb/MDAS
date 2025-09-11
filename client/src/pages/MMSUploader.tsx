@@ -158,8 +158,6 @@ export default function MMSUploader() {
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   
-  // Review mode state
-  const [keep, setKeep] = useState<boolean>(false);
   
   // Auto 4-5 processing toggle state
   const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
@@ -454,7 +452,7 @@ export default function MMSUploader() {
           sessionId,
           finalFileType: selectedFileType,
           userClassifiedType: selectedFileType,
-          keep: keep
+          keep: false
         }
       });
       return response;
@@ -1132,21 +1130,15 @@ export default function MMSUploader() {
             credentials: 'include',
             body: JSON.stringify({
               sessionId: sessionId,
-              processingNotes: keep 
-                ? `Upload to storage completed - HELD FOR REVIEW - Session: ${sessionId}`
-                : `Upload to storage completed - Session: ${sessionId}`,
+              processingNotes: `Upload to storage completed - Session: ${sessionId}`,
               uploadedAt: new Date().toISOString(),
-              keep: keep
+              keep: false
             })
           });
           
           // Phase 3 Final: Files stay at 'uploaded' status - no auto-progression to 'completed'
           console.log(`[SESSION-PHASE-3] Session upload completed with 'uploaded' status: ${uploadResponse.id}`);
-          if (keep) {
-            console.log(`[SESSION-REVIEW] Upload held at 'uploaded' phase for review: ${uploadResponse.id}`);
-          } else {
-            console.log(`[SESSION-CONTROL] Upload completed and ready at 'uploaded' phase: ${uploadResponse.id}`);
-          }
+          console.log(`[SESSION-UPLOAD] Upload ready for auto 4-5 processing: ${uploadResponse.id}`);
         }
       } catch (error) {
         console.error(`[SESSION-ERROR] Session upload error for ${file.name}:`, error);
@@ -1426,7 +1418,7 @@ export default function MMSUploader() {
                 {/* File Type Selection - Light Bulb Buttons */}
                 <div className="space-y-3">
                   <label className="text-sm font-medium">Quick Select:</label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                     {FILE_TYPES.map((type) => (
                       <button
                         key={type.value}
@@ -1442,7 +1434,7 @@ export default function MMSUploader() {
                           }
                         }}
                         className={`
-                          relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
+                          relative px-2 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 transform hover:scale-105 w-full text-center
                           ${selectedFileType === type.value 
                             ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1450,7 +1442,7 @@ export default function MMSUploader() {
                         `}
                         title={type.description}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-center gap-1">
                           <div className={`
                             w-2 h-2 rounded-full transition-all duration-300
                             ${selectedFileType === type.value 
@@ -1458,7 +1450,7 @@ export default function MMSUploader() {
                               : 'bg-gray-400'
                             }
                           `} />
-                          {type.label}
+                          <span className="truncate">{type.label}</span>
                         </div>
                         
                         {selectedFileType === type.value && (
@@ -1574,31 +1566,6 @@ export default function MMSUploader() {
                   )}
                 </div>
 
-                {/* Review Mode Switch */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Pause className="h-5 w-5 text-amber-600" />
-                      <div>
-                        <div className="font-medium text-amber-800">Keep for Review</div>
-                        <div className="text-sm text-amber-600">
-                          Hold uploads for manual review instead of auto-processing
-                        </div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={keep}
-                      onCheckedChange={setKeep}
-                      className="data-[state=checked]:bg-amber-500"
-                    />
-                  </div>
-                  
-                  {keep && (
-                    <div className="text-xs text-amber-700 bg-amber-100 p-2 rounded border-l-4 border-amber-500">
-                      <strong>Review Mode Active:</strong> Files will be uploaded but held at "uploaded" phase for manual review and approval before processing.
-                    </div>
-                  )}
-                </div>
 
                 {/* Auto 4-5 Toggle Button */}
                 <div className="space-y-2">
