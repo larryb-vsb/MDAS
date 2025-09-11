@@ -1569,16 +1569,7 @@ export default function MMSUploader() {
 
                 {/* Auto 4-5 Toggle Button */}
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Lightbulb className={`h-5 w-5 ${auto45Enabled ? 'text-green-600' : 'text-gray-400'}`} />
-                      <div>
-                        <div className="font-medium text-blue-800">Auto 4-5</div>
-                        <div className="text-sm text-blue-600">
-                          Automatic identification and encoding (steps 4-5)
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <Switch
                       checked={auto45Enabled}
                       onCheckedChange={(enabled) => {
@@ -1590,6 +1581,13 @@ export default function MMSUploader() {
                       className="data-[state=checked]:bg-green-500"
                       disabled={auto45ToggleMutation.isPending}
                     />
+                    <Lightbulb className={`h-5 w-5 ${auto45Enabled ? 'text-green-600' : 'text-gray-400'}`} />
+                    <div>
+                      <div className="font-medium text-blue-800">Auto 4-5</div>
+                      <div className="text-sm text-blue-600">
+                        Automatic identification and encoding (steps 4-5)
+                      </div>
+                    </div>
                   </div>
                   
                   {!auto45Enabled && (
