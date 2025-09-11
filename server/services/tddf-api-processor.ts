@@ -2,6 +2,7 @@ import * as schedule from 'node-schedule';
 import { db } from '../db';
 import { eq, sql, and, desc, asc } from 'drizzle-orm';
 import { systemLogger } from '../system-logger';
+import { getTableName } from '../table-config';
 // Simple server ID generation
 function getCachedServerId(): string {
   return process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`;
@@ -51,15 +52,21 @@ class TddfApiProcessorService {
 
     try {
       // Get next queued file with highest priority
-      const queuedFiles = await db.execute(sql`
+      const queueTableName = getTableName('tddf_api_queue');
+      const filesTableName = getTableName('tddf_api_files');
+      const schemasTableName = getTableName('tddf_api_schemas');
+      
+      console.log(`[TDDF-API-PROCESSOR] Using table: ${queueTableName}`);
+      
+      const queuedFiles = await db.execute(sql.raw(`
         SELECT q.*, f.original_name, f.storage_path, f.schema_id, s.name as schema_name, s.schema_data
-        FROM dev_tddf_api_queue q
-        JOIN dev_tddf_api_files f ON q.file_id = f.id
-        LEFT JOIN dev_tddf_api_schemas s ON f.schema_id = s.id
+        FROM ${queueTableName} q
+        JOIN ${filesTableName} f ON q.file_id = f.id
+        LEFT JOIN ${schemasTableName} s ON f.schema_id = s.id
         WHERE q.status = 'queued'
         ORDER BY q.priority DESC, q.created_at ASC
         LIMIT 1
-      `);
+      `));
 
       if (queuedFiles.rows.length === 0) {
         return; // No files to process
@@ -72,38 +79,38 @@ class TddfApiProcessorService {
       console.log(`[TDDF-API-PROCESSOR] Processing file: ${queueItem.original_name} (ID: ${fileId})`);
 
       // Mark as processing
-      await db.execute(sql`
-        UPDATE dev_tddf_api_queue 
+      await db.execute(sql.raw(`
+        UPDATE ${queueTableName} 
         SET status = 'processing'
         WHERE id = ${queueId}
-      `);
+      `));
 
       // Update file status
-      await db.execute(sql`
-        UPDATE dev_tddf_api_files 
+      await db.execute(sql.raw(`
+        UPDATE ${filesTableName} 
         SET status = 'processing',
             processing_started = NOW()
         WHERE id = ${fileId}
-      `);
+      `));
 
       // Simulate processing (in a real system, this would parse the file)
       await this.processFile(queueItem);
 
       // Mark as completed
-      await db.execute(sql`
-        UPDATE dev_tddf_api_queue 
+      await db.execute(sql.raw(`
+        UPDATE ${queueTableName} 
         SET status = 'completed'
         WHERE id = ${queueId}
-      `);
+      `));
 
-      await db.execute(sql`
-        UPDATE dev_tddf_api_files 
+      await db.execute(sql.raw(`
+        UPDATE ${filesTableName} 
         SET status = 'completed',
             processing_completed = NOW(),
             record_count = 100,
             processed_records = 100
         WHERE id = ${fileId}
-      `);
+      `));
 
       console.log(`[TDDF-API-PROCESSOR] Successfully processed file: ${queueItem.original_name}`);
 
