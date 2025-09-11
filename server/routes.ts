@@ -14048,12 +14048,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const uploadId of uploadIds) {
         try {
+          console.log(`[UPLOADER API] 🔍 Looking up upload: ${uploadId}`);
           const upload = await storage.getUploaderUploadById(uploadId);
           
           if (!upload) {
+            console.log(`[UPLOADER API] ❌ Upload ${uploadId} not found in database`);
             errors.push(`Upload ${uploadId} not found`);
             continue;
           }
+          
+          console.log(`[UPLOADER API] ✅ Found upload: ${upload.filename} in phase: ${upload.currentPhase}`);
           
           let newPhase: string;
           let updateData: any = {
