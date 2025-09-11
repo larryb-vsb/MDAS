@@ -14,10 +14,11 @@ import { config, NODE_ENV, getDatabaseUrl } from "./env-config";
 const databaseUrl = getDatabaseUrl();
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
+  throw new Error(`Environment-specific database URL must be set. Missing: NEON_${NODE_ENV.toUpperCase()}_DATABASE_URL`);
 }
 
-console.log(`[DB] Database URL for ${NODE_ENV}: ${databaseUrl.substring(0, 80)}...`);
+// SECURITY: Don't log connection strings containing credentials
+console.log(`[DB] Database connection established for ${NODE_ENV} environment`);
 
 // Verify we're connecting to the correct database for the environment
 if (NODE_ENV === 'development' && databaseUrl.includes('ep-shy-king-aasxdlh7')) {
