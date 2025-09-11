@@ -2,7 +2,7 @@
 Date: July 19, 2025
 
 ## Current State Before Changes
-- **Database URL**: postgresql://neondb_owner:npg_8oyuizjZtM3S@ep-young-frog-a6mno10h.us-west-2.aws.neon.tech/neondb
+- **Database URL**: [REMOVED - old broken connection]
 - **Environment**: Both dev and prod using same database
 - **Current Test Merchants**:
   - MAN1752949283212762: Test Larry Billinghurst

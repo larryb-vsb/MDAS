@@ -22,8 +22,8 @@ console.log(`[DB] Database URL for ${NODE_ENV}: ${databaseUrl.substring(0, 80)}.
 // Verify we're connecting to the correct database for the environment
 if (NODE_ENV === 'development' && databaseUrl.includes('ep-shy-king-aasxdlh7')) {
   console.log(`✅ [DB] Connected to DEVELOPMENT database (ep-shy-king-aasxdlh7)`);
-} else if (NODE_ENV === 'production' && databaseUrl.includes('ep-young-frog')) {
-  console.log(`✅ [DB] Connected to PRODUCTION database (ep-young-frog)`);
+} else if (NODE_ENV === 'production' && databaseUrl.includes('ep-quiet-unit')) {
+  console.log(`✅ [DB] Connected to PRODUCTION database (ep-quiet-unit)`);
 } else {
   console.log(`⚠️ [DB] Environment mismatch or unknown database connection`);
 }
