@@ -466,8 +466,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const usersTable = getTableName('users');
       const sessionTable = getTableName('session');
       
-      // Check database connection info (redact sensitive data)
-      const dbUrl = process.env.DATABASE_URL || process.env.NEON_DEV_DATABASE_URL || process.env.NEON_PROD_DATABASE_URL || '';
+      // Check database connection info (redact sensitive data) - use proper environment config
+      const { getDatabaseUrl } = await import('./env-config');
+      const dbUrl = getDatabaseUrl();
       const dbHost = dbUrl ? new URL(dbUrl).hostname : 'unknown';
       const dbName = dbUrl ? new URL(dbUrl).pathname.slice(1) : 'unknown';
       
@@ -22543,7 +22544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/tddf-api/schemas', isAuthenticated, async (req, res) => {
     try {
       console.log('[TDDF-API-DEBUG] Schemas endpoint called');
-      console.log('[TDDF-API-DEBUG] Database URL:', process.env.DATABASE_URL?.slice(0, 50) + '...');
+      // Using environment-aware database connection from db.ts pool
       
       // Test if the table exists
       const tableCheck = await pool.query(`
@@ -23880,14 +23881,15 @@ Status: Ready for production uploads`;
     }
   });
 
-  // Fix production database schema - missing upload_status column (temporarily public for testing)
-  app.get('/api/admin/fix-production-schema', async (req, res) => {
+  // Fix production database schema - missing upload_status column (admin only)
+  app.get('/api/admin/fix-production-schema', isAuthenticated, async (req, res) => {
     try {
       console.log('[PROD-SCHEMA-FIX] Starting production database schema fix...');
       
-      // Connect to production database directly
+      // Connect to production database directly using environment config
       const { neon } = await import('@neondatabase/serverless');
-      const prodDatabaseUrl = process.env.NEON_PROD_DATABASE_URL || process.env.DATABASE_URL;
+      const { getDatabaseUrl } = await import('./env-config');
+      const prodDatabaseUrl = process.env.NEON_PROD_DATABASE_URL || getDatabaseUrl();
       
       if (!prodDatabaseUrl) {
         return res.status(500).json({ 
