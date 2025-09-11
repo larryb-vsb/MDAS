@@ -1,0 +1,6008 @@
+{
+  "timestamp": "2025-09-11T19:35:34.932Z",
+  "development": {
+    "allTables": [
+      "api_achtransactions",
+      "api_merchants",
+      "api_terminals",
+      "backup_history",
+      "backup_schedules",
+      "dev_api_achtransactions",
+      "dev_api_merchants",
+      "dev_api_terminals",
+      "dev_api_users",
+      "dev_audit_logs",
+      "dev_dashboard_cache",
+      "dev_dev_uploads",
+      "dev_duplicate_finder_cache",
+      "dev_merchants",
+      "dev_processing_metrics",
+      "dev_processing_timing_logs",
+      "dev_security_logs",
+      "dev_session",
+      "dev_system_logs",
+      "dev_tddf1_activity_cache",
+      "dev_tddf1_daily_breakdown_cache",
+      "dev_tddf1_file_soho",
+      "dev_tddf1_file_soho2",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_07192025_003643",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_07212025_001446",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_07222025_005535",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08012025_011442",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08072025_003642",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08082025_003354",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08292025_003021",
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_09112025_004715",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07182025_083343",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07212025_083354",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07222025_083341",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07302025_083337",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_08012025_083844",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_08282025_083348",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_08292025_083341",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_09022025_083350",
+      "dev_tddf1_file_vermntsb_6759_tddf_830_09102025_083422",
+      "dev_tddf1_monthly_cache",
+      "dev_tddf1_totals",
+      "dev_tddf_api_files",
+      "dev_tddf_api_queue",
+      "dev_tddf_api_records",
+      "dev_tddf_api_schemas",
+      "dev_tddf_batch_headers",
+      "dev_tddf_datamaster",
+      "dev_tddf_import_log",
+      "dev_tddf_jsonb",
+      "dev_tddf_other_records",
+      "dev_tddf_purchasing_extensions",
+      "dev_tddf_raw_import",
+      "dev_tddf_records",
+      "dev_terminals",
+      "dev_uploaded_files",
+      "dev_uploader_json",
+      "dev_uploader_mastercard_di_edit_records",
+      "dev_uploader_tddf_jsonb_records",
+      "dev_uploader_uploads",
+      "dev_users",
+      "duplicate_finder_cache",
+      "king-server",
+      "merchants",
+      "processing_metrics",
+      "schema_content",
+      "schema_versions",
+      "system_logs",
+      "transactions",
+      "uploaded_files",
+      "uploader_uploads_backup"
+    ],
+    "uploadTables": {
+      "api_merchants": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "address",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "city",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "zip_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "category",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_upload_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_since_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "country",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "edit_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sales_channel",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "as_of_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "search_index",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mcc",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "master_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bank",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "associate_merchant_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "dba_name_cwob",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "cwob_debit_risk",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "vwob_ebt_return",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_ea",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_co",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_record_st",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "board_dt",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sale_amt",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "credit_amt",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "negative_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "number_o",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_force",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "fee_visa",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "visa_mcc",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "daily_auth_limit",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_ex",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "excessive_deposit_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "threshold",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_score",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_level",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_risk_assessment",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_flags",
+            "data_type": "ARRAY",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "compliance_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "review_required",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_api_merchants": {
+        "count": 172,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "address",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "city",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "zip_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "category",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_upload_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_since_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "country",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "edit_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sales_channel",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "as_of_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "search_index",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mcc",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "master_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bank",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "associate_merchant_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "dba_name_cwob",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "cwob_debit_risk",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "vwob_ebt_return",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_ea",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_co",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_record_st",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "board_dt",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sale_amt",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "credit_amt",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "negative_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "number_o",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_force",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "fee_visa",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "visa_mcc",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "daily_auth_limit",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bypass_ex",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "excessive_deposit_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "threshold",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_score",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_level",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_risk_assessment",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_flags",
+            "data_type": "ARRAY",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "compliance_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "review_required",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_dev_uploads": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "compressed_payload",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "schema_info",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_merchants": {
+        "count": 202,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "client_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_since_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "merchant_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sales_channel",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mcc",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "master_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "address",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "city",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "zip_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "country",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "category",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "last_upload_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "as_of_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "edit_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_activity_cache": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_daily_breakdown_cache": {
+        "count": 1,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bh_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "dt_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_soho": {
+        "count": 52,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_soho2": {
+        "count": 110,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_07192025_003643": {
+        "count": 27948,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_07212025_001446": {
+        "count": 138788,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_07222025_005535": {
+        "count": 20423,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08012025_011442": {
+        "count": 25535,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08072025_003642": {
+        "count": 21954,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08082025_003354": {
+        "count": 24608,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_08292025_003021": {
+        "count": 25495,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_2400_09112025_004715": {
+        "count": 45888,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07182025_083343": {
+        "count": 9897,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07212025_083354": {
+        "count": 7773,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07222025_083341": {
+        "count": 8343,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_07302025_083337": {
+        "count": 8759,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_08012025_083844": {
+        "count": 10701,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_08282025_083348": {
+        "count": 9155,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_08292025_083341": {
+        "count": 21196,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_09022025_083350": {
+        "count": 8221,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_file_vermntsb_6759_tddf_830_09102025_083422": {
+        "count": 9434,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_sequence",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parsed_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_time_source",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_monthly_cache": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "year_month",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_files",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_amounts",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf1_totals": {
+        "count": 9,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_files",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_transaction_amounts",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_net_deposits",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bh_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "dt_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_api_files": {
+        "count": 2,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "original_name",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_size",
+            "data_type": "bigint",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_hash",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "storage_path",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "schema_id",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "error_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_started",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_completed",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "error_details",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "metadata",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_by",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "business_day",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_api_queue": {
+        "count": 2,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_id",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "priority",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "completed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "error_details",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_api_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_id",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_number",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "parsed_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "validation_errors",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_api_schemas": {
+        "count": 3,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "version",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "schema_data",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "is_active",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_by",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          }
+        ]
+      },
+      "dev_tddf_batch_headers": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "bh_record_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_julian_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "net_deposit",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "reject_reason",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_datamaster": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "authorization_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account_number",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_net_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_auth_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "card_number_masked",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_timestamp",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "import_session_id",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "original_filename",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tddf_api_file_id",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "extracted_fields",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_import_log": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "source_filename",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "import_start_time",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "import_end_time",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "records_imported",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "import_status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "error_message",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_jsonb": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "extracted_fields",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tddf_processing_datetime",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tddf_processing_date",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "details",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_other_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "reference_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_purchasing_extensions": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parent_dt_reference",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tax_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "discount_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "freight_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "duty_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "purchase_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_raw_import": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "skip_reason",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "target_table",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "error_message",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "sequence_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "reference_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "card_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "authorization_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mcc_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_type_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association_number_1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association_number_2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "cardholder_account_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "group_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_julian_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "debit_credit_indicator",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mms_raw_line",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_uploaded_files": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "original_filename",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_path",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_size",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_type",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "metadata",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "business_day",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_started_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_path",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_content",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mime_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_completed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "records_processed",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "records_skipped",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "deleted",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_errors",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_uploader_json": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line_data",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_json",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_separation_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "errors",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "metadata",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_uploader_mastercard_di_edit_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_data",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_uploader_tddf_jsonb_records": {
+        "count": 197354,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_data",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "original_filename",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_processing_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_sequence_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_processing_time",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_system_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mainframe_process_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "column_2-test",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account_number",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_uploader_uploads": {
+        "count": 11,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_size",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "start_time",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "upload_progress",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunked_upload",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunk_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunks_uploaded",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_path",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "upload_status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "identified_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "detected_file_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "user_classified_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "final_file_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "data_size",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "has_headers",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_format",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "compression_used",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_detected",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "validation_errors",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "session_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "current_phase",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "last_updated",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_content",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_bucket",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_key",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_url",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_etag",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "failed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "completed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "keep_for_review",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "json_records_created",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tddf_records_created",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_complete",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "identification_results",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "phase",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_completion_time",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_key",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bucket_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_errors",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "retry_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_retry_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_warnings",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_warning_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "warning_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "can_retry",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_failure_reason",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "merchants": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "client_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "merchant_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sales_channel",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "address",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "city",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "zip_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "country",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "category",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_since_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_upload_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "edit_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "as_of_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "risk_score",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "verification_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_transaction_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "uploaded_files": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "original_filename",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_path",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_size",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_type",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "metadata",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "business_day",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_started_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_path",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "deleted",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_errors",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mime_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_completed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tags",
+            "data_type": "ARRAY",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "uploader_uploads_backup": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_size",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "start_time",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "upload_progress",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunked_upload",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunk_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunks_uploaded",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_path",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "upload_status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "identified_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "detected_file_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "user_classified_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "final_file_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "data_size",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "has_headers",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_format",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "compression_used",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_detected",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "validation_errors",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "session_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "current_phase",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "last_updated",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_content",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_bucket",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_key",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_url",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "s3_etag",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "failed_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "completed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "keep_for_review",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "json_records_created",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tddf_records_created",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_complete",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "identification_results",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "phase",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_completion_time",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_key",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bucket_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_errors",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "retry_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_retry_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_warnings",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_warning_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "warning_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "can_retry",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_failure_reason",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "deleted",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "retry_history",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "warning_logs",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "details",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_metadata",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "original_filename",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_processing_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_sequence_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_processing_time",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_system_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mainframe_process_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          }
+        ]
+      }
+    }
+  },
+  "production": {
+    "allTables": [
+      "api_achtransactions",
+      "api_merchants",
+      "api_terminals",
+      "api_users",
+      "audit_logs",
+      "backup_history",
+      "backup_schedules",
+      "dashboard_cache",
+      "dev_tddf_api_schemas",
+      "dev_uploads",
+      "merchants",
+      "processing_metrics",
+      "schema_content",
+      "schema_versions",
+      "security_logs",
+      "session",
+      "system_logs",
+      "tddf1_totals",
+      "tddf_batch_headers",
+      "tddf_jsonb",
+      "tddf_other_records",
+      "tddf_purchasing_extensions",
+      "tddf_raw_import",
+      "tddf_records",
+      "terminals",
+      "transactions",
+      "uploaded_files",
+      "uploader_json",
+      "uploader_mastercard_di_edit_records",
+      "uploader_tddf_jsonb_records",
+      "uploader_uploads",
+      "users"
+    ],
+    "uploadTables": {
+      "api_merchants": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "client_mid",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "character varying",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "dev_tddf_api_schemas": {
+        "count": 3,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "version",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "schema_data",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "is_active",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_by",
+            "data_type": "character varying",
+            "is_nullable": "NO"
+          }
+        ]
+      },
+      "dev_uploads": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "compressed_payload",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "schema_info",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "notes",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "merchants": {
+        "count": 5,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "client_mid",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "merchant_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "sales_channel",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "address",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "city",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "zip_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "country",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "category",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "other_client_number2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "client_since_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_upload_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "edit_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "as_of_date",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf1_totals": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_date",
+            "data_type": "date",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_files",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "total_records",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "dt_transaction_amounts",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bh_net_deposits",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_breakdown",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_updated",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf_batch_headers": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "bh_record_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "record_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_julian_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "net_deposit",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "reject_reason",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf_jsonb": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "extracted_fields",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf_other_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "reference_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf_purchasing_extensions": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "parent_dt_reference",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "tax_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "discount_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "freight_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "duty_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "purchase_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf_raw_import": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "source_file_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "skip_reason",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "target_table",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "error_message",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "tddf_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "sequence_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "reference_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_date",
+            "data_type": "date",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "terminal_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "card_type",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "authorization_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "merchant_account_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mcc_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_type_identifier",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association_number_1",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "association_number_2",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "transaction_code",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "cardholder_account_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "group_number",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "batch_julian_date",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "debit_credit_indicator",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "recorded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_row_number",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "raw_data",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "mms_raw_line",
+            "data_type": "text",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "uploaded_files": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "original_filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "storage_path",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processed",
+            "data_type": "boolean",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_errors",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "deleted",
+            "data_type": "boolean",
+            "is_nullable": "NO"
+          }
+        ]
+      },
+      "uploader_json": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line_data",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processed_json",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "field_separation_data",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "errors",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "source_file_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "metadata",
+            "data_type": "jsonb",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "uploader_mastercard_di_edit_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_data",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "processing_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "uploader_tddf_jsonb_records": {
+        "count": 0,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "upload_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "record_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "line_number",
+            "data_type": "integer",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "raw_line",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "extracted_fields",
+            "data_type": "jsonb",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          }
+        ]
+      },
+      "uploader_uploads": {
+        "count": 3,
+        "columns": [
+          {
+            "column_name": "id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "filename",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "file_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "session_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "uploaded_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "identified_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "completed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_size",
+            "data_type": "bigint",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "line_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "has_headers",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "file_format",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_detected",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "storage_key",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "bucket_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_status",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "encoding_time_ms",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "json_records_created",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "processing_errors",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "keep_for_review",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "upload_status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "column_name": "start_time",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "current_phase",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "last_updated",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "created_by",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "server_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "upload_progress",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunked_upload",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunk_count",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "column_name": "chunks_uploaded",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          }
+        ]
+      }
+    }
+  },
+  "comparison": {
+    "api_merchants": {
+      "status": "both_exist",
+      "devCount": 0,
+      "prodCount": 0,
+      "devColumns": 51,
+      "prodColumns": 5
+    },
+    "dev_api_merchants": {
+      "status": "dev_only",
+      "devCount": 172
+    },
+    "dev_dev_uploads": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_merchants": {
+      "status": "dev_only",
+      "devCount": 202
+    },
+    "dev_tddf1_activity_cache": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf1_daily_breakdown_cache": {
+      "status": "dev_only",
+      "devCount": 1
+    },
+    "dev_tddf1_file_soho": {
+      "status": "dev_only",
+      "devCount": 52
+    },
+    "dev_tddf1_file_soho2": {
+      "status": "dev_only",
+      "devCount": 110
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_07192025_003643": {
+      "status": "dev_only",
+      "devCount": 27948
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_07212025_001446": {
+      "status": "dev_only",
+      "devCount": 138788
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_07222025_005535": {
+      "status": "dev_only",
+      "devCount": 20423
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_08012025_011442": {
+      "status": "dev_only",
+      "devCount": 25535
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_08072025_003642": {
+      "status": "dev_only",
+      "devCount": 21954
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_08082025_003354": {
+      "status": "dev_only",
+      "devCount": 24608
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_08292025_003021": {
+      "status": "dev_only",
+      "devCount": 25495
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_2400_09112025_004715": {
+      "status": "dev_only",
+      "devCount": 45888
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_07182025_083343": {
+      "status": "dev_only",
+      "devCount": 9897
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_07212025_083354": {
+      "status": "dev_only",
+      "devCount": 7773
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_07222025_083341": {
+      "status": "dev_only",
+      "devCount": 8343
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_07302025_083337": {
+      "status": "dev_only",
+      "devCount": 8759
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_08012025_083844": {
+      "status": "dev_only",
+      "devCount": 10701
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_08282025_083348": {
+      "status": "dev_only",
+      "devCount": 9155
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_08292025_083341": {
+      "status": "dev_only",
+      "devCount": 21196
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_09022025_083350": {
+      "status": "dev_only",
+      "devCount": 8221
+    },
+    "dev_tddf1_file_vermntsb_6759_tddf_830_09102025_083422": {
+      "status": "dev_only",
+      "devCount": 9434
+    },
+    "dev_tddf1_monthly_cache": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf1_totals": {
+      "status": "dev_only",
+      "devCount": 9
+    },
+    "dev_tddf_api_files": {
+      "status": "dev_only",
+      "devCount": 2
+    },
+    "dev_tddf_api_queue": {
+      "status": "dev_only",
+      "devCount": 2
+    },
+    "dev_tddf_api_records": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_api_schemas": {
+      "status": "both_exist",
+      "devCount": 3,
+      "prodCount": 3,
+      "devColumns": 9,
+      "prodColumns": 9
+    },
+    "dev_tddf_batch_headers": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_datamaster": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_import_log": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_jsonb": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_other_records": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_purchasing_extensions": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_raw_import": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_tddf_records": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_uploaded_files": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_uploader_json": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_uploader_mastercard_di_edit_records": {
+      "status": "dev_only",
+      "devCount": 0
+    },
+    "dev_uploader_tddf_jsonb_records": {
+      "status": "dev_only",
+      "devCount": 197354
+    },
+    "dev_uploader_uploads": {
+      "status": "dev_only",
+      "devCount": 11
+    },
+    "dev_uploads": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "merchants": {
+      "status": "both_exist",
+      "devCount": 0,
+      "prodCount": 5,
+      "devColumns": 24,
+      "prodColumns": 20
+    },
+    "tddf1_totals": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "tddf_batch_headers": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "tddf_jsonb": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "tddf_other_records": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "tddf_purchasing_extensions": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "tddf_raw_import": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "tddf_records": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "uploaded_files": {
+      "status": "both_exist",
+      "devCount": 0,
+      "prodCount": 0,
+      "devColumns": 25,
+      "prodColumns": 8
+    },
+    "uploader_json": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "uploader_mastercard_di_edit_records": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "uploader_tddf_jsonb_records": {
+      "status": "prod_only",
+      "prodCount": 0
+    },
+    "uploader_uploads": {
+      "status": "prod_only",
+      "prodCount": 3
+    },
+    "uploader_uploads_backup": {
+      "status": "dev_only",
+      "devCount": 0
+    }
+  }
+}

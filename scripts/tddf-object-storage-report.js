@@ -15,11 +15,24 @@
  */
 
 import { Client } from '@replit/object-storage';
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from "ws";
 import fs from 'fs/promises';
 import path from 'path';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Required for Neon serverless driver
+neonConfig.webSocketConstructor = ws;
+
+// Get environment-specific database URL
+const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+const databaseUrl = isDev ? process.env.NEON_DEV_DATABASE_URL : process.env.NEON_PROD_DATABASE_URL;
+
+if (!databaseUrl) {
+  const requiredVar = isDev ? 'NEON_DEV_DATABASE_URL' : 'NEON_PROD_DATABASE_URL';
+  throw new Error(`Missing required environment variable: ${requiredVar}`);
+}
+
+const pool = new Pool({ connectionString: databaseUrl });
 
 // Initialize Replit Object Storage client
 const client = new Client();
@@ -46,18 +59,18 @@ async function getUploadedFiles() {
     SELECT 
       id,
       filename,
-      upload_date,
+      uploaded_at,
       file_size,
       status,
-      storage_key,
-      raw_lines_count,
-      processing_notes,
-      file_type
+      storage_path as storage_key,
+      metadata,
+      file_type,
+      processing_status
     FROM ${tableName}
     WHERE file_type = 'tddf' 
-      AND storage_key IS NOT NULL
-      AND storage_key != ''
-    ORDER BY upload_date DESC
+      AND storage_path IS NOT NULL
+      AND storage_path != ''
+    ORDER BY uploaded_at DESC
   `);
   
   console.log(`📊 Found ${result.rows.length} TDDF files in database`);
