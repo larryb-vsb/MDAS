@@ -14066,6 +14066,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Clear all processing data based on current phase
           switch (upload.currentPhase) {
+            case 'processing':
+              // Clear processing data and fall through to clear encoding data
+              updateData.processing_server_id = null;
+              updateData.processing_started_at = null;
+              updateData.processing_errors = null;
+              // Fall through to clear encoding data
             case 'failed':
             case 'encoded':
               // Clear encoding data (using snake_case field names for database)
@@ -14080,7 +14086,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Clear identification data (using snake_case field names for database)
               updateData.final_file_type = null;
               updateData.identification_results = null;
-              break;
               break;
               
             case 'uploaded':
