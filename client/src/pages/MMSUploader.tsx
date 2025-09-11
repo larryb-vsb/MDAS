@@ -1413,10 +1413,10 @@ export default function MMSUploader() {
                 Session-controlled upload to phases 1-3 (started → uploading → uploaded)
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
                 {/* File Type Selection - Light Bulb Buttons */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="text-sm font-medium">Quick Select:</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                     {FILE_TYPES.map((type) => (
@@ -1468,7 +1468,7 @@ export default function MMSUploader() {
                 </div>
 
                 {/* File Upload Zone */}
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="text-sm font-medium">Files</label>
                   
                   {/* Drop Zone */}
@@ -1568,7 +1568,7 @@ export default function MMSUploader() {
 
 
                 {/* Auto 4-5 Toggle Button */}
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Lightbulb className={`h-5 w-5 ${auto45Enabled ? 'text-green-600' : 'text-gray-400'}`} />
