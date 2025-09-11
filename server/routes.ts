@@ -14074,9 +14074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           switch (upload.currentPhase) {
             case 'processing':
               // Clear processing data and fall through to clear encoding data
-              updateData.processing_server_id = null;
-              updateData.processing_started_at = null;
-              updateData.processing_errors = null;
+              // Note: Only clearing fields that exist in database schema
               // Fall through to clear encoding data
             case 'failed':
             case 'encoded':
