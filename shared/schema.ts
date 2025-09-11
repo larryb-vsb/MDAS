@@ -242,19 +242,28 @@ export const transactions = pgTable(getTableName("transactions"), {
   recordedAt: timestamp("recorded_at").defaultNow().notNull() // When transaction record was added
 });
 
-// Uploaded files table 
+// Uploaded files table - PRODUCTION-COMPATIBLE ID TYPE
 export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey(), // TEXT TYPE matches production (dev uses serial but we preserve compatibility)
+  filename: text("filename"), // Added for dev compatibility 
   originalFilename: text("original_filename").notNull(),
+  filePath: text("file_path"), // Added for dev compatibility
+  fileSize: integer("file_size"), // File size in bytes
   storagePath: text("storage_path"),
   fileType: text("file_type").notNull(), // 'merchant', 'transaction', 'terminal', or 'tddf'
+  status: text("status"), // Added for dev compatibility
+  createdAt: timestamp("created_at"), // Added for dev compatibility
+  updatedAt: timestamp("updated_at"), // Added for dev compatibility
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processed: boolean("processed").default(false).notNull(),
   processingErrors: text("processing_errors"),
   deleted: boolean("deleted").default(false).notNull(),
+  // Additional dev fields
+  metadata: jsonb("metadata"), // Added for dev compatibility
+  businessDay: date("business_day"), // Added for dev compatibility 
+  fileDate: date("file_date"), // Added for dev compatibility
   // New fields for production file processing
   fileContent: text("file_content"), // Store file content for reliable processing
-  fileSize: integer("file_size"), // Size of the file in bytes
   mimeType: text("mime_type"), // MIME type of the file
   processedAt: timestamp("processed_at"), // When the file was processed
   processingStatus: text("processing_status").default("queued").notNull(), // queued, processing, completed, failed
@@ -269,7 +278,11 @@ export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   processingDetails: text("processing_details"), // JSON string with detailed stats
   uploadEnvironment: text("upload_environment").notNull().default("production"), // Track which environment uploaded this file
   rawLinesCount: integer("raw_lines_count"), // Number of raw lines processed for diagnostics
-  processingNotes: text("processing_notes") // Processing notes with field detection and analysis results
+  processingNotes: text("processing_notes"), // Processing notes with field detection and analysis results
+  // Additional dev compatibility fields
+  processedBy: text("processed_by"), // Who processed the file
+  tags: text("tags").array(), // Array of tags for categorization
+  notes: text("notes") // General notes about the file
 });
 
 // Backup history table
