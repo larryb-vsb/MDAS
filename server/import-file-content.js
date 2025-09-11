@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { Pool } from '@neondatabase/serverless';
+import { batchPool } from './db.js';
 
-// Database connection
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Database connection - use properly configured environment-specific pool
+const pool = batchPool;
 
 async function importFileContent() {
   try {

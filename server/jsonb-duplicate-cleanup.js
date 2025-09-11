@@ -4,11 +4,11 @@
  * Runs during legacy file import to track duplicates without blocking encoding
  */
 
-import { Pool } from '@neondatabase/serverless';
+import { batchPool } from './db.js';
 
 class JsonbDuplicateCleanup {
   constructor() {
-    this.pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    this.pool = batchPool;
     this.environment = process.env.NODE_ENV || 'development';
     this.tableName = this.environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
     this.logFile = `jsonb_duplicate_log_${new Date().toISOString().split('T')[0]}.log`;

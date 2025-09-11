@@ -10,26 +10,22 @@ function detectEnvironment(): string {
     return process.env.NODE_ENV;
   }
   
-  // Production environment indicators
-  const productionIndicators = [
-    process.env.REPLIT_DEPLOYMENT === 'true',
-    process.env.REPL_DEPLOYMENT === 'true', 
-    process.env.REPLIT_PROD === 'true',
-    process.env.PRODUCTION === 'true',
-    process.env.ENV === 'production',
-    process.env.ENVIRONMENT === 'production',
-    // Check for common production domains
-    process.env.REPL_SLUG && process.env.REPL_SLUG.includes('.replit.app'),
-    process.env.REPLIT_DOMAINS && process.env.REPLIT_DOMAINS.includes('.replit.app'),
-    // Check for production URL in hostname
-    process.env.HOSTNAME && process.env.HOSTNAME.includes('replit.app'),
-    // Force production mode for deployed apps
-    typeof window === 'undefined' && process.env.REPL_SLUG
-  ];
+  // Reliable production environment detection
+  const isProduction = (
+    // Explicit production deployment flags
+    process.env.REPLIT_DEPLOYMENT === 'true' ||
+    process.env.REPL_DEPLOYMENT === 'true' ||
+    process.env.REPLIT_ENVIRONMENT === 'production' ||
+    process.env.ENV === 'production' ||
+    process.env.ENVIRONMENT === 'production' ||
+    // If production database URL is available but dev is not, assume production
+    (process.env.NEON_PROD_DATABASE_URL && !process.env.NEON_DEV_DATABASE_URL)
+  );
   
-  // If any production indicators are present, use production mode
-  if (productionIndicators.some(indicator => indicator)) {
+  if (isProduction) {
     console.log('[ENV CONFIG] Production environment detected via deployment indicators');
+    // Set NODE_ENV programmatically for downstream code
+    process.env.NODE_ENV = 'production';
     return 'production';
   }
   
