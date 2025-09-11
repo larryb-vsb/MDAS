@@ -3006,7 +3006,7 @@ export class DatabaseStorage implements IStorage {
           const fileResults = await db.execute(sql`
             SELECT 
               id,
-              original_filename,
+              filename,
               storage_path,
               file_type,
               uploaded_at,
@@ -3024,7 +3024,7 @@ export class DatabaseStorage implements IStorage {
           
           const file = {
             id: fileResults.rows[0].id,
-            originalFilename: fileResults.rows[0].original_filename,
+            originalFilename: fileResults.rows[0].filename,
             storagePath: fileResults.rows[0].storage_path,
             fileType: fileResults.rows[0].file_type,
             uploadedAt: fileResults.rows[0].uploaded_at,
