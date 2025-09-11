@@ -1527,7 +1527,7 @@ export default function MMSUploader() {
                         </p>
                         
                         {/* Browse Files Button */}
-                        <div className="pt-2">
+                        <div className="pt-2 flex justify-center">
                           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 transition-colors duration-200">
                             <Upload className="h-4 w-4" />
                             Browse Files
