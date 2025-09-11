@@ -6,6 +6,7 @@
 
 import { UploaderUpload } from '@shared/schema';
 import { parseTddfFilename } from './filename-parser';
+import { batchPool } from './db';
 
 /**
  * Extract processing datetime from TDDF filename
@@ -935,9 +936,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   // Process ALL lines - do not filter out any lines including empty ones
   const lines = fileContent.split('\n');
   
-  // Import database connection
-  const { neon } = await import('@neondatabase/serverless');
-  const sql = neon(process.env.DATABASE_URL!);
+  // Use proper batch database connection pool
+  const pool = batchPool;
   
   // Extract universal TDDF processing datetime from filename
   const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
@@ -984,7 +984,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       )
     `;
     
-    await sql(createTableQuery);
+    await pool.query(createTableQuery);
     console.log(`[TDDF1-ENCODER] Successfully created table: ${tableName}`);
   } catch (tableError: any) {
     console.error(`[TDDF1-ENCODER] Failed to create table ${tableName}:`, tableError);
@@ -1120,7 +1120,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
           record.record_time_source
         ]);
         
-        await sql(insertQuery, values);
+        await pool.query(insertQuery, values);
         
         const batchInsertTime = Date.now() - batchInsertStart;
         processedCount += batchRecords.length;
@@ -1150,7 +1150,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     const environment = process.env.NODE_ENV || 'development';
     const uploadsTableName = environment === 'development' ? 'dev_uploader_uploads' : 'uploader_uploads';
     
-    await sql(`
+    await pool.query(`
       UPDATE ${uploadsTableName} 
       SET current_phase = 'encoded', 
           updated_at = CURRENT_TIMESTAMP 
@@ -1191,7 +1191,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     }
     
     // Insert or update totals cache entry using correct column structure
-    await sql(`
+    await pool.query(`
       INSERT INTO ${totalsTableName} (
         last_processed_date, file_name, total_records, 
         total_transaction_value, record_type_breakdown, processing_duration_ms,
@@ -1220,7 +1220,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     
     // Calculate DT Transaction Amount totals from raw TDDF positions 93-103 with regex validation  
     // NOTE: DT amounts are in cents, divide by 100 to get dollars (matches PowerShell logic)
-    const transactionValueResult = await sql(`
+    const transactionValueResult = await pool.query(`
       SELECT COALESCE(SUM(CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 100.0), 0) as total_value
       FROM ${tableName}
       WHERE record_type = 'DT' 
@@ -1229,7 +1229,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     `);
     
     // Calculate BH Net Deposit totals from raw TDDF positions 69-83 with regex validation
-    const bhNetDepositResult = await sql(`
+    const bhNetDepositResult = await pool.query(`
       SELECT COALESCE(SUM(CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0), 0) as total_net_deposit_bh
       FROM ${tableName}
       WHERE record_type = 'BH' 
@@ -1237,13 +1237,13 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$'
     `);
     
-    if (transactionValueResult.length > 0) {
-      await sql(`
+    if (transactionValueResult.rows.length > 0) {
+      await pool.query(`
         UPDATE ${totalsTableName} 
         SET total_transaction_value = $1, updated_at = CURRENT_TIMESTAMP
         WHERE file_name = $2
       `, [
-        parseFloat(transactionValueResult[0]?.total_value || '0'),
+        parseFloat(transactionValueResult.rows[0]?.total_value || '0'),
         upload.filename
       ]);
     }
@@ -1251,16 +1251,16 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     console.log(`[TDDF1-ENCODER] ✅ Successfully updated totals cache for ${processedDate.toISOString().split('T')[0]}`);
     
     // Also update BH Net Deposit values if we have BH records
-    if (bhNetDepositResult.length > 0) {
-      await sql(`
+    if (bhNetDepositResult.rows.length > 0) {
+      await pool.query(`
         UPDATE ${totalsTableName} 
         SET total_net_deposit_bh = $1, updated_at = CURRENT_TIMESTAMP
         WHERE file_name = $2
       `, [
-        parseFloat(bhNetDepositResult[0]?.total_net_deposit_bh || '0'),
+        parseFloat(bhNetDepositResult.rows[0]?.total_net_deposit_bh || '0'),
         upload.filename
       ]);
-      console.log(`[TDDF1-ENCODER] ✅ Updated BH Net Deposit totals: $${parseFloat(bhNetDepositResult[0]?.total_net_deposit_bh || '0').toLocaleString()}`);
+      console.log(`[TDDF1-ENCODER] ✅ Updated BH Net Deposit totals: $${parseFloat(bhNetDepositResult.rows[0]?.total_net_deposit_bh || '0').toLocaleString()}`);
     }
     
     console.log(`[TDDF1-ENCODER] 🎯 AUTO-CACHE UPDATE: All precache tables automatically updated for monthly view`);
@@ -1399,7 +1399,7 @@ export async function processTddfFileForProduction(
           record.metadata
         ]);
         
-        await sql(`
+        await pool.query(`
           INSERT INTO ${tddfTableName} (
             id, filename, line_number, record_type, raw_line, extracted_fields,
             processing_datetime, parsed_datetime, record_time_source, created_at, metadata
