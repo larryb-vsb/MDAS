@@ -14046,6 +14046,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let processedCount = 0;
       const errors = [];
       
+      console.log(`[UPLOADER API] 🔍 Starting loop to process ${uploadIds.length} uploads`);
+      
       for (const uploadId of uploadIds) {
         try {
           console.log(`[UPLOADER API] 🔍 Looking up upload: ${uploadId}`);
