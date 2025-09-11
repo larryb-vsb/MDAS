@@ -464,11 +464,12 @@ class FileProcessorService {
       const result = await db.execute(sql`
         UPDATE ${sql.identifier(uploadsTableName)}
         SET 
-          current_phase = 'processing',
+          processing_status = 'processing',
           processing_at = ${currentTime.toISOString()},
           processing_server_id = ${serverId}
         WHERE id = ${fileId}
-          AND current_phase IN ('uploaded', 'identified', 'encoded')
+          AND upload_status = 'uploaded'
+          AND processing_status = 'pending'
           AND (processing_server_id IS NULL OR processing_server_id = '')
         RETURNING id
       `);
