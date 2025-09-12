@@ -2012,7 +2012,7 @@ export class DatabaseStorage implements IStorage {
       // @ENVIRONMENT-CRITICAL - Transaction creation operations
       // @DEPLOYMENT-CHECK - Uses environment-aware table naming
       const merchantsTableName = getTableName('merchants');
-      const transactionsTableName = getTableName('transactions');
+      const transactionsTableName = getTableName('api_achtransactions');
       
       // Check if the merchant exists (environment-aware)
       const merchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
@@ -2051,9 +2051,9 @@ export class DatabaseStorage implements IStorage {
         type: transactionData.type
       };
       
-      // Insert the transaction (environment-aware) with trace_number support
+      // Insert the transaction (environment-aware) with trace_number support  
       const insertResult = await pool.query(`
-        INSERT INTO ${transactionsTableName} (id, merchant_id, amount, date, type, trace_number)
+        INSERT INTO ${transactionsTableName} (id, merchant_id, amount, transaction_date, description, trace_number)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
       `, [transaction.id, transaction.merchantId, transaction.amount, transaction.date, transaction.type, transaction.id]);
