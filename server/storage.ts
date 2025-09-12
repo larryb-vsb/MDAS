@@ -2012,7 +2012,7 @@ export class DatabaseStorage implements IStorage {
       // @ENVIRONMENT-CRITICAL - Transaction creation operations
       // @DEPLOYMENT-CHECK - Uses environment-aware table naming
       const merchantsTableName = getTableName('merchants');
-      const transactionsTableName = getTableName('api_achtransactions');
+      const transactionsTableName = getTableName('transactions');
       
       // Check if the merchant exists (environment-aware)
       const merchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
@@ -2051,9 +2051,9 @@ export class DatabaseStorage implements IStorage {
         type: transactionData.type
       };
       
-      // Insert the transaction (environment-aware) with trace_number support  
+      // Insert the transaction (environment-aware) with trace_number support
       const insertResult = await pool.query(`
-        INSERT INTO ${transactionsTableName} (id, merchant_id, amount, transaction_date, description, trace_number)
+        INSERT INTO ${transactionsTableName} (id, merchant_id, amount, date, type, trace_number)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
       `, [transaction.id, transaction.merchantId, transaction.amount, transaction.date, transaction.type, transaction.id]);
@@ -5938,14 +5938,9 @@ export class DatabaseStorage implements IStorage {
                         normalizedExistingTrace === currentTraceNumber
                       );
                       
-                      // Check if amounts match (primary duplicate detection criteria)
-                      const existingAmount = parseFloat(existing.amount || '0');
-                      const newAmount = parseFloat(finalTransaction.amount || '0');
-                      const amountsMatch = Math.abs(existingAmount - newAmount) < 0.01; // Account for floating point precision
-                      
-                      if (existingDateStr === newDateStr && amountsMatch) {
-                        // Same date AND same amount - skip the record entirely
-                        console.log(`[SKIP] Transaction with amount '${newAmount}' and date '${existingDateStr}' already exists. Skipping duplicate...`);
+                      if (existingDateStr === newDateStr && traceNumbersMatch) {
+                        // Same date AND same trace number - skip the record entirely
+                        console.log(`[SKIP] Transaction with trace number '${currentTraceNumber}' and date '${existingDateStr}' already exists. Skipping duplicate...`);
                         
                         // Set duplicate info for statistics (skipped)
                         duplicateInfo = { increments: 0, wasSkipped: true };
@@ -5955,9 +5950,9 @@ export class DatabaseStorage implements IStorage {
                         fileProcessorService.updateProcessingStats(originalId, duplicateInfo);
                         
                         break; // Exit the retry loop without counting as inserted
-                      } else if (existingDateStr === newDateStr && !amountsMatch) {
-                        // Same date but different amount - this is a different transaction, proceed with increment
-                        console.log(`[DIFFERENT AMOUNT] Same date (${existingDateStr}) but different amounts: existing '${existingAmount}' vs new '${newAmount}'. Creating incremented ID...`);
+                      } else if (existingDateStr === newDateStr && !traceNumbersMatch) {
+                        // Same date but different trace number - this is a different transaction, proceed with increment
+                        console.log(`[DIFFERENT TRACE] Same date (${existingDateStr}) but different trace numbers: existing '${existingTraceNumber}' vs new '${currentTraceNumber}'. Creating incremented ID...`);
                         insertAttempts++;
                         
                         // Set duplicate info for statistics
