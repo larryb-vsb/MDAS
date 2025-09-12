@@ -1270,9 +1270,9 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`[GET MERCHANTS] Using direct query (filters applied or cache unavailable)`);
       
-      // Use VSB API merchants table directly for merchant listing
-      const merchantsTableName = 'dev_api_merchants';
-      console.log(`[GET MERCHANTS] Using VSB API table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
+      // Use unified merchants table directly for merchant listing
+      const merchantsTableName = getTableName('merchants');
+      console.log(`[GET MERCHANTS] Using unified merchants table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
       
       // Build WHERE conditions for raw SQL
       const conditions = [];
@@ -1459,34 +1459,16 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Try VSB API merchants table first, then fallback to legacy merchants table
-      let merchant;
-      let merchantQuery;
-      
-      try {
-        // Try dev_api_merchants first (VSB API table)
-        const apiMerchantsTableName = getTableName('api_merchants');
-        console.log(`[GET MERCHANT] Trying VSB API table: ${apiMerchantsTableName} for merchant ID: ${merchantId}`);
-        merchantQuery = await db.execute(sql`
-          SELECT * FROM ${sql.identifier(apiMerchantsTableName)} WHERE id = ${merchantId} LIMIT 1
-        `);
-        merchant = merchantQuery.rows[0];
-      } catch (error) {
-        console.log(`[GET MERCHANT] VSB API table failed, trying legacy table`);
-      }
+      // Use unified merchants table directly
+      const merchantsTableName = getTableName('merchants');
+      console.log(`[GET MERCHANT] Using unified merchants table: ${merchantsTableName} for merchant ID: ${merchantId}`);
+      const merchantQuery = await db.execute(sql`
+        SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
+      `);
+      const merchant = merchantQuery.rows[0];
       
       if (!merchant) {
-        // Fallback to legacy merchants table
-        const merchantsTableName = getTableName('merchants');
-        console.log(`[GET MERCHANT] Using legacy table: ${merchantsTableName} for merchant ID: ${merchantId}`);
-        merchantQuery = await db.execute(sql`
-          SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
-        `);
-        merchant = merchantQuery.rows[0];
-      }
-      
-      if (!merchant) {
-        throw new Error(`Merchant with ID ${merchantId} not found in either VSB API or legacy tables`);
+        throw new Error(`Merchant with ID ${merchantId} not found`);
       }
       
       // updatedBy field requires explicit string conversion due to database encoding
@@ -3878,9 +3860,9 @@ export class DatabaseStorage implements IStorage {
             console.log(`Processing merchant update: ${merchant.id} - ${merchant.name}`);
             
             // @ENVIRONMENT-CRITICAL - Merchant existence check for CSV processing
-            // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API merchants
-            const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
-            const existingMerchantResult = await pool.query(`SELECT * FROM ${apiMerchantsTableName} WHERE id = $1`, [merchant.id]);
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming for unified merchants
+            const merchantsTableName = getTableName('merchants'); // Fixed: Use unified merchants table
+            const existingMerchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchant.id]);
             const existingMerchant = existingMerchantResult.rows;
             
             if (existingMerchant.length > 0) {
@@ -3919,15 +3901,15 @@ export class DatabaseStorage implements IStorage {
               console.log(`Update data: ${JSON.stringify(updateData)}`);
               
               // @ENVIRONMENT-CRITICAL - Merchant CSV processing update operations
-              // @DEPLOYMENT-CHECK - Fixed to use API merchants table
-              const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
+              // @DEPLOYMENT-CHECK - Fixed to use unified merchants table
+              const updateTableName = getTableName('merchants'); // Fixed: Use unified merchants table
               
               const updateColumns = Object.keys(updateData);
               const updateValues = Object.values(updateData);
               const setClause = updateColumns.map((col, index) => `${col} = $${index + 1}`).join(', ');
               
               const updateQuery = `
-                UPDATE ${apiMerchantsTableName}
+                UPDATE ${updateTableName}
                 SET ${setClause}
                 WHERE id = $${updateColumns.length + 1}
               `;
@@ -3945,9 +3927,9 @@ export class DatabaseStorage implements IStorage {
                 asOfDate: merchant.asOfDate
               });
               
-              const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
+              const insertTableName = getTableName('merchants'); // Fixed: Use unified merchants table
               await pool.query(`
-                INSERT INTO ${apiMerchantsTableName} (
+                INSERT INTO ${insertTableName} (
                   id, name, merchant_type, client_since_date, as_of_date, 
                   created_at, last_upload_date, edit_date, updated_by
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -4848,8 +4830,7 @@ export class DatabaseStorage implements IStorage {
                 const merchantsTableName = getTableName('merchants');
                 const columns = Object.keys(newMerchant).join(', ');
                 const values = Object.values(newMerchant).map((_, index) => `$${index + 1}`).join(', ');
-                const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
-                await pool.query(`INSERT INTO ${apiMerchantsTableName} (${columns}) VALUES (${values})`, Object.values(newMerchant));
+                await pool.query(`INSERT INTO ${merchantsTableName} (${columns}) VALUES (${values})`, Object.values(newMerchant));
                 console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
               } else {
                 console.log(`[SKIP MERCHANT] No name available for ${merchantId}, will skip transactions for this merchant to avoid bad data`);
