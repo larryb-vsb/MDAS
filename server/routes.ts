@@ -7207,7 +7207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get MMS merchants from api_merchants table (imported from TDDF)
+  // Get MMS merchants from unified merchants table
   app.get("/api/mms/merchants", isAuthenticated, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
@@ -7221,7 +7221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const { getTableName } = await import("./table-config");
-      const apiMerchantsTableName = getTableName('api_merchants'); // Environment-aware table name
+      const merchantsTableName = getTableName('merchants'); // Unified merchants table
       const offset = (page - 1) * limit;
       
       // Build WHERE clause for search
@@ -7241,13 +7241,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeSortOrder = sortOrder.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
       
       // Get total count
-      const countQuery = `SELECT COUNT(*) as total FROM ${apiMerchantsTableName} ${whereClause}`;
+      const countQuery = `SELECT COUNT(*) as total FROM ${merchantsTableName} ${whereClause}`;
       const countResult = await pool.query(countQuery, queryParams);
       const totalCount = parseInt(countResult.rows[0].total);
       
       // Get paginated data
       const dataQuery = `
-        SELECT * FROM ${apiMerchantsTableName} 
+        SELECT * FROM ${merchantsTableName} 
         ${whereClause}
         ORDER BY ${safeSortBy} ${safeSortOrder}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -7289,11 +7289,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[MMS MERCHANTS BULK DELETE] Deleting ${merchantIds.length} merchants:`, merchantIds);
       
       const { getTableName } = await import("./table-config");
-      const apiMerchantsTableName = getTableName('api_merchants'); // Environment-aware table name
+      const merchantsTableName = getTableName('merchants'); // Unified merchants table
       
       // Build the DELETE query with parameterized values
       const placeholders = merchantIds.map((_, index) => `$${index + 1}`).join(',');
-      const deleteQuery = `DELETE FROM ${apiMerchantsTableName} WHERE id IN (${placeholders})`;
+      const deleteQuery = `DELETE FROM ${merchantsTableName} WHERE id IN (${placeholders})`;
       
       console.log(`[MMS MERCHANTS BULK DELETE] SQL Query:`, deleteQuery);
       console.log(`[MMS MERCHANTS BULK DELETE] Query params:`, merchantIds);
@@ -9425,7 +9425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     console.log('[ACH-DEBUG] Development debug ACH data check');
     try {
-      const tables = ['transactions', 'api_achtransactions', 'api_merchants'];
+      const tables = ['transactions', 'api_achtransactions', 'merchants'];
       const results = {};
       
       for (const table of tables) {
@@ -23623,7 +23623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'uploader_uploads',
           'uploaded_files', 
           'api_achtransactions',
-          'api_merchants',
+          'merchants',
           'api_terminals'
         ];
         
