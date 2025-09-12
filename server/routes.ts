@@ -14790,13 +14790,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Query will be built later after schema validation
       
-      // Initialize direct connection to NEON DEV database  
+      // Initialize environment-aware database connection
       const { Pool } = await import('@neondatabase/serverless');
+      const { getDatabaseUrl } = await import("./env-config");
       const directPool = new Pool({ 
-        connectionString: process.env.NEON_DEV_DATABASE_URL
+        connectionString: getDatabaseUrl()
       });
       
-      console.log(`[JSONB-API] Using direct NEON DEV connection: ${process.env.NEON_DEV_DATABASE_URL?.substring(0, 60)}...`);
+      console.log(`[JSONB-API] Using environment-aware database connection`);
       
       // First test if the table exists and has the right schema
       let schemaCheckPassed = true;
