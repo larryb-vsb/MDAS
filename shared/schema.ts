@@ -30,8 +30,9 @@ import { z } from "zod";
 
 // Environment-specific table name helper
 function getTableName(baseName: string): string {
-  const NODE_ENV = typeof process !== 'undefined' ? process.env.NODE_ENV : 'production';
-  const prefix = NODE_ENV === 'development' ? 'dev_' : '';
+  // FIXED: Use TABLE_PREFIX env var with deterministic fallback for DrizzleKit consistency
+  const TABLE_PREFIX = typeof process !== 'undefined' ? process.env.TABLE_PREFIX : 'dev_';
+  const prefix = TABLE_PREFIX || 'dev_'; // Default to dev_ to match existing database
   return `${prefix}${baseName}`;
 }
 
