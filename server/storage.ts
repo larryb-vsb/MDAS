@@ -5938,9 +5938,14 @@ export class DatabaseStorage implements IStorage {
                         normalizedExistingTrace === currentTraceNumber
                       );
                       
-                      if (existingDateStr === newDateStr && traceNumbersMatch) {
-                        // Same date AND same trace number - skip the record entirely
-                        console.log(`[SKIP] Transaction with trace number '${currentTraceNumber}' and date '${existingDateStr}' already exists. Skipping duplicate...`);
+                      // Check if amounts match (primary duplicate detection criteria)
+                      const existingAmount = parseFloat(existing.amount || '0');
+                      const newAmount = parseFloat(finalTransaction.amount || '0');
+                      const amountsMatch = Math.abs(existingAmount - newAmount) < 0.01; // Account for floating point precision
+                      
+                      if (existingDateStr === newDateStr && amountsMatch) {
+                        // Same date AND same amount - skip the record entirely
+                        console.log(`[SKIP] Transaction with amount '${newAmount}' and date '${existingDateStr}' already exists. Skipping duplicate...`);
                         
                         // Set duplicate info for statistics (skipped)
                         duplicateInfo = { increments: 0, wasSkipped: true };
@@ -5950,9 +5955,9 @@ export class DatabaseStorage implements IStorage {
                         fileProcessorService.updateProcessingStats(originalId, duplicateInfo);
                         
                         break; // Exit the retry loop without counting as inserted
-                      } else if (existingDateStr === newDateStr && !traceNumbersMatch) {
-                        // Same date but different trace number - this is a different transaction, proceed with increment
-                        console.log(`[DIFFERENT TRACE] Same date (${existingDateStr}) but different trace numbers: existing '${existingTraceNumber}' vs new '${currentTraceNumber}'. Creating incremented ID...`);
+                      } else if (existingDateStr === newDateStr && !amountsMatch) {
+                        // Same date but different amount - this is a different transaction, proceed with increment
+                        console.log(`[DIFFERENT AMOUNT] Same date (${existingDateStr}) but different amounts: existing '${existingAmount}' vs new '${newAmount}'. Creating incremented ID...`);
                         insertAttempts++;
                         
                         // Set duplicate info for statistics
