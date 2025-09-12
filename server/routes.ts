@@ -2356,6 +2356,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get imported merchants from dev_merchants table (CSV uploads)
+  app.get("/api/imported-merchants", isAuthenticated, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = req.query.search as string || "";
+
+      const merchantsTable = getTableName('merchants');
+      const offset = (page - 1) * limit;
+
+      console.log(`[IMPORTED MERCHANTS API] Using table: ${merchantsTable}, page: ${page}, limit: ${limit}`);
+
+      // Build search condition
+      let searchCondition = "";
+      let queryParams = [limit, offset];
+      if (search.trim()) {
+        searchCondition = "WHERE (mid ILIKE $3 OR name ILIKE $3 OR dba_name ILIKE $3)";
+        queryParams.push(`%${search.trim()}%`);
+      }
+
+      // Get total count
+      const countQuery = `SELECT COUNT(*) as total FROM ${merchantsTable} ${searchCondition}`;
+      const countParams = search.trim() ? [`%${search.trim()}%`] : [];
+      const countResult = await pool.query(countQuery, countParams);
+      const totalItems = parseInt(countResult.rows[0].total);
+
+      // Get merchants data
+      const dataQuery = `
+        SELECT 
+          mid,
+          name,
+          dba_name,
+          mcc,
+          sales_channel,
+          zip_code,
+          edit_date,
+          updated_by
+        FROM ${merchantsTable}
+        ${searchCondition}
+        ORDER BY edit_date DESC
+        LIMIT $1 OFFSET $2
+      `;
+
+      const result = await pool.query(dataQuery, queryParams);
+      
+      console.log(`[IMPORTED MERCHANTS API] Found ${result.rows.length} merchants (total: ${totalItems})`);
+
+      res.json({
+        data: result.rows,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalItems / limit),
+          totalItems: totalItems,
+          itemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching imported merchants:", error);
+      res.status(500).json({ error: "Failed to fetch imported merchants" });
+    }
+  });
+
   // Create placeholder upload entries before upload starts
   app.post("/api/uploads/initialize", isAuthenticated, async (req, res) => {
     try {

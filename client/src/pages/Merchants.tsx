@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import MerchantList from "@/components/merchants/MerchantList";
+import ImportedMerchantsList from "@/components/merchants/ImportedMerchantsList";
 import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
 import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw, Building2, CreditCard, FileText } from "lucide-react";
+import { RefreshCw, Building2, CreditCard, FileText, Upload } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -183,10 +184,14 @@ export default function Merchants() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+          <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
             <TabsTrigger value="ach" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               ACH Merchants
+            </TabsTrigger>
+            <TabsTrigger value="imported" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Imported
             </TabsTrigger>
             <TabsTrigger value="tddf" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -228,6 +233,10 @@ export default function Merchants() {
               deleteMutation={deleteMutation}
               mergeMutation={mergeMutation}
             />
+          </TabsContent>
+          
+          <TabsContent value="imported" className="mt-6">
+            <ImportedMerchantsList />
           </TabsContent>
           
           <TabsContent value="tddf" className="mt-6">
