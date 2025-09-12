@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import MainLayout from '@/components/layout/MainLayout';
@@ -71,6 +71,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { SubMerchantTerminals } from '@/components/merchants/SubMerchantTerminals';
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Define the merchant form schema
 const merchantSchema = z.object({
@@ -256,6 +257,12 @@ export default function MerchantDetail() {
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
   
+  // Pagination and sorting state for ACH Transactions
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState<'traceNumber' | 'date' | 'type' | 'amount'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
   // Fetch merchant details
   const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
     queryKey: ['/api/merchants', id],
@@ -307,7 +314,86 @@ export default function MerchantDetail() {
     return history.slice(totalMonths - end, totalMonths - start).reverse();
   }, [data?.analytics.transactionHistory, dateRange]);
   
-  // Get transactions filtered by the selected date range  
+  // Sort and paginate transactions using useMemo for better performance
+  const sortedAndPaginatedData = useMemo(() => {
+    if (!data?.transactions) {
+      return { transactions: [], totalItems: 0, totalPages: 1, currentPage: 1 };
+    }
+    
+    // Sort transactions with stable tiebreaker
+    const sortedTransactions = [...data.transactions].sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortField) {
+        case 'traceNumber':
+          aValue = ((a as any).traceNumber || a.transactionId || '').toLowerCase();
+          bValue = ((b as any).traceNumber || b.transactionId || '').toLowerCase();
+          break;
+        case 'date':
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 'type':
+          aValue = a.type.toLowerCase();
+          bValue = b.type.toLowerCase();
+          break;
+        case 'amount':
+          aValue = parseFloat(a.amount);
+          bValue = parseFloat(b.amount);
+          break;
+        default:
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+      }
+      
+      let comparison = 0;
+      if (sortOrder === 'asc') {
+        comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      } else {
+        comparison = aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+      }
+      
+      // Add stable tiebreaker using transactionId to prevent visual jitter
+      if (comparison === 0) {
+        return a.transactionId.localeCompare(b.transactionId);
+      }
+      
+      return comparison;
+    });
+    
+    // Calculate pagination with clamping
+    const totalItems = sortedTransactions.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    const clampedCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const startIndex = (clampedCurrentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedTransactions = sortedTransactions.slice(startIndex, endIndex);
+    
+    return {
+      transactions: paginatedTransactions,
+      totalItems,
+      totalPages,
+      currentPage: clampedCurrentPage
+    };
+  }, [data?.transactions, sortField, sortOrder, currentPage, itemsPerPage]);
+
+  // Effect to update currentPage if it becomes invalid due to data changes
+  useEffect(() => {
+    if (sortedAndPaginatedData.currentPage && sortedAndPaginatedData.currentPage !== currentPage) {
+      setCurrentPage(sortedAndPaginatedData.currentPage);
+    }
+  }, [sortedAndPaginatedData.currentPage, currentPage]);
+
+  // Effect to clear selections when transaction data changes
+  useEffect(() => {
+    if (data?.transactions) {
+      setSelectedTransactions(prev => 
+        prev.filter(id => data.transactions?.some(t => t.transactionId === id))
+      );
+    }
+  }, [data?.transactions]);
+  
+  // Get transactions filtered by the selected date range (keeping for analytics)
   const getFilteredTransactions = useCallback(() => {
     if (!data?.transactions) {
       return [];
@@ -446,6 +532,47 @@ export default function MerchantDetail() {
   // Form submission handler
   const onSubmit = (values: MerchantFormValues) => {
     updateMerchant.mutate(values);
+  };
+  
+  // Handle sorting column clicks
+  const handleSort = (field: 'traceNumber' | 'date' | 'type' | 'amount') => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1); // Reset to first page when sorting
+    setSelectedTransactions([]); // Clear selections when sorting to avoid confusion
+  };
+  
+  // Handle pagination
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelectedTransactions([]); // Clear selections when changing pages
+  };
+  
+  // Handle items per page change
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1); // Reset to first page
+    setSelectedTransactions([]); // Clear selections
+  };
+  
+  // Render sort icon and get aria-sort attribute
+  const getSortIcon = (field: 'traceNumber' | 'date' | 'type' | 'amount') => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    }
+    return sortOrder === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1" />
+      : <ArrowDown className="w-4 h-4 ml-1" />;
+  };
+
+  // Get aria-sort attribute for accessibility
+  const getAriaSort = (field: 'traceNumber' | 'date' | 'type' | 'amount'): 'ascending' | 'descending' | 'none' => {
+    if (sortField !== field) return 'none';
+    return sortOrder === 'asc' ? 'ascending' : 'descending';
   };
 
   // Helper function to format currency
@@ -918,41 +1045,89 @@ export default function MerchantDetail() {
                   <Skeleton className="w-full h-64" />
                 </div>
               ) : (
-                <div className="border rounded-md">
-                  <Table>
+                <>
+                  <div className="border rounded-md">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[50px]">
                           <Checkbox 
                             checked={
-                              data?.transactions && 
-                              data.transactions.length > 0 && 
-                              selectedTransactions.length === data.transactions.length
+                              sortedAndPaginatedData.transactions.length > 0 && 
+                              selectedTransactions.length === sortedAndPaginatedData.transactions.length
                             }
                             onCheckedChange={(checked) => {
-                              if (checked && data?.transactions) {
-                                setSelectedTransactions(data.transactions.map(t => t.transactionId));
+                              if (checked && sortedAndPaginatedData.transactions.length > 0) {
+                                setSelectedTransactions(sortedAndPaginatedData.transactions.map(t => t.transactionId));
                               } else {
                                 setSelectedTransactions([]);
                               }
                             }}
-                            aria-label="Select all transactions"
+                            aria-label="Select all visible transactions"
                           />
                         </TableHead>
-                        <TableHead>Trace Number</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('traceNumber')}
+                            className="p-0 h-auto font-medium justify-start"
+                            data-testid="sort-trace-number"
+                            role="columnheader"
+                            aria-sort={getAriaSort('traceNumber')}
+                          >
+                            Trace Number
+                            {getSortIcon('traceNumber')}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('date')}
+                            className="p-0 h-auto font-medium justify-start"
+                            data-testid="sort-date"
+                            role="columnheader"
+                            aria-sort={getAriaSort('date')}
+                          >
+                            Date
+                            {getSortIcon('date')}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('type')}
+                            className="p-0 h-auto font-medium justify-start"
+                            data-testid="sort-type"
+                            role="columnheader"
+                            aria-sort={getAriaSort('type')}
+                          >
+                            Type
+                            {getSortIcon('type')}
+                          </Button>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('amount')}
+                            className="p-0 h-auto font-medium justify-end"
+                            data-testid="sort-amount"
+                            role="columnheader"
+                            aria-sort={getAriaSort('amount')}
+                          >
+                            Amount
+                            {getSortIcon('amount')}
+                          </Button>
+                        </TableHead>
                         <TableHead>CSV Info</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        const filteredTransactions = getFilteredTransactions();
+                        const { transactions, totalItems } = sortedAndPaginatedData;
                         
-                        if (data?.transactions && data.transactions.length > 0) {
-                          if (filteredTransactions.length > 0) {
-                            return filteredTransactions.map(transaction => (
+                        if (totalItems > 0) {
+                          if (transactions.length > 0) {
+                            return transactions.map(transaction => (
                               <TableRow key={transaction.transactionId || `temp-${Math.random()}`}>
                                 <TableCell>
                                   <Checkbox 
@@ -1003,12 +1178,7 @@ export default function MerchantDetail() {
                             return (
                               <TableRow>
                                 <TableCell colSpan={6} className="text-center py-6 text-gray-500">
-                                  No transactions found for the selected time period.
-                                  <div className="mt-2">
-                                    <span className="text-sm text-muted-foreground">
-                                      Try adjusting the date selection using the navigation controls above.
-                                    </span>
-                                  </div>
+                                  No transactions found on this page.
                                 </TableCell>
                               </TableRow>
                             );
@@ -1024,8 +1194,103 @@ export default function MerchantDetail() {
                         }
                       })()}
                     </TableBody>
-                  </Table>
-                </div>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {(() => {
+                    const { totalItems, totalPages } = sortedAndPaginatedData;
+                    
+                    if (totalItems > 0) {
+                      return (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                          {/* Items per page selector */}
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-700">Items per page:</span>
+                            <Select 
+                              value={itemsPerPage.toString()} 
+                              onValueChange={(value) => handleItemsPerPageChange(parseInt(value))}
+                            >
+                              <SelectTrigger className="w-[70px]" data-testid="items-per-page">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="5">5</SelectItem>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="100">100</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Page info and navigation */}
+                          <div className="flex items-center space-x-4">
+                            <span className="text-sm text-gray-700">
+                              Page {sortedAndPaginatedData.currentPage} of {totalPages} ({totalItems} total items)
+                            </span>
+                            
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(sortedAndPaginatedData.currentPage - 1)}
+                                disabled={sortedAndPaginatedData.currentPage === 1}
+                                data-testid="prev-page"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                              </Button>
+                              
+                              {/* Page numbers */}
+                              <div className="flex items-center space-x-1">
+                                {(() => {
+                                  const pages = [];
+                                  const showPages = 5; // Show 5 page numbers at most
+                                  let startPage = Math.max(1, sortedAndPaginatedData.currentPage - 2);
+                                  let endPage = Math.min(totalPages, startPage + showPages - 1);
+                                  
+                                  if (endPage - startPage < showPages - 1) {
+                                    startPage = Math.max(1, endPage - showPages + 1);
+                                  }
+                                  
+                                  for (let i = startPage; i <= endPage; i++) {
+                                    pages.push(
+                                      <Button
+                                        key={i}
+                                        variant={i === sortedAndPaginatedData.currentPage ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handlePageChange(i)}
+                                        className="w-8 h-8 p-0"
+                                        data-testid={`page-${i}`}
+                                      >
+                                        {i}
+                                      </Button>
+                                    );
+                                  }
+                                  
+                                  return pages;
+                                })()}
+                              </div>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(sortedAndPaginatedData.currentPage + 1)}
+                                disabled={sortedAndPaginatedData.currentPage === totalPages}
+                                data-testid="next-page"
+                              >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </>
               )}
             </CardContent>
           </Card>
