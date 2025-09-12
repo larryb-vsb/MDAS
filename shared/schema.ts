@@ -230,17 +230,31 @@ export const apiTerminals = pgTable(getTableName("api_terminals"), {
 
 // Transactions table
 export const transactions = pgTable(getTableName("transactions"), {
-  id: text("id").primaryKey(),
+  // FIXED: Match existing database structure - integer auto-increment ID
+  id: serial("id").primaryKey(),
   merchantId: text("merchant_id").notNull().references(() => merchants.id),
-  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  transactionId: text("transaction_id"), // Match database field
+  amount: text("amount").notNull(), // Match database field (text, not numeric)
   date: timestamp("date").defaultNow().notNull(),
   type: text("type").notNull().default("Sale"),
+  createdAt: timestamp("created_at").defaultNow(), // Match database field
+  traceNumber: text("trace_number"), // Match database field
+  company: text("company"), // Match database field  
+  code: text("code"), // Match database field
   // Raw data preservation fields
   rawData: jsonb("raw_data"), // Store complete original CSV row as JSON
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id), // Link to source file
   sourceRowNumber: integer("source_row_number"), // Row number in original CSV
-  recordedAt: timestamp("recorded_at").defaultNow().notNull() // When transaction record was added
-});
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(), // When transaction record was added
+  
+  // NEW: Autonumber + filename-based duplicate prevention fields
+  sourceFilename: text("source_filename"), // Direct filename tracking (no join required)
+  sourceFileHash: text("source_file_hash"), // File integrity checking
+  updatedAt: timestamp("updated_at").defaultNow() // Update tracking
+}, (table) => ({
+  // NEW: Unique constraint for duplicate prevention using filename + line
+  uniqueFilenameLine: unique().on(table.sourceFilename, table.sourceRowNumber)
+}));
 
 // Uploaded files table - PRODUCTION-COMPATIBLE ID TYPE
 export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
