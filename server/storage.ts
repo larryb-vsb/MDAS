@@ -5872,27 +5872,32 @@ export class DatabaseStorage implements IStorage {
                    insertError.constraint === 'dev_api_achtransactions_pkey' ||
                    insertError.constraint?.includes('_pkey'));
                 if (isDuplicateError) {
-                  // First, check if the existing transaction has the same date
-                  console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
+                  // Check if the existing transaction has the same trace number AND date
+                  console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking trace number and date match...`);
                   
                   try {
+                    // Get the trace number from the current transaction being inserted
+                    const currentTraceNumber = finalTransaction.traceNumber || finalTransaction.trace_number || originalId;
+                    
                     // Normalize trace number for comparison (remove leading zeros and special chars)
                     const normalizeTraceNumber = (traceNum: string): string => {
                       return traceNum.replace(/[^a-zA-Z0-9]/g, '').replace(/^0+/, '') || '0';
                     };
                     
-                    const normalizedOriginalId = normalizeTraceNumber(originalId);
+                    const normalizedCurrentTrace = normalizeTraceNumber(currentTraceNumber);
                     
-                    // Check for exact ID match first, then normalized match
+                    // Check for existing transactions with same trace number
                     let existingTransactionResult = await pool.query(`
-                      SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1
-                    `, [originalId]);
+                      SELECT * FROM ${transactionsTableName} 
+                      WHERE trace_number = $1 OR trace_number = $2 
+                      ORDER BY created_at DESC LIMIT 1
+                    `, [currentTraceNumber, normalizedCurrentTrace]);
                     
+                    // If no match by trace number, fall back to ID check
                     if (existingTransactionResult.rows.length === 0) {
-                      // Try normalized version (remove leading zeros)
                       existingTransactionResult = await pool.query(`
                         SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1
-                      `, [normalizedOriginalId]);
+                      `, [originalId]);
                     }
                     
                     if (existingTransactionResult.rows.length > 0) {
@@ -5922,16 +5927,20 @@ export class DatabaseStorage implements IStorage {
                       const existingDateStr = existingDate.toISOString().split('T')[0];
                       const newDateStr = newDate.toISOString().split('T')[0];
                       
-                      if (existingDateStr === newDateStr) {
-                        // Same date - check if we should update values or skip
-                        console.log(`[DATE MATCH] Transaction ${originalId} has same date (${existingDateStr}). Checking for updates...`);
-                        
-                        // Check if amounts are different
-                        const existingAmount = parseFloat(existing.amount.toString());
-                        const newAmount = parseFloat(finalTransaction.amount.toString());
-                        
-                        // Same trace number and date - skip regardless of amount differences
-                        console.log(`[SKIP] Transaction ${originalId} with same trace number and date already exists. Skipping...`);
+                      // Check if trace numbers match
+                      const existingTraceNumber = existing.trace_number || existing.id;
+                      const normalizedExistingTrace = normalizeTraceNumber(existingTraceNumber);
+                      
+                      const traceNumbersMatch = (
+                        existingTraceNumber === currentTraceNumber ||
+                        existingTraceNumber === normalizedCurrentTrace ||
+                        normalizedExistingTrace === normalizedCurrentTrace ||
+                        normalizedExistingTrace === currentTraceNumber
+                      );
+                      
+                      if (existingDateStr === newDateStr && traceNumbersMatch) {
+                        // Same date AND same trace number - skip the record entirely
+                        console.log(`[SKIP] Transaction with trace number '${currentTraceNumber}' and date '${existingDateStr}' already exists. Skipping duplicate...`);
                         
                         // Set duplicate info for statistics (skipped)
                         duplicateInfo = { increments: 0, wasSkipped: true };
@@ -5941,6 +5950,24 @@ export class DatabaseStorage implements IStorage {
                         fileProcessorService.updateProcessingStats(originalId, duplicateInfo);
                         
                         break; // Exit the retry loop without counting as inserted
+                      } else if (existingDateStr === newDateStr && !traceNumbersMatch) {
+                        // Same date but different trace number - this is a different transaction, proceed with increment
+                        console.log(`[DIFFERENT TRACE] Same date (${existingDateStr}) but different trace numbers: existing '${existingTraceNumber}' vs new '${currentTraceNumber}'. Creating incremented ID...`);
+                        insertAttempts++;
+                        
+                        // Set duplicate info for statistics
+                        duplicateInfo = { increments: insertAttempts, wasSkipped: false };
+                        
+                        const numericId = parseFloat(originalId);
+                        if (!isNaN(numericId)) {
+                          const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
+                          finalTransaction.id = incrementedId;
+                          console.log(`[DUPLICATE RESOLVED] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
+                        } else {
+                          // For non-numeric IDs, append increment suffix
+                          finalTransaction.id = `${originalId}_${insertAttempts}`;
+                          console.log(`[DUPLICATE RESOLVED] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
+                        }
                       } else {
                         // Different date - increment the ID as before
                         console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
