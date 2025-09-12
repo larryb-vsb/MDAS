@@ -508,6 +508,18 @@ export default function MMSUploader() {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       setSelectedUploads([]);
       console.log(`[CANCEL-ENCODING] Successfully canceled encoding for ${data.canceledCount} files`);
+      toast({ 
+        title: 'Encoding Canceled', 
+        description: `Successfully canceled encoding for ${data.canceledCount} files` 
+      });
+    },
+    onError: (error: any) => {
+      console.error('[CANCEL-ENCODING] Error canceling encoding:', error);
+      toast({ 
+        title: 'Cancel Failed', 
+        description: `Failed to cancel encoding: ${error?.message || 'Unknown error'}`,
+        variant: 'destructive'
+      });
     }
   });
 
@@ -768,12 +780,23 @@ export default function MMSUploader() {
       return upload && upload.currentPhase === 'encoding';
     });
     
-    if (encodingUploads.length === 0) return;
+    if (encodingUploads.length === 0) {
+      console.log('[CANCEL-ENCODING] No files in encoding phase selected');
+      toast({ 
+        title: 'No Files to Cancel', 
+        description: 'Please select files that are currently in the encoding phase',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    console.log(`[CANCEL-ENCODING] Attempting to cancel encoding for ${encodingUploads.length} files:`, encodingUploads);
     
     try {
       await cancelEncodingMutation.mutateAsync(encodingUploads);
     } catch (error) {
-      console.error('Cancel encoding error:', error);
+      console.error('[CANCEL-ENCODING] Handler error:', error);
+      // Error is now handled by the mutation's onError
     }
   };
 
