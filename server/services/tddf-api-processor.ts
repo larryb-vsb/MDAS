@@ -20,8 +20,15 @@ class TddfApiProcessorService {
   /**
    * Initialize the TDDF API processor service
    */
-  initialize(): void {
+  async initialize(): Promise<void> {
     console.log("[TDDF-API-PROCESSOR] Initializing TDDF API processor service...");
+    
+    // Perform startup health check
+    const healthCheckPassed = await this.performStartupHealthCheck();
+    if (!healthCheckPassed) {
+      console.error("[TDDF-API-PROCESSOR] Startup health check failed - service will not be scheduled");
+      return;
+    }
     
     // Schedule a job to run every 30 seconds for responsive processing
     this.processingJob = schedule.scheduleJob(this.jobName, '*/30 * * * * *', async () => {
@@ -36,6 +43,54 @@ class TddfApiProcessorService {
       nextRun: this.processingJob?.nextInvocation()?.toISOString(),
       serverId: getCachedServerId()
     }).catch(console.error);
+  }
+
+  /**
+   * Perform startup health check to verify required tables exist
+   */
+  private async performStartupHealthCheck(): Promise<boolean> {
+    try {
+      const requiredTables = ['tddf_api_queue', 'tddf_api_files', 'tddf_api_records', 'tddf_api_schemas'];
+      const missingTables: string[] = [];
+      
+      for (const tableName of requiredTables) {
+        const fullTableName = getTableName(tableName);
+        try {
+          await db.execute(sql.raw(`SELECT 1 FROM ${fullTableName} LIMIT 1`));
+          console.log(`[TDDF-API-PROCESSOR] ✅ Health check: ${fullTableName} exists`);
+        } catch (error) {
+          console.error(`[TDDF-API-PROCESSOR] ❌ Health check: ${fullTableName} missing`);
+          missingTables.push(fullTableName);
+        }
+      }
+      
+      if (missingTables.length > 0) {
+        console.error(`[TDDF-API-PROCESSOR] FATAL: Missing required tables: ${missingTables.join(', ')}`);
+        console.error(`[TDDF-API-PROCESSOR] Database: ${await this.getDatabaseInfo()}`);
+        return false;
+      }
+      
+      console.log(`[TDDF-API-PROCESSOR] ✅ All required tables verified`);
+      return true;
+      
+    } catch (error) {
+      console.error(`[TDDF-API-PROCESSOR] Health check failed:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get database connection info for debugging
+   */
+  private async getDatabaseInfo(): Promise<string> {
+    try {
+      const result = await db.execute(sql.raw(`
+        SELECT current_database() as db_name, current_user as db_user, current_schemas(true) as schemas
+      `));
+      return JSON.stringify(result.rows[0]);
+    } catch {
+      return 'Unable to retrieve database info';
+    }
   }
 
   /**

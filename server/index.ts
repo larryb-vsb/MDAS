@@ -269,7 +269,7 @@ app.use((req, res, next) => {
       fileProcessorService.initialize();
       
       // Start the TDDF API processor service
-      tddfApiProcessor.initialize();
+      await tddfApiProcessor.initialize();
       
       // Log file processor initialization
       await systemLogger.info('Application', 'File processor service initialized', {
