@@ -2374,7 +2374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let paramIndex = 1;
       
       if (search.trim()) {
-        searchCondition = `WHERE (mid ILIKE $${paramIndex} OR name ILIKE $${paramIndex} OR dba_name ILIKE $${paramIndex})`;
+        searchCondition = `WHERE (id ILIKE $${paramIndex} OR name ILIKE $${paramIndex} OR dba_name ILIKE $${paramIndex})`;
         queryParams.push(`%${search.trim()}%`);
         paramIndex++;
       }
@@ -2390,10 +2390,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get merchants data
       const dataQuery = `
         SELECT 
-          mid,
+          id,
           name,
           dba_name,
-          mcc,
+          merchant_category_code as mcc,
           sales_channel,
           zip_code,
           edit_date,

@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ImportedMerchant {
-  mid: string;
+  id: string;
   name: string;
   dba_name: string;
   mcc: string;
@@ -102,7 +102,7 @@ export default function ImportedMerchantsList() {
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by MID, name, or DBA..."
+              placeholder="Search by ID, name, or DBA..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"
@@ -140,7 +140,7 @@ export default function ImportedMerchantsList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead data-testid="header-mid">MID</TableHead>
+                    <TableHead data-testid="header-id">ID</TableHead>
                     <TableHead data-testid="header-name">Name</TableHead>
                     <TableHead data-testid="header-dba">DBA Name</TableHead>
                     <TableHead data-testid="header-mcc">MCC</TableHead>
@@ -152,33 +152,33 @@ export default function ImportedMerchantsList() {
                 </TableHeader>
                 <TableBody>
                   {data?.data.map((merchant, index) => (
-                    <TableRow key={merchant.mid} data-testid={`row-merchant-${merchant.mid}`}>
-                      <TableCell data-testid={`text-mid-${merchant.mid}`}>
+                    <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
+                      <TableCell data-testid={`text-id-${merchant.id}`}>
                         <Badge variant="outline" className="font-mono">
-                          {merchant.mid}
+                          {merchant.id}
                         </Badge>
                       </TableCell>
-                      <TableCell data-testid={`text-name-${merchant.mid}`}>
+                      <TableCell data-testid={`text-name-${merchant.id}`}>
                         <div className="font-medium">{merchant.name || 'N/A'}</div>
                       </TableCell>
-                      <TableCell data-testid={`text-dba-${merchant.mid}`}>
+                      <TableCell data-testid={`text-dba-${merchant.id}`}>
                         {merchant.dba_name || 'N/A'}
                       </TableCell>
-                      <TableCell data-testid={`text-mcc-${merchant.mid}`}>
+                      <TableCell data-testid={`text-mcc-${merchant.id}`}>
                         <Badge variant="secondary">
                           {merchant.mcc || 'N/A'}
                         </Badge>
                       </TableCell>
-                      <TableCell data-testid={`text-sales-channel-${merchant.mid}`}>
+                      <TableCell data-testid={`text-sales-channel-${merchant.id}`}>
                         {merchant.sales_channel || 'N/A'}
                       </TableCell>
-                      <TableCell data-testid={`text-zip-${merchant.mid}`}>
+                      <TableCell data-testid={`text-zip-${merchant.id}`}>
                         {merchant.zip_code || 'N/A'}
                       </TableCell>
-                      <TableCell data-testid={`text-edit-date-${merchant.mid}`}>
+                      <TableCell data-testid={`text-edit-date-${merchant.id}`}>
                         {formatDate(merchant.edit_date)}
                       </TableCell>
-                      <TableCell data-testid={`text-updated-by-${merchant.mid}`}>
+                      <TableCell data-testid={`text-updated-by-${merchant.id}`}>
                         {merchant.updated_by || 'N/A'}
                       </TableCell>
                     </TableRow>
