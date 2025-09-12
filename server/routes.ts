@@ -4271,11 +4271,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedBy = "System-Uploader";
       }
       
+      // Map frontend field names to database column names
+      const fieldMapping = {
+        clientMID: 'client_mid',
+        merchantType: 'merchant_type', 
+        salesChannel: 'sales_channel',
+        zipCode: 'zip_code'
+      };
+      
+      // Transform the merchant data to use correct database column names
+      const mappedData = {};
+      Object.keys(merchantData).forEach(key => {
+        const dbColumnName = fieldMapping[key as keyof typeof fieldMapping] || key;
+        mappedData[dbColumnName] = merchantData[key as keyof typeof merchantData];
+      });
+      
       // Always update the edit date and updatedBy when merchant details are changed
       const updatedMerchantData = {
-        ...merchantData,
-        editDate: new Date(),
-        updatedBy: updatedBy
+        ...mappedData,
+        edit_date: new Date(),
+        updated_by: updatedBy
       };
       
       const updatedMerchant = await storage.updateMerchant(merchantId, updatedMerchantData);
