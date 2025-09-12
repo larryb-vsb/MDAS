@@ -4843,149 +4843,74 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
-          // Final step: intelligent duplicate handling and insertion
-          console.log(`\n=================== INTELLIGENT DUPLICATE HANDLING ===================`);
+          // Final step: Simple filename+line based upserts (replaces complex trace number logic)
+          console.log(`\n=================== FILENAME+LINE UPSERT PROCESSING ===================`);
           
           let insertedCount = 0;
+          let updatedCount = 0;
           const insertedTransactionsList: any[] = [];
           
-          for (const transaction of transactions) {
-            let insertAttempts = 0;
-            const originalId = transaction.id;
-            let finalTransaction = { ...transaction };
-            
-            while (insertAttempts < 100) {
-              try {
-                // Attempt to insert transaction
-                // @ENVIRONMENT-CRITICAL - Dynamic transaction insertion with environment-aware table naming
-                // @DEPLOYMENT-CHECK - Uses getTableName() for proper dev/production separation
-                const transactionsTableName = getTableName('transactions');
-                const columns = Object.keys(finalTransaction).join(', ');
-                const values = Object.values(finalTransaction).map((_, index) => `$${index + 1}`).join(', ');
-                await pool.query(`INSERT INTO ${transactionsTableName} (${columns}) VALUES (${values})`, Object.values(finalTransaction));
-                
+          for (const [index, transaction] of transactions.entries()) {
+            try {
+              // Prepare transaction data with filename+line fields for upsert
+              const transactionData = {
+                ...transaction,
+                // Add filename and line number for uniqueness constraint
+                source_filename: fileName,
+                source_row_number: index + 1, // 1-based row numbering
+                source_file_hash: null, // TODO: Add file hash for integrity checking
+                updated_at: new Date()
+              };
+              
+              // Use simple upsert with filename+line constraint
+              // @ENVIRONMENT-CRITICAL - Dynamic transaction insertion with environment-aware table naming
+              // @DEPLOYMENT-CHECK - Uses getTableName() for proper dev/production separation
+              const transactionsTableName = getTableName('transactions');
+              
+              // INSERT ... ON CONFLICT DO UPDATE for filename+line uniqueness
+              const columns = Object.keys(transactionData).join(', ');
+              const values = Object.values(transactionData).map((_, idx) => `$${idx + 1}`).join(', ');
+              const updateColumns = Object.keys(transactionData)
+                .filter(col => col !== 'id' && col !== 'source_filename' && col !== 'source_row_number') // Don't update primary key or constraint columns
+                .map(col => `${col} = EXCLUDED.${col}`)
+                .join(', ');
+              
+              const upsertQuery = `
+                INSERT INTO ${transactionsTableName} (${columns}) 
+                VALUES (${values})
+                ON CONFLICT (source_filename, source_row_number) 
+                DO UPDATE SET ${updateColumns}
+                RETURNING id, (xmax = 0) AS inserted
+              `;
+              
+              const result = await pool.query(upsertQuery, Object.values(transactionData));
+              const wasInserted = result.rows[0].inserted;
+              
+              if (wasInserted) {
                 insertedCount++;
-                insertedTransactionsList.push({
-                  id: finalTransaction.id,
-                  merchantId: finalTransaction.merchantId,
-                  amount: finalTransaction.amount
-                });
-                
-                if (insertAttempts > 0) {
-                  console.log(`[DUPLICATE RESOLVED] Original ID ${originalId} incremented to ${finalTransaction.id} after ${insertAttempts} attempts`);
-                }
-                
-                break; // Success, exit the retry loop
-                
-              } catch (insertError: any) {
-                // Check if it's a duplicate key error
-                if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
-                  console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
-                  
-                  try {
-                    // @ENVIRONMENT-CRITICAL - Transaction duplicate checking
-                    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-                    const transactionsTableName = getTableName('transactions');
-                    
-                    // Normalize trace number for comparison (remove leading zeros and special chars)
-                    const normalizeTraceNumber = (traceNum: string): string => {
-                      return traceNum.replace(/[^a-zA-Z0-9]/g, '').replace(/^0+/, '') || '0';
-                    };
-                    
-                    const normalizedOriginalId = normalizeTraceNumber(originalId);
-                    
-                    // Check for exact ID match first, then normalized match
-                    let existingTransactionResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [originalId]);
-                    if (existingTransactionResult.rows.length === 0) {
-                      // Try normalized version (remove leading zeros)
-                      existingTransactionResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [normalizedOriginalId]);
-                    }
-                    const existingTransaction = existingTransactionResult.rows;
-                    
-                    if (existingTransaction.length > 0) {
-                      // Robust date parsing with fallback
-                      const parseDate = (dateValue) => {
-                        if (!dateValue) return null;
-                        try {
-                          const date = new Date(dateValue);
-                          if (isNaN(date.getTime())) return null;
-                          return date;
-                        } catch (e) {
-                          return null;
-                        }
-                      };
-                      
-                      const existingDate = parseDate(existingTransaction[0].transaction_date || existingTransaction[0].date);
-                      const newDate = parseDate(finalTransaction.date);
-                      
-                      if (!existingDate || !newDate) {
-                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existingTransaction[0].transaction_date || existingTransaction[0].date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
-                        throw new Error('Date parsing failed');
-                      }
-                      
-                      const existingDateStr = existingDate.toISOString().split('T')[0];
-                      const newDateStr = newDate.toISOString().split('T')[0];
-                      
-                      // If dates match exactly, check if values differ
-                      if (existingDateStr === newDateStr) {
-                        const existingAmount = parseFloat(existingTransaction[0].amount.toString());
-                        const newAmount = parseFloat(finalTransaction.amount.toString());
-                        const existingType = existingTransaction[0].type;
-                        const newType = finalTransaction.type;
-                        
-                        console.log(`[DATE MATCH] Same date ${newDateStr}. Existing: $${existingAmount} (${existingType}), New: $${newAmount} (${newType})`);
-                        
-                        // Same trace number and date - skip regardless of amount differences
-                        console.log(`[SKIP] Transaction ${originalId} (trace number and date match) already exists. Skipping duplicate...`);
-                        break; // Exit without counting as inserted
-                      } else {
-                        // Different date - increment the ID
-                        console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
-                        insertAttempts++;
-                        
-                        const numericId = parseFloat(originalId);
-                        if (!isNaN(numericId)) {
-                          const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
-                          finalTransaction.id = incrementedId;
-                          console.log(`[DUPLICATE RESOLVED] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
-                        } else {
-                          // For non-numeric IDs, append increment suffix
-                          finalTransaction.id = `${originalId}_${insertAttempts}`;
-                          console.log(`[DUPLICATE RESOLVED] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
-                        }
-                      }
-                    }
-                  } catch (checkError: any) {
-                    console.error(`Error checking existing transaction: ${checkError.message}`);
-                    // Fall back to original incrementation logic
-                    insertAttempts++;
-                    const numericId = parseFloat(originalId);
-                    if (!isNaN(numericId)) {
-                      const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
-                      finalTransaction.id = incrementedId;
-                      console.log(`[FALLBACK] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
-                    } else {
-                      finalTransaction.id = `${originalId}_${insertAttempts}`;
-                      console.log(`[FALLBACK] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
-                    }
-                  }
-                } else {
-                  // Non-duplicate error, log and rethrow
-                  console.error(`\n❌ TRANSACTION INSERT ERROR (Non-duplicate) ❌`);
-                  console.error(`CSV Row Number: ${rowCount}`);
-                  console.error(`Transaction ID: ${finalTransaction.id}`);
-                  console.error(`Error Details: ${insertError.message}`);
-                  throw insertError;
-                }
+                console.log(`[INSERTED] New transaction from ${fileName}:${index + 1} - ID: ${transaction.id}, Amount: ${transaction.amount}`);
+              } else {
+                updatedCount++;
+                console.log(`[UPDATED] Existing transaction from ${fileName}:${index + 1} - ID: ${transaction.id}, Amount: ${transaction.amount}`);
               }
-            }
-            
-            if (insertAttempts >= 100) {
-              throw new Error(`Failed to insert transaction after 100 attempts: ${originalId}`);
+              
+              insertedTransactionsList.push({
+                id: result.rows[0].id,
+                merchantId: transaction.merchantId,
+                amount: transaction.amount,
+                action: wasInserted ? 'inserted' : 'updated'
+              });
+              
+            } catch (insertError: any) {
+              console.error(`\n❌ TRANSACTION UPSERT ERROR ❌`);
+              console.error(`File: ${fileName}, Row: ${index + 1}`);
+              console.error(`Transaction ID: ${transaction.id}`);
+              console.error(`Error Details: ${insertError.message}`);
+              throw insertError;
             }
           }
           
-          console.log(`Successfully processed ${insertedCount} transactions with intelligent duplicate handling`);
+          console.log(`Successfully processed transactions: ${insertedCount} inserted, ${updatedCount} updated`);
           console.log(`Resolving with metrics: rowsProcessed=${rowCount}, transactionsCreated=${insertedCount}, errors=${errorCount}`);
           resolve({ rowsProcessed: rowCount, transactionsCreated: insertedCount, errors: errorCount });
         } catch (error) {
