@@ -2370,11 +2370,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Build search condition
       let searchCondition = "";
-      let queryParams = [limit, offset];
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
       if (search.trim()) {
-        searchCondition = "WHERE (mid ILIKE $3 OR name ILIKE $3 OR dba_name ILIKE $3)";
+        searchCondition = `WHERE (mid ILIKE $${paramIndex} OR name ILIKE $${paramIndex} OR dba_name ILIKE $${paramIndex})`;
         queryParams.push(`%${search.trim()}%`);
+        paramIndex++;
       }
+      
+      queryParams.push(limit, offset);
 
       // Get total count
       const countQuery = `SELECT COUNT(*) as total FROM ${merchantsTable} ${searchCondition}`;
@@ -2396,7 +2401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${merchantsTable}
         ${searchCondition}
         ORDER BY edit_date DESC
-        LIMIT $1 OFFSET $2
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `;
 
       const result = await pool.query(dataQuery, queryParams);
