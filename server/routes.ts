@@ -7206,7 +7206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get MMS merchants from dev_api_merchants table (imported from TDDF)
+  // Get MMS merchants from api_merchants table (imported from TDDF)
   app.get("/api/mms/merchants", isAuthenticated, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
@@ -7219,7 +7219,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page, limit, search, sortBy, sortOrder
       });
       
-      const apiMerchantsTableName = 'dev_api_merchants'; // Direct table name for King database
+      const { getTableName } = await import("./table-config");
+      const apiMerchantsTableName = getTableName('api_merchants'); // Environment-aware table name
       const offset = (page - 1) * limit;
       
       // Build WHERE clause for search
@@ -7286,7 +7287,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[MMS MERCHANTS BULK DELETE] Deleting ${merchantIds.length} merchants:`, merchantIds);
       
-      const apiMerchantsTableName = 'dev_api_merchants'; // Direct table name for King database
+      const { getTableName } = await import("./table-config");
+      const apiMerchantsTableName = getTableName('api_merchants'); // Environment-aware table name
       
       // Build the DELETE query with parameterized values
       const placeholders = merchantIds.map((_, index) => `$${index + 1}`).join(',');
