@@ -2466,7 +2466,7 @@ export class DatabaseStorage implements IStorage {
         return;
       }
       
-      const transactionsTableName = getTableName('transactions');
+      const transactionsTableName = getTableName('api_achtransactions');
       const merchantsTableName = getTableName('merchants');
       
       // Get transaction data before deletion for audit logs (environment-aware)
@@ -2496,7 +2496,7 @@ export class DatabaseStorage implements IStorage {
             merchantId: transaction.merchant_id,
             merchantName: merchantName,
             amount: transaction.amount,
-            date: new Date(transaction.date).toISOString(),
+            date: transaction.date ? new Date(transaction.date).toISOString() : null,
             type: transaction.type
           },
           newValues: null, // No new values for deletion
