@@ -14718,10 +14718,10 @@ export class DatabaseStorage implements IStorage {
         SET 
           current_phase = 'identified',
           encoding_status = NULL,
-          encoding_start_time = NULL,
-          encoding_end_time = NULL,
-          encoding_progress = NULL,
-          encoding_error = NULL,
+          encoding_complete = NULL,
+          encoding_completion_time = NULL,
+          encoding_at = NULL,
+          encoding_time_ms = NULL,
           processing_notes = COALESCE(processing_notes, '') || ' | Encoding canceled by user - reset to identified phase',
           last_updated = NOW()
         WHERE id IN (${encodingPlaceholders})
