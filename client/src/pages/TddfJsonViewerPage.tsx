@@ -107,17 +107,41 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
           <TabsContent value="fields" className={compact ? "mt-2" : "mt-3"}>
             {record.extracted_fields && Object.keys(record.extracted_fields).length > 0 ? (
               <div className={`grid gap-2 ${compact ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
-                {Object.entries(record.extracted_fields).map(([key, value]) => (
+                {/* Always show Transaction Type Identifier for DT records (dynamic extraction) */}
+                {record.record_type === 'DT' && (
+                  <div className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`} data-testid="text-transaction-type-identifier">
+                    <div className="font-medium text-gray-700 mb-1">
+                      Transaction Type Identifier (336-338)
+                    </div>
+                    <div className="font-mono text-purple-600 font-semibold">
+                      {(() => {
+                        // First try extracted_fields, then dynamically extract from raw line
+                        if (record.extracted_fields?.transactionTypeIdentifier) {
+                          return formatFieldValue('transactionTypeIdentifier', record.extracted_fields.transactionTypeIdentifier);
+                        }
+                        // Dynamic extraction from positions 336-338 (1-based inclusive)
+                        if (record.raw_line && record.raw_line.length >= 338) {
+                          const ttiValue = record.raw_line.substring(335, 338).trim();
+                          return ttiValue || 'N/A';
+                        }
+                        return 'N/A';
+                      })()} 
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display other extracted fields (excluding TTI to avoid duplication) */}
+                {Object.entries(record.extracted_fields)
+                  .filter(([key]) => key !== 'transactionTypeIdentifier') // Skip TTI since we show it above
+                  .map(([key, value]) => (
                   <div key={key} className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`}>
                     <div className="font-medium text-gray-700 mb-1">
                       {key === 'merchantAccountNumber' ? 'Merchant Account Number' : 
-                       key === 'transactionTypeIdentifier' ? 'Transaction Type Identifier (336-338)' :
                        key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                     </div>
                     <div className={`font-mono ${
                       key === 'recordIdentifier' ? 'text-red-600 font-bold' : 
                       key === 'merchantAccountNumber' ? 'text-blue-600 font-semibold' : 
-                      key === 'transactionTypeIdentifier' ? 'text-purple-600 font-semibold' :
                       'text-gray-900'
                     }`}>
                       {formatFieldValue(key, value)}
