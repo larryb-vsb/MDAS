@@ -5565,7 +5565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const fileResult = await pool.query(`
         SELECT id, original_filename, s3_key, detected_file_type, final_file_type, content_base64
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         WHERE id = $1
       `, [fileId]);
       
@@ -15804,14 +15804,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           MAX(retry_count) as max_retries,
           MAX(warning_count) as max_warnings,
           COUNT(CASE WHEN last_retry_at IS NOT NULL THEN 1 END) as files_retried_recently
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         WHERE filename LIKE '%.TSYSO'
       `);
       
       // Get files with warnings for details
       const warningFiles = await pool.query(`
         SELECT filename, warning_count, last_warning_at, retry_count, current_phase
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         WHERE warning_count > 0 AND filename LIKE '%.TSYSO'
         ORDER BY last_warning_at DESC
         LIMIT 10
@@ -23293,19 +23293,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status,
           COUNT(*) as count,
           COALESCE(SUM(file_size), 0) as total_size
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         GROUP BY status
       `);
       
       const linkedFiles = await pool.query(`
         SELECT COUNT(*) as count
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         WHERE storage_path IS NOT NULL
       `);
       
       const stuckUploads = await pool.query(`
         SELECT COUNT(*) as count
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         WHERE status = 'started' 
           AND uploaded_at < NOW() - INTERVAL '1 hour'
       `);
@@ -23377,7 +23377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get orphaned database entries (stuck uploads)
       const orphanedEntries = await storage.query(`
         SELECT id, filename, storage_path, file_size
-        FROM dev_uploader_uploads 
+        FROM ${getTableName('uploader_uploads')} 
         WHERE status = 'started' 
           AND uploaded_at < NOW() - INTERVAL '2 hours'
         LIMIT 100
@@ -23407,7 +23407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const entry of orphanedEntries.rows) {
           try {
             await storage.query(`
-              DELETE FROM dev_uploader_uploads 
+              DELETE FROM ${getTableName('uploader_uploads')} 
               WHERE id = $1
             `, [entry.id]);
             
@@ -23447,7 +23447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Remove entries stuck in 'started' status for more than 1 hour
       const result = await storage.query(`
-        DELETE FROM dev_uploader_uploads 
+        DELETE FROM ${getTableName('uploader_uploads')} 
         WHERE status = 'started' 
           AND uploaded_at < NOW() - INTERVAL '1 hour'
       `);
