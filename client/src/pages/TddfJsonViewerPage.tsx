@@ -536,6 +536,16 @@ export default function TddfJsonViewerPage() {
     setCurrentPage(0);
   };
 
+  const handleTerminalIdFilterChange = (value: string) => {
+    setTerminalIdFilter(value);
+    setCurrentPage(0); // Reset to first page when filtering
+  };
+
+  const clearTerminalIdFilter = () => {
+    setTerminalIdFilter('');
+    setCurrentPage(0);
+  };
+
   // Check cache status
   const { data: cacheStatus } = useQuery({
     queryKey: ['tddf-cache-status', uploadId],
