@@ -232,7 +232,10 @@ export const DT_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'authorizationNumber', positions: [243, 248], type: 'text', description: 'Authorization number (6 chars)' },
   { name: 'rejectReason', positions: [249, 250], type: 'text', description: 'Reject reason (2 chars)' },
   { name: 'cardType', positions: [253, 254], type: 'text', description: 'Card type code (2 chars)' },
-  { name: 'terminalId', positions: [277, 284], type: 'text', description: 'Terminal ID (8 chars)' }
+  { name: 'terminalId', positions: [277, 284], type: 'text', description: 'Terminal ID (8 chars)' },
+  
+  // Extended transaction details (positions 336-338)
+  { name: 'transactionTypeIdentifier', positions: [336, 338], type: 'text', description: 'Transaction Type Identifier (3 chars)' }
 ];
 
 // P1 Record Field Definitions (corrected positions based on TDDF specification)
