@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft, Info, FileText, BarChart3, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft, Info, FileText, BarChart3, Search, X, CreditCard } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface JsonbRecord {
@@ -36,6 +36,21 @@ interface EncodingTimingData {
   }>;
 }
 
+// Card type badge configuration
+function getCardTypeBadges(cardType: string) {
+  const badges: Record<string, { label: string; className: string }> = {
+    'VD': { label: 'Visa Debit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'VC': { label: 'Visa Credit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'MD': { label: 'Mastercard Debit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    'MC': { label: 'Mastercard Credit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    'AX': { label: 'American Express', className: 'bg-green-50 text-green-700 border-green-200' },
+    'DS': { label: 'Discover', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+    'DI': { label: 'Diners Club', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+    'JC': { label: 'JCB', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  };
+  return badges[cardType] || { label: cardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
+}
+
 // Record Card Component
 interface RecordCardProps {
   record: JsonbRecord;
@@ -59,6 +74,14 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
                 <Badge variant="outline" className="text-red-600 border-red-200">
                   ID: {record.record_identifier}
                 </Badge>
+              )}
+              {record.extracted_fields?.cardType && (
+                <span 
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(record.extracted_fields.cardType).className}`}
+                >
+                  <CreditCard className="h-3 w-3" />
+                  {getCardTypeBadges(record.extracted_fields.cardType).label}
+                </span>
               )}
             </div>
             <div className="text-xs text-gray-500">
@@ -88,11 +111,13 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
                   <div key={key} className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`}>
                     <div className="font-medium text-gray-700 mb-1">
                       {key === 'merchantAccountNumber' ? 'Merchant Account Number' : 
+                       key === 'transactionTypeIdentifier' ? 'Transaction Type Identifier (336-338)' :
                        key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                     </div>
                     <div className={`font-mono ${
                       key === 'recordIdentifier' ? 'text-red-600 font-bold' : 
                       key === 'merchantAccountNumber' ? 'text-blue-600 font-semibold' : 
+                      key === 'transactionTypeIdentifier' ? 'text-purple-600 font-semibold' :
                       'text-gray-900'
                     }`}>
                       {formatFieldValue(key, value)}
