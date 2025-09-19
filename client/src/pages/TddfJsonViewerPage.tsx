@@ -492,6 +492,15 @@ export default function TddfJsonViewerPage() {
       }
     }
     
+    // Terminal ID filter
+    if (terminalIdFilter && terminalIdFilter.trim() !== '') {
+      const terminalId = record.extracted_fields?.terminalId;
+      if (!terminalId || 
+          !terminalId.toString().toLowerCase().includes(terminalIdFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
     return true;
   });
   
