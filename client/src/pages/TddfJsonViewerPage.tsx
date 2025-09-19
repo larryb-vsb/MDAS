@@ -1009,6 +1009,29 @@ export default function TddfJsonViewerPage() {
               )}
             </div>
 
+            {/* Terminal ID Filter */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Filter by Terminal ID..."
+                value={terminalIdFilter}
+                onChange={(e) => handleTerminalIdFilterChange(e.target.value)}
+                className="pl-10 pr-10 w-64"
+                data-testid="input-terminal-id-filter"
+              />
+              {terminalIdFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearTerminalIdFilter}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                  data-testid="button-clear-terminal-filter"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+
             {/* Page Size Selector for Large Files */}
             {totalRecords > 1000 && (
               <Select value={pageSize.toString()} onValueChange={(value) => {
@@ -1036,6 +1059,7 @@ export default function TddfJsonViewerPage() {
                 `Showing ${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalRecords)} of ${totalRecords.toLocaleString()} records`}
               {selectedRecordType && ` (${selectedRecordType} type)`}
               {merchantAccountFilter && ` (Merchant: ${merchantAccountFilter})`}
+              {terminalIdFilter && ` (Terminal: ${terminalIdFilter})`}
               {totalRecords > 10000 && (
                 <span className="ml-2 text-blue-600 font-medium">Large dataset - use filters and pagination</span>
               )}
