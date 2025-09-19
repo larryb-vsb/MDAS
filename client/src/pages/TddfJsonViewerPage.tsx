@@ -75,14 +75,26 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
                   ID: {record.record_identifier}
                 </Badge>
               )}
-              {record.extracted_fields?.cardType && (
-                <span 
-                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(record.extracted_fields.cardType).className}`}
-                >
-                  <CreditCard className="h-3 w-3" />
-                  {getCardTypeBadges(record.extracted_fields.cardType).label}
-                </span>
-              )}
+              {/* Show card type badge for DT records (with dynamic extraction) */}
+              {record.record_type === 'DT' && (() => {
+                // First try extracted_fields, then dynamically extract from raw line
+                let cardType = record.extracted_fields?.cardType;
+                
+                // Dynamic extraction from positions 253-254 (1-based inclusive)
+                if (!cardType && record.raw_line && record.raw_line.length >= 254) {
+                  cardType = record.raw_line.substring(252, 254).trim() || null;
+                }
+                
+                return cardType ? (
+                  <span 
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                    data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                  >
+                    <CreditCard className="h-3 w-3" />
+                    {getCardTypeBadges(cardType).label}
+                  </span>
+                ) : null;
+              })()}
             </div>
             <div className="text-xs text-gray-500">
               #{record.id} • {new Date(record.created_at).toLocaleString()}
