@@ -51,6 +51,20 @@ function getCardTypeBadges(cardType: string) {
   return badges[cardType] || { label: cardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
 }
 
+// Helper function to extract card type from record
+function extractCardType(record: JsonbRecord): string | null {
+  // First try extracted_fields, then dynamically extract from raw line
+  let cardType = record.extracted_fields?.cardType;
+  
+  // Dynamic extraction from positions 253-254 (1-based inclusive)
+  if (!cardType && record.raw_line && record.raw_line.length >= 254) {
+    cardType = record.raw_line.substring(252, 254).trim() || null;
+  }
+  
+  // Normalize to uppercase and trim
+  return cardType ? cardType.toUpperCase().trim() : null;
+}
+
 // Record Card Component
 interface RecordCardProps {
   record: JsonbRecord;
@@ -76,14 +90,8 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
                 </Badge>
               )}
               {/* Show card type badge for DT records (with dynamic extraction) */}
-              {record.record_type === 'DT' && (() => {
-                // First try extracted_fields, then dynamically extract from raw line
-                let cardType = record.extracted_fields?.cardType;
-                
-                // Dynamic extraction from positions 253-254 (1-based inclusive)
-                if (!cardType && record.raw_line && record.raw_line.length >= 254) {
-                  cardType = record.raw_line.substring(252, 254).trim() || null;
-                }
+              {(record.record_type === 'DT' || record.record_type === '47') && (() => {
+                const cardType = extractCardType(record);
                 
                 return cardType ? (
                   <span 
@@ -285,6 +293,22 @@ function TreeViewDisplay({
                             <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
                               {transaction.dtRecord.record_type}
                             </Badge>
+                            
+                            {/* Card Type Badge for DT records in tree view header */}
+                            {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
+                              const cardType = extractCardType(transaction.dtRecord);
+                              
+                              return cardType ? (
+                                <span 
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                >
+                                  <CreditCard className="h-3 w-3" />
+                                  {getCardTypeBadges(cardType).label}
+                                </span>
+                              ) : null;
+                            })()}
+                            
                             <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
                             <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
                             
