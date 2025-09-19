@@ -530,13 +530,15 @@ export default function TddfApiDataPage() {
         // Start upload session
         const uploadResponse = await startUploadMutation.mutateAsync(file);
         
-        if (uploadResponse?.id) {
+        if (uploadResponse && typeof uploadResponse === 'object' && 'id' in uploadResponse) {
+          const uploadId = (uploadResponse as any).id;
+          
           // Upload file to object storage
           const formData = new FormData();
           formData.append('file', file);
           formData.append('sessionId', sessionId);
           
-          const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
+          const uploadApiResponse = await fetch(`/api/uploader/${uploadId}/upload`, {
             method: 'POST',
             body: formData,
             credentials: 'include'
@@ -548,7 +550,7 @@ export default function TddfApiDataPage() {
           
           // Update to uploaded status
           await updatePhaseMutation.mutateAsync({
-            uploadId: uploadResponse.id,
+            uploadId: uploadId,
             phase: 'uploaded',
             phaseData: { uploadProgress: 100 }
           });
