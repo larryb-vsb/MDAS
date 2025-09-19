@@ -409,6 +409,7 @@ export default function TddfJsonViewerPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
   const [merchantAccountFilter, setMerchantAccountFilter] = useState<string>('');
+  const [terminalIdFilter, setTerminalIdFilter] = useState<string>('');
   const [pageSize, setPageSize] = useState(10000); // Dynamic page size - show all records up to 10K
   const [isReEncoding, setIsReEncoding] = useState(false);
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
