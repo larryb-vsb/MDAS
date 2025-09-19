@@ -36,9 +36,9 @@ const FILE_TYPES = [
 
 // Helper functions
 const formatFileSize = (bytes: number | null | undefined): string => {
-  if (!bytes) return 'Unknown';
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  if (!bytes || !Number.isFinite(bytes) || bytes < 0) return 'Unknown';
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 };
 
