@@ -23278,6 +23278,280 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === Unified TDDF API Endpoints (for shared components) ===
+  
+  // Unified TDDF files endpoint with enhanced analytics
+  app.get('/api/tddf/unified/files', isAuthenticated, async (req, res) => {
+    try {
+      const { 
+        dateFrom, 
+        dateTo, 
+        status, 
+        businessDayFrom, 
+        businessDayTo,
+        includeAnalytics = 'false'
+      } = req.query;
+      
+      let whereConditions = [];
+      const params = [];
+      let paramIndex = 1;
+      
+      if (dateFrom) {
+        whereConditions.push(`uploaded_at >= $${paramIndex}`);
+        params.push(dateFrom);
+        paramIndex++;
+      }
+      
+      if (dateTo) {
+        whereConditions.push(`uploaded_at <= $${paramIndex}`);
+        params.push(dateTo);
+        paramIndex++;
+      }
+      
+      if (status && status !== 'all') {
+        whereConditions.push(`status = $${paramIndex}`);
+        params.push(status);
+        paramIndex++;
+      }
+      
+      if (businessDayFrom) {
+        whereConditions.push(`business_day >= $${paramIndex}`);
+        params.push(businessDayFrom);
+        paramIndex++;
+      }
+      
+      if (businessDayTo) {
+        whereConditions.push(`business_day <= $${paramIndex}`);
+        params.push(businessDayTo);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const filesQuery = `
+        SELECT 
+          f.*,
+          s.name as schema_name,
+          s.version as schema_version
+        FROM ${getTableName('tddf_api_files')} f
+        LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
+        ${whereClause}
+        ORDER BY f.uploaded_at DESC
+      `;
+      
+      const filesResult = await pool.query(filesQuery, params);
+      
+      let response: any = {
+        files: filesResult.rows
+      };
+      
+      // Include analytics if requested
+      if (includeAnalytics === 'true') {
+        const files = filesResult.rows;
+        const totalDataVolume = files.reduce((sum: number, f: any) => sum + (Number(f.file_size) || 0), 0);
+        const totalRecords = files.reduce((sum: number, f: any) => sum + (f.record_count || 0), 0);
+        const totalProcessedRecords = files.reduce((sum: number, f: any) => sum + (f.processed_records || 0), 0);
+        const totalErrorRecords = files.reduce((sum: number, f: any) => sum + (f.error_records || 0), 0);
+        
+        response.analytics = {
+          totalFiles: files.length,
+          totalDataVolume,
+          averageFileSize: files.length > 0 ? totalDataVolume / files.length : 0,
+          totalRecords,
+          totalProcessedRecords,
+          totalErrorRecords,
+          successRate: totalRecords > 0 ? (totalProcessedRecords / totalRecords) * 100 : 100,
+          errorRate: totalRecords > 0 ? (totalErrorRecords / totalRecords) * 100 : 0
+        };
+      }
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching unified TDDF files:', error);
+      res.status(500).json({ error: 'Failed to fetch TDDF files' });
+    }
+  });
+
+  // Unified TDDF records endpoint with enhanced filtering
+  app.get('/api/tddf/unified/records/:fileId', isAuthenticated, async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const { 
+        page = 1, 
+        limit = 50, 
+        recordType,
+        cardType,
+        tti,
+        terminalId,
+        merchantAccount,
+        includeFields = 'basic'
+      } = req.query;
+      
+      const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+      
+      // Build dynamic WHERE conditions
+      let whereConditions = [`upload_id = $1`];
+      const params = [fileId];
+      let paramIndex = 2;
+      
+      if (recordType) {
+        whereConditions.push(`record_type = $${paramIndex}`);
+        params.push(recordType);
+        paramIndex++;
+      }
+      
+      if (cardType) {
+        whereConditions.push(`(extracted_fields->>'cardType' = $${paramIndex} OR UPPER(TRIM(SUBSTRING(raw_line, 253, 2))) = $${paramIndex})`);
+        params.push(cardType);
+        paramIndex++;
+      }
+      
+      if (tti) {
+        whereConditions.push(`(extracted_fields->>'transactionTypeIdentifier' = $${paramIndex} OR SUBSTRING(raw_line, 4, 1) = $${paramIndex})`);
+        params.push(tti);
+        paramIndex++;
+      }
+      
+      if (terminalId) {
+        whereConditions.push(`(extracted_fields->>'terminalId' = $${paramIndex} OR TRIM(SUBSTRING(raw_line, 5, 4)) = $${paramIndex})`);
+        params.push(terminalId);
+        paramIndex++;
+      }
+      
+      if (merchantAccount) {
+        whereConditions.push(`extracted_fields->>'merchantAccountNumber' LIKE $${paramIndex}`);
+        params.push(`%${merchantAccount}%`);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.join(' AND ');
+      
+      // Field selection based on includeFields parameter
+      let selectFields = '*';
+      if (includeFields === 'basic') {
+        selectFields = `
+          id, upload_id, filename, record_type, line_number, 
+          extracted_fields, record_identifier, processing_time_ms, created_at
+        `;
+      }
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${getTableName('tddf_api_records')}
+        WHERE ${whereClause}
+      `;
+      
+      const countResult = await pool.query(countQuery, params);
+      const total = parseInt(countResult.rows[0].total);
+      
+      // Get records with pagination
+      const recordsQuery = `
+        SELECT ${selectFields}
+        FROM ${getTableName('tddf_api_records')}
+        WHERE ${whereClause}
+        ORDER BY line_number ASC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      
+      params.push(limit, offset);
+      const recordsResult = await pool.query(recordsQuery, params);
+      
+      res.json({
+        records: recordsResult.rows,
+        pagination: {
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+          total,
+          pages: Math.ceil(total / parseInt(limit as string))
+        },
+        filters: {
+          recordType,
+          cardType,
+          tti,
+          terminalId,
+          merchantAccount
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching unified TDDF records:', error);
+      res.status(500).json({ error: 'Failed to fetch TDDF records' });
+    }
+  });
+
+  // Unified TDDF analytics endpoint
+  app.get('/api/tddf/unified/analytics', isAuthenticated, async (req, res) => {
+    try {
+      const { fileIds, dateFrom, dateTo } = req.query;
+      
+      let whereConditions = [];
+      const params = [];
+      let paramIndex = 1;
+      
+      if (fileIds) {
+        const ids = (fileIds as string).split(',').map(id => parseInt(id.trim()));
+        whereConditions.push(`id = ANY($${paramIndex})`);
+        params.push(ids);
+        paramIndex++;
+      }
+      
+      if (dateFrom) {
+        whereConditions.push(`uploaded_at >= $${paramIndex}`);
+        params.push(dateFrom);
+        paramIndex++;
+      }
+      
+      if (dateTo) {
+        whereConditions.push(`uploaded_at <= $${paramIndex}`);
+        params.push(dateTo);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const analyticsQuery = `
+        SELECT 
+          COUNT(*) as total_files,
+          COALESCE(SUM(file_size), 0) as total_data_volume,
+          COALESCE(AVG(file_size), 0) as average_file_size,
+          COALESCE(SUM(record_count), 0) as total_records,
+          COALESCE(SUM(processed_records), 0) as total_processed_records,
+          COALESCE(SUM(error_records), 0) as total_error_records,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_files,
+          COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing_files,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_files
+        FROM ${getTableName('tddf_api_files')}
+        ${whereClause}
+      `;
+      
+      const result = await pool.query(analyticsQuery, params);
+      const data = result.rows[0];
+      
+      const analytics = {
+        totalFiles: parseInt(data.total_files),
+        totalDataVolume: parseInt(data.total_data_volume),
+        averageFileSize: parseFloat(data.average_file_size),
+        totalRecords: parseInt(data.total_records),
+        totalProcessedRecords: parseInt(data.total_processed_records),
+        totalErrorRecords: parseInt(data.total_error_records),
+        successRate: data.total_records > 0 ? (data.total_processed_records / data.total_records) * 100 : 100,
+        errorRate: data.total_records > 0 ? (data.total_error_records / data.total_records) * 100 : 0,
+        fileStatusBreakdown: {
+          completed: parseInt(data.completed_files),
+          processing: parseInt(data.processing_files),
+          failed: parseInt(data.failed_files)
+        }
+      };
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error('Error fetching unified TDDF analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch TDDF analytics' });
+    }
+  });
+
   // === Storage Analysis & Cleanup API ===
   
   // Storage analysis endpoint
