@@ -1327,22 +1327,73 @@ export default function TddfApiDataPage() {
                     Files in the upload pipeline system - phases 1-5 processing
                   </CardDescription>
                 </div>
-                {selectedUploads.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {selectedUploads.length} selected
-                    </span>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={handleBulkDelete}
-                      disabled={bulkDeleteMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete Selected
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* Group Select Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedUploads.length === uploads.length) {
+                        setSelectedUploads([]);
+                      } else {
+                        setSelectedUploads(uploads.map(u => u.id));
+                      }
+                    }}
+                  >
+                    {selectedUploads.length === uploads.length ? (
+                      <Square className="h-4 w-4 mr-1" />
+                    ) : (
+                      <CheckSquare className="h-4 w-4 mr-1" />
+                    )}
+                    {selectedUploads.length === uploads.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+
+                  {selectedUploads.length > 0 && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedUploads.length} selected
+                      </span>
+                      
+                      {/* Manual Process Step 6 Button */}
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          const encodedFiles = selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                          });
+                          
+                          if (encodedFiles.length === 0) {
+                            // Show toast or alert that no encoded files are selected
+                            return;
+                          }
+                          
+                          // Handle Step 6 processing
+                          console.log('Manual Step 6 processing for:', encodedFiles);
+                        }}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        disabled={!selectedUploads.some(id => {
+                          const upload = uploads.find(u => u.id === id);
+                          return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                        })}
+                      >
+                        <Zap className="h-4 w-4 mr-1" />
+                        Manual Process Step 6
+                      </Button>
+                      
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        disabled={bulkDeleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete Selected
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
