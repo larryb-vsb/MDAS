@@ -88,6 +88,7 @@ function Router() {
       <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
       <ProtectedRoute path="/charts" component={ChartsPage} />
       <ProtectedRoute path="/tddf-api" component={TddfApiDataPage} />
+      <ProtectedRoute path="/tddf-api-data" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-viewer/:uploadId/:filename" component={TddfJsonViewerPage} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
