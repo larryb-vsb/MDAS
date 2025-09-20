@@ -1295,15 +1295,15 @@ export default function TddfApiDataPage() {
                   )}
                 </div>
 
-                {/* Review Mode Switch */}
+                {/* Auto 6 Json Encode Switch */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Pause className="h-5 w-5 text-amber-600" />
+                      <Pause className="h-5 w-5 text-blue-600" />
                       <div>
-                        <div className="font-medium text-amber-800">Keep for Review</div>
-                        <div className="text-sm text-amber-600">
-                          Hold uploads for manual review instead of auto-processing
+                        <div className="font-medium text-blue-800">Auto 6 Json Encode</div>
+                        <div className="text-sm text-blue-600">
+                          Enable automatic Step 6 JSON encoding for uploaded files
                         </div>
                       </div>
                     </div>
