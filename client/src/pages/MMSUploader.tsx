@@ -734,6 +734,36 @@ export default function MMSUploader() {
     }
   });
 
+  // Step 6 Processing mutation for progressing encoded files to full JSON processing in master table
+  const step6ProcessingMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      console.log('[STEP-6-PROCESSING] Calling API with uploadIds:', uploadIds);
+      const response = await apiRequest('/api/uploader/step6-processing', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      console.log('[STEP-6-PROCESSING] API response:', response);
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      console.log('[STEP-6-PROCESSING] Files successfully queued for Step 6 processing:', data);
+      toast({ 
+        title: 'Step 6 Processing Started', 
+        description: `Successfully started Step 6 processing for ${data.processedCount || 0} files. All records will be processed to master TDDF table.`
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error with Step 6 processing:', error);
+      toast({ 
+        title: 'Step 6 Processing Failed', 
+        description: 'Failed to start Step 6 processing. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Filter and sort uploads based on status, file type, filename, and sorting preferences
   const filteredUploads = uploads
     .filter(upload => {
@@ -853,6 +883,28 @@ export default function MMSUploader() {
       await manualEncodeMutation.mutateAsync(identifiedFiles);
     } catch (error) {
       console.error('Manual encode error:', error);
+    }
+  };
+
+  // Step 6 Processing handler for encoded files
+  const handleStep6Processing = async () => {
+    // Filter selected uploads to only include those in "encoded" phase
+    const encodedFiles = selectedUploads.filter(id => {
+      const upload = uploads.find(u => u.id === id);
+      return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+    });
+    
+    if (encodedFiles.length === 0) {
+      console.log('[STEP-6-PROCESSING] No encoded files selected');
+      return;
+    }
+    
+    console.log(`[STEP-6-PROCESSING] Starting Step 6 processing for ${encodedFiles.length} encoded files - processing ALL records to master TDDF table`);
+    
+    try {
+      await step6ProcessingMutation.mutateAsync(encodedFiles);
+    } catch (error) {
+      console.error('Step 6 processing error:', error);
     }
   };
 
@@ -2592,6 +2644,26 @@ export default function MMSUploader() {
                           {manualEncodeMutation.isPending ? 'Encoding...' : `Encode ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
                             return upload && upload.currentPhase === 'identified';
+                          }).length}`}
+                        </Button>
+                      )}
+
+                      {/* Step 6 Processing Button - show when encoded or completed files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                      }) && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleStep6Processing}
+                          disabled={step6ProcessingMutation.isPending}
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                          <Zap className="h-4 w-4 mr-2" />
+                          {step6ProcessingMutation.isPending ? 'Processing...' : `Step 6 Process ${selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
                           }).length}`}
                         </Button>
                       )}
