@@ -2635,17 +2635,45 @@ export const tddApiFiles = pgTable(getTableName("tddf_api_files"), {
 
 export const tddApiRecords = pgTable(getTableName("tddf_api_records"), {
   id: serial("id").primaryKey(),
-  fileId: integer("file_id").references(() => tddApiFiles.id).notNull(),
-  recordType: text("record_type").notNull(),
-  lineNumber: integer("line_number").notNull(),
-  rawData: text("raw_data").notNull(),
-  parsedData: jsonb("parsed_data").notNull(), // Structured record data
+  fileId: integer("file_id").references(() => tddApiFiles.id),
+  uploadId: text("upload_id"), // Reference to uploader_uploads.id for Step 6 processing
+  filename: text("filename"), // Original filename
+  recordType: text("record_type"), // DT, BH, P1, P2, etc.
+  lineNumber: integer("line_number"), // Original line number in file (renamed from record_number)
+  rawLine: text("raw_line").notNull(), // Original TDDF fixed-width line
+  extractedFields: jsonb("extracted_fields"), // Parsed TDDF fields as JSONB (renamed from parsed_data)
+  recordIdentifier: text("record_identifier"), // Extracted record identifier for highlighting
+  processingTimeMs: integer("processing_time_ms").default(0), // Processing duration
+  
+  // Universal TDDF processing datetime fields extracted from filename
+  tddfProcessingDatetime: timestamp("tddf_processing_datetime"), // Full datetime from filename
+  tddfProcessingDate: date("tddf_processing_date"), // Date portion for sorting/pagination
+  
+  // Universal timestamp fields for chronological ordering (Larry B. feature)
+  parsedDatetime: timestamp("parsed_datetime"), // Universal chronological timestamp for every record
+  recordTimeSource: text("record_time_source"), // Documents timestamp origin: "dt_line", "bh_line", "file_timestamp", etc.
+  
+  // Legacy fields (keeping for backward compatibility)
+  parsedData: jsonb("parsed_data"), // Keep existing parsed_data column
   isValid: boolean("is_valid").default(true),
   validationErrors: jsonb("validation_errors"),
-  processedAt: timestamp("processed_at").defaultNow().notNull(),
+  status: text("status").default("pending"),
+  
+  // Timestamps
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
 }, (table) => ({
   fileRecordIdx: index("tddf_api_records_file_record_idx").on(table.fileId, table.recordType),
-  fileLineIdx: index("tddf_api_records_file_line_idx").on(table.fileId, table.lineNumber)
+  fileLineIdx: index("tddf_api_records_file_line_idx").on(table.fileId, table.lineNumber),
+  uploadIdIdx: index("tddf_api_records_upload_id_idx").on(table.uploadId),
+  recordTypeIdx: index("tddf_api_records_record_type_idx").on(table.recordType),
+  recordIdentifierIdx: index("tddf_api_records_record_identifier_idx").on(table.recordIdentifier),
+  // Indexes for universal TDDF processing datetime sorting and pagination
+  tddfProcessingDatetimeIdx: index("tddf_api_records_processing_datetime_idx").on(table.tddfProcessingDatetime),
+  tddfProcessingDateIdx: index("tddf_api_records_processing_date_idx").on(table.tddfProcessingDate),
+  // Indexes for universal timestamp fields
+  parsedDatetimeIdx: index("tddf_api_records_parsed_datetime_idx").on(table.parsedDatetime),
+  recordTimeSourceIdx: index("tddf_api_records_record_time_source_idx").on(table.recordTimeSource)
 }));
 
 export const tddApiKeys = pgTable(getTableName("tddf_api_keys"), {
