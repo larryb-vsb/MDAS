@@ -9033,6 +9033,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Step 6 Processing endpoint - processes ALL records to master tddfJsonb table (removes 10K limit)
+  app.post("/api/uploader/step6-processing", isAuthenticated, async (req, res) => {
+    console.log("[STEP-6-PROCESSING] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[STEP-6-PROCESSING] Processing ${uploadIds.length} files for full JSON encoding to master table`);
+
+      const results = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          // Accept both 'encoded' and 'completed' phases for Step 6 processing
+          if (upload.currentPhase !== 'encoded' && upload.currentPhase !== 'completed') {
+            errors.push({ 
+              uploadId, 
+              error: `File is in '${upload.currentPhase}' phase, only 'encoded' or 'completed' files can undergo Step 6 processing` 
+            });
+            continue;
+          }
+
+          console.log(`[STEP-6-PROCESSING] Processing file: ${upload.filename} - ALL records to master table`);
+          
+          // Update phase to processing for Step 6
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'processing',
+            lastUpdated: new Date()
+          });
+
+          // Get storage key
+          let storageKey = upload.storageKey;
+          if (!storageKey) {
+            // Generate storage key for older uploads
+            const timestampMatch = upload.id.match(/uploader_(\d+)_/);
+            let uploadDate;
+            
+            if (timestampMatch) {
+              const timestamp = parseInt(timestampMatch[1]);
+              uploadDate = new Date(timestamp).toISOString().split('T')[0];
+            } else {
+              uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+            }
+            
+            storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
+            
+            await storage.updateUploaderUpload(uploadId, {
+              storageKey: storageKey
+            });
+          }
+          
+          console.log(`[STEP-6-PROCESSING] Using storage key: ${storageKey}`);
+          
+          // Get file content from storage
+          const fileContent = await ReplitStorageService.getFileContent(storageKey);
+          
+          // Process ALL records to master tddfJsonb table (Step 6 processing)
+          const step6Result = await processAllRecordsToMasterTable(fileContent, upload);
+          
+          // Update to completed phase after Step 6 processing
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'completed',
+            lastUpdated: new Date()
+          });
+
+          results.push({
+            uploadId,
+            filename: upload.filename,
+            status: 'completed',
+            totalRecordsProcessed: step6Result.totalRecords,
+            masterTableRecords: step6Result.masterRecords,
+            apiRecordsProcessed: step6Result.apiRecords
+          });
+          
+          console.log(`[STEP-6-PROCESSING] Successfully processed ${upload.filename}: ${step6Result.totalRecords} total records to master table`);
+          
+        } catch (error) {
+          console.error(`[STEP-6-PROCESSING] Error processing ${uploadId}:`, error);
+          
+          // Set to error phase
+          try {
+            await storage.updateUploaderUpload(uploadId, {
+              currentPhase: 'error',
+              lastUpdated: new Date()
+            });
+          } catch (updateError) {
+            console.error(`[STEP-6-PROCESSING] Failed to update error status for ${uploadId}:`, updateError);
+          }
+          
+          errors.push({ 
+            uploadId, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+      
+      console.log(`[STEP-6-PROCESSING] Completed processing: ${results.length} successful, ${errors.length} errors`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: results.length,
+        errorCount: errors.length,
+        results,
+        errors,
+        message: `Step 6 processing completed: ${results.length} file(s) processed to master table, ${errors.length} errors`
+      });
+      
+    } catch (error) {
+      console.error("[STEP-6-PROCESSING] Error in Step 6 processing:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
   // Force process all identified transaction CSV files
   app.post('/api/uploader/force-process-transaction-csv', async (req, res) => {
     // Bypass authentication for processing operations (development only)

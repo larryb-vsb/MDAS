@@ -1432,3 +1432,242 @@ export async function processTddfFileForProduction(
     };
   }
 }
+
+/**
+ * Step 6 Processing: Process ALL records to master tddfJsonb table
+ * Removes the 10K limit and processes comprehensive financial data
+ * Also populates enhanced tddApiRecords schema with full capabilities
+ */
+export async function processAllRecordsToMasterTable(fileContent: string, upload: UploaderUpload): Promise<any> {
+  const startTime = Date.now();
+  console.log(`[STEP-6-PROCESSING] Starting comprehensive processing for ${upload.filename} - ALL records to master table`);
+  
+  try {
+    // Process ALL lines - no limits for Step 6
+    const lines = fileContent.split('\n');
+    console.log(`[STEP-6-PROCESSING] Processing ${lines.length} lines total (NO 10K LIMIT)`);
+    
+    // Get table configuration
+    const { getTableName } = await import("./table-config");
+    const tddfJsonbTable = getTableName('tddf_jsonb');
+    const apiRecordsTable = getTableName('tddf_api_records');
+    
+    // Extract filename metadata for universal TDDF processing
+    const filenameData = extractTddfProcessingDatetime(upload.filename);
+    const { processingDate, processingDatetime } = filenameData;
+    
+    let masterRecordCount = 0;
+    let apiRecordCount = 0;
+    let skipCount = 0;
+    
+    // Batch arrays for bulk inserts
+    const masterTableBatch = [];
+    const apiRecordsBatch = [];
+    
+    // Process each line without limits
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
+      const lineNumber = lineIndex + 1;
+      
+      // Skip empty lines but preserve line numbers
+      if (!line.trim()) {
+        skipCount++;
+        continue;
+      }
+      
+      // Extract TDDF record type and fields
+      const recordType = line.substring(0, 2);
+      const extractedFields = extractTddfFields(recordType, line);
+      
+      // Calculate universal timestamp using enhanced logic
+      const timestampData = calculateUniversalTimestamp(
+        recordType, 
+        extractedFields, 
+        upload.filename, 
+        lineNumber
+      );
+      
+      // Generate unique record ID for master table
+      const masterRecordId = `${upload.id}_line_${lineNumber}_${recordType}`;
+      
+      // Prepare master table record (tddfJsonb)
+      const masterRecord = {
+        id: masterRecordId,
+        uploadId: upload.id,
+        filename: upload.filename,
+        lineNumber: lineNumber,
+        recordType: recordType,
+        rawLine: line,
+        extractedFields: JSON.stringify(extractedFields),
+        tddfProcessingDatetime: processingDatetime,
+        tddfProcessingDate: processingDate,
+        parsedDatetime: timestampData.parsedDatetime,
+        recordTimeSource: timestampData.recordTimeSource,
+        createdAt: new Date().toISOString(),
+        metadata: JSON.stringify({
+          uploadSource: 'step6_processing',
+          fileSize: upload.fileSize,
+          processedAt: new Date().toISOString(),
+          processingTimeMs: 0 // Will be updated at the end
+        })
+      };
+      
+      masterTableBatch.push(masterRecord);
+      masterRecordCount++;
+      
+      // Prepare enhanced API records table entry (tddApiRecords)
+      const apiRecord = {
+        uploadId: upload.id,
+        filename: upload.filename,
+        recordType: recordType,
+        lineNumber: lineNumber,
+        rawLine: line,
+        extractedFields: JSON.stringify(extractedFields),
+        recordIdentifier: extractedFields.recordIdentifier || null,
+        processingTimeMs: 0,
+        tddfProcessingDatetime: processingDatetime,
+        tddfProcessingDate: processingDate,
+        parsedDatetime: timestampData.parsedDatetime,
+        recordTimeSource: timestampData.recordTimeSource,
+        parsedData: JSON.stringify(extractedFields), // Legacy compatibility
+        isValid: true,
+        validationErrors: null,
+        status: 'completed',
+        processedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      
+      apiRecordsBatch.push(apiRecord);
+      apiRecordCount++;
+      
+      // Batch insert every 1000 records to manage memory for large files
+      if (masterTableBatch.length >= 1000) {
+        await insertMasterTableBatch(tddfJsonbTable, masterTableBatch);
+        await insertApiRecordsBatch(apiRecordsTable, apiRecordsBatch);
+        console.log(`[STEP-6-PROCESSING] Inserted batch: ${masterRecordCount} master records, ${apiRecordCount} API records`);
+        masterTableBatch.length = 0;
+        apiRecordsBatch.length = 0;
+      }
+    }
+    
+    // Insert remaining records
+    if (masterTableBatch.length > 0) {
+      await insertMasterTableBatch(tddfJsonbTable, masterTableBatch);
+      await insertApiRecordsBatch(apiRecordsTable, apiRecordsBatch);
+    }
+    
+    const endTime = Date.now();
+    const processingTimeMs = endTime - startTime;
+    
+    console.log(`[STEP-6-PROCESSING] ✅ Successfully processed ${upload.filename}:`);
+    console.log(`[STEP-6-PROCESSING] - Total lines: ${lines.length}`);
+    console.log(`[STEP-6-PROCESSING] - Master table records: ${masterRecordCount}`);
+    console.log(`[STEP-6-PROCESSING] - API records: ${apiRecordCount}`);
+    console.log(`[STEP-6-PROCESSING] - Skipped lines: ${skipCount}`);
+    console.log(`[STEP-6-PROCESSING] - Processing time: ${processingTimeMs}ms`);
+    
+    return {
+      success: true,
+      totalRecords: masterRecordCount + apiRecordCount,
+      masterRecords: masterRecordCount,
+      apiRecords: apiRecordCount,
+      skippedLines: skipCount,
+      processingTimeMs: processingTimeMs
+    };
+    
+  } catch (error: any) {
+    console.error(`[STEP-6-PROCESSING] Error processing ${upload.filename}:`, error);
+    return {
+      success: false,
+      error: error.message || 'Step 6 processing failed',
+      totalRecords: 0,
+      masterRecords: 0,
+      apiRecords: 0
+    };
+  }
+}
+
+/**
+ * Helper function to insert batch records into master tddfJsonb table
+ */
+async function insertMasterTableBatch(tableName: string, records: any[]): Promise<void> {
+  if (records.length === 0) return;
+  
+  const values = records.map((_, index) => {
+    const offset = index * 12;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+  }).join(', ');
+  
+  const params = records.flatMap(record => [
+    record.id,
+    record.uploadId,
+    record.filename,
+    record.lineNumber,
+    record.recordType,
+    record.rawLine,
+    record.extractedFields,
+    record.tddfProcessingDatetime,
+    record.tddfProcessingDate,
+    record.parsedDatetime,
+    record.recordTimeSource,
+    record.createdAt
+  ]);
+  
+  await batchPool.query(`
+    INSERT INTO ${tableName} (
+      id, upload_id, filename, line_number, record_type, raw_line, 
+      extracted_fields, tddf_processing_datetime, tddf_processing_date,
+      parsed_datetime, record_time_source, created_at
+    ) VALUES ${values}
+    ON CONFLICT (id) DO UPDATE SET
+      extracted_fields = EXCLUDED.extracted_fields,
+      parsed_datetime = EXCLUDED.parsed_datetime,
+      record_time_source = EXCLUDED.record_time_source
+  `, params);
+}
+
+/**
+ * Helper function to insert batch records into enhanced tddApiRecords table
+ */
+async function insertApiRecordsBatch(tableName: string, records: any[]): Promise<void> {
+  if (records.length === 0) return;
+  
+  const values = records.map((_, index) => {
+    const offset = index * 17;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13}, $${offset + 14}, $${offset + 15}, $${offset + 16}, $${offset + 17})`;
+  }).join(', ');
+  
+  const params = records.flatMap(record => [
+    record.uploadId,
+    record.filename,
+    record.recordType,
+    record.lineNumber,
+    record.rawLine,
+    record.extractedFields,
+    record.recordIdentifier,
+    record.processingTimeMs,
+    record.tddfProcessingDatetime,
+    record.tddfProcessingDate,
+    record.parsedDatetime,
+    record.recordTimeSource,
+    record.parsedData,
+    record.isValid,
+    record.status,
+    record.processedAt,
+    record.createdAt
+  ]);
+  
+  await batchPool.query(`
+    INSERT INTO ${tableName} (
+      upload_id, filename, record_type, line_number, raw_line, extracted_fields,
+      record_identifier, processing_time_ms, tddf_processing_datetime, tddf_processing_date,
+      parsed_datetime, record_time_source, parsed_data, is_valid, status,
+      processed_at, created_at
+    ) VALUES ${values}
+    ON CONFLICT (upload_id, line_number) DO UPDATE SET
+      extracted_fields = EXCLUDED.extracted_fields,
+      parsed_datetime = EXCLUDED.parsed_datetime,
+      record_time_source = EXCLUDED.record_time_source,
+      status = EXCLUDED.status
+  `, params);
+}
