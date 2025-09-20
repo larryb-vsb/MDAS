@@ -745,7 +745,7 @@ export default function TddfApiDataPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatFileSize(files.reduce((sum, f) => sum + (f.file_size || 0), 0))}
+                    {formatFileSize(files.reduce((sum, f) => sum + (Number(f.file_size) || 0), 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Across {files.length} files
@@ -778,7 +778,7 @@ export default function TddfApiDataPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {files.length > 0 
-                      ? formatFileSize(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / files.length)
+                      ? formatFileSize(files.reduce((sum, f) => sum + (Number(f.file_size) || 0), 0) / files.length)
                       : "0 B"}
                   </div>
                   <p className="text-xs text-muted-foreground">
