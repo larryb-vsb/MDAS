@@ -31,11 +31,23 @@ import { useToast } from '@/hooks/use-toast';
 
 // Timing Display Component
 function TimingDisplay({ uploadId }: { uploadId: string }) {
-  const { data: timing } = useQuery({
+  const { data: timing, isLoading } = useQuery({
     queryKey: ['/api/uploader', uploadId, 'timing'],
     queryFn: () => apiRequest(`/api/uploader/${uploadId}/timing`),
-    enabled: !!uploadId
+    enabled: !!uploadId,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch timing updates
+    staleTime: 0, // Consider data stale immediately so it refetches more often
+    retry: 1 // Retry once if it fails
   });
+
+  // Show loading state briefly
+  if (isLoading) {
+    return (
+      <div className="text-xs text-gray-500 mt-1">
+        Loading timing...
+      </div>
+    );
+  }
 
   if (!timing?.success || !timing?.hasTiming) {
     return null; // Hide when no timing data
