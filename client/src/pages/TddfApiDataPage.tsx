@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
 import { UploaderUpload } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
+import { formatFileSize, getStatusBadgeVariant, TddfApiFile, TddfApiSchema } from '@/lib/tddf-shared';
 
 // File types for upload
 const FILE_TYPES = [
@@ -34,61 +35,7 @@ const FILE_TYPES = [
   { value: 'mastercard_di', label: 'MasterCard DI Report (.xlms)', description: 'MasterCard Data Integrity Edit Report records .xlms file' }
 ];
 
-// Helper functions
-const formatFileSize = (bytes: number | null | undefined): string => {
-  if (!bytes || !Number.isFinite(bytes) || bytes < 0) return 'Unknown';
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-};
-
-const getStatusBadgeVariant = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'completed': return 'default';
-    case 'processing': return 'secondary';
-    case 'failed':
-    case 'error': return 'destructive';
-    default: return 'outline';
-  }
-};
-
-interface TddfApiSchema {
-  id: number;
-  name: string;
-  version: string;
-  description: string;
-  schemaData: any;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-}
-
-interface TddfApiFile {
-  id: number;
-  filename: string;
-  original_name: string;
-  file_size: number;
-  file_hash: string;
-  storage_path: string;
-  schema_id?: number;
-  status: string;
-  record_count: number;
-  processed_records: number;
-  error_records: number;
-  processing_started?: string;
-  processing_completed?: string;
-  error_details?: any;
-  metadata?: any;
-  business_day?: string;
-  file_date?: string;
-  uploaded_at: string;
-  uploaded_by: string;
-  schema_name?: string;
-  schema_version?: string;
-  queue_status?: string;
-  queue_priority?: number;
-}
+// Helper functions and interfaces now imported from shared library
 
 // Daily View Interfaces for TDDF API Data
 interface TddfApiDailyStats {
