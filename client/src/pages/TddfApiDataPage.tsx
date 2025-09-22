@@ -1830,6 +1830,7 @@ export default function TddfApiDataPage() {
                               size="sm"
                               onClick={() => handleViewFile(file)}
                               title="View raw file contents"
+                              data-testid={`button-view-file-${file.id}`}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
