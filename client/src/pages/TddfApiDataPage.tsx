@@ -107,6 +107,14 @@ export default function TddfApiDataPage() {
   const [selectedSchema, setSelectedSchema] = useState<number | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  
+  // Archive management state
+  const [archiveFilters, setArchiveFilters] = useState({
+    archiveStatus: 'all',
+    step6Status: 'all', 
+    businessDayFrom: '',
+    businessDayTo: ''
+  });
   const [newSchemaData, setNewSchemaData] = useState({
     name: "",
     version: "",
@@ -218,6 +226,36 @@ export default function TddfApiDataPage() {
       return response.json();
     }
   });
+
+  // Fetch archive data
+  const { data: archiveData, isLoading: isLoadingArchive, refetch: refetchArchive } = useQuery({
+    queryKey: ['/api/tddf-archive', archiveFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (archiveFilters.archiveStatus !== 'all') {
+        params.set('archiveStatus', archiveFilters.archiveStatus);
+      }
+      if (archiveFilters.step6Status !== 'all') {
+        params.set('step6Status', archiveFilters.step6Status);
+      }
+      if (archiveFilters.businessDayFrom) {
+        params.set('businessDayFrom', archiveFilters.businessDayFrom);
+      }
+      if (archiveFilters.businessDayTo) {
+        params.set('businessDayTo', archiveFilters.businessDayTo);
+      }
+      
+      const response = await fetch(`/api/tddf-archive?${params}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch archive data');
+      }
+      return response.json();
+    }
+  });
+  
+  const archivedFiles = archiveData?.files || [];
 
   // Fetch uploader files
   const { data: uploaderResponse, isLoading: uploadsLoading } = useQuery({
@@ -1842,7 +1880,9 @@ export default function TddfApiDataPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>TDDF Archive Management (0)</CardTitle>
+                  <CardTitle>
+                    TDDF Archive Management ({isLoadingArchive ? '...' : archivedFiles.length})
+                  </CardTitle>
                   <CardDescription>
                     Permanent archive storage for processed TDDF files - dev-tddf-archive/ and prod-tddf-archive/
                   </CardDescription>
@@ -1852,9 +1892,10 @@ export default function TddfApiDataPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      // TODO: Refresh archive data
+                      refetchArchive();
                       toast({ title: "Archive data refreshed" });
                     }}
+                    disabled={isLoadingArchive}
                   >
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Refresh Archive
@@ -1867,7 +1908,10 @@ export default function TddfApiDataPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                   <Label>Archive Status</Label>
-                  <Select defaultValue="all">
+                  <Select 
+                    value={archiveFilters.archiveStatus} 
+                    onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, archiveStatus: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
@@ -1882,7 +1926,10 @@ export default function TddfApiDataPage() {
                 </div>
                 <div>
                   <Label>Step 6 Status</Label>
-                  <Select defaultValue="all">
+                  <Select 
+                    value={archiveFilters.step6Status}
+                    onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, step6Status: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
@@ -1899,6 +1946,8 @@ export default function TddfApiDataPage() {
                   <Label>Business Day From</Label>
                   <input
                     type="date"
+                    value={archiveFilters.businessDayFrom}
+                    onChange={(e) => setArchiveFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
@@ -1906,6 +1955,8 @@ export default function TddfApiDataPage() {
                   <Label>Business Day To</Label>
                   <input
                     type="date"
+                    value={archiveFilters.businessDayTo}
+                    onChange={(e) => setArchiveFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
@@ -1917,7 +1968,13 @@ export default function TddfApiDataPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // TODO: Clear archive filters
+                    setArchiveFilters({
+                      archiveStatus: 'all',
+                      step6Status: 'all',
+                      businessDayFrom: '',
+                      businessDayTo: ''
+                    });
+                    toast({ title: "Archive filters cleared" });
                   }}
                 >
                   Clear Filters
@@ -1958,11 +2015,65 @@ export default function TddfApiDataPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                      No archived files found. Use "Archive Selected Uploads" to move files to permanent storage.
-                    </TableCell>
-                  </TableRow>
+                  {isLoadingArchive ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8">
+                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                        <span className="ml-2">Loading archive data...</span>
+                      </TableCell>
+                    </TableRow>
+                  ) : archivedFiles.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                        No archived files found. Use "Archive Selected Uploads" to move files to permanent storage.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    archivedFiles.map((file: any) => (
+                      <TableRow key={file.id}>
+                        <TableCell>
+                          <Checkbox />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
+                          {file.archive_filename}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
+                          {file.original_filename}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
+                          {file.archive_path}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={file.archive_status === 'pending' ? 'secondary' : 
+                                        file.archive_status === 'archived' ? 'default' :
+                                        file.archive_status === 'processed' ? 'default' : 'destructive'}>
+                            {file.archive_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={file.step6_status === 'pending' ? 'secondary' : 
+                                        file.step6_status === 'processing' ? 'secondary' :
+                                        file.step6_status === 'completed' ? 'default' : 'destructive'}>
+                            {file.step6_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {file.record_count ? file.record_count.toLocaleString() : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : 'Unknown'}
+                        </TableCell>
+                        <TableCell>
+                          {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
