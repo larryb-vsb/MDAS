@@ -311,7 +311,7 @@ export default function TddfApiDataPage() {
       body: JSON.stringify(schemaData)
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/schemas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/schemas"], exact: false });
       setNewSchemaData({ name: "", version: "", description: "", schemaData: "" });
       toast({ title: "Schema created successfully" });
     }
@@ -330,8 +330,8 @@ export default function TddfApiDataPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"], exact: false });
       setUploadFile(null);
       setShowUploadDialog(false);
       toast({ title: "File uploaded successfully" });
@@ -345,7 +345,7 @@ export default function TddfApiDataPage() {
       body: JSON.stringify(keyData)
     }),
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/keys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/keys"], exact: false });
       setCreatedApiKey(data?.key || "");
       setNewApiKey({ keyName: "", permissions: ["read"], rateLimitPerMinute: 100, expiresAt: "" });
       toast({ title: "API key created successfully" });
@@ -416,7 +416,7 @@ export default function TddfApiDataPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
       setSelectedFiles(new Set());
       setShowDeleteDialog(false);
       toast({ title: "Files deleted successfully" });
@@ -652,9 +652,9 @@ export default function TddfApiDataPage() {
             <Button 
               variant="outline" 
               onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring"], exact: false });
                 toast({ title: "Data refreshed" });
               }}
               disabled={filesLoading || queueLoading}
@@ -1726,7 +1726,7 @@ export default function TddfApiDataPage() {
                     variant="outline" 
                     size="sm"
                     onClick={() => {
-                      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
                       queryClient.invalidateQueries({ queryKey: ["/api/uploader"] });
                     }}
                   >
@@ -2094,7 +2094,7 @@ export default function TddfApiDataPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/daily"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/daily"], exact: false });
                 toast({ title: "Daily data refreshed" });
               }}
             >

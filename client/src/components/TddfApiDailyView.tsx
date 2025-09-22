@@ -141,7 +141,7 @@ export function TddfApiDailyView() {
           <Button 
             variant="outline"
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/daily"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/daily"], exact: false });
               toast({ title: "Daily data refreshed" });
             }}
           >
