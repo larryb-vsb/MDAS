@@ -215,7 +215,7 @@ export default function TddfApiDataPage() {
     }
   });
 
-  // Fetch processing queue
+  // Fetch processing queue with real-time updates
   const { data: queue = [], isLoading: queueLoading } = useQuery<any[]>({
     queryKey: ["/api/tddf-api/queue"],
     queryFn: async () => {
@@ -224,7 +224,8 @@ export default function TddfApiDataPage() {
       });
       if (!response.ok) throw new Error('Failed to fetch queue');
       return response.json();
-    }
+    },
+    refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 
   // Fetch archive data
@@ -2117,21 +2118,24 @@ export default function TddfApiDataPage() {
                     <TableHead>File</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>File Size</TableHead>
                     <TableHead>Attempts</TableHead>
                     <TableHead>Queued</TableHead>
+                    <TableHead>Started</TableHead>
                     <TableHead>Processing Time</TableHead>
+                    <TableHead>Error Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {queueLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={9} className="text-center">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : queue.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground">
                         No items in processing queue
                       </TableCell>
                     </TableRow>
@@ -2151,15 +2155,35 @@ export default function TddfApiDataPage() {
                             {item.status}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground">
+                            {formatFileSize(Number(item.file_size || 0))}
+                          </div>
+                        </TableCell>
                         <TableCell>{item.attempts || 0}/{item.max_attempts || 3}</TableCell>
                         <TableCell>
                           {item.created_at ? format(new Date(item.created_at), "MMM d, HH:mm") : "Unknown"}
                         </TableCell>
                         <TableCell>
-                          {item.processing_started && item.processing_completed ? (
-                            `${Math.round((new Date(item.processing_completed).getTime() - new Date(item.processing_started).getTime()) / 1000)}s`
-                          ) : item.processing_started ? (
-                            "Processing..."
+                          {item.started_at ? format(new Date(item.started_at), "MMM d, HH:mm") : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {item.started_at && item.completed_at ? (
+                            `${Math.round((new Date(item.completed_at).getTime() - new Date(item.started_at).getTime()) / 1000)}s`
+                          ) : item.started_at ? (
+                            <div className="flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span className="text-sm">Processing...</span>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          {item.error_details ? (
+                            <div className="text-sm text-red-600 truncate" title={item.error_details}>
+                              {item.error_details}
+                            </div>
                           ) : (
                             "-"
                           )}
