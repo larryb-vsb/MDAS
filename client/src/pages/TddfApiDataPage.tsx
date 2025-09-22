@@ -19,7 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw } from "lucide-react";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
@@ -996,7 +996,7 @@ export default function TddfApiDataPage() {
                       return (
                         <div key={schema.id} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Badge variant={schema.isActive !== false ? "default" : "secondary"}>
+                            <Badge variant={schema.is_active !== false ? "default" : "secondary"}>
                               {schema.name} v{schema.version}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
@@ -1059,12 +1059,12 @@ export default function TddfApiDataPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {schemas.filter(s => s.isActive).slice(0, 5).map((schema) => (
+                  {schemas.filter(s => s.is_active).slice(0, 5).map((schema) => (
                     <div key={schema.id} className="flex items-center justify-between p-2 border rounded">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{schema.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          v{schema.version} • {schema.createdBy}
+                          v{schema.version} • Created
                         </p>
                       </div>
                       <Badge variant="default">Active</Badge>
@@ -1173,12 +1173,12 @@ export default function TddfApiDataPage() {
                         <TableCell>{schema.version}</TableCell>
                         <TableCell className="max-w-xs truncate">{schema.description}</TableCell>
                         <TableCell>
-                          <Badge variant={schema.isActive !== false ? "default" : "secondary"}>
-                            {schema.isActive !== false ? "Active" : "Inactive"}
+                          <Badge variant={schema.is_active !== false ? "default" : "secondary"}>
+                            {schema.is_active !== false ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {schema.createdAt ? format(new Date(schema.createdAt), "MMM d, yyyy") : "Unknown"}
+                          {schema.created_at ? format(new Date(schema.created_at), "MMM d, yyyy") : "Unknown"}
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm">
@@ -1374,7 +1374,7 @@ export default function TddfApiDataPage() {
                       if (selectedUploads.length === uploads.length) {
                         setSelectedUploads([]);
                       } else {
-                        setSelectedUploads(uploads.map(u => u.id));
+                        setSelectedUploads(uploads.map((u: UploaderUpload) => u.id));
                       }
                     }}
                   >
@@ -1398,7 +1398,7 @@ export default function TddfApiDataPage() {
                         size="sm"
                         onClick={() => {
                           const encodedFiles = selectedUploads.filter(id => {
-                            const upload = uploads.find(u => u.id === id);
+                            const upload = uploads.find((u: UploaderUpload) => u.id === id);
                             return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
                           });
                           
@@ -1412,7 +1412,7 @@ export default function TddfApiDataPage() {
                         }}
                         className="bg-purple-600 hover:bg-purple-700 text-white"
                         disabled={!selectedUploads.some(id => {
-                          const upload = uploads.find(u => u.id === id);
+                          const upload = uploads.find((u: UploaderUpload) => u.id === id);
                           return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
                         })}
                       >
