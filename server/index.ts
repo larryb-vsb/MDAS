@@ -118,6 +118,20 @@ if (NODE_ENV === 'production') {
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: false, limit: '100mb' }));
 
+// Disable HTTP caching to fix real-time data updates
+app.set('etag', false);
+app.use((req, res, next) => {
+  // Disable caching for all API responses to ensure real-time data
+  if (req.path.startsWith('/api')) {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
