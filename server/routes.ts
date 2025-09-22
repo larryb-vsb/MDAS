@@ -21892,6 +21892,291 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // End of TDDF API Daily View endpoints
 
+  // ========== TDDF Archive Management API Endpoints ==========
+  
+  // Get archived files with filtering
+  app.get('/api/tddf-archive', isAuthenticated, async (req, res) => {
+    try {
+      const { 
+        archiveStatus = 'all', 
+        step6Status = 'all',
+        businessDayFrom,
+        businessDayTo,
+        limit = 50,
+        offset = 0
+      } = req.query;
+      
+      let whereConditions = [];
+      const params = [];
+      let paramIndex = 1;
+      
+      if (archiveStatus !== 'all') {
+        whereConditions.push(`archive_status = $${paramIndex}`);
+        params.push(archiveStatus);
+        paramIndex++;
+      }
+      
+      if (step6Status !== 'all') {
+        whereConditions.push(`step6_status = $${paramIndex}`);
+        params.push(step6Status);
+        paramIndex++;
+      }
+      
+      if (businessDayFrom) {
+        whereConditions.push(`business_day >= $${paramIndex}`);
+        params.push(businessDayFrom);
+        paramIndex++;
+      }
+      
+      if (businessDayTo) {
+        whereConditions.push(`business_day <= $${paramIndex}`);
+        params.push(businessDayTo);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const query = `
+        SELECT 
+          *,
+          ROUND(file_size / 1024.0 / 1024.0, 2) as file_size_mb
+        FROM ${getTableName('tddf_archive')}
+        ${whereClause}
+        ORDER BY archived_at DESC NULLS LAST, created_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      
+      params.push(limit, offset);
+      
+      const result = await pool.query(query, params);
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${getTableName('tddf_archive')}
+        ${whereClause}
+      `;
+      
+      const countResult = await pool.query(countQuery, params.slice(0, -2));
+      
+      res.json({
+        files: result.rows,
+        total: parseInt(countResult.rows[0].total),
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string)
+      });
+      
+    } catch (error) {
+      console.error('Error fetching archived files:', error);
+      res.status(500).json({ error: 'Failed to fetch archived files' });
+    }
+  });
+
+  // Archive selected upload files
+  app.post('/api/tddf-archive/bulk-archive', isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: 'Upload IDs are required' });
+      }
+      
+      console.log(`📦 Starting bulk archive for ${uploadIds.length} files`);
+      
+      // Get upload file details
+      const uploadQuery = `
+        SELECT id, filename, file_size, current_phase
+        FROM ${getTableName('uploader_uploads')}
+        WHERE id = ANY($1) AND current_phase IN ('encoded', 'completed')
+      `;
+      
+      const uploadsResult = await pool.query(uploadQuery, [uploadIds]);
+      const validUploads = uploadsResult.rows;
+      
+      if (validUploads.length === 0) {
+        return res.status(400).json({ 
+          error: 'No valid encoded/completed files found for archiving' 
+        });
+      }
+      
+      const archivedFiles = [];
+      const environment = NODE_ENV === 'development' ? 'dev' : 'prod';
+      const archivePrefix = `${environment}-tddf-archive`;
+      
+      for (const upload of validUploads) {
+        const { businessDay, fileDate } = extractBusinessDayFromFilename(upload.filename);
+        
+        // Generate archive filename and path
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const archiveFilename = `${timestamp}_${upload.filename}`;
+        const archivePath = `${archivePrefix}/${archiveFilename}`;
+        
+        // Insert archive record
+        const insertQuery = `
+          INSERT INTO ${getTableName('tddf_archive')} (
+            archive_filename, original_filename, archive_path, original_upload_path,
+            file_size, file_hash, archive_status, step6_status,
+            business_day, file_date, original_upload_id,
+            metadata, created_by, updated_by
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+          ) RETURNING *
+        `;
+        
+        const metadata = {
+          original_phase: upload.current_phase,
+          archived_by: username,
+          archive_initiated_at: new Date().toISOString()
+        };
+        
+        const archiveResult = await pool.query(insertQuery, [
+          archiveFilename,
+          upload.filename,
+          archivePath,
+          `${environment}-uploader/${upload.filename}`,
+          upload.file_size,
+          `temp-hash-${Date.now()}`, // TODO: Generate actual file hash
+          'pending',
+          'pending',
+          businessDay,
+          fileDate,
+          upload.id,
+          JSON.stringify(metadata),
+          username,
+          username
+        ]);
+        
+        archivedFiles.push(archiveResult.rows[0]);
+        
+        console.log(`📦 Created archive record for ${upload.filename} -> ${archivePath}`);
+      }
+      
+      res.json({
+        message: `Successfully initiated archive for ${archivedFiles.length} files`,
+        archivedFiles,
+        skippedCount: uploadIds.length - archivedFiles.length
+      });
+      
+    } catch (error) {
+      console.error('Error during bulk archive:', error);
+      res.status(500).json({ error: 'Failed to archive files' });
+    }
+  });
+
+  // Get specific archive file details
+  app.get('/api/tddf-archive/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const query = `
+        SELECT *
+        FROM ${getTableName('tddf_archive')}
+        WHERE id = $1
+      `;
+      
+      const result = await pool.query(query, [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Archive file not found' });
+      }
+      
+      res.json(result.rows[0]);
+      
+    } catch (error) {
+      console.error('Error fetching archive file:', error);
+      res.status(500).json({ error: 'Failed to fetch archive file' });
+    }
+  });
+
+  // Update archive file status
+  app.put('/api/tddf-archive/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { archiveStatus, step6Status } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      
+      const updateFields = [];
+      const params = [];
+      let paramIndex = 1;
+      
+      if (archiveStatus) {
+        updateFields.push(`archive_status = $${paramIndex}`);
+        params.push(archiveStatus);
+        paramIndex++;
+      }
+      
+      if (step6Status) {
+        updateFields.push(`step6_status = $${paramIndex}`);
+        params.push(step6Status);
+        paramIndex++;
+        
+        if (step6Status === 'completed') {
+          updateFields.push(`step6_processed_at = NOW()`);
+        }
+      }
+      
+      updateFields.push(`updated_by = $${paramIndex}`, `updated_at = NOW()`);
+      params.push(username);
+      params.push(id); // For WHERE clause
+      
+      const query = `
+        UPDATE ${getTableName('tddf_archive')}
+        SET ${updateFields.join(', ')}
+        WHERE id = $${params.length}
+        RETURNING *
+      `;
+      
+      const result = await pool.query(query, params);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Archive file not found' });
+      }
+      
+      res.json({
+        message: 'Archive file updated successfully',
+        file: result.rows[0]
+      });
+      
+    } catch (error) {
+      console.error('Error updating archive file:', error);
+      res.status(500).json({ error: 'Failed to update archive file' });
+    }
+  });
+
+  // Delete archive file record
+  app.delete('/api/tddf-archive/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const query = `
+        DELETE FROM ${getTableName('tddf_archive')}
+        WHERE id = $1
+        RETURNING archive_filename, archive_path
+      `;
+      
+      const result = await pool.query(query, [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Archive file not found' });
+      }
+      
+      console.log(`🗑️ Deleted archive record: ${result.rows[0].archive_filename}`);
+      
+      res.json({
+        message: 'Archive file record deleted successfully',
+        deletedFile: result.rows[0]
+      });
+      
+    } catch (error) {
+      console.error('Error deleting archive file:', error);
+      res.status(500).json({ error: 'Failed to delete archive file' });
+    }
+  });
+
+  // End of TDDF Archive Management API endpoints
+
   // DUPLICATE ENDPOINT REMOVED - Using the first one only
 
   // TDDF1 Recent Activity - Latest processed files
