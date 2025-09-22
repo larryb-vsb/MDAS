@@ -202,7 +202,8 @@ export const useTddfFiles = (filters?: {
       }
       
       return response.json();
-    }
+    },
+    refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 };
 

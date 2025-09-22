@@ -200,7 +200,8 @@ export default function TddfApiDataPage() {
       });
       if (!response.ok) throw new Error('Failed to fetch files');
       return response.json();
-    }
+    },
+    refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 
   // Fetch API keys
@@ -253,7 +254,8 @@ export default function TddfApiDataPage() {
         throw new Error('Failed to fetch archive data');
       }
       return response.json();
-    }
+    },
+    refetchInterval: 4000 // Real-time updates every 4 seconds
   });
   
   const archivedFiles = archiveData?.files || [];
@@ -298,7 +300,8 @@ export default function TddfApiDataPage() {
       });
       if (!response.ok) throw new Error('Failed to fetch monitoring');
       return response.json();
-    }
+    },
+    refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 
   // Create schema mutation
