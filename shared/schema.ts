@@ -2769,6 +2769,74 @@ export type InsertTddfApiRequestLog = typeof insertTddfApiRequestLogSchema._type
 export type InsertTddfApiFieldConfig = typeof insertTddfApiFieldConfigSchema._type;
 export type InsertTddfApiProcessingQueue = typeof insertTddfApiProcessingQueueSchema._type;
 
+// TDDF Archive System - Permanent storage for processed TDDF files
+export const tddfArchive = pgTable(getTableName("tddf_archive"), {
+  id: serial("id").primaryKey(),
+  
+  // Archive Identification
+  archiveFilename: text("archive_filename").notNull(), // Filename in archive
+  originalFilename: text("original_filename").notNull(), // Original upload filename
+  
+  // Archive Storage Paths
+  archivePath: text("archive_path").notNull(), // Full path in archive storage (dev-tddf-archive/ or prod-tddf-archive/)
+  originalUploadPath: text("original_upload_path"), // Original transitory upload path
+  
+  // File Metadata
+  fileSize: integer("file_size").notNull(),
+  fileHash: text("file_hash").notNull(), // SHA-256 hash for integrity
+  contentType: text("content_type").default("text/plain"),
+  
+  // Archive Status & Processing
+  archiveStatus: text("archive_status").notNull().default("pending"), // pending, archived, processed, failed
+  step6Status: text("step6_status").default("pending"), // pending, processing, completed, failed
+  
+  // Record Counts
+  totalRecords: integer("total_records").default(0),
+  processedRecords: integer("processed_records").default(0),
+  errorRecords: integer("error_records").default(0),
+  
+  // Business Date Fields
+  businessDay: date("business_day"), // Extracted from filename
+  fileDate: text("file_date"), // Raw date from filename (MMDDYYYY)
+  
+  // Relationships
+  originalUploadId: text("original_upload_id"), // Reference to uploaderUploads.id
+  apiFileId: integer("api_file_id"), // Reference to tddApiFiles.id if processed
+  
+  // Processing Timestamps
+  archivedAt: timestamp("archived_at"), // When file was copied to archive
+  step6ProcessedAt: timestamp("step6_processed_at"), // When Step 6 processing completed
+  
+  // Metadata & Integrity
+  metadata: jsonb("metadata"), // Archive-specific metadata
+  processingErrors: jsonb("processing_errors"), // Any processing errors
+  
+  // Audit Fields
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: text("created_by").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: text("updated_by").notNull()
+}, (table) => ({
+  archiveFilenameIdx: index("tddf_archive_filename_idx").on(table.archiveFilename),
+  archivePathIdx: index("tddf_archive_path_idx").on(table.archivePath),
+  fileHashIdx: index("tddf_archive_hash_idx").on(table.fileHash),
+  archiveStatusIdx: index("tddf_archive_status_idx").on(table.archiveStatus),
+  step6StatusIdx: index("tddf_archive_step6_status_idx").on(table.step6Status),
+  businessDayIdx: index("tddf_archive_business_day_idx").on(table.businessDay),
+  archivedAtIdx: index("tddf_archive_archived_at_idx").on(table.archivedAt),
+  originalUploadIdIdx: index("tddf_archive_upload_id_idx").on(table.originalUploadId),
+  apiFileIdIdx: index("tddf_archive_api_file_id_idx").on(table.apiFileId)
+}));
+
+// TDDF Archive Zod schemas and types
+export const insertTddfArchiveSchema = createInsertSchema(tddfArchive).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export type TddfArchive = typeof tddfArchive.$inferSelect;
+export type InsertTddfArchive = typeof insertTddfArchiveSchema._type;
+
 // TDDF Daily View System Tables - Complete isolation from existing systems
 // Master table containing all TDDF records organized for daily view
 export const tddfDatamaster = pgTable(getTableName("tddf_datamaster"), {
