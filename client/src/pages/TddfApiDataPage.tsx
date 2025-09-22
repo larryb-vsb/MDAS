@@ -1836,6 +1836,137 @@ export default function TddfApiDataPage() {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Archive Management Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>TDDF Archive Management (0)</CardTitle>
+                  <CardDescription>
+                    Permanent archive storage for processed TDDF files - dev-tddf-archive/ and prod-tddf-archive/
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // TODO: Refresh archive data
+                      toast({ title: "Archive data refreshed" });
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Refresh Archive
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Archive Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <Label>Archive Status</Label>
+                  <Select defaultValue="all">
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Files</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                      <SelectItem value="processed">Processed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Step 6 Status</Label>
+                  <Select defaultValue="all">
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Files</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Business Day From</Label>
+                  <input
+                    type="date"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <Label>Business Day To</Label>
+                  <input
+                    type="date"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {/* Archive Actions */}
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // TODO: Clear archive filters
+                  }}
+                >
+                  Clear Filters
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => {
+                    // TODO: Archive selected upload files
+                    toast({ title: "Archive process initiated", description: "Selected files are being moved to permanent archive storage" });
+                  }}
+                >
+                  <Zap className="h-4 w-4 mr-1" />
+                  Archive Selected Uploads
+                </Button>
+              </div>
+
+              {/* Archive Table */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        aria-label="Select all archive files"
+                      />
+                    </TableHead>
+                    <TableHead>Archive Filename</TableHead>
+                    <TableHead>Original Filename</TableHead>
+                    <TableHead>Archive Path</TableHead>
+                    <TableHead>Archive Status</TableHead>
+                    <TableHead>Step 6 Status</TableHead>
+                    <TableHead>Records</TableHead>
+                    <TableHead>Business Day</TableHead>
+                    <TableHead>Archived Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      No archived files found. Use "Archive Selected Uploads" to move files to permanent storage.
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
