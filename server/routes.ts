@@ -22236,12 +22236,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
           const fileContent = fileBuffer.toString('utf8');
           
-          // Analyze raw file content for display purposes
-          const lines = fileContent.split('\n');
-          const totalLines = lines.length;
+          // Analyze raw file content for display purposes - normalize line endings first
+          const normalizedContent = fileContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+          const lines = normalizedContent.split('\n');
           const nonEmptyLines = lines.filter(line => line.trim().length > 0).length;
           
-          console.log(`[ARCHIVE-STEP-6] File analysis: ${totalLines} total lines, ${nonEmptyLines} non-empty lines`);
+          console.log(`[ARCHIVE-STEP-6] File analysis: ${lines.length} total lines, ${nonEmptyLines} non-empty lines`);
           
           // 6b: Start JSONB Encoding - Create mock upload object for processAllRecordsToMasterTable
           const mockUpload = {
@@ -22253,11 +22253,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Process ALL records to master tddfJsonb table (Step 6 processing)
           const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
-          const step6Result = await processAllRecordsToMasterTable(fileContent, mockUpload as any);
+          const step6Result = await processAllRecordsToMasterTable(normalizedContent, mockUpload as any);
           
-          // Use line count for total_records if no TDDF records found, processed_records for actual TDDF records
-          const displayTotalRecords = step6Result.totalRecords > 0 ? step6Result.totalRecords : nonEmptyLines;
-          const displayProcessedRecords = step6Result.totalRecords;
+          // Use actual file line count as total_records (rows = records)
+          const displayTotalRecords = nonEmptyLines;
+          const displayProcessedRecords = step6Result.totalRecords || 0;
           
           // 6d: Update status when complete
           await pool.query(`
@@ -22390,6 +22390,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting archive file:', error);
       res.status(500).json({ error: 'Failed to delete archive file' });
+    }
+  });
+
+  // Fix existing archive records with incorrect total_records counts
+  app.post('/api/tddf-archive/fix-record-counts', isAuthenticated, async (req, res) => {
+    try {
+      console.log('[ARCHIVE-FIX] Starting record count correction for existing archive files');
+      
+      // Get all archive files that need fixing
+      const archiveQuery = `SELECT id, archive_path, original_filename, total_records FROM ${getTableName('tddf_archive')} ORDER BY id`;
+      const archiveResult = await pool.query(archiveQuery);
+      
+      const fixes = [];
+      const errors = [];
+      
+      for (const archiveFile of archiveResult.rows) {
+        try {
+          console.log(`[ARCHIVE-FIX] Processing ${archiveFile.original_filename} (ID: ${archiveFile.id})`);
+          
+          // Read file content from storage
+          const { ReplitStorageService } = await import('./replit-storage-service');
+          const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
+          const fileContent = fileBuffer.toString('utf8');
+          
+          // Calculate correct record count with normalized line endings
+          const normalizedContent = fileContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+          const lines = normalizedContent.split('\n');
+          const correctRecordCount = lines.filter(line => line.trim().length > 0).length;
+          
+          // Only update if the count is different
+          if (correctRecordCount !== archiveFile.total_records) {
+            await pool.query(`
+              UPDATE ${getTableName('tddf_archive')}
+              SET total_records = $2, updated_at = NOW()
+              WHERE id = $1
+            `, [archiveFile.id, correctRecordCount]);
+            
+            fixes.push({
+              id: archiveFile.id,
+              filename: archiveFile.original_filename,
+              oldCount: archiveFile.total_records,
+              newCount: correctRecordCount
+            });
+            
+            console.log(`[ARCHIVE-FIX] Fixed ${archiveFile.original_filename}: ${archiveFile.total_records} → ${correctRecordCount}`);
+          } else {
+            console.log(`[ARCHIVE-FIX] ${archiveFile.original_filename} already correct: ${correctRecordCount} records`);
+          }
+          
+        } catch (error) {
+          console.error(`[ARCHIVE-FIX] Error processing archive ${archiveFile.id}:`, error);
+          errors.push({
+            id: archiveFile.id,
+            filename: archiveFile.original_filename,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+      
+      console.log(`[ARCHIVE-FIX] Completed: ${fixes.length} fixed, ${errors.length} errors`);
+      
+      res.json({
+        success: true,
+        message: `Record count fix completed: ${fixes.length} files corrected, ${errors.length} errors`,
+        fixes,
+        errors
+      });
+      
+    } catch (error) {
+      console.error('[ARCHIVE-FIX] Error in record count correction:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      });
     }
   });
 
