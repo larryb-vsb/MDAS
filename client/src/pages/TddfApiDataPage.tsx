@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -103,6 +104,7 @@ interface TddfApiKey {
 }
 
 export default function TddfApiDataPage() {
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedSchema, setSelectedSchema] = useState<number | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -2122,14 +2124,29 @@ export default function TddfApiDataPage() {
                           {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
                         </TableCell>
                         <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleViewArchiveFile(file)}
-                            data-testid={`button-view-archive-${file.id}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewArchiveFile(file)}
+                              data-testid={`button-view-archive-${file.id}`}
+                              title="View file content"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {file.original_upload_id && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setLocation(`/tddf-viewer/${file.original_upload_id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
+                                data-testid={`button-view-jsonb-${file.id}`}
+                                title="View JSONB data (unlimited records)"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
