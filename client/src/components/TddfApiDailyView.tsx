@@ -308,74 +308,56 @@ export function TddfApiDailyView() {
         </Card>
       </div>
       
-      {/* Import from TDDF API Files */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Import from TDDF API Files
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Select processed TDDF API files to import into the daily view system
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Upload className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p className="mb-2">Import functionality will be available here</p>
-            <p className="text-xs">This will allow importing from the TDDF API files system into the daily view tables</p>
-            <Button variant="outline" disabled className="mt-4">
-              <Upload className="mr-2 h-4 w-4" />
-              Import Selected Files
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
       {/* Record Type Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Record Type Distribution</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Breakdown of TDDF record types across all imported data
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Object.entries(dailyStats?.recordTypeBreakdown || {}).map(([type, count]) => {
-              const total = dailyStats?.totalRecords || 1;
-              const percentage = total > 0 ? ((count as number / total) * 100) : 0;
-              return (
-                <div key={type} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{type}</Badge>
-                    <span className="text-sm text-muted-foreground">{(count as number).toLocaleString()} records</span>
-                  </div>
-                  <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[200px]">
-                      <div 
-                        className="h-2 rounded-full bg-blue-500"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium min-w-[3rem] text-right">
-                      {percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-            
-            {(!dailyStats?.recordTypeBreakdown || Object.keys(dailyStats.recordTypeBreakdown).length === 0) && (
-              <div className="text-center py-6 text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No record type data available</p>
-                <p className="text-xs">Import TDDF files to see record distribution</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* BH Records */}
+        <Card className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">BH Records</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+              {(dailyStats?.recordTypeBreakdown?.BH || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-green-600 dark:text-green-400">
+              Batch Headers
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* DT Records */}
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">DT Records</CardTitle>
+            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              {(dailyStats?.recordTypeBreakdown?.DT || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400">
+              Detail Transactions
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Total Records */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {(dailyStats?.totalRecords || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              All Types
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
