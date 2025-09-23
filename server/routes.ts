@@ -22326,6 +22326,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get archive file content for viewing
+  app.get('/api/tddf-archive/:id/content', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get archive file details
+      const archiveQuery = `SELECT * FROM ${getTableName('tddf_archive')} WHERE id = $1`;
+      const archiveResult = await pool.query(archiveQuery, [id]);
+      
+      if (archiveResult.rows.length === 0) {
+        return res.status(404).json({ error: "Archive file not found" });
+      }
+      
+      const archiveFile = archiveResult.rows[0];
+      
+      console.log(`[ARCHIVE-CONTENT] Reading file: ${archiveFile.archive_path}`);
+      
+      // Read file content from storage
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
+      const fileContent = fileBuffer.toString('utf8');
+      
+      res.json({
+        success: true,
+        filename: archiveFile.original_filename,
+        size: archiveFile.file_size,
+        content: fileContent
+      });
+      
+    } catch (error) {
+      console.error(`[ARCHIVE-CONTENT] Error reading archive file:`, error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to read archive file" 
+      });
+    }
+  });
+
   // Delete archive file record
   app.delete('/api/tddf-archive/:id', isAuthenticated, async (req, res) => {
     try {

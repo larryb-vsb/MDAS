@@ -115,6 +115,11 @@ export default function TddfApiDataPage() {
     businessDayFrom: '',
     businessDayTo: ''
   });
+  
+  // Archive file viewer state
+  const [viewingArchiveFile, setViewingArchiveFile] = useState<any>(null);
+  const [archiveFileContent, setArchiveFileContent] = useState<string>('');
+  const [loadingArchiveContent, setLoadingArchiveContent] = useState(false);
   const [newSchemaData, setNewSchemaData] = useState({
     name: "",
     version: "",
@@ -602,6 +607,34 @@ export default function TddfApiDataPage() {
   };
 
   // File viewing handler
+  const handleViewArchiveFile = async (archiveFile: any) => {
+    setViewingArchiveFile(archiveFile);
+    setLoadingArchiveContent(true);
+    
+    try {
+      const response = await apiRequest({
+        url: `/api/tddf-archive/${archiveFile.id}/content`,
+        method: 'GET'
+      });
+      
+      if (response.content) {
+        setArchiveFileContent(response.content);
+      } else {
+        throw new Error('No file content received');
+      }
+    } catch (error) {
+      console.error('Error loading archive file content:', error);
+      toast({
+        title: "Error loading file",
+        description: "Failed to load archive file content",
+        variant: "destructive"
+      });
+      setArchiveFileContent('Error loading file content');
+    } finally {
+      setLoadingArchiveContent(false);
+    }
+  };
+
   const handleViewFile = async (file: TddfApiFile) => {
     setSelectedFileForView(file);
     setViewFileDialog(true);
@@ -2086,8 +2119,13 @@ export default function TddfApiDataPage() {
                           {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewArchiveFile(file)}
+                            data-testid={`button-view-archive-${file.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -2470,6 +2508,42 @@ export default function TddfApiDataPage() {
               {fileContent}
             </pre>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive File Viewer Dialog */}
+      <Dialog open={!!viewingArchiveFile} onOpenChange={() => setViewingArchiveFile(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh]" data-testid="dialog-archive-viewer">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Archive File Contents
+            </DialogTitle>
+            <DialogDescription>
+              {viewingArchiveFile?.original_filename} - {viewingArchiveFile ? `${(viewingArchiveFile.file_size / 1024).toFixed(1)} KB` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] w-full">
+            {loadingArchiveContent ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                Loading file content...
+              </div>
+            ) : (
+              <pre className="text-xs font-mono whitespace-pre-wrap p-4 bg-muted rounded-md">
+                {archiveFileContent}
+              </pre>
+            )}
+          </ScrollArea>
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Status: {viewingArchiveFile?.step6_status} | 
+              Records: {viewingArchiveFile?.total_records || 0} total, {viewingArchiveFile?.processed_records || 0} processed
+            </div>
+            <Button variant="outline" onClick={() => setViewingArchiveFile(null)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
