@@ -25,7 +25,7 @@ import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
 import { NODE_ENV } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
-import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
+import { encodeTddfToJsonbDirect, processAllRecordsToMasterTable } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
 import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 import { heatMapCacheProcessingStats } from "@shared/schema";
@@ -22142,6 +22142,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating archive file:', error);
       res.status(500).json({ error: 'Failed to update archive file' });
+    }
+  });
+
+  // Step 6 Archive Processing endpoint - processes archive files through JSONB encoding
+  app.post('/api/tddf-archive/step6-processing', isAuthenticated, async (req, res) => {
+    console.log("[ARCHIVE-STEP-6] ===== API ENDPOINT REACHED =====");
+    console.log("[ARCHIVE-STEP-6] Request body:", req.body);
+    console.log("[ARCHIVE-STEP-6] Request headers:", req.headers);
+    console.log("[ARCHIVE-STEP-6] User session:", req.user ? 'authenticated' : 'not authenticated');
+    try {
+      const { archiveIds } = req.body;
+      
+      if (!Array.isArray(archiveIds) || archiveIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "archiveIds must be a non-empty array"
+        });
+      }
+
+      // Limit to 3 files at once as requested
+      if (archiveIds.length > 3) {
+        return res.status(400).json({
+          success: false,
+          error: "Maximum 3 files can be processed at once"
+        });
+      }
+      
+      console.log(`[ARCHIVE-STEP-6] Processing ${archiveIds.length} archive files for JSONB encoding`);
+
+      const results = [];
+      const errors = [];
+      
+      for (const archiveId of archiveIds) {
+        try {
+          // 6a: Get archive file details
+          const archiveQuery = `SELECT * FROM ${getTableName('tddf_archive')} WHERE id = $1`;
+          const archiveResult = await pool.query(archiveQuery, [archiveId]);
+          
+          if (archiveResult.rows.length === 0) {
+            errors.push({ archiveId, error: "Archive file not found" });
+            continue;
+          }
+          
+          const archiveFile = archiveResult.rows[0];
+          
+          // Check if already processed
+          if (archiveFile.step6_status === 'completed') {
+            errors.push({ 
+              archiveId, 
+              error: `Archive file ${archiveFile.archive_filename} already completed Step 6 processing` 
+            });
+            continue;
+          }
+
+          console.log(`[ARCHIVE-STEP-6] Processing archive file: ${archiveFile.archive_filename}`);
+          
+          // Update status to processing
+          await pool.query(`
+            UPDATE ${getTableName('tddf_archive')}
+            SET step6_status = 'processing', updated_at = NOW()
+            WHERE id = $1
+          `, [archiveId]);
+
+          // 6a: Read file content from dev-tddf-archive storage location
+          console.log(`[ARCHIVE-STEP-6] Reading file from storage: ${archiveFile.archive_path}`);
+          const fileContent = await ReplitStorageService.getFileContent(archiveFile.archive_path);
+          
+          // 6b: Start JSONB Encoding - Create mock upload object for processAllRecordsToMasterTable
+          const mockUpload = {
+            id: `archive_${archiveId}`,
+            filename: archiveFile.original_filename,
+            currentPhase: 'encoded',
+            createdAt: archiveFile.created_at
+          };
+
+          // Process ALL records to master tddfJsonb table (Step 6 processing)
+          const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
+          const step6Result = await processAllRecordsToMasterTable(fileContent, mockUpload as any);
+          
+          // 6d: Update status when complete
+          await pool.query(`
+            UPDATE ${getTableName('tddf_archive')}
+            SET 
+              archive_status = 'completed',
+              step6_status = 'completed',
+              step6_processed_at = NOW(),
+              total_records = $2,
+              processed_records = $3,
+              updated_at = NOW()
+            WHERE id = $1
+          `, [archiveId, step6Result.totalRecords, step6Result.masterRecords]);
+
+          results.push({
+            archiveId,
+            filename: archiveFile.archive_filename,
+            originalFilename: archiveFile.original_filename,
+            status: 'completed',
+            totalRecordsProcessed: step6Result.totalRecords,
+            masterTableRecords: step6Result.masterRecords,
+            apiRecordsProcessed: step6Result.apiRecords
+          });
+          
+          console.log(`[ARCHIVE-STEP-6] Successfully processed ${archiveFile.archive_filename}: ${step6Result.totalRecords} total records`);
+          
+        } catch (error) {
+          console.error(`[ARCHIVE-STEP-6] Error processing archive ${archiveId}:`, error);
+          
+          // Update status to error
+          try {
+            await pool.query(`
+              UPDATE ${getTableName('tddf_archive')}
+              SET step6_status = 'error', processing_errors = $2, updated_at = NOW()
+              WHERE id = $1
+            `, [archiveId, JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error', timestamp: new Date().toISOString() })]);
+          } catch (updateError) {
+            console.error(`[ARCHIVE-STEP-6] Failed to update error status for archive ${archiveId}:`, updateError);
+          }
+          
+          errors.push({
+            archiveId,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }
+      
+      console.log(`[ARCHIVE-STEP-6] Completed processing: ${results.length} successful, ${errors.length} errors`);
+      
+      res.json({
+        success: true,
+        processedCount: archiveIds.length,
+        successCount: results.length,
+        errorCount: errors.length,
+        results,
+        errors,
+        message: `Successfully processed ${results.length} archive file(s), ${errors.length} errors`
+      });
+      
+    } catch (error) {
+      console.error("[ARCHIVE-STEP-6] Error in archive Step 6 processing:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
     }
   });
 
