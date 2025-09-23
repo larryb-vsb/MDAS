@@ -21747,40 +21747,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Query the main datamaster table for specific date
       const datamasterTable = `${envPrefix}tddf_datamaster`;
-      const dayResult = await pool.query(`
-        SELECT 
-          COUNT(*) as total_records,
-          SUM(CASE WHEN transaction_auth_amount IS NOT NULL THEN transaction_auth_amount ELSE 0 END) as transaction_value,
-          COUNT(DISTINCT tddf_api_file_id) as file_count,
-          batch_date
-        FROM ${datamasterTable}
-        WHERE batch_date = $1
-        GROUP BY batch_date
-      `, [date]);
+      let dayResult;
+      try {
+        dayResult = await pool.query(`
+          SELECT 
+            COUNT(*) as total_records,
+            SUM(CASE WHEN transaction_auth_amount IS NOT NULL THEN transaction_auth_amount ELSE 0 END) as transaction_value,
+            COUNT(DISTINCT tddf_api_file_id) as file_count,
+            batch_date
+          FROM ${datamasterTable}
+          WHERE batch_date = $1
+          GROUP BY batch_date
+        `, [date]);
+      } catch (datamasterError) {
+        console.log(`📅 Datamaster table ${datamasterTable} not available for date ${date}`);
+        dayResult = { rows: [{ total_records: '0', transaction_value: '0', file_count: '0' }] };
+      }
       
       // Get record type breakdown for the specific date
-      const recordTypeResult = await pool.query(`
-        SELECT record_type, COUNT(*) as count
-        FROM ${datamasterTable}
-        WHERE batch_date = $1 AND record_type IS NOT NULL
-        GROUP BY record_type
-        ORDER BY count DESC
-      `, [date]);
+      let recordTypeResult;
+      try {
+        recordTypeResult = await pool.query(`
+          SELECT record_type, COUNT(*) as count
+          FROM ${datamasterTable}
+          WHERE batch_date = $1 AND record_type IS NOT NULL
+          GROUP BY record_type
+          ORDER BY count DESC
+        `, [date]);
+      } catch (recordTypeError) {
+        console.log(`📅 Record type breakdown not available for date ${date}`);
+        recordTypeResult = { rows: [] };
+      }
       
       const recordTypes: Record<string, number> = {};
       recordTypeResult.rows.forEach(row => {
         recordTypes[row.record_type] = parseInt(row.count);
       });
       
+      // Also check archive data for the current date (fallback to showing all archive data)
+      const archiveTable = `${envPrefix}tddf_archive`;
+      let archiveBreakdown = { records: 0, files: 0 };
+      try {
+        // For archive data, we'll show all completed archives as they don't have specific batch dates
+        // but we can filter by the processed date matching today's date or show all as fallback
+        const archiveResult = await pool.query(`
+          SELECT 
+            COUNT(*) as archive_files,
+            SUM(total_records) as archive_total_records
+          FROM ${archiveTable}
+          WHERE step6_status = 'completed'
+          AND (DATE(step6_processed_at) = $1 OR $1 = CURRENT_DATE)
+        `, [date]);
+        
+        archiveBreakdown = {
+          records: parseInt(archiveResult.rows[0]?.archive_total_records || '0'),
+          files: parseInt(archiveResult.rows[0]?.archive_files || '0')
+        };
+        
+        console.log(`📅 Archive breakdown for ${date}:`, archiveBreakdown);
+      } catch (archiveError) {
+        console.log(`📅 Archive table ${archiveTable} not available`);
+      }
+      
+      // Combine datamaster and archive data
+      const datamasterRecords = parseInt(dayResult.rows[0]?.total_records || '0');
+      const datamasterFiles = parseInt(dayResult.rows[0]?.file_count || '0');
+      const datamasterValue = parseFloat(dayResult.rows[0]?.transaction_value || '0');
+      
       const breakdown = {
         date,
-        totalRecords: parseInt(dayResult.rows[0]?.total_records || '0'),
+        totalRecords: datamasterRecords + archiveBreakdown.records,
         recordTypes,
-        transactionValue: parseFloat(dayResult.rows[0]?.transaction_value || '0'),
-        fileCount: parseInt(dayResult.rows[0]?.file_count || '0')
+        transactionValue: datamasterValue, // Archive data doesn't have transaction values yet
+        fileCount: datamasterFiles + archiveBreakdown.files,
+        // Additional debugging info
+        datamasterRecords,
+        datamasterFiles,
+        archiveRecords: archiveBreakdown.records,
+        archiveFiles: archiveBreakdown.files
       };
       
-      console.log(`📅 TDDF API Day Breakdown:`, breakdown);
+      console.log(`📅 TDDF API Day Breakdown (combined):`, breakdown);
       res.json(breakdown);
       
     } catch (error: any) {
