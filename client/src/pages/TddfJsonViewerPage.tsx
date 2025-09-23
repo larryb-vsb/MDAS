@@ -451,6 +451,12 @@ export default function TddfJsonViewerPage() {
         return result;
       } catch (error: any) {
         console.error(`[TDDF-JSON-VIEWER] API Error:`, error);
+        
+        // For archive files, provide helpful error message when no JSONB data exists
+        if (isUnlimited && (error.message?.includes('500') || error.message?.includes('no records found') || error.message?.includes('Internal Server Error'))) {
+          throw new Error('JSONB data not available for this archive file. The Step 6 processing may not have completed successfully. Please contact support to re-process this archive file.');
+        }
+        
         throw error;
       }
     },
@@ -462,14 +468,20 @@ export default function TddfJsonViewerPage() {
   const { data: allRecordTypes } = useQuery({
     queryKey: [isUnlimited ? '/api/tddf-api/records' : '/api/uploader', uploadId, 'jsonb-data', 'types'],
     queryFn: async () => {
-      // Use different endpoints for archive vs regular files
-      const endpoint = isUnlimited 
-        ? `/api/tddf-api/records/${uploadId}?limit=1000`
-        : `/api/uploader/${uploadId}/jsonb-data?limit=1000`;
-      
-      const data: any = await apiRequest(endpoint);
-      const types = Array.from(new Set(data.data.map((record: JsonbRecord) => record.record_type)));
-      return types.sort();
+      try {
+        // Use different endpoints for archive vs regular files
+        const endpoint = isUnlimited 
+          ? `/api/tddf-api/records/${uploadId}?limit=1000`
+          : `/api/uploader/${uploadId}/jsonb-data?limit=1000`;
+        
+        const data: any = await apiRequest(endpoint);
+        const types = Array.from(new Set(data.data.map((record: JsonbRecord) => record.record_type)));
+        return types.sort();
+      } catch (error: any) {
+        // Return empty array if JSONB data is not available
+        console.warn('[TDDF-JSON-VIEWER] Record types fetch failed:', error);
+        return [];
+      }
     },
     enabled: !!uploadId,
     refetchOnWindowFocus: false
@@ -1215,25 +1227,30 @@ export default function TddfJsonViewerPage() {
                   <span className="font-medium text-red-800">JSONB Data Not Available</span>
                 </div>
                 <p className="text-sm text-red-700 mb-4">
-                  This file may contain test/sample data instead of real TDDF content.
+                  {isUnlimited 
+                    ? "JSONB data not available for this archive file. The Step 6 processing may not have completed successfully. Please contact support to re-process this archive file."
+                    : "This file may contain test/sample data instead of real TDDF content."
+                  }
                 </p>
-                <Button 
-                  onClick={handleReEncode}
-                  disabled={isReEncoding}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-                >
-                  {isReEncoding ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Re-encoding with Real Data...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4" />
-                      Re-encode with Real Data
-                    </>
-                  )}
-                </Button>
+                {!isUnlimited && (
+                  <Button 
+                    onClick={handleReEncode}
+                    disabled={isReEncoding}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isReEncoding ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Re-encoding with Real Data...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Re-encode with Real Data
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           )}
