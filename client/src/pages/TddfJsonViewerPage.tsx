@@ -406,11 +406,15 @@ export default function TddfJsonViewerPage() {
   const uploadId = params?.uploadId || '';
   const filename = decodeURIComponent(params?.filename || '');
   
+  // Check for unlimited query parameter
+  const searchParams = new URLSearchParams(window.location.search);
+  const isUnlimited = searchParams.get('unlimited') === 'true';
+  
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
   const [merchantAccountFilter, setMerchantAccountFilter] = useState<string>('');
   const [terminalIdFilter, setTerminalIdFilter] = useState<string>('');
-  const [pageSize, setPageSize] = useState(10000); // Dynamic page size - show all records up to 10K
+  const [pageSize, setPageSize] = useState(isUnlimited ? 100000 : 10000); // Unlimited shows up to 100K records
   const [isReEncoding, setIsReEncoding] = useState(false);
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -841,6 +845,12 @@ export default function TddfJsonViewerPage() {
             <div className="flex items-center gap-2">
               <FileJson className="w-6 h-6 text-blue-500" />
               <h1 className="text-2xl font-bold">TDDF JSONB Data Viewer</h1>
+              {isUnlimited && (
+                <Badge className="bg-green-100 text-green-800 border-green-200 text-xs ml-2">
+                  <Eye className="w-3 h-3 mr-1" />
+                  Unlimited Mode
+                </Badge>
+              )}
             </div>
           </div>
           
@@ -851,6 +861,11 @@ export default function TddfJsonViewerPage() {
               <Badge variant="outline" className="flex items-center gap-1">
                 <Database className="w-3 h-3" />
                 {(jsonbData as any).tableName}
+              </Badge>
+            )}
+            {isUnlimited && (
+              <Badge className="bg-green-50 text-green-700 border-green-200 text-xs">
+                Showing up to 100K records (no 10K limit)
               </Badge>
             )}
           </div>
