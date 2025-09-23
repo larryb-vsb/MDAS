@@ -2046,9 +2046,8 @@ export default function TddfApiDataPage() {
                         aria-label="Select all archive files"
                       />
                     </TableHead>
-                    <TableHead>Archive Filename</TableHead>
                     <TableHead>Original Filename</TableHead>
-                    <TableHead>Archive Path</TableHead>
+                    <TableHead>Archive Details</TableHead>
                     <TableHead>Archive Status</TableHead>
                     <TableHead>Step 6 Status</TableHead>
                     <TableHead>Records</TableHead>
@@ -2077,14 +2076,21 @@ export default function TddfApiDataPage() {
                         <TableCell>
                           <Checkbox />
                         </TableCell>
-                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
-                          {file.archive_filename}
+                        <TableCell className="font-medium max-w-[300px]" title={file.original_filename}>
+                          <div className="truncate">{file.original_filename}</div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
-                          {file.original_filename}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
-                          {file.archive_path}
+                        <TableCell className="max-w-[250px]">
+                          <div 
+                            className="cursor-help border-b border-dotted border-muted-foreground/50 hover:border-muted-foreground"
+                            title={`Archive File: ${file.archive_filename}\nStorage Path: ${file.archive_path}`}
+                          >
+                            <div className="text-xs font-mono truncate text-muted-foreground">
+                              {file.archive_filename}
+                            </div>
+                            <div className="text-xs font-mono truncate text-muted-foreground/70">
+                              {file.archive_path}
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={file.archive_status === 'pending' ? 'secondary' : 
