@@ -22248,7 +22248,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: `archive_${archiveId}`,
             filename: archiveFile.original_filename,
             currentPhase: 'encoded',
-            createdAt: archiveFile.created_at
+            createdAt: archiveFile.created_at,
+            fileSize: archiveFile.file_size,
+            userId: 'admin', // Archive processing
+            uploadsTable: 'dev_tddf_archive'
           };
 
           // Process ALL records to master tddfJsonb table (Step 6 processing)
