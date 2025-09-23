@@ -22233,7 +22233,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // 6a: Read file content from dev-tddf-archive storage location
           console.log(`[ARCHIVE-STEP-6] Reading file from storage: ${archiveFile.archive_path}`);
-          const fileContent = await ReplitStorageService.getFileContent(archiveFile.archive_path);
+          const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
+          const fileContent = fileBuffer.toString('utf8');
+          
+          // Analyze raw file content for display purposes
+          const lines = fileContent.split('\n');
+          const totalLines = lines.length;
+          const nonEmptyLines = lines.filter(line => line.trim().length > 0).length;
+          
+          console.log(`[ARCHIVE-STEP-6] File analysis: ${totalLines} total lines, ${nonEmptyLines} non-empty lines`);
           
           // 6b: Start JSONB Encoding - Create mock upload object for processAllRecordsToMasterTable
           const mockUpload = {
@@ -22247,6 +22255,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
           const step6Result = await processAllRecordsToMasterTable(fileContent, mockUpload as any);
           
+          // Use line count for total_records if no TDDF records found, processed_records for actual TDDF records
+          const displayTotalRecords = step6Result.totalRecords > 0 ? step6Result.totalRecords : nonEmptyLines;
+          const displayProcessedRecords = step6Result.totalRecords;
+          
           // 6d: Update status when complete
           await pool.query(`
             UPDATE ${getTableName('tddf_archive')}
@@ -22258,14 +22270,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               processed_records = $3,
               updated_at = NOW()
             WHERE id = $1
-          `, [archiveId, step6Result.totalRecords, step6Result.masterRecords]);
+          `, [archiveId, displayTotalRecords, displayProcessedRecords]);
 
           results.push({
             archiveId,
             filename: archiveFile.archive_filename,
             originalFilename: archiveFile.original_filename,
             status: 'completed',
-            totalRecordsProcessed: step6Result.totalRecords,
+            totalRecordsProcessed: displayTotalRecords,
             masterTableRecords: step6Result.masterRecords,
             apiRecordsProcessed: step6Result.apiRecords
           });
