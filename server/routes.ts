@@ -24134,6 +24134,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all TDDF raw records with summary statistics for Raw Data tab
+  app.get('/api/tddf-api/all-records', isAuthenticated, async (req, res) => {
+    try {
+      const { 
+        limit = 100, 
+        offset = 0, 
+        recordType, 
+        search 
+      } = req.query;
+      
+      // Build WHERE conditions for uploader records (fallback to uploader data)
+      let whereConditions = [];
+      const params = [];
+      let paramIndex = 1;
+      
+      if (recordType && recordType !== 'all') {
+        whereConditions.push(`r.record_type = $${paramIndex}`);
+        params.push(recordType as string);
+        paramIndex++;
+      }
+      
+      if (search) {
+        whereConditions.push(`r.raw_line ILIKE $${paramIndex}`);
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Get summary statistics from uploader TDDF records
+      const summaryResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(DISTINCT r.upload_id) as total_files
+        FROM ${getTableName('uploader_tddf_jsonb_records')} r
+        ${whereClause}
+      `, params.slice(0, paramIndex - 1));
+      
+      // Get paginated records from uploader TDDF records
+      const recordsParams = [...params, limit, offset];
+      const recordsResult = await pool.query(`
+        SELECT 
+          r.id,
+          r.upload_id as file_id,
+          r.record_type,
+          r.line_number,
+          r.raw_line as raw_data,
+          r.record_data as parsed_data,
+          r.created_at,
+          u.filename,
+          u.created_at as business_day
+        FROM ${getTableName('uploader_tddf_jsonb_records')} r
+        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        ${whereClause}
+        ORDER BY u.created_at DESC, r.line_number ASC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, recordsParams);
+      
+      const summary = summaryResult.rows[0];
+      
+      res.json({
+        data: recordsResult.rows,
+        summary: {
+          totalRecords: parseInt(summary.total_records),
+          bhRecords: parseInt(summary.bh_records),
+          dtRecords: parseInt(summary.dt_records),
+          totalFiles: parseInt(summary.total_files)
+        },
+        pagination: {
+          limit: parseInt(limit as string),
+          offset: parseInt(offset as string),
+          total: parseInt(summary.total_records)
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching all TDDF API records:', error);
+      res.status(500).json({ error: 'Failed to fetch records' });
+    }
+  });
+
   // === Unified TDDF API Endpoints (for shared components) ===
   
   // Unified TDDF files endpoint with enhanced analytics

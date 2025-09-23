@@ -674,11 +674,12 @@ export default function TddfApiDataPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schemas">Schemas</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="raw-data">Raw Data</TabsTrigger>
           <TabsTrigger value="processing">Processing</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
@@ -2185,6 +2186,27 @@ export default function TddfApiDataPage() {
           <TddfApiDailyView />
         </TabsContent>
 
+        <TabsContent value="raw-data" className="space-y-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold">TDDF Raw Data</h2>
+              <p className="text-muted-foreground">View all TDDF records with pagination and filtering</p>
+            </div>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/all-records"], exact: false });
+                toast({ title: "Raw data refreshed" });
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Data
+            </Button>
+          </div>
+          
+          <RawDataTab />
+        </TabsContent>
+
         <TabsContent value="processing" className="space-y-4">
           <h2 className="text-2xl font-bold">Processing Queue</h2>
           
@@ -2600,6 +2622,317 @@ export default function TddfApiDataPage() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Raw Data Tab Component
+function RawDataTab() {
+  const { toast } = useToast();
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+  const [recordType, setRecordType] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showRecords, setShowRecords] = useState(false);
+  
+  // Pagination options
+  const pageSizeOptions = [
+    { value: 10, label: '10' },
+    { value: 100, label: '100' },
+    { value: 500, label: '500' },
+    { value: 1000, label: '1K' },
+    { value: 3000, label: '3K' },
+    { value: 5000, label: '5K' }
+  ];
+
+  // Fetch raw data with React Query
+  const { data: rawData, isLoading, error, refetch } = useQuery({
+    queryKey: ['/api/tddf-api/all-records', { 
+      limit: pageSize, 
+      offset: currentPage * pageSize,
+      recordType: recordType === 'all' ? undefined : recordType,
+      search: searchQuery || undefined
+    }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: (currentPage * pageSize).toString()
+      });
+      
+      if (recordType !== 'all') {
+        params.append('recordType', recordType);
+      }
+      
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      
+      return await apiRequest(`/api/tddf-api/all-records?${params}`);
+    },
+    enabled: showRecords,
+    refetchOnWindowFocus: false
+  });
+
+  const summary = rawData?.summary || {
+    totalRecords: 0,
+    bhRecords: 0,
+    dtRecords: 0,
+    totalFiles: 0
+  };
+
+  const records = rawData?.data || [];
+  const totalPages = rawData?.pagination?.total ? Math.ceil(rawData.pagination.total / pageSize) : 0;
+
+  const handleShowAllRecords = () => {
+    setShowRecords(true);
+    setCurrentPage(0);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(0);
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(0);
+    refetch();
+  };
+
+  const formatRecordContent = (record: any) => {
+    if (record.parsed_data && Object.keys(record.parsed_data).length > 0) {
+      return Object.entries(record.parsed_data)
+        .slice(0, 3) // Show first 3 parsed fields
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(' | ');
+    }
+    return record.raw_data ? record.raw_data.substring(0, 100) + '...' : 'No data';
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards - Matching the design from attached image */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">BH Records</p>
+                <p className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Batch Headers</p>
+              </div>
+              <Database className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">DT Records</p>
+                <p className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Detail Transactions</p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-purple-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">Total Records</p>
+                <p className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">All Types</p>
+              </div>
+              <Activity className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Controls Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Raw Data Controls</CardTitle>
+              <CardDescription>Configure pagination and filters for TDDF records</CardDescription>
+            </div>
+            {!showRecords && (
+              <Button 
+                onClick={handleShowAllRecords}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-testid="button-show-all-records"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Show All Records
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Pagination Size */}
+            <div>
+              <Label>Records per page</Label>
+              <Select 
+                value={pageSize.toString()} 
+                onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label} records
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Record Type Filter */}
+            <div>
+              <Label>Record Type</Label>
+              <Select 
+                value={recordType} 
+                onValueChange={setRecordType}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="BH">BH - Batch Header</SelectItem>
+                  <SelectItem value="DT">DT - Detail Transaction</SelectItem>
+                  <SelectItem value="TR">TR - Trailer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search */}
+            <div>
+              <Label>Search</Label>
+              <Input
+                placeholder="Search raw data..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+
+            {/* Search Button */}
+            <div className="flex items-end">
+              <Button onClick={handleSearch} variant="outline" className="w-full">
+                <Search className="mr-2 h-4 w-4" />
+                Search
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Records Table */}
+      {showRecords && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>TDDF Records ({records.length} of {rawData?.pagination?.total || 0})</CardTitle>
+                <CardDescription>Raw TDDF data with parsed fields</CardDescription>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0 || isLoading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                    disabled={currentPage >= totalPages - 1 || isLoading}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                Loading records...
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-600">
+                Error loading records: {error instanceof Error ? error.message : 'Unknown error'}
+              </div>
+            ) : records.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No records found matching your criteria
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">Type</TableHead>
+                      <TableHead className="w-16">Line</TableHead>
+                      <TableHead>Content</TableHead>
+                      <TableHead className="w-40">File</TableHead>
+                      <TableHead className="w-32">Business Day</TableHead>
+                      <TableHead className="w-32">Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {records.map((record: any) => (
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          <Badge 
+                            variant={record.record_type === 'BH' ? 'default' : 
+                                   record.record_type === 'DT' ? 'secondary' : 'outline'}
+                          >
+                            {record.record_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{record.line_number}</TableCell>
+                        <TableCell className="max-w-md">
+                          <div className="truncate font-mono text-xs" title={record.raw_data}>
+                            {formatRecordContent(record)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="truncate text-sm" title={record.filename}>
+                          {record.filename}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(record.created_at), 'MMM d, HH:mm')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
