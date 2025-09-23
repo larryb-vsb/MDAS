@@ -2535,14 +2535,24 @@ export default function TddfApiDataPage() {
             ) : (
               <div className="relative bg-muted">
                 <pre className="text-xs font-mono whitespace-nowrap p-0 m-0 min-w-max">
-                  {archiveFileContent.split('\n').map((line, index) => (
-                    <div key={index} className="flex hover:bg-muted-foreground/10">
-                      <div className="sticky left-0 bg-muted border-r px-3 py-0.5 text-muted-foreground min-w-[4rem] text-right select-none">
-                        {index + 1}
+                  {(() => {
+                    // Normalize line endings for proper TDDF record display
+                    const normalizedContent = archiveFileContent
+                      .replaceAll('\r\n', '\n')
+                      .replaceAll('\r', '\n');
+                    const lines = normalizedContent.split('\n').filter((line, index, arr) => 
+                      // Keep all lines except empty trailing ones
+                      index < arr.length - 1 || line.trim() !== ''
+                    );
+                    return lines.map((line, index) => (
+                      <div key={index} className="flex hover:bg-muted-foreground/10">
+                        <div className="sticky left-0 bg-muted border-r px-3 py-0.5 text-muted-foreground min-w-[4rem] text-right select-none">
+                          {index + 1}
+                        </div>
+                        <div className="px-3 py-0.5 min-w-0">{line || '\u00A0'}</div>
                       </div>
-                      <div className="px-3 py-0.5 min-w-0">{line || '\u00A0'}</div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </pre>
               </div>
             )}
@@ -2550,7 +2560,16 @@ export default function TddfApiDataPage() {
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-sm text-muted-foreground">
               Status: {viewingArchiveFile?.step6_status} | 
-              Records: {viewingArchiveFile?.total_records || 0} total, {viewingArchiveFile?.processed_records || 0} processed
+              TDDF Records: {viewingArchiveFile?.total_records || 0} total, {viewingArchiveFile?.processed_records || 0} processed |
+              File Lines: {(() => {
+                if (!archiveFileContent) return 0;
+                const normalizedContent = archiveFileContent
+                  .replaceAll('\r\n', '\n')
+                  .replaceAll('\r', '\n');
+                return normalizedContent.split('\n').filter((line, index, arr) => 
+                  index < arr.length - 1 || line.trim() !== ''
+                ).length;
+              })()}
             </div>
             <Button variant="outline" onClick={() => setViewingArchiveFile(null)}>
               Close
