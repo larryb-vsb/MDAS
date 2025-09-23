@@ -422,7 +422,7 @@ export default function TddfJsonViewerPage() {
   const [activeSection, setActiveSection] = useState<'all' | 'metadata'>('all');
 
   const { data: jsonbData, isLoading, error, refetch } = useQuery({
-    queryKey: [isUnlimited ? '/api/tddf-jsonb/cached-data' : '/api/uploader', uploadId, 'jsonb-data', { 
+    queryKey: [isUnlimited ? '/api/tddf-api/records' : '/api/uploader', uploadId, 'jsonb-data', { 
       limit: pageSize, 
       offset: currentPage * pageSize,
       recordType: selectedRecordType || undefined 
@@ -442,7 +442,7 @@ export default function TddfJsonViewerPage() {
       try {
         // Use different endpoints for archive vs regular files
         const endpoint = isUnlimited 
-          ? `/api/tddf-jsonb/cached-data/${uploadId}?${params}`
+          ? `/api/tddf-api/records/${uploadId}?${params}`
           : `/api/uploader/${uploadId}/jsonb-data?${params}`;
         
         console.log(`[TDDF-JSON-VIEWER] Using endpoint: ${endpoint}`);
@@ -460,11 +460,11 @@ export default function TddfJsonViewerPage() {
 
   // Get unique record types for filtering
   const { data: allRecordTypes } = useQuery({
-    queryKey: [isUnlimited ? '/api/tddf-jsonb/cached-data' : '/api/uploader', uploadId, 'jsonb-data', 'types'],
+    queryKey: [isUnlimited ? '/api/tddf-api/records' : '/api/uploader', uploadId, 'jsonb-data', 'types'],
     queryFn: async () => {
       // Use different endpoints for archive vs regular files
       const endpoint = isUnlimited 
-        ? `/api/tddf-jsonb/cached-data/${uploadId}?limit=1000`
+        ? `/api/tddf-api/records/${uploadId}?limit=1000`
         : `/api/uploader/${uploadId}/jsonb-data?limit=1000`;
       
       const data: any = await apiRequest(endpoint);
@@ -477,7 +477,7 @@ export default function TddfJsonViewerPage() {
 
   // Get upload details for file size and line count
   const { data: uploadDetails } = useQuery({
-    queryKey: [isUnlimited ? '/api/tddf-archive' : '/api/uploader', uploadId, 'details'],
+    queryKey: [isUnlimited ? '/api/tddf-api/files' : '/api/uploader', uploadId, 'details'],
     queryFn: async () => {
       try {
         // For archive files, we don't need upload details since they're already processed
