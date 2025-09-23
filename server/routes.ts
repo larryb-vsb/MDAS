@@ -21635,211 +21635,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TDDF API Daily View endpoints - Isolated from other tables
   // These endpoints work exclusively with the King database server
   
-  // Get daily stats for TDDF API Daily View
+  // Get daily stats for TDDF API Daily View (Updated to use uploader data)
   app.get("/api/tddf-api/daily/stats", isAuthenticated, async (req, res) => {
     try {
-      console.log("📊 [DEBUG] Getting TDDF API daily stats endpoint called");
+      console.log("📊 [DEBUG] Getting TDDF API daily stats from uploader data");
       
-      // Detect environment and use appropriate naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
+      // Query uploader TDDF records instead of datamaster
+      const statsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(DISTINCT r.upload_id) as total_files,
+          COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN r.record_type = 'P1' THEN 1 END) as p1_records,
+          COUNT(CASE WHEN r.record_type = 'G2' THEN 1 END) as g2_records,
+          COUNT(CASE WHEN r.record_type = 'E1' THEN 1 END) as e1_records,
+          COUNT(CASE WHEN r.record_type NOT IN ('BH', 'DT', 'P1', 'G2', 'E1') THEN 1 END) as other_records,
+          MAX(r.created_at) as last_processed_date
+        FROM ${getTableName('uploader_tddf_jsonb_records')} r
+      `);
       
-      console.log(`📊 Environment: ${environment}, Using prefix: ${envPrefix}`);
+      const stats = statsResult.rows[0];
       
-      // Query the main datamaster table for overall stats
-      const datamasterTable = `${envPrefix}tddf_datamaster`;
-      let statsResult;
+      // Calculate transaction values from parsed DT records (if available)
+      let totalTransactionValue = 0;
+      let totalNetDeposits = 0;
+      
       try {
-        statsResult = await pool.query(`
+        const transactionResult = await pool.query(`
           SELECT 
-            COUNT(*) as total_records,
-            COUNT(DISTINCT tddf_api_file_id) as total_files,
-            SUM(CASE WHEN transaction_auth_amount IS NOT NULL THEN transaction_auth_amount ELSE 0 END) as total_transaction_value,
-            SUM(CASE WHEN batch_net_amount IS NOT NULL THEN batch_net_amount ELSE 0 END) as total_net_deposits,
-            MAX(batch_date) as last_processed_date
-          FROM ${datamasterTable}
+            SUM(CASE 
+              WHEN r.record_data->>'transaction_amount' IS NOT NULL 
+              THEN (r.record_data->>'transaction_amount')::decimal 
+              ELSE 0 
+            END) as total_transaction_value,
+            SUM(CASE 
+              WHEN r.record_data->>'net_deposit_amount' IS NOT NULL 
+              THEN (r.record_data->>'net_deposit_amount')::decimal 
+              ELSE 0 
+            END) as total_net_deposits
+          FROM ${getTableName('uploader_tddf_jsonb_records')} r
+          WHERE r.record_type IN ('DT', 'BH')
         `);
-      } catch (datamasterError) {
-        console.log(`📊 Datamaster table ${datamasterTable} not available, using defaults`);
-        statsResult = { rows: [{ total_records: '0', total_files: '0', total_transaction_value: '0', total_net_deposits: '0', last_processed_date: null }] };
+        
+        if (transactionResult.rows[0]) {
+          totalTransactionValue = parseFloat(transactionResult.rows[0].total_transaction_value) || 0;
+          totalNetDeposits = parseFloat(transactionResult.rows[0].total_net_deposits) || 0;
+        }
+      } catch (error) {
+        console.log("📊 Could not calculate transaction values:", error.message);
       }
       
-      // Also include archive data
-      const archiveTable = `${envPrefix}tddf_archive`;
-      let archiveStats;
-      try {
-        archiveStats = await pool.query(`
-          SELECT 
-            COUNT(*) as archive_files,
-            SUM(total_records) as archive_total_records,
-            MAX(step6_processed_at) as archive_last_processed
-          FROM ${archiveTable}
-          WHERE step6_status = 'completed'
-        `);
-        console.log(`📊 Archive stats:`, archiveStats.rows[0]);
-      } catch (archiveError) {
-        console.log(`📊 Archive table ${archiveTable} not available, using defaults`);
-        archiveStats = { rows: [{ archive_files: '0', archive_total_records: '0', archive_last_processed: null }] };
-      }
-      
-      // Get record type breakdown from datamaster
-      let recordTypeResult;
-      try {
-        recordTypeResult = await pool.query(`
-          SELECT record_type, COUNT(*) as count
-          FROM ${datamasterTable}
-          WHERE record_type IS NOT NULL
-          GROUP BY record_type
-          ORDER BY count DESC
-        `);
-      } catch (recordTypeError) {
-        console.log(`📊 Record type breakdown not available from ${datamasterTable}`);
-        recordTypeResult = { rows: [] };
-      }
-      
-      const recordTypeBreakdown: Record<string, number> = {};
-      recordTypeResult.rows.forEach(row => {
-        recordTypeBreakdown[row.record_type] = parseInt(row.count);
-      });
-      
-      // If we have archive records but no datamaster breakdown, provide estimated breakdown
-      const archiveRecords = parseInt(archiveStats.rows[0]?.archive_total_records || '0');
-      if (archiveRecords > 0 && Object.keys(recordTypeBreakdown).length === 0) {
-        console.log(`📊 No datamaster breakdown but ${archiveRecords} archive records - providing estimated breakdown`);
-        // For TDDF files, typical breakdown is ~15% BH records, ~85% DT records
-        const estimatedBH = Math.round(archiveRecords * 0.15);
-        const estimatedDT = archiveRecords - estimatedBH;
-        recordTypeBreakdown['BH'] = estimatedBH;
-        recordTypeBreakdown['DT'] = estimatedDT;
-        console.log(`📊 Estimated breakdown: BH=${estimatedBH}, DT=${estimatedDT}`);
-      }
-      
-      // Combine stats from both sources
-      const datamasterFiles = parseInt(statsResult.rows[0]?.total_files || '0');
-      const datamasterRecords = parseInt(statsResult.rows[0]?.total_records || '0');
-      const archiveFiles = parseInt(archiveStats.rows[0]?.archive_files || '0');
-      // archiveRecords already declared above for estimated breakdown
-      
-      const stats = {
-        totalFiles: datamasterFiles + archiveFiles,
-        totalRecords: datamasterRecords + archiveRecords,
-        totalTransactionValue: parseFloat(statsResult.rows[0]?.total_transaction_value || '0'),
-        totalNetDeposits: parseFloat(statsResult.rows[0]?.total_net_deposits || '0'),
-        recordTypeBreakdown,
-        lastProcessedDate: archiveStats.rows[0]?.archive_last_processed || statsResult.rows[0]?.last_processed_date,
-        // Additional metadata for debugging
-        datamasterFiles,
-        datamasterRecords,
-        archiveFiles,
-        archiveRecords
+      const response = {
+        totalFiles: parseInt(stats.total_files) || 0,
+        totalRecords: parseInt(stats.total_records) || 0,
+        totalTransactionValue: totalTransactionValue,
+        totalNetDeposits: totalNetDeposits,
+        recordTypeBreakdown: {
+          BH: parseInt(stats.bh_records) || 0,
+          DT: parseInt(stats.dt_records) || 0,
+          P1: parseInt(stats.p1_records) || 0,
+          G2: parseInt(stats.g2_records) || 0,
+          E1: parseInt(stats.e1_records) || 0,
+          Other: parseInt(stats.other_records) || 0
+        },
+        lastProcessedDate: stats.last_processed_date
       };
       
-      console.log(`📊 TDDF API Daily Stats (combined):`, stats);
-      res.json(stats);
-      
+      console.log("📊 TDDF API daily stats response:", response);
+      res.json(response);
     } catch (error: any) {
-      console.error('[TDDF-API-DAILY-STATS] Error:', error);
+      console.error("📊 Error fetching TDDF API daily stats:", error);
       res.status(500).json({ error: error.message });
     }
   });
   
-  // Get day breakdown for specific date
+  // Get day breakdown for specific date (Updated to use uploader data)
   app.get("/api/tddf-api/daily/day-breakdown", isAuthenticated, async (req, res) => {
     try {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
-      console.log(`📅 Getting TDDF API day breakdown for date: ${date}`);
+      console.log(`📅 Getting TDDF API day breakdown for date: ${date} from uploader data`);
       
-      // Detect environment and use appropriate naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
+      // Query uploader records for specific date
+      const dayResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(DISTINCT r.upload_id) as file_count,
+          COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN r.record_type = 'P1' THEN 1 END) as p1_records,
+          COUNT(CASE WHEN r.record_type = 'G2' THEN 1 END) as g2_records,
+          COUNT(CASE WHEN r.record_type = 'E1' THEN 1 END) as e1_records,
+          COUNT(CASE WHEN r.record_type NOT IN ('BH', 'DT', 'P1', 'G2', 'E1') THEN 1 END) as other_records
+        FROM ${getTableName('uploader_tddf_jsonb_records')} r
+        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        WHERE DATE(u.created_at) = $1
+      `, [date]);
       
-      console.log(`📅 Environment: ${environment}, Using prefix: ${envPrefix}`);
-      
-      // Query the main datamaster table for specific date
-      const datamasterTable = `${envPrefix}tddf_datamaster`;
-      let dayResult;
+      // Calculate transaction values for the specific date
+      let transactionValue = 0;
       try {
-        dayResult = await pool.query(`
+        const transactionResult = await pool.query(`
           SELECT 
-            COUNT(*) as total_records,
-            SUM(CASE WHEN transaction_auth_amount IS NOT NULL THEN transaction_auth_amount ELSE 0 END) as transaction_value,
-            COUNT(DISTINCT tddf_api_file_id) as file_count,
-            batch_date
-          FROM ${datamasterTable}
-          WHERE batch_date = $1
-          GROUP BY batch_date
+            SUM(CASE 
+              WHEN r.record_data->>'transaction_amount' IS NOT NULL 
+              THEN (r.record_data->>'transaction_amount')::decimal 
+              ELSE 0 
+            END) as total_transaction_value
+          FROM ${getTableName('uploader_tddf_jsonb_records')} r
+          JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+          WHERE DATE(u.created_at) = $1 AND r.record_type IN ('DT', 'BH')
         `, [date]);
-      } catch (datamasterError) {
-        console.log(`📅 Datamaster table ${datamasterTable} not available for date ${date}`);
-        dayResult = { rows: [{ total_records: '0', transaction_value: '0', file_count: '0' }] };
+        
+        if (transactionResult.rows[0]) {
+          transactionValue = parseFloat(transactionResult.rows[0].total_transaction_value) || 0;
+        }
+      } catch (error) {
+        console.log("📅 Could not calculate transaction values for date:", error.message);
       }
       
-      // Get record type breakdown for the specific date
-      let recordTypeResult;
-      try {
-        recordTypeResult = await pool.query(`
-          SELECT record_type, COUNT(*) as count
-          FROM ${datamasterTable}
-          WHERE batch_date = $1 AND record_type IS NOT NULL
-          GROUP BY record_type
-          ORDER BY count DESC
-        `, [date]);
-      } catch (recordTypeError) {
-        console.log(`📅 Record type breakdown not available for date ${date}`);
-        recordTypeResult = { rows: [] };
-      }
+      const stats = dayResult.rows[0];
+      const recordTypes: Record<string, number> = {
+        BH: parseInt(stats.bh_records) || 0,
+        DT: parseInt(stats.dt_records) || 0,
+        P1: parseInt(stats.p1_records) || 0,
+        G2: parseInt(stats.g2_records) || 0,
+        E1: parseInt(stats.e1_records) || 0,
+        Other: parseInt(stats.other_records) || 0
+      };
       
-      const recordTypes: Record<string, number> = {};
-      recordTypeResult.rows.forEach(row => {
-        recordTypes[row.record_type] = parseInt(row.count);
+      // Remove record types with 0 count for cleaner display
+      Object.keys(recordTypes).forEach(key => {
+        if (recordTypes[key] === 0) {
+          delete recordTypes[key];
+        }
       });
-      
-      // Also check archive data for the current date (fallback to showing all archive data)
-      const archiveTable = `${envPrefix}tddf_archive`;
-      let archiveBreakdown = { records: 0, files: 0 };
-      try {
-        // For archive data, we'll show all completed archives as they don't have specific batch dates
-        // but we can filter by the processed date matching today's date or show all as fallback
-        const archiveResult = await pool.query(`
-          SELECT 
-            COUNT(*) as archive_files,
-            SUM(total_records) as archive_total_records
-          FROM ${archiveTable}
-          WHERE step6_status = 'completed'
-          AND (DATE(step6_processed_at) = $1 OR $1 = CURRENT_DATE)
-        `, [date]);
-        
-        archiveBreakdown = {
-          records: parseInt(archiveResult.rows[0]?.archive_total_records || '0'),
-          files: parseInt(archiveResult.rows[0]?.archive_files || '0')
-        };
-        
-        console.log(`📅 Archive breakdown for ${date}:`, archiveBreakdown);
-      } catch (archiveError) {
-        console.log(`📅 Archive table ${archiveTable} not available`);
-      }
-      
-      // Combine datamaster and archive data
-      const datamasterRecords = parseInt(dayResult.rows[0]?.total_records || '0');
-      const datamasterFiles = parseInt(dayResult.rows[0]?.file_count || '0');
-      const datamasterValue = parseFloat(dayResult.rows[0]?.transaction_value || '0');
       
       const breakdown = {
         date,
-        totalRecords: datamasterRecords + archiveBreakdown.records,
+        totalRecords: parseInt(stats.total_records) || 0,
         recordTypes,
-        transactionValue: datamasterValue, // Archive data doesn't have transaction values yet
-        fileCount: datamasterFiles + archiveBreakdown.files,
-        // Additional debugging info
-        datamasterRecords,
-        datamasterFiles,
-        archiveRecords: archiveBreakdown.records,
-        archiveFiles: archiveBreakdown.files
+        transactionValue,
+        fileCount: parseInt(stats.file_count) || 0
       };
       
-      console.log(`📅 TDDF API Day Breakdown (combined):`, breakdown);
+      console.log(`📅 TDDF API Day Breakdown for ${date}:`, breakdown);
       res.json(breakdown);
       
     } catch (error: any) {
@@ -21848,92 +21788,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get recent activity for TDDF API Daily View
+  // Get recent activity for TDDF API Daily View (Updated to use uploader data)
   app.get("/api/tddf-api/daily/recent-activity", isAuthenticated, async (req, res) => {
     try {
-      console.log("📋 Getting TDDF API recent activity");
+      console.log("📋 Getting TDDF API recent activity from uploader data");
       
-      // Detect environment and use appropriate naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
+      // Query recent uploads from uploader table
+      const uploaderActivity = await pool.query(`
+        SELECT 
+          u.id,
+          u.filename as fileName,
+          u.tddf_records_created as recordCount,
+          u.encoding_completion_time as processedAt,
+          CASE 
+            WHEN u.encoding_completion_time IS NOT NULL THEN 'completed'
+            WHEN u.encoding_at IS NOT NULL THEN 'processing'
+            WHEN u.upload_started_at IS NOT NULL THEN 'uploaded'
+            ELSE 'pending'
+          END as status
+        FROM ${getTableName('uploader_uploads')} u
+        WHERE u.tddf_records_created > 0
+        ORDER BY u.encoding_completion_time DESC NULLS LAST, u.created_at DESC
+        LIMIT 10
+      `);
       
-      console.log(`📋 Environment: ${environment}, Using prefix: ${envPrefix}`);
+      const activities = uploaderActivity.rows.map(row => ({
+        id: row.id.toString(),
+        fileName: row.fileName,
+        recordCount: parseInt(row.recordCount || '0'),
+        processedAt: row.processedAt || new Date().toISOString(),
+        status: row.status
+      }));
       
-      // Query recent imports from the import log table
-      const importLogTable = `${envPrefix}tddf_import_log`;
-      let importActivity = [];
-      try {
-        const activityResult = await pool.query(`
-          SELECT 
-            id,
-            source_filename as fileName,
-            records_imported as recordCount,
-            import_start_time as processedAt,
-            CASE 
-              WHEN import_end_time IS NOT NULL THEN 'completed'
-              WHEN import_start_time IS NOT NULL THEN 'processing'
-              ELSE 'pending'
-            END as status
-          FROM ${importLogTable}
-          ORDER BY import_start_time DESC
-          LIMIT 10
-        `);
-        
-        importActivity = activityResult.rows.map(row => ({
-          id: row.id.toString(),
-          fileName: row.fileName,
-          recordCount: parseInt(row.recordCount || '0'),
-          processedAt: row.processedAt,
-          status: row.status,
-          importSessionId: `import_${row.id}`
-        }));
-      } catch (importError) {
-        console.log(`📋 Import log table ${importLogTable} not available`);
-      }
-      
-      // Also get recent archive activity
-      const archiveTable = `${envPrefix}tddf_archive`;
-      let archiveActivity = [];
-      try {
-        const archiveResult = await pool.query(`
-          SELECT 
-            id,
-            original_filename as fileName,
-            total_records as recordCount,
-            COALESCE(step6_processed_at, processed_at) as processedAt,
-            step6_status as status
-          FROM ${archiveTable}
-          WHERE step6_status IS NOT NULL
-          ORDER BY COALESCE(step6_processed_at, processed_at) DESC
-          LIMIT 10
-        `);
-        
-        archiveActivity = archiveResult.rows.map(row => ({
-          id: `archive_${row.id}`,
-          fileName: row.fileName,
-          recordCount: parseInt(row.recordCount || '0'),
-          processedAt: row.processedAt,
-          status: row.status,
-          importSessionId: `archive_${row.id}`
-        }));
-        
-        console.log(`📋 Found ${archiveActivity.length} archive activities`);
-      } catch (archiveError) {
-        console.log(`📋 Archive table ${archiveTable} not available`);
-      }
-      
-      // Combine and sort all activities by date
-      const allActivities = [...importActivity, ...archiveActivity]
-        .sort((a, b) => {
-          const dateA = new Date(a.processedAt || '').getTime();
-          const dateB = new Date(b.processedAt || '').getTime();
-          return dateB - dateA; // Most recent first
-        })
-        .slice(0, 10); // Limit to 10 most recent
-      
-      console.log(`📋 TDDF API Recent Activity: ${allActivities.length} items (${importActivity.length} import, ${archiveActivity.length} archive)`);
-      res.json(allActivities);
+      console.log(`📋 TDDF API Recent Activity: ${activities.length} uploader activities`);
+      res.json(activities);
       
     } catch (error: any) {
       console.error('[TDDF-API-RECENT-ACTIVITY] Error:', error);
