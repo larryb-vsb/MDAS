@@ -422,13 +422,13 @@ export default function TddfJsonViewerPage() {
   const [activeSection, setActiveSection] = useState<'all' | 'metadata'>('all');
 
   const { data: jsonbData, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/uploader', uploadId, 'jsonb-data', { 
+    queryKey: [isUnlimited ? '/api/tddf-jsonb/cached-data' : '/api/uploader', uploadId, 'jsonb-data', { 
       limit: pageSize, 
       offset: currentPage * pageSize,
       recordType: selectedRecordType || undefined 
     }],
     queryFn: async () => {
-      console.log(`[TDDF-JSON-VIEWER] Fetching JSONB data for upload ${uploadId}`);
+      console.log(`[TDDF-JSON-VIEWER] Fetching JSONB data for upload ${uploadId}, isUnlimited: ${isUnlimited}`);
       
       const params = new URLSearchParams({
         limit: pageSize.toString(),
@@ -440,7 +440,13 @@ export default function TddfJsonViewerPage() {
       }
       
       try {
-        const result = await apiRequest(`/api/uploader/${uploadId}/jsonb-data?${params}`);
+        // Use different endpoints for archive vs regular files
+        const endpoint = isUnlimited 
+          ? `/api/tddf-jsonb/cached-data/${uploadId}?${params}`
+          : `/api/uploader/${uploadId}/jsonb-data?${params}`;
+        
+        console.log(`[TDDF-JSON-VIEWER] Using endpoint: ${endpoint}`);
+        const result = await apiRequest(endpoint);
         console.log(`[TDDF-JSON-VIEWER] Successfully fetched data:`, result);
         return result;
       } catch (error: any) {
@@ -454,9 +460,14 @@ export default function TddfJsonViewerPage() {
 
   // Get unique record types for filtering
   const { data: allRecordTypes } = useQuery({
-    queryKey: ['/api/uploader', uploadId, 'jsonb-data', 'types'],
+    queryKey: [isUnlimited ? '/api/tddf-jsonb/cached-data' : '/api/uploader', uploadId, 'jsonb-data', 'types'],
     queryFn: async () => {
-      const data: any = await apiRequest(`/api/uploader/${uploadId}/jsonb-data?limit=1000`);
+      // Use different endpoints for archive vs regular files
+      const endpoint = isUnlimited 
+        ? `/api/tddf-jsonb/cached-data/${uploadId}?limit=1000`
+        : `/api/uploader/${uploadId}/jsonb-data?limit=1000`;
+      
+      const data: any = await apiRequest(endpoint);
       const types = Array.from(new Set(data.data.map((record: JsonbRecord) => record.record_type)));
       return types.sort();
     },
@@ -466,9 +477,17 @@ export default function TddfJsonViewerPage() {
 
   // Get upload details for file size and line count
   const { data: uploadDetails } = useQuery({
-    queryKey: ['/api/uploader', uploadId, 'details'],
+    queryKey: [isUnlimited ? '/api/tddf-archive' : '/api/uploader', uploadId, 'details'],
     queryFn: async () => {
       try {
+        // For archive files, we don't need upload details since they're already processed
+        if (isUnlimited) {
+          return { 
+            filename: filename,
+            isArchiveFile: true,
+            // Archive files don't have uploader details, but we'll show the filename
+          };
+        }
         return await apiRequest(`/api/uploader/${uploadId}`);
       } catch (error) {
         console.warn('[TDDF-JSON-VIEWER] Upload details fetch failed');
