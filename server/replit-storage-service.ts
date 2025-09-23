@@ -222,4 +222,35 @@ export class ReplitStorageService {
     }
   }
 
+  /**
+   * Copy a file from one location to another in Replit Object Storage
+   * @param fromPath - Source file path/key
+   * @param toPath - Destination file path/key
+   * @returns Promise<boolean> - Success status
+   */
+  static async copyFile(fromPath: string, toPath: string): Promise<boolean> {
+    try {
+      console.log(`[REPLIT-STORAGE] Copying from ${fromPath} to ${toPath}`);
+      
+      // Read the source file
+      const fileContent = await this.getFileContent(fromPath);
+      const fileBuffer = Buffer.from(fileContent, 'utf-8');
+      
+      // Upload to destination
+      const client = this.getClient();
+      const result = await client.uploadFromBytes(toPath, fileBuffer);
+      
+      if (result.ok) {
+        console.log(`[REPLIT-STORAGE] Copy successful: ${toPath} (${fileBuffer.length} bytes)`);
+        return true;
+      } else {
+        console.error('[REPLIT-STORAGE] Copy upload failed:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('[REPLIT-STORAGE] Copy error:', error);
+      return false;
+    }
+  }
+
 }

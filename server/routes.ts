@@ -22145,6 +22145,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary storage copy endpoint - for copying files between storage locations
+  app.post('/api/storage/copy-file', isAuthenticated, async (req, res) => {
+    try {
+      const { fromPath, toPath } = req.body;
+      
+      if (!fromPath || !toPath) {
+        return res.status(400).json({ error: 'fromPath and toPath are required' });
+      }
+
+      console.log(`[STORAGE-COPY] Copying from ${fromPath} to ${toPath}`);
+      
+      // Use the new copyFile method
+      const success = await ReplitStorageService.copyFile(fromPath, toPath);
+      
+      if (!success) {
+        throw new Error('Copy operation failed');
+      }
+      
+      console.log(`[STORAGE-COPY] Successfully copied file to ${toPath}`);
+      res.json({ success: true, fromPath, toPath });
+    } catch (error) {
+      console.error('[STORAGE-COPY] Copy failed:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // Step 6 Archive Processing endpoint - processes archive files through JSONB encoding
   app.post('/api/tddf-archive/step6-processing', isAuthenticated, async (req, res) => {
     console.log("[ARCHIVE-STEP-6] ===== API ENDPOINT REACHED =====");
