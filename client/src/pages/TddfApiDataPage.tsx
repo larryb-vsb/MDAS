@@ -2516,7 +2516,7 @@ export default function TddfApiDataPage() {
 
       {/* Archive File Viewer Dialog */}
       <Dialog open={!!viewingArchiveFile} onOpenChange={() => setViewingArchiveFile(null)}>
-        <DialogContent className="max-w-6xl max-h-[80vh]" data-testid="dialog-archive-viewer">
+        <DialogContent className="max-w-[95vw] max-h-[85vh]" data-testid="dialog-archive-viewer">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
@@ -2526,18 +2526,27 @@ export default function TddfApiDataPage() {
               {viewingArchiveFile?.original_filename} - {viewingArchiveFile ? `${(viewingArchiveFile.file_size / 1024).toFixed(1)} KB` : ''}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[60vh] w-full">
+          <div className="overflow-auto max-h-[65vh] w-full border rounded-md">
             {loadingArchiveContent ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-6 w-6 animate-spin mr-2" />
                 Loading file content...
               </div>
             ) : (
-              <pre className="text-xs font-mono whitespace-pre-wrap p-4 bg-muted rounded-md">
-                {archiveFileContent}
-              </pre>
+              <div className="relative bg-muted">
+                <pre className="text-xs font-mono whitespace-nowrap p-0 m-0 min-w-max">
+                  {archiveFileContent.split('\n').map((line, index) => (
+                    <div key={index} className="flex hover:bg-muted-foreground/10">
+                      <div className="sticky left-0 bg-muted border-r px-3 py-0.5 text-muted-foreground min-w-[4rem] text-right select-none">
+                        {index + 1}
+                      </div>
+                      <div className="px-3 py-0.5 min-w-0">{line || '\u00A0'}</div>
+                    </div>
+                  ))}
+                </pre>
+              </div>
             )}
-          </ScrollArea>
+          </div>
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-sm text-muted-foreground">
               Status: {viewingArchiveFile?.step6_status} | 
