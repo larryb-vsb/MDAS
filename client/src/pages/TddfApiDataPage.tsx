@@ -612,21 +612,24 @@ export default function TddfApiDataPage() {
     setLoadingArchiveContent(true);
     
     try {
-      const response = await apiRequest({
-        url: `/api/tddf-archive/${archiveFile.id}/content`,
-        method: 'GET'
-      });
+      const response = await fetch(`/api/tddf-archive/${archiveFile.id}/content`);
       
-      if (response.content) {
-        setArchiveFileContent(response.content);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.content) {
+        setArchiveFileContent(data.content);
       } else {
-        throw new Error('No file content received');
+        throw new Error(data.error || 'No file content received');
       }
     } catch (error) {
       console.error('Error loading archive file content:', error);
       toast({
         title: "Error loading file",
-        description: "Failed to load archive file content",
+        description: error instanceof Error ? error.message : "Failed to load archive file content",
         variant: "destructive"
       });
       setArchiveFileContent('Error loading file content');
