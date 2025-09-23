@@ -2063,7 +2063,21 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.record_count ? file.record_count.toLocaleString() : 'N/A'}
+                          {file.total_records !== null && file.total_records !== undefined 
+                            ? (
+                                <div className="text-sm">
+                                  <div className="font-medium">
+                                    {file.total_records.toLocaleString()}
+                                  </div>
+                                  {file.processed_records !== null && file.processed_records !== undefined && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {file.processed_records.toLocaleString()} processed
+                                    </div>
+                                  )}
+                                </div>
+                              ) 
+                            : <span className="text-muted-foreground">-</span>
+                          }
                         </TableCell>
                         <TableCell>
                           {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : 'Unknown'}
