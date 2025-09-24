@@ -1503,13 +1503,7 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
         tddfProcessingDate: processingDate,
         parsedDatetime: timestampData.parsedDatetime,
         recordTimeSource: timestampData.recordTimeSource,
-        createdAt: new Date().toISOString(),
-        metadata: JSON.stringify({
-          uploadSource: 'step6_processing',
-          fileSize: upload.fileSize,
-          processedAt: new Date().toISOString(),
-          processingTimeMs: 0 // Will be updated at the end
-        })
+        createdAt: new Date().toISOString()
       };
       
       masterTableBatch.push(masterRecord);

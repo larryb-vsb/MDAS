@@ -164,6 +164,7 @@ export default function TddfApiDataPage() {
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [keep, setKeep] = useState<boolean>(false);
   const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
+  const [autoStep6Enabled, setAutoStep6Enabled] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [filenameFilter, setFilenameFilter] = useState('');
@@ -1389,8 +1390,8 @@ export default function TddfApiDataPage() {
                       </div>
                     </div>
                     <Switch
-                      checked={keep}
-                      onCheckedChange={setKeep}
+                      checked={autoStep6Enabled}
+                      onCheckedChange={setAutoStep6Enabled}
                     />
                   </div>
                 </div>
