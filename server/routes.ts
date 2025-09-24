@@ -9077,7 +9077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Get storage key
-          let storageKey = upload.storageKey;
+          let storageKey = upload.s3_key;
           if (!storageKey) {
             // Generate storage key for older uploads
             const timestampMatch = upload.id.match(/uploader_(\d+)_/);
@@ -9087,13 +9087,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const timestamp = parseInt(timestampMatch[1]);
               uploadDate = new Date(timestamp).toISOString().split('T')[0];
             } else {
-              uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+              uploadDate = new Date(upload.created_at).toISOString().split('T')[0];
             }
             
             storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
             
             await storage.updateUploaderUpload(uploadId, {
-              storageKey: storageKey
+              s3_key: storageKey
             });
           }
           
