@@ -9070,6 +9070,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log(`[STEP-6-PROCESSING] Processing file: ${upload.filename} - ALL records to master table`);
           
+          // Create entry in API processing system for real-time tracking
+          let apiFileId;
+          try {
+            // Insert into tddf_api_files table
+            const apiFileResult = await pool.query(`
+              INSERT INTO ${getTableName('tddf_api_files')} 
+              (filename, original_name, file_size, file_hash, record_count, processed_records, status, schema_id, business_day, uploaded_by)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              RETURNING id
+            `, [
+              upload.filename,
+              upload.filename,
+              upload.file_size || 0,
+              upload.id, // Use upload ID as hash for uniqueness
+              upload.line_count || 0,
+              0, // processed_records starts at 0
+              'processing',
+              1, // Default schema_id
+              new Date().toISOString().split('T')[0], // business_day as today
+              'admin' // uploaded_by
+            ]);
+            
+            apiFileId = apiFileResult.rows[0].id;
+            console.log(`[STEP-6-PROCESSING] Created API file entry: ${apiFileId}`);
+            
+            // Insert into tddf_api_queue table  
+            await pool.query(`
+              INSERT INTO ${getTableName('tddf_api_queue')} 
+              (file_id, priority, status, attempts, processing_started)
+              VALUES ($1, $2, $3, $4, NOW())
+            `, [apiFileId, 75, 'processing', 1]);
+            
+            console.log(`[STEP-6-PROCESSING] Created API queue entry for file: ${apiFileId}`);
+          } catch (apiError) {
+            console.error(`[STEP-6-PROCESSING] Failed to create API entries:`, apiError);
+          }
+          
           // Update phase to processing for Step 6
           await storage.updateUploaderUpload(uploadId, {
             currentPhase: 'processing',
@@ -9111,19 +9148,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastUpdated: new Date()
           });
 
+          // Update API processing system to completed status
+          if (apiFileId) {
+            try {
+              // Update file status and record counts
+              await pool.query(`
+                UPDATE ${getTableName('tddf_api_files')} 
+                SET status = 'completed', processed_records = $2, updated_at = NOW()
+                WHERE id = $1
+              `, [apiFileId, step6Result.totalRecords || 0]);
+              
+              // Update queue status  
+              await pool.query(`
+                UPDATE ${getTableName('tddf_api_queue')} 
+                SET status = 'completed', processing_completed = NOW()
+                WHERE file_id = $1
+              `, [apiFileId]);
+              
+              console.log(`[STEP-6-PROCESSING] Updated API processing status to completed for file: ${apiFileId}`);
+            } catch (apiUpdateError) {
+              console.error(`[STEP-6-PROCESSING] Failed to update API completion status:`, apiUpdateError);
+            }
+          }
+
           results.push({
             uploadId,
             filename: upload.filename,
             status: 'completed',
             totalRecordsProcessed: step6Result.totalRecords,
             masterTableRecords: step6Result.masterRecords,
-            apiRecordsProcessed: step6Result.apiRecords
+            apiRecordsProcessed: step6Result.apiRecords,
+            apiFileId: apiFileId // Include API file ID for reference
           });
           
           console.log(`[STEP-6-PROCESSING] Successfully processed ${upload.filename}: ${step6Result.totalRecords} total records to master table`);
           
         } catch (error) {
           console.error(`[STEP-6-PROCESSING] Error processing ${uploadId}:`, error);
+          
+          // Update API processing system to failed status
+          if (apiFileId) {
+            try {
+              await pool.query(`
+                UPDATE ${getTableName('tddf_api_files')} 
+                SET status = 'failed', updated_at = NOW()
+                WHERE id = $1
+              `, [apiFileId]);
+              
+              await pool.query(`
+                UPDATE ${getTableName('tddf_api_queue')} 
+                SET status = 'failed', error_message = $2, processing_completed = NOW()
+                WHERE file_id = $1
+              `, [apiFileId, error instanceof Error ? error.message : "Unknown error"]);
+              
+              console.log(`[STEP-6-PROCESSING] Updated API processing status to failed for file: ${apiFileId}`);
+            } catch (apiErrorUpdate) {
+              console.error(`[STEP-6-PROCESSING] Failed to update API error status:`, apiErrorUpdate);
+            }
+          }
           
           // Set to error phase
           try {
