@@ -1476,8 +1476,9 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
       }
       
       // Extract TDDF record type and fields
-      const recordType = line.substring(0, 2);
-      const extractedFields = extractTddfFields(recordType, line);
+      const jsonRecord = encodeTddfLineToJson(line, lineNumber);
+      const recordType = jsonRecord.recordType;
+      const extractedFields = jsonRecord.extractedFields;
       
       // Calculate universal timestamp using enhanced logic
       const timestampData = calculateUniversalTimestamp(
