@@ -415,6 +415,34 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Step 6 processing mutation
+  const step6ProcessingMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/step6-processing', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-api/files'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-api/queue'] });
+      setSelectedUploads([]);
+      toast({ 
+        title: "Step 6 processing completed successfully", 
+        description: "Files have been queued for processing and will appear in the Processing tab"
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Step 6 processing failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
@@ -1447,15 +1475,19 @@ export default function TddfApiDataPage() {
                           });
                           
                           if (encodedFiles.length === 0) {
-                            // Show toast or alert that no encoded files are selected
+                            toast({ 
+                              title: "No eligible files selected", 
+                              description: "Please select files that are 'encoded' or 'completed' for Step 6 processing",
+                              variant: "destructive" 
+                            });
                             return;
                           }
                           
-                          // Handle Step 6 processing
-                          console.log('Manual Step 6 processing for:', encodedFiles);
+                          // Trigger Step 6 processing API call
+                          step6ProcessingMutation.mutate(encodedFiles);
                         }}
                         className="bg-purple-600 hover:bg-purple-700 text-white"
-                        disabled={!selectedUploads.some(id => {
+                        disabled={step6ProcessingMutation.isPending || !selectedUploads.some(id => {
                           const upload = uploads.find((u: UploaderUpload) => u.id === id);
                           return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
                         })}
