@@ -1655,10 +1655,5 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
       parsed_datetime, record_time_source, parsed_data, is_valid, status,
       processed_at, created_at
     ) VALUES ${values}
-    ON CONFLICT (upload_id, line_number) DO UPDATE SET
-      extracted_fields = EXCLUDED.extracted_fields,
-      parsed_datetime = EXCLUDED.parsed_datetime,
-      record_time_source = EXCLUDED.record_time_source,
-      status = EXCLUDED.status
   `, params);
 }
