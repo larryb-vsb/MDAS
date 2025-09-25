@@ -2022,6 +2022,21 @@ export default function TddfApiDataPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                // Set global filename filter and navigate to Raw Data tab
+                                setGlobalFilenameFilter(file.original_name);
+                                setActiveTab('raw-data');
+                                setViewMode('file');
+                              }}
+                              title="Filter Raw Data by this file"
+                              className="text-blue-600 hover:text-blue-700"
+                              data-testid={`button-filter-file-${file.id}`}
+                            >
+                              <Filter className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="sm" title="Download file">
                               <Download className="h-4 w-4" />
                             </Button>
@@ -3071,13 +3086,19 @@ function RawDataTab() {
   const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
   
   // Tree view state
-  const [viewMode, setViewMode] = useState<'tree' | 'flat'>('flat');
+  const [viewMode, setViewMode] = useState<'tree' | 'flat' | 'file'>('flat');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+  
+  // File filtering state (now using global state)
+  // const [rawDataFilenameFilter, setRawDataFilenameFilter] = useState<string>(''); // Moved to global state
   
   // Selection state for bulk operations
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
+
+  // Global filename filtering state (lifted up from Raw Data tab)
+  const [globalFilenameFilter, setGlobalFilenameFilter] = useState<string>('');
   
   // Pagination options
   const pageSizeOptions = [
@@ -3322,7 +3343,8 @@ function RawDataTab() {
       limit: pageSize, 
       offset: currentPage * pageSize,
       recordType: recordType === 'all' ? undefined : recordType,
-      search: searchQuery || undefined
+      search: searchQuery || undefined,
+      filename: globalFilenameFilter || undefined
     }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -3336,6 +3358,10 @@ function RawDataTab() {
       
       if (searchQuery) {
         params.append('search', searchQuery);
+      }
+      
+      if (globalFilenameFilter) {
+        params.append('filename', globalFilenameFilter);
       }
       
       return await apiRequest(`/api/tddf-api/all-records?${params}`);
@@ -3381,6 +3407,27 @@ function RawDataTab() {
 
   return (
     <div className="space-y-6">
+      {/* Filename Filter Indicator */}
+      {globalFilenameFilter && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-900">
+              Filtered by file: <code className="bg-white px-2 py-1 rounded text-xs">{globalFilenameFilter}</code>
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setGlobalFilenameFilter('')}
+              className="ml-auto h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+              title="Clear filename filter"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards - Matching the design from attached image */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-l-4 border-l-green-500">
@@ -3493,7 +3540,7 @@ function RawDataTab() {
               <Label>View Mode</Label>
               <Select 
                 value={viewMode} 
-                onValueChange={(value: 'tree' | 'flat') => setViewMode(value)}
+                onValueChange={(value: 'tree' | 'flat' | 'file') => setViewMode(value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -3501,6 +3548,7 @@ function RawDataTab() {
                 <SelectContent>
                   <SelectItem value="flat">Flat View</SelectItem>
                   <SelectItem value="tree">Tree View</SelectItem>
+                  <SelectItem value="file">File View</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -3725,6 +3773,85 @@ function RawDataTab() {
                     formatFieldValue={formatFieldValue}
                     groupRecordsHierarchically={groupRecordsHierarchically}
                   />
+                )}
+
+                {/* File View Display */}
+                {viewMode === 'file' && (
+                  <div className="space-y-4">
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-semibold text-gray-900">File View Mode</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Select a filename from the search or use the eye icons in the Files tab to filter records by file.
+                      </p>
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => setViewMode('flat')}
+                          className="text-sm"
+                        >
+                          Switch to Flat View
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Show filtered records if a filename filter is active */}
+                    {globalFilenameFilter && records.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 pb-2 border-b">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium">Records from: {globalFilenameFilter}</span>
+                          <span className="text-sm text-gray-500">({records.length} records)</span>
+                        </div>
+                        
+                        {/* Display records in a simplified table */}
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Content</TableHead>
+                              <TableHead>Line</TableHead>
+                              <TableHead>View</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {records.map((record: any) => (
+                              <TableRow key={record.id}>
+                                <TableCell>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className={getRecordTypeBadgeColor(record.record_type)}
+                                  >
+                                    {record.record_type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="max-w-md">
+                                  <div className="text-sm truncate">
+                                    {formatRecordPreview(record)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-500">
+                                  {record.line_number}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setExpandedRecord(expandedRecord === record.id ? null : record.id);
+                                    }}
+                                    data-testid={`button-view-record-${record.id}`}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}

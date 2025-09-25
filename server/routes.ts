@@ -24113,7 +24113,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit = 100, 
         offset = 0, 
         recordType, 
-        search 
+        search,
+        filename
       } = req.query;
       
       // Build WHERE conditions for uploader records (fallback to uploader data)
@@ -24130,6 +24131,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (search) {
         whereConditions.push(`r.raw_line ILIKE $${paramIndex}`);
         params.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      if (filename) {
+        whereConditions.push(`u.filename = $${paramIndex}`);
+        params.push(filename as string);
         paramIndex++;
       }
       
