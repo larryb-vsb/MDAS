@@ -3065,6 +3065,39 @@ function RawDataTab() {
               </div>
             ) : (
               <div className="space-y-2">
+                {/* Bulk Operation Controls */}
+                {selectedRecords.size > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        {selectedRecords.size} record{selectedRecords.size !== 1 ? 's' : ''} selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        data-testid="button-bulk-delete"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete Selected
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedRecords(new Set());
+                          setIsSelectAllChecked(false);
+                        }}
+                        data-testid="button-clear-selection"
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
