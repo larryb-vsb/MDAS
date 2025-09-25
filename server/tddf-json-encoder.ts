@@ -1450,7 +1450,7 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     // Get table configuration
     const { getTableName } = await import("./table-config");
     const tddfJsonbTable = getTableName('tddf_jsonb');
-    const apiRecordsTable = getTableName('tddf_api_records');
+    const apiRecordsTable = getTableName('uploader_tddf_jsonb_records');
     
     // Extract filename metadata for universal TDDF processing
     const filenameData = extractTddfProcessingDatetime(upload.filename);
@@ -1618,42 +1618,30 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
 }
 
 /**
- * Helper function to insert batch records into enhanced tddApiRecords table
+ * Helper function to insert batch records into uploader_tddf_jsonb_records table (Raw Data destination)
  */
 async function insertApiRecordsBatch(tableName: string, records: any[]): Promise<void> {
   if (records.length === 0) return;
   
   const values = records.map((_, index) => {
-    const offset = index * 17;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13}, $${offset + 14}, $${offset + 15}, $${offset + 16}, $${offset + 17})`;
+    const offset = index * 7;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
   }).join(', ');
   
   const params = records.flatMap(record => [
     record.uploadId,
-    record.filename,
     record.recordType,
+    record.extractedFields, // Maps to record_data column
     record.lineNumber,
     record.rawLine,
-    record.extractedFields,
     record.recordIdentifier,
-    record.processingTimeMs,
-    record.tddfProcessingDatetime,
-    record.tddfProcessingDate,
-    record.parsedDatetime,
-    record.recordTimeSource,
-    record.parsedData,
-    record.isValid,
-    record.status,
-    record.processedAt,
     record.createdAt
   ]);
   
   await batchPool.query(`
     INSERT INTO ${tableName} (
-      upload_id, filename, record_type, line_number, raw_line, extracted_fields,
-      record_identifier, processing_time_ms, tddf_processing_datetime, tddf_processing_date,
-      parsed_datetime, record_time_source, parsed_data, is_valid, status,
-      processed_at, created_at
+      upload_id, record_type, record_data, line_number, raw_line,
+      record_identifier, created_at
     ) VALUES ${values}
   `, params);
 }
