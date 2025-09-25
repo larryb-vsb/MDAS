@@ -24155,6 +24155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           r.record_type,
           r.line_number,
           r.raw_line as raw_data,
+          r.raw_line_hash,
           r.record_data as parsed_data,
           r.created_at,
           u.filename,

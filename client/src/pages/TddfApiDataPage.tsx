@@ -2692,6 +2692,12 @@ function RecordDetailView({ record }: { record: any }) {
             <span className="font-medium text-muted-foreground">Record ID:</span>
             <p>{record.id}</p>
           </div>
+          <div className="col-span-2 md:col-span-4">
+            <span className="font-medium text-muted-foreground">Hash (SHA-256):</span>
+            <p className="font-mono text-xs text-muted-foreground mt-1 break-all">
+              {record.raw_line_hash || 'N/A'}
+            </p>
+          </div>
         </div>
       </div>
       
