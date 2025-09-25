@@ -3131,9 +3131,8 @@ function RawDataTab() {
                         </TableCell>
                         <TableCell>
                           <Badge 
-                            className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
-                            variant={record.record_type === 'BH' ? 'default' : 
-                                   record.record_type === 'DT' ? 'secondary' : 'outline'}
+                            className={record.record_type === 'BH' || record.record_type === 'DT' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+                            variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
                           >
                             {record.record_type}
                           </Badge>
