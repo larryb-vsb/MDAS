@@ -1441,7 +1441,29 @@ export async function processTddfFileForProduction(
  */
 export async function processAllRecordsToMasterTable(fileContent: string, upload: UploaderUpload): Promise<any> {
   const startTime = Date.now();
+  const startTimeDate = new Date();
   console.log(`[STEP-6-PROCESSING] Starting comprehensive processing for ${upload.filename} - ALL records to master table`);
+  
+  // Create timing log entry for Step 6 processing
+  let timingLogId: number | null = null;
+  try {
+    const { getTableName } = await import("./table-config");
+    const timingTableName = getTableName('processing_timing_logs');
+    const separateClient = await batchPool.connect();
+    try {
+      const result = await separateClient.query(`
+        INSERT INTO ${timingTableName} (upload_id, operation_type, start_time, status, metadata)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+      `, [upload.id, 'step6-processing', startTimeDate, 'in_progress', JSON.stringify({ filename: upload.filename })]);
+      timingLogId = result.rows[0]?.id;
+      console.log(`[STEP-6-TIMING] Created timing log ${timingLogId} for upload ${upload.id}`);
+    } finally {
+      separateClient.release();
+    }
+  } catch (timingError: any) {
+    console.warn(`[STEP-6-TIMING] Could not create timing log: ${timingError.message}`);
+  }
   
   try {
     // Process ALL lines - no limits for Step 6
@@ -1553,7 +1575,11 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     }
     
     const endTime = Date.now();
+    const endTimeDate = new Date();
     const processingTimeMs = endTime - startTime;
+    const durationSeconds = Math.floor(processingTimeMs / 1000);
+    const totalRecords = masterRecordCount + apiRecordCount;
+    const recordsPerSecond = totalRecords > 0 && durationSeconds > 0 ? totalRecords / durationSeconds : 0;
     
     console.log(`[STEP-6-PROCESSING] ✅ Successfully processed ${upload.filename}:`);
     console.log(`[STEP-6-PROCESSING] - Total lines: ${lines.length}`);
@@ -1562,9 +1588,26 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     console.log(`[STEP-6-PROCESSING] - Skipped lines: ${skipCount}`);
     console.log(`[STEP-6-PROCESSING] - Processing time: ${processingTimeMs}ms`);
     
+    // Complete timing log entry
+    if (timingLogId) {
+      try {
+        const { getTableName } = await import("./table-config");
+        const timingTableName = getTableName('processing_timing_logs');
+        await batchPool.query(`
+          UPDATE ${timingTableName}
+          SET end_time = $1, duration_seconds = $2, total_records = $3, 
+              records_per_second = $4, status = $5
+          WHERE id = $6
+        `, [endTimeDate, durationSeconds, totalRecords, recordsPerSecond, 'completed', timingLogId]);
+        console.log(`[STEP-6-TIMING] Completed timing log ${timingLogId}: ${durationSeconds}s, ${totalRecords} records, ${recordsPerSecond.toFixed(2)} records/sec`);
+      } catch (timingError: any) {
+        console.warn(`[STEP-6-TIMING] Could not complete timing log: ${timingError.message}`);
+      }
+    }
+    
     return {
       success: true,
-      totalRecords: masterRecordCount + apiRecordCount,
+      totalRecords: totalRecords,
       masterRecords: masterRecordCount,
       apiRecords: apiRecordCount,
       skippedLines: skipCount,
@@ -1573,6 +1616,25 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     
   } catch (error: any) {
     console.error(`[STEP-6-PROCESSING] Error processing ${upload.filename}:`, error);
+    
+    // Update timing log with failure status
+    if (timingLogId) {
+      try {
+        const { getTableName } = await import("./table-config");
+        const timingTableName = getTableName('processing_timing_logs');
+        const endTimeDate = new Date();
+        const durationSeconds = Math.floor((endTimeDate.getTime() - startTimeDate.getTime()) / 1000);
+        await batchPool.query(`
+          UPDATE ${timingTableName}
+          SET end_time = $1, duration_seconds = $2, status = $3, metadata = $4
+          WHERE id = $5
+        `, [endTimeDate, durationSeconds, 'failed', JSON.stringify({ error: error.message }), timingLogId]);
+        console.log(`[STEP-6-TIMING] Failed timing log ${timingLogId}: ${error.message}`);
+      } catch (timingError: any) {
+        console.warn(`[STEP-6-TIMING] Could not update failed timing log: ${timingError.message}`);
+      }
+    }
+    
     return {
       success: false,
       error: error.message || 'Step 6 processing failed',
