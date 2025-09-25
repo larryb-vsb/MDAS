@@ -10534,11 +10534,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get upload phase distribution
       const phaseResult = await pool.query(`
         SELECT 
-          phase,
+          current_phase as phase,
           COUNT(*) as count
         FROM ${uploaderTableName}
-        GROUP BY phase
-        ORDER BY phase
+        GROUP BY current_phase
+        ORDER BY current_phase
       `);
       
       const byPhase = phaseResult.rows.reduce((acc: Record<string, number>, row: any) => {
@@ -10550,9 +10550,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalResult = await pool.query(`
         SELECT 
           COUNT(*) as total_uploads,
-          COUNT(CASE WHEN phase = 'uploaded' OR phase = 'identified' OR phase = 'encoded' THEN 1 END) as completed_uploads,
+          COUNT(CASE WHEN current_phase = 'uploaded' OR current_phase = 'identified' OR current_phase = 'encoded' THEN 1 END) as completed_uploads,
           COUNT(CASE WHEN upload_status = 'warning' THEN 1 END) as warning_uploads,
-          COUNT(CASE WHEN phase IN ('started', 'uploading', 'encoding') THEN 1 END) as active_uploads
+          COUNT(CASE WHEN current_phase IN ('started', 'uploading', 'encoding') THEN 1 END) as active_uploads
         FROM ${uploaderTableName}
       `);
       
@@ -10561,8 +10561,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get session statistics
       const sessionResult = await pool.query(`
         SELECT 
-          COUNT(DISTINCT session_id) as active_sessions,
-          COUNT(DISTINCT CASE WHEN phase = 'uploaded' THEN session_id END) as completed_sessions,
+          COUNT(DISTINCT u.session_id) as active_sessions,
+          COUNT(DISTINCT CASE WHEN current_phase = 'uploaded' THEN u.session_id END) as completed_sessions,
           ROUND(AVG(files_per_session.file_count), 1) as avg_files_per_session
         FROM ${uploaderTableName} u
         LEFT JOIN (
@@ -10589,7 +10589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastDataResult = await pool.query(`
         SELECT MAX(created_at) as last_new_data_date
         FROM ${uploaderTableName}
-        WHERE phase IN ('uploaded', 'identified', 'encoded')
+        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
         AND created_at IS NOT NULL
       `);
       
@@ -16912,7 +16912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastDataResult = await pool.query(`
         SELECT MAX(created_at) as last_new_data_date
         FROM ${uploaderTableName}
-        WHERE phase IN ('uploaded', 'identified', 'encoded')
+        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
         AND created_at IS NOT NULL
       `);
       
@@ -24136,14 +24136,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const whereClause = whereConditions.length > 0 ? 
         `WHERE ${whereConditions.join(' AND ')}` : '';
       
-      // Get summary statistics from uploader TDDF records
+      // Get summary statistics from uploader TDDF records (environment-specific table)
+      const environment = process.env.NODE_ENV || 'development';
+      const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      
       const summaryResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
           COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_records,
           COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
           COUNT(DISTINCT r.upload_id) as total_files
-        FROM ${getTableName('uploader_tddf_jsonb_records')} r
+        FROM ${jsonbTableName} r
         ${whereClause}
       `, params.slice(0, paramIndex - 1));
       
@@ -24163,7 +24166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u.encoding_time_ms,
           u.started_at,
           u.completed_at
-        FROM ${getTableName('uploader_tddf_jsonb_records')} r
+        FROM ${jsonbTableName} r
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         ${whereClause}
         ORDER BY u.created_at DESC, r.line_number ASC

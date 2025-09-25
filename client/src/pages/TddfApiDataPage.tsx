@@ -268,25 +268,26 @@ export default function TddfApiDataPage() {
     }
   });
 
-  // Fetch files with filtering
-  const { data: files = [], isLoading: filesLoading } = useQuery<TddfApiFile[]>({
-    queryKey: ["/api/tddf-api/files", dateFilters],
+  // Fetch modern uploader files (Step 6 processing data) with precache
+  const { data: files = [], isLoading: filesLoading } = useQuery<any[]>({
+    queryKey: ["/api/uploader", dateFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (dateFilters.dateFrom) params.append('dateFrom', dateFilters.dateFrom);
-      if (dateFilters.dateTo) params.append('dateTo', dateFilters.dateTo);
-      if (dateFilters.businessDayFrom) params.append('businessDayFrom', dateFilters.businessDayFrom);
-      if (dateFilters.businessDayTo) params.append('businessDayTo', dateFilters.businessDayTo);
-      if (dateFilters.status) params.append('status', dateFilters.status);
+      params.append('limit', '1000'); // Get more files for overview
+      if (dateFilters.status && dateFilters.status !== 'all') {
+        params.append('phase', dateFilters.status); // Map status to phase
+      }
       
       const queryString = params.toString();
-      const response = await fetch(`/api/tddf-api/files${queryString ? '?' + queryString : ''}`, {
+      const response = await fetch(`/api/uploader${queryString ? '?' + queryString : ''}`, {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch files');
-      return response.json();
+      if (!response.ok) throw new Error('Failed to fetch uploader files');
+      const data = await response.json();
+      // Return uploads array from the response structure
+      return data.uploads || [];
     },
-    refetchInterval: 4000 // Real-time updates every 4 seconds
+    refetchInterval: 5000 // Slightly slower since we're using cache
   });
 
   // Fetch API keys
@@ -301,17 +302,46 @@ export default function TddfApiDataPage() {
     }
   });
 
-  // Fetch processing queue with real-time updates
-  const { data: queue = [], isLoading: queueLoading } = useQuery<any[]>({
-    queryKey: ["/api/tddf-api/queue"],
+  // Fetch modern processing status (Step 6 processing)
+  const { data: processingStatus = {}, isLoading: queueLoading } = useQuery<any>({
+    queryKey: ["/api/uploader/processing-status"],
     queryFn: async () => {
-      const response = await fetch("/api/tddf-api/queue", {
+      const response = await fetch("/api/uploader/processing-status", {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch queue');
+      if (!response.ok) throw new Error('Failed to fetch processing status');
       return response.json();
     },
-    refetchInterval: 4000 // Real-time updates every 4 seconds
+    refetchInterval: 5000 // Real-time updates every 5 seconds
+  });
+
+  // Extract queue data from processing status for compatibility
+  const queue = processingStatus?.activeProcessing || [];
+
+  // Fetch precached dashboard stats for Step 6 processing metrics
+  const { data: dashboardStats = {}, isLoading: dashboardStatsLoading } = useQuery<any>({
+    queryKey: ["/api/uploader/dashboard-stats"],
+    queryFn: async () => {
+      const response = await fetch("/api/uploader/dashboard-stats", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+      return response.json();
+    },
+    refetchInterval: 30000 // Cache-based so refresh every 30 seconds
+  });
+
+  // Fetch JSONB stats for dev_uploader_tddf_jsonb_records table
+  const { data: jsonbStats = {}, isLoading: jsonbStatsLoading } = useQuery<any>({
+    queryKey: ["/api/uploader/jsonb-stats"],
+    queryFn: async () => {
+      const response = await fetch("/api/uploader/jsonb-stats", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch JSONB stats');
+      return response.json();
+    },
+    refetchInterval: 30000 // Cache-based so refresh every 30 seconds
   });
 
   // Fetch archive data
@@ -797,12 +827,14 @@ export default function TddfApiDataPage() {
             <Button 
               variant="outline" 
               onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/uploader"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/uploader/processing-status"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/uploader/dashboard-stats"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/uploader/jsonb-stats"], exact: false });
                 queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring"], exact: false });
-                toast({ title: "Data refreshed" });
+                toast({ title: "Step 6 dashboard data refreshed" });
               }}
-              disabled={filesLoading || queueLoading}
+              disabled={filesLoading || queueLoading || dashboardStatsLoading}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
@@ -817,35 +849,37 @@ export default function TddfApiDataPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{files.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  {files.filter(f => f.status === "completed").length} processed
+                  {files.filter(f => f.current_phase === "encoded").length} Step 6 processed
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+                <CardTitle className="text-sm font-medium">JSONB Records</CardTitle>
                 <Database className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {files.reduce((sum, f) => sum + (f.record_count || 0), 0).toLocaleString()}
+                  {(jsonbStats?.totalRecords || 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {files.reduce((sum, f) => sum + (f.processed_records || 0), 0).toLocaleString()} processed
+                  dev_uploader_tddf_jsonb_records
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Processing Queue</CardTitle>
+                <CardTitle className="text-sm font-medium">Step 6 Processing</CardTitle>
                 <Monitor className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{queue.length}</div>
+                <div className="text-2xl font-bold">
+                  {files.filter(f => f.current_phase === "processing" || f.current_phase === "encoding").length}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {queue.filter(q => q.status === "processing").length} active
+                  {files.filter(f => f.current_phase === "processing").length} active
                 </p>
               </CardContent>
             </Card>
