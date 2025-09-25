@@ -3075,7 +3075,7 @@ function RawDataTab() {
   const groupRecordsHierarchically = (records: any[]) => {
     console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
     
-    const recordTypes = [...new Set(records.map(r => r.record_type))];
+    const recordTypes = Array.from(new Set(records.map(r => r.record_type)));
     console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
     
     const batches: Array<{
@@ -3193,7 +3193,7 @@ function RawDataTab() {
       setIsSelectAllChecked(false);
     } else {
       // Select all visible records
-      const allRecordIds = new Set(records.map((record: any) => record.id));
+      const allRecordIds = new Set(records.map((record: any) => record.id) as number[]);
       setSelectedRecords(allRecordIds);
       setIsSelectAllChecked(true);
     }
@@ -3264,15 +3264,15 @@ function RawDataTab() {
     refetchOnWindowFocus: false
   });
 
-  const summary = rawData?.summary || {
+  const summary = (rawData as any)?.summary || {
     totalRecords: 0,
     bhRecords: 0,
     dtRecords: 0,
     totalFiles: 0
   };
 
-  const records = rawData?.data || [];
-  const totalPages = rawData?.pagination?.total ? Math.ceil(rawData.pagination.total / pageSize) : 0;
+  const records = (rawData as any)?.data || [];
+  const totalPages = (rawData as any)?.pagination?.total ? Math.ceil((rawData as any).pagination.total / pageSize) : 0;
 
   const handleShowAllRecords = () => {
     setShowRecords(true);
@@ -3453,7 +3453,7 @@ function RawDataTab() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>TDDF Records ({records.length} of {rawData?.pagination?.total || 0})</CardTitle>
+                <CardTitle>TDDF Records ({records.length} of {(rawData as any)?.pagination?.total || 0})</CardTitle>
                 <CardDescription>Raw TDDF data with parsed fields</CardDescription>
               </div>
               {totalPages > 1 && (
@@ -3651,138 +3651,7 @@ function RawDataTab() {
           </CardContent>
         </Card>
       )}
-
-      {/* File Metadata Modal */}
-      {(() => {
-        // Local state access for modal
-        const modalFile = uploaderFileForView;
-        const setModalFile = setUploaderFileForView;
-        
-        return (
-          <Dialog open={!!modalFile} onOpenChange={(open) => !open && setModalFile(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              File Information
-            </DialogTitle>
-            <DialogDescription>
-              Comprehensive metadata and processing details
-            </DialogDescription>
-          </DialogHeader>
-          
-          {modalFile && (
-            <div className="space-y-6">
-              {/* File Information Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    File Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Filename</Label>
-                      <div className="text-sm font-mono mt-1">{modalFile.filename}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Upload ID</Label>
-                      <div className="text-sm font-mono mt-1">{modalFile.id}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">File Size</Label>
-                      <div className="text-sm mt-1">{formatFileSize(modalFile.fileSize || 0)}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Total Lines</Label>
-                      <div className="text-sm mt-1">{modalFile.lineCount?.toLocaleString() || 'N/A'}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Database Table</Label>
-                      <div className="text-sm font-mono mt-1">dev_uploader_tddf_jsonb_records</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Upload Date</Label>
-                      <div className="text-sm mt-1">
-                        {new Date(modalFile.uploadedAt || modalFile.startTime || '').toLocaleString('en-US', {
-                          month: 'numeric',
-                          day: 'numeric', 
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                          timeZone: 'America/Chicago'
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                      <div className="mt-1">
-                        <Badge 
-                          variant={modalFile.currentPhase === 'completed' || modalFile.currentPhase === 'encoded' ? 'default' : 'secondary'}
-                          className={modalFile.currentPhase === 'completed' ? 'bg-green-800 text-white hover:bg-green-900' : modalFile.currentPhase === 'encoded' ? 'bg-green-600 text-white' : ''}
-                        >
-                          {modalFile.currentPhase || 'unknown'}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Total Records</Label>
-                      <div className="text-sm mt-1">{modalFile.lineCount ? (modalFile.lineCount - 1).toLocaleString() : 'N/A'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Processing Information Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Processing Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Last JSONB Encoded</Label>
-                      <div className="text-sm mt-1">
-                        <TimingDisplay uploadId={modalFile.id} />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Processing Notes</Label>
-                      <div className="text-sm mt-1">{modalFile.processingNotes || 'No processing notes available'}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Final File Type</Label>
-                      <div className="text-sm mt-1">{modalFile.finalFileType || 'tddf'}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Storage Key</Label>
-                      <div className="text-sm font-mono mt-1">{modalFile.s3_key || 'N/A'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-        );
-      })()}
     </div>
   );
 }
+
