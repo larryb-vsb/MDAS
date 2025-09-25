@@ -28,6 +28,33 @@ import { UploaderUpload } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize, getStatusBadgeVariant, TddfApiFile, TddfApiSchema } from '@/lib/tddf-shared';
 
+// Timing Display Component for Step-6/JSONB Encoding Times
+function TimingDisplay({ uploadId }: { uploadId: string }) {
+  const { data: timing, isLoading } = useQuery({
+    queryKey: ['/api/uploader', uploadId, 'timing'],
+    queryFn: () => apiRequest(`/api/uploader/${uploadId}/timing`),
+    enabled: !!uploadId,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch timing updates
+    staleTime: 0, // Consider data stale immediately so it refetches more often
+    retry: 1 // Retry once if it fails
+  });
+
+  // Show loading state briefly
+  if (isLoading) {
+    return (
+      <span className="text-gray-500">loading...</span>
+    );
+  }
+
+  if (!timing?.success || !timing?.hasTiming) {
+    return <span className="text-gray-500">no timing data</span>; // Show when no timing data
+  }
+
+  return (
+    <span className="text-blue-600">{timing.duration}</span>
+  );
+}
+
 // File types for upload
 const FILE_TYPES = [
   { value: 'tddf', label: 'TDDF (.TSYSO)', description: 'TSYS Transaction Daily Detail File .TSYSO file 2400 or 0830 ex VERMNTSB.6759_TDDF_2400_07112025_003301.TSYSO' },
@@ -1643,12 +1670,15 @@ export default function TddfApiDataPage() {
                               minute: '2-digit', 
                               hour12: true,
                               timeZone: 'America/Chicago'
-                            })} • Duration: {upload.processingDuration || '3s'} • {upload.lineCount ? upload.lineCount.toLocaleString() : '9,155'} lines
+                            })} • Encoding: <TimingDisplay uploadId={upload.id} /> • {upload.lineCount ? upload.lineCount.toLocaleString() : '9,155'} lines
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}>
+                        <Badge 
+                          variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}
+                          className={upload.currentPhase === 'completed' ? 'bg-green-800 text-white hover:bg-green-900' : ''}
+                        >
                           {upload.currentPhase || 'started'}
                         </Badge>
                         {upload.uploadProgress !== undefined && upload.uploadProgress < 100 && (
