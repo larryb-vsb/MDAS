@@ -1626,10 +1626,12 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
   
   const values = records.map((_, index) => {
     const offset = index * 8;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, encode(digest($${offset + 5}, 'sha256'), 'hex'))`;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
   }).join(', ');
   
   const params = records.flatMap(record => {
+    // Calculate hash in Node.js instead of SQL
+    const hash = crypto.createHash('sha256').update((record.rawLine || '').trim()).digest('hex');
     return [
       record.uploadId,
       record.recordType,
@@ -1637,7 +1639,8 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
       record.lineNumber,
       record.rawLine,
       record.recordIdentifier,
-      record.createdAt
+      record.createdAt,
+      hash // Add the calculated hash
     ];
   });
   
