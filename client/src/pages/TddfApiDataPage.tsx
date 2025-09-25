@@ -2772,6 +2772,11 @@ function RawDataTab() {
   const [showRecords, setShowRecords] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
   
+  // Tree view state
+  const [viewMode, setViewMode] = useState<'tree' | 'flat'>('flat');
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
+  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+  
   // Selection state for bulk operations
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
