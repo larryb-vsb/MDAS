@@ -37,9 +37,9 @@ async function fixAuthentication() {
       console.log('🔄 Updating existing admin user...');
     }
 
-    // Create admin user with simple password hash for 'admin'
+    // Create admin user with simple password hash for 'admin123'
     const bcrypt = require('bcrypt');
-    const passwordHash = await bcrypt.hash('admin', 10);
+    const passwordHash = await bcrypt.hash('admin123', 10);
     
     const result = await pool.query(`
       INSERT INTO dev_users (
@@ -70,7 +70,7 @@ async function fixAuthentication() {
     
     // Test the password
     const testUser = await pool.query('SELECT * FROM dev_users WHERE username = $1', ['admin']);
-    const isValidPassword = await bcrypt.compare('admin', testUser.rows[0].password);
+    const isValidPassword = await bcrypt.compare('admin123', testUser.rows[0].password);
     console.log('🔐 Password test:', isValidPassword ? 'PASS' : 'FAIL');
     
     await pool.end();
