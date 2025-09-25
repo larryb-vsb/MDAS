@@ -411,6 +411,40 @@ export default function TddfApiDataPage() {
   const uploads = (uploaderResponse as any)?.uploads || [];
   const totalCount = (uploaderResponse as any)?.totalCount || 0;
 
+  // Sorting function for files table
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column as 'name' | 'date' | 'size');
+      setSortOrder('asc');
+    }
+  };
+
+  // Sort files data based on current sort state
+  const sortedFiles = [...files].sort((a, b) => {
+    const direction = sortOrder === 'asc' ? 1 : -1;
+    
+    switch (sortBy) {
+      case 'name':
+        const aName = a.filename ?? a.original_name ?? '';
+        const bName = b.filename ?? b.original_name ?? '';
+        return aName.localeCompare(bName) * direction;
+      case 'date':
+        return (new Date(a.uploadedAt || a.uploaded_at || 0).getTime() - new Date(b.uploadedAt || b.uploaded_at || 0).getTime()) * direction;
+      case 'size':
+        return ((a.fileSize || a.file_size || 0) - (b.fileSize || b.file_size || 0)) * direction;
+      default:
+        return 0;
+    }
+  });
+
+  // Render sort indicator
+  const getSortIndicator = (column: string) => {
+    if (sortBy !== column) return null;
+    return sortOrder === 'asc' ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />;
+  };
+
   // Fetch monitoring data
   const { data: monitoring } = useQuery<any>({
     queryKey: ["/api/tddf-api/monitoring"],
@@ -1945,14 +1979,38 @@ export default function TddfApiDataPage() {
                         aria-label="Select all files"
                       />
                     </TableHead>
-                    <TableHead>File Name</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        File Name
+                        {getSortIndicator('name')}
+                      </div>
+                    </TableHead>
                     <TableHead>Business Day</TableHead>
-                    <TableHead>Size</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('size')}
+                    >
+                      <div className="flex items-center">
+                        Size
+                        {getSortIndicator('size')}
+                      </div>
+                    </TableHead>
                     <TableHead>Schema</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Records</TableHead>
                     <TableHead>Progress</TableHead>
-                    <TableHead>Uploaded</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('date')}
+                    >
+                      <div className="flex items-center">
+                        Uploaded
+                        {getSortIndicator('date')}
+                      </div>
+                    </TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1964,7 +2022,7 @@ export default function TddfApiDataPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    files.map((file) => (
+                    sortedFiles.map((file) => (
                       <TableRow key={file.id} className={selectedFiles.has(file.id) ? "bg-muted/50" : ""}>
                         <TableCell>
                           <Checkbox
