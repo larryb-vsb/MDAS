@@ -24157,7 +24157,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           r.record_data as parsed_data,
           r.created_at,
           u.filename,
-          u.created_at as business_day
+          u.created_at as business_day,
+          CASE 
+            WHEN u.encoding_time_ms IS NOT NULL THEN 
+              CASE 
+                WHEN u.encoding_time_ms < 1000 THEN u.encoding_time_ms || 'ms'
+                ELSE ROUND(u.encoding_time_ms / 1000.0, 2) || 's'
+              END
+            WHEN u.started_at IS NOT NULL AND u.completed_at IS NOT NULL THEN 
+              CASE 
+                WHEN EXTRACT(EPOCH FROM (u.completed_at - u.started_at)) * 1000 < 1000 THEN 
+                  ROUND(EXTRACT(EPOCH FROM (u.completed_at - u.started_at)) * 1000) || 'ms'
+                ELSE 
+                  ROUND(EXTRACT(EPOCH FROM (u.completed_at - u.started_at)), 2) || 's'
+              END
+            ELSE 'N/A'
+          END as file_processing_time
         FROM ${getTableName('uploader_tddf_jsonb_records')} r
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         ${whereClause}
