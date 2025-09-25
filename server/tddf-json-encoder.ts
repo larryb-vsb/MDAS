@@ -1594,13 +1594,13 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   }).join(', ');
   
   const params = records.flatMap(record => [
-    record.id,
     record.uploadId,
     record.filename,
     record.lineNumber,
     record.recordType,
     record.rawLine,
     record.extractedFields,
+    record.recordIdentifier,
     record.tddfProcessingDatetime,
     record.tddfProcessingDate,
     record.parsedDatetime,
@@ -1610,14 +1610,10 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   
   await batchPool.query(`
     INSERT INTO ${tableName} (
-      id, upload_id, filename, line_number, record_type, raw_line, 
-      extracted_fields, tddf_processing_datetime, tddf_processing_date,
+      upload_id, filename, line_number, record_type, raw_line, 
+      extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
       parsed_datetime, record_time_source, created_at
     ) VALUES ${values}
-    ON CONFLICT (id) DO UPDATE SET
-      extracted_fields = EXCLUDED.extracted_fields,
-      parsed_datetime = EXCLUDED.parsed_datetime,
-      record_time_source = EXCLUDED.record_time_source
   `, params);
 }
 
