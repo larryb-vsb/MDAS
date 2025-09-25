@@ -2905,15 +2905,15 @@ function RawDataTab() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-blue-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">DT Records</p>
+                <p className="text-sm font-medium text-blue-600">DT Records</p>
                 <p className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Detail Transactions</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-green-500" />
+              <BarChart3 className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
@@ -3136,7 +3136,7 @@ function RawDataTab() {
                         </TableCell>
                         <TableCell>
                           <Badge 
-                            className={record.record_type === 'BH' || record.record_type === 'DT' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+                            className={record.record_type === 'BH' ? 'bg-blue-500 hover:bg-blue-600 text-white' : record.record_type === 'DT' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
                             variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
                           >
                             {record.record_type}
