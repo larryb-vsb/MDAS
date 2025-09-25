@@ -7,6 +7,7 @@
 import { UploaderUpload } from '@shared/schema';
 import { parseTddfFilename } from './filename-parser';
 import { batchPool } from './db';
+import crypto from 'crypto';
 
 /**
  * Extract processing datetime from TDDF filename
@@ -1624,24 +1625,32 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
   if (records.length === 0) return;
   
   const values = records.map((_, index) => {
-    const offset = index * 7;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+    const offset = index * 8;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
   }).join(', ');
   
-  const params = records.flatMap(record => [
-    record.uploadId,
-    record.recordType,
-    record.extractedFields, // Maps to record_data column
-    record.lineNumber,
-    record.rawLine,
-    record.recordIdentifier,
-    record.createdAt
-  ]);
+  const params = records.flatMap(record => {
+    // Calculate SHA-256 hash of raw line for duplicate detection
+    const rawLineHash = record.rawLine ? 
+      crypto.createHash('sha256').update(record.rawLine, 'utf8').digest('hex') : 
+      null;
+    
+    return [
+      record.uploadId,
+      record.recordType,
+      record.extractedFields, // Maps to record_data column
+      record.lineNumber,
+      record.rawLine,
+      rawLineHash,
+      record.recordIdentifier,
+      record.createdAt
+    ];
+  });
   
   await batchPool.query(`
     INSERT INTO ${tableName} (
       upload_id, record_type, record_data, line_number, raw_line,
-      record_identifier, created_at
+      raw_line_hash, record_identifier, created_at
     ) VALUES ${values}
   `, params);
 }
