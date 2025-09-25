@@ -1625,23 +1625,17 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
   if (records.length === 0) return;
   
   const values = records.map((_, index) => {
-    const offset = index * 8;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
+    const offset = index * 7;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
   }).join(', ');
   
   const params = records.flatMap(record => {
-    // Calculate SHA-256 hash of raw line for duplicate detection
-    const rawLineHash = record.rawLine ? 
-      crypto.createHash('sha256').update(record.rawLine, 'utf8').digest('hex') : 
-      null;
-    
     return [
       record.uploadId,
       record.recordType,
       record.extractedFields, // Maps to record_data column
       record.lineNumber,
       record.rawLine,
-      rawLineHash,
       record.recordIdentifier,
       record.createdAt
     ];
@@ -1650,7 +1644,7 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
   await batchPool.query(`
     INSERT INTO ${tableName} (
       upload_id, record_type, record_data, line_number, raw_line,
-      raw_line_hash, record_identifier, created_at
+      record_identifier, created_at
     ) VALUES ${values}
   `, params);
 }
