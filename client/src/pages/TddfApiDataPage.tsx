@@ -3110,6 +3110,7 @@ function RawDataTab() {
                         />
                       </TableHead>
                       <TableHead className="w-20">Type</TableHead>
+                      <TableHead className="w-24">Scheduled Slot</TableHead>
                       <TableHead className="w-16">Line</TableHead>
                       <TableHead className="w-24">Proc Time</TableHead>
                       <TableHead>Content</TableHead>
@@ -3136,6 +3137,15 @@ function RawDataTab() {
                           >
                             {record.record_type}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {record.scheduledSlotLabel ? (
+                            <Badge variant="outline" className="text-xs">
+                              {record.scheduledSlotLabel}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
                         </TableCell>
                         <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
                         <TableCell className="font-mono text-sm">
@@ -3166,7 +3176,7 @@ function RawDataTab() {
                       </TableRow>,
                       expandedRecord === record.id && (
                         <TableRow key={`${record.id}-detail`}>
-                          <TableCell colSpan={8} className="p-0">
+                          <TableCell colSpan={9} className="p-0">
                             <div className="border-t bg-muted/30 p-4">
                               <RecordDetailView record={record} />
                             </div>
