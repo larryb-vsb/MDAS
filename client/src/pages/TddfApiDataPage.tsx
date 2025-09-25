@@ -252,6 +252,11 @@ export default function TddfApiDataPage() {
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
 
+  // Global filename filtering state for cross-tab functionality
+  const [globalFilenameFilter, setGlobalFilenameFilter] = useState<string>('');
+  
+  // View mode state for Raw Data tab (lifted up for cross-tab functionality)
+  const [viewMode, setViewMode] = useState<'tree' | 'flat' | 'file'>('flat');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -316,7 +321,7 @@ export default function TddfApiDataPage() {
   });
 
   // Extract queue data from processing status for compatibility
-  const queue = processingStatus?.activeProcessing || [];
+  const queue = Array.isArray(processingStatus?.activeProcessing) ? processingStatus.activeProcessing : [];
 
   // Fetch precached dashboard stats for Step 6 processing metrics
   const { data: dashboardStats = {}, isLoading: dashboardStatsLoading } = useQuery<any>({
@@ -2026,9 +2031,12 @@ export default function TddfApiDataPage() {
                               variant="ghost" 
                               size="sm"
                               onClick={() => {
+                                console.log('Filter button clicked for file:', file.original_name);
                                 // Set global filename filter and navigate to Raw Data tab
                                 setGlobalFilenameFilter(file.original_name);
+                                console.log('Setting active tab to raw-data');
                                 setActiveTab('raw-data');
+                                console.log('Setting view mode to file');
                                 setViewMode('file');
                               }}
                               title="Filter Raw Data by this file"
@@ -2368,7 +2376,12 @@ export default function TddfApiDataPage() {
             </Button>
           </div>
           
-          <RawDataTab />
+          <RawDataTab 
+            globalFilenameFilter={globalFilenameFilter}
+            setGlobalFilenameFilter={setGlobalFilenameFilter}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+          />
         </TabsContent>
 
         <TabsContent value="processing" className="space-y-4">
@@ -3076,7 +3089,17 @@ function RecordDetailView({ record }: { record: any }) {
   );
 }
 
-function RawDataTab() {
+function RawDataTab({ 
+  globalFilenameFilter, 
+  setGlobalFilenameFilter,
+  viewMode,
+  setViewMode
+}: { 
+  globalFilenameFilter: string; 
+  setGlobalFilenameFilter: (filename: string) => void; 
+  viewMode: 'tree' | 'flat' | 'file';
+  setViewMode: (mode: 'tree' | 'flat' | 'file') => void;
+}) {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(100);
@@ -3086,7 +3109,6 @@ function RawDataTab() {
   const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
   
   // Tree view state
-  const [viewMode, setViewMode] = useState<'tree' | 'flat' | 'file'>('flat');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
   
@@ -3097,8 +3119,7 @@ function RawDataTab() {
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
 
-  // Global filename filtering state (lifted up from Raw Data tab)
-  const [globalFilenameFilter, setGlobalFilenameFilter] = useState<string>('');
+  // Global filename filtering state (now passed from main component)
   
   // Pagination options
   const pageSizeOptions = [
