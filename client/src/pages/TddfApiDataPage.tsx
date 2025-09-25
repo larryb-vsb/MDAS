@@ -3089,6 +3089,252 @@ function RecordDetailView({ record }: { record: any }) {
   );
 }
 
+// File View Display Component
+interface FileViewDisplayProps {
+  records: any[];
+  expandedFiles: Set<string>;
+  expandedFileBatches: Set<string>;
+  expandedFileTransactions: Set<string>;
+  onToggleFile: (filename: string) => void;
+  onToggleFileBatch: (filename: string, batchIndex: number) => void;
+  onToggleFileTransaction: (filename: string, batchIndex: number, transactionIndex: number) => void;
+  getRecordTypeBadgeColor: (type: string) => string;
+  getRecordTypeName: (type: string) => string;
+  formatFieldValue: (key: string, value: any) => string;
+  groupRecordsByFiles: (records: any[]) => any[];
+}
+
+function FileViewDisplay({ 
+  records, 
+  expandedFiles,
+  expandedFileBatches,
+  expandedFileTransactions,
+  onToggleFile,
+  onToggleFileBatch,
+  onToggleFileTransaction,
+  getRecordTypeBadgeColor, 
+  getRecordTypeName, 
+  formatFieldValue, 
+  groupRecordsByFiles 
+}: FileViewDisplayProps) {
+  const fileGroups = groupRecordsByFiles(records);
+
+  return (
+    <div className="space-y-4">
+      {fileGroups.map((fileGroup, fileIndex) => {
+        const isFileExpanded = expandedFiles.has(fileGroup.filename);
+        
+        return (
+          <Card key={fileIndex} className="border-l-4 border-l-blue-600">
+            {/* File Header */}
+            <CardHeader className="pb-3">
+              <div 
+                className="flex items-center gap-3 cursor-pointer hover:bg-blue-50 -m-3 p-3 rounded"
+                onClick={() => onToggleFile(fileGroup.filename)}
+              >
+                {isFileExpanded ? (
+                  <ChevronDown className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                )}
+                
+                <FileText className="w-5 h-5 text-blue-600" />
+                <span className="font-semibold text-blue-900">{fileGroup.filename}</span>
+                
+                <div className="ml-auto flex items-center gap-4 text-sm">
+                  <Badge variant="outline" className="bg-green-50 border-green-200 text-green-800">
+                    {fileGroup.recordCounts.bh} BH
+                  </Badge>
+                  <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-800">
+                    {fileGroup.recordCounts.dt} DT  
+                  </Badge>
+                  <span className="text-gray-600">
+                    {fileGroup.recordCounts.total} total records
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+
+            {/* Expanded File Content */}
+            {isFileExpanded && (
+              <CardContent className="pt-0">
+                <div className="space-y-3 ml-8">
+                  {fileGroup.batches.map((batch: any, batchIndex: number) => {
+                    const batchKey = `${fileGroup.filename}-batch-${batchIndex}`;
+                    const isBatchExpanded = expandedFileBatches.has(batchKey);
+                    
+                    return (
+                      <Card key={batchIndex} className="border-l-4 border-l-green-500">
+                        {/* Batch Header */}
+                        <CardHeader className="pb-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
+                            onClick={() => onToggleFileBatch(fileGroup.filename, batchIndex)}
+                          >
+                            {isBatchExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-600" />
+                            )}
+                            
+                            {batch.batchHeader ? (
+                              <>
+                                <Badge className={`text-white ${getRecordTypeBadgeColor(batch.batchHeader.record_type)}`}>
+                                  {batch.batchHeader.record_type}
+                                </Badge>
+                                <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
+                                <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
+                                
+                                {/* Merchant Account Number for BH records */}
+                                {(() => {
+                                  const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
+                                  return merchantAccountNumber ? (
+                                    <span className="text-sm font-bold text-blue-600">
+                                      • {merchantAccountNumber}
+                                    </span>
+                                  ) : null;
+                                })()}
+                              </>
+                            ) : (
+                              <>
+                                <Badge className="bg-gray-500 text-white">Batch</Badge>
+                                <span className="font-medium">Implicit Batch {batchIndex + 1}</span>
+                              </>
+                            )}
+                            
+                            <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                              <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
+                              {batch.trailer && <span>• Has Trailer</span>}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        {/* Expanded Batch Content */}
+                        {isBatchExpanded && (
+                          <CardContent className="pt-0">
+                            {/* Batch Header Details */}
+                            {batch.batchHeader && (
+                              <div className="mb-4 ml-6">
+                                <RecordDetailView record={batch.batchHeader} />
+                              </div>
+                            )}
+
+                            {/* Transactions */}
+                            <div className="space-y-2 ml-6">
+                              {batch.transactions.map((transaction: any, transactionIndex: number) => {
+                                const transactionKey = `${fileGroup.filename}-transaction-${batchIndex}-${transactionIndex}`;
+                                const isTransactionExpanded = expandedFileTransactions.has(transactionKey);
+                                
+                                return (
+                                  <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
+                                    <CardHeader className="pb-2">
+                                      <div 
+                                        className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
+                                        onClick={() => onToggleFileTransaction(fileGroup.filename, batchIndex, transactionIndex)}
+                                      >
+                                        {isTransactionExpanded ? (
+                                          <ChevronDown className="w-4 h-4 text-gray-600" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4 text-gray-600" />
+                                        )}
+                                        
+                                        <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
+                                          {transaction.dtRecord.record_type}
+                                        </Badge>
+                                        
+                                        {/* Card Type Badge for DT records */}
+                                        {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
+                                          const cardType = extractCardType(transaction.dtRecord);
+                                          const cardBadge = cardType ? getCardTypeBadges(cardType) : null;
+                                          
+                                          return cardBadge ? (
+                                            <Badge variant="outline" className={cardBadge.className}>
+                                              {cardBadge.label}
+                                            </Badge>
+                                          ) : null;
+                                        })()}
+                                        
+                                        <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
+                                        <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
+                                        
+                                        <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                                          {transaction.extensions.length > 0 && (
+                                            <span>{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </CardHeader>
+
+                                    {/* Expanded Transaction Content */}
+                                    {isTransactionExpanded && (
+                                      <CardContent className="pt-0">
+                                        {/* Transaction Details */}
+                                        <div className="mb-4 ml-6">
+                                          <RecordDetailView record={transaction.dtRecord} />
+                                        </div>
+                                        
+                                        {/* Extensions */}
+                                        {transaction.extensions.length > 0 && (
+                                          <div className="space-y-2 ml-6">
+                                            {transaction.extensions.map((extension: any, extensionIndex: number) => (
+                                              <Card key={extensionIndex} className="border-l-4 border-l-purple-500 bg-purple-50/30">
+                                                <CardHeader className="pb-2">
+                                                  <div className="flex items-center gap-2">
+                                                    <Badge className={`text-white ${getRecordTypeBadgeColor(extension.record_type)}`}>
+                                                      {extension.record_type}
+                                                    </Badge>
+                                                    <span className="font-medium">{getRecordTypeName(extension.record_type)}</span>
+                                                    <span className="text-sm text-gray-600">Line {extension.line_number}</span>
+                                                  </div>
+                                                </CardHeader>
+                                                <CardContent className="pt-0">
+                                                  <RecordDetailView record={extension} />
+                                                </CardContent>
+                                              </Card>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </CardContent>
+                                    )}
+                                  </Card>
+                                );
+                              })}
+                            </div>
+
+                            {/* Trailer */}
+                            {batch.trailer && (
+                              <div className="mt-4 ml-6">
+                                <Card className="border-l-4 border-l-red-500 bg-red-50/30">
+                                  <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
+                                        {batch.trailer.record_type}
+                                      </Badge>
+                                      <span className="font-medium">{getRecordTypeName(batch.trailer.record_type)}</span>
+                                      <span className="text-sm text-gray-600">Line {batch.trailer.line_number}</span>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent className="pt-0">
+                                    <RecordDetailView record={batch.trailer} />
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            )}
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 function RawDataTab({ 
   globalFilenameFilter, 
   setGlobalFilenameFilter,
@@ -3111,6 +3357,11 @@ function RawDataTab({
   // Tree view state
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+  
+  // File view state
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [expandedFileBatches, setExpandedFileBatches] = useState<Set<string>>(new Set());
+  const [expandedFileTransactions, setExpandedFileTransactions] = useState<Set<string>>(new Set());
   
   // File filtering state (now using global state)
   // const [rawDataFilenameFilter, setRawDataFilenameFilter] = useState<string>(''); // Moved to global state
@@ -3263,6 +3514,48 @@ function RawDataTab({
     return batches;
   };
 
+  // Group records by files for file-centric view
+  const groupRecordsByFiles = (records: any[]) => {
+    console.log(`[FILE-VIEW] Grouping ${records.length} records by filename`);
+    
+    const fileGroups: Record<string, any[]> = {};
+    
+    // Group records by filename
+    for (const record of records) {
+      const filename = record.filename || 'Unknown';
+      if (!fileGroups[filename]) {
+        fileGroups[filename] = [];
+      }
+      fileGroups[filename].push(record);
+    }
+    
+    // Convert to array with file-centric structure
+    const files = Object.entries(fileGroups).map(([filename, fileRecords]) => {
+      console.log(`[FILE-VIEW] Processing file: ${filename} with ${fileRecords.length} records`);
+      
+      // Group records within this file hierarchically (batches → transactions)
+      const batches = groupRecordsHierarchically(fileRecords);
+      
+      // Count record types within this file
+      const bhRecords = fileRecords.filter(r => ['01', 'BH', '10', '02'].includes(r.record_type)).length;
+      const dtRecords = fileRecords.filter(r => ['47', 'DT'].includes(r.record_type)).length;
+      
+      return {
+        filename,
+        records: fileRecords,
+        batches,
+        recordCounts: {
+          total: fileRecords.length,
+          bh: bhRecords,
+          dt: dtRecords
+        }
+      };
+    });
+    
+    console.log(`[FILE-VIEW] Created ${files.length} file groups`);
+    return files;
+  };
+
   // Toggle handlers
   const toggleBatchExpansion = (batchIndex: number) => {
     const batchKey = `batch-${batchIndex}`;
@@ -3280,6 +3573,45 @@ function RawDataTab({
   const toggleTransactionExpansion = (batchIndex: number, transactionIndex: number) => {
     const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
     setExpandedTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionKey)) {
+        newSet.delete(transactionKey);
+      } else {
+        newSet.add(transactionKey);
+      }
+      return newSet;
+    });
+  };
+
+  // File view toggle handlers
+  const toggleFileExpansion = (filename: string) => {
+    setExpandedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(filename)) {
+        newSet.delete(filename);
+      } else {
+        newSet.add(filename);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleFileBatchExpansion = (filename: string, batchIndex: number) => {
+    const batchKey = `${filename}-batch-${batchIndex}`;
+    setExpandedFileBatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(batchKey)) {
+        newSet.delete(batchKey);
+      } else {
+        newSet.add(batchKey);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleFileTransactionExpansion = (filename: string, batchIndex: number, transactionIndex: number) => {
+    const transactionKey = `${filename}-transaction-${batchIndex}-${transactionIndex}`;
+    setExpandedFileTransactions(prev => {
       const newSet = new Set(prev);
       if (newSet.has(transactionKey)) {
         newSet.delete(transactionKey);
@@ -3682,27 +4014,30 @@ function RawDataTab({
                     </div>
                   </div>
                 )}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={isSelectAllChecked}
-                          onCheckedChange={handleSelectAll}
-                          data-testid="checkbox-select-all"
-                        />
-                      </TableHead>
-                      <TableHead className="w-20">Type</TableHead>
-                      <TableHead>Content</TableHead>
-                      <TableHead className="w-40">File</TableHead>
-                      <TableHead className="w-16">Line</TableHead>
-                      <TableHead className="w-32">Business Day</TableHead>
-                      <TableHead className="w-24">Scheduled Slot</TableHead>
-                      <TableHead className="w-16">View</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {viewMode === 'flat' && records.map((record: any) => [
+
+                {/* Flat View Display */}
+                {viewMode === 'flat' && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={isSelectAllChecked}
+                            onCheckedChange={handleSelectAll}
+                            data-testid="checkbox-select-all"
+                          />
+                        </TableHead>
+                        <TableHead className="w-20">Type</TableHead>
+                        <TableHead>Content</TableHead>
+                        <TableHead className="w-40">File</TableHead>
+                        <TableHead className="w-16">Line</TableHead>
+                        <TableHead className="w-32">Business Day</TableHead>
+                        <TableHead className="w-24">Scheduled Slot</TableHead>
+                        <TableHead className="w-16">View</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {records.map((record: any) => [
                       <TableRow key={record.id}>
                         <TableCell>
                           <Checkbox
@@ -3777,9 +4112,10 @@ function RawDataTab({
                           </TableCell>
                         </TableRow>
                       )
-                    ]).flat().filter(Boolean)}
-                  </TableBody>
-                </Table>
+                      ]).flat().filter(Boolean)}
+                    </TableBody>
+                  </Table>
+                )}
 
                 {/* Tree View Display */}
                 {viewMode === 'tree' && (
@@ -3798,81 +4134,19 @@ function RawDataTab({
 
                 {/* File View Display */}
                 {viewMode === 'file' && (
-                  <div className="space-y-4">
-                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                      <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-semibold text-gray-900">File View Mode</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Select a filename from the search or use the eye icons in the Files tab to filter records by file.
-                      </p>
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => setViewMode('flat')}
-                          className="text-sm"
-                        >
-                          Switch to Flat View
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Show filtered records if a filename filter is active */}
-                    {globalFilenameFilter && records.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 pb-2 border-b">
-                          <FileText className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium">Records from: {globalFilenameFilter}</span>
-                          <span className="text-sm text-gray-500">({records.length} records)</span>
-                        </div>
-                        
-                        {/* Display records in a simplified table */}
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Type</TableHead>
-                              <TableHead>Content</TableHead>
-                              <TableHead>Line</TableHead>
-                              <TableHead>View</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {records.map((record: any) => (
-                              <TableRow key={record.id}>
-                                <TableCell>
-                                  <Badge 
-                                    variant="secondary" 
-                                    className={getRecordTypeBadgeColor(record.record_type)}
-                                  >
-                                    {record.record_type}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="max-w-md">
-                                  <div className="text-sm truncate">
-                                    {formatRecordPreview(record)}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-sm text-gray-500">
-                                  {record.line_number}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setExpandedRecord(expandedRecord === record.id ? null : record.id);
-                                    }}
-                                    data-testid={`button-view-record-${record.id}`}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </div>
+                  <FileViewDisplay 
+                    records={records}
+                    expandedFiles={expandedFiles}
+                    expandedFileBatches={expandedFileBatches}
+                    expandedFileTransactions={expandedFileTransactions}
+                    onToggleFile={toggleFileExpansion}
+                    onToggleFileBatch={toggleFileBatchExpansion}
+                    onToggleFileTransaction={toggleFileTransactionExpansion}
+                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
+                    getRecordTypeName={getRecordTypeName}
+                    formatFieldValue={formatFieldValue}
+                    groupRecordsByFiles={groupRecordsByFiles}
+                  />
                 )}
               </div>
             )}
