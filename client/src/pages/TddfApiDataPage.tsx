@@ -1151,7 +1151,7 @@ export default function TddfApiDataPage() {
                           <div className="text-sm font-medium">Latest Upload Activity</div>
                           {files.slice(0, 3).map((file) => (
                             <div key={file.id} className="flex items-center justify-between text-xs p-2 bg-muted rounded">
-                              <span className="truncate max-w-[60%]">{file.original_name}</span>
+                              <span className="truncate max-w-[60%]">{file.filename}</span>
                               <span className="text-muted-foreground">
                                 {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, HH:mm") : "Unknown"}
                               </span>
@@ -1226,7 +1226,7 @@ export default function TddfApiDataPage() {
                   {files.slice(0, 5).map((file) => (
                     <div key={file.id} className="flex items-center justify-between p-2 border rounded">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.original_name}</p>
+                        <p className="text-sm font-medium truncate">{file.filename}</p>
                         <p className="text-xs text-muted-foreground">
                           {formatFileSize(file.file_size)} • {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, yyyy") : "Unknown"}
                         </p>
@@ -1978,11 +1978,11 @@ export default function TddfApiDataPage() {
                               }
                               setSelectedFiles(newSelection);
                             }}
-                            aria-label={`Select ${file.original_name}`}
+                            aria-label={`Select ${file.filename}`}
                           />
                         </TableCell>
                         <TableCell className="font-medium max-w-xs truncate">
-                          {file.original_name}
+                          {file.filename}
                         </TableCell>
                         <TableCell>
                           {file.business_day ? format(new Date(file.business_day), "MMM d, yyyy") : (
@@ -2031,9 +2031,9 @@ export default function TddfApiDataPage() {
                               variant="ghost" 
                               size="sm"
                               onClick={() => {
-                                console.log('Filter button clicked for file:', file.original_name);
+                                console.log('Filter button clicked for file:', file.filename);
                                 // Set global filename filter and navigate to Raw Data tab
-                                setGlobalFilenameFilter(file.original_name);
+                                setGlobalFilenameFilter(file.filename);
                                 console.log('Setting active tab to raw-data');
                                 setActiveTab('raw-data');
                                 console.log('Setting view mode to file');
@@ -2058,7 +2058,7 @@ export default function TddfApiDataPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete File</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete "{file.original_name}"? 
+                                    Are you sure you want to delete "{file.filename}"? 
                                     This action cannot be undone and will remove all associated processing data.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -2424,7 +2424,7 @@ export default function TddfApiDataPage() {
                     queue.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium max-w-xs truncate">
-                          {item.original_name || item.filename || `File ${item.file_id}`}
+                          {item.filename || `File ${item.file_id}`}
                         </TableCell>
                         <TableCell>
                           <Badge variant={item.priority > 75 ? "destructive" : item.priority > 50 ? "secondary" : "outline"}>
@@ -2725,7 +2725,7 @@ export default function TddfApiDataPage() {
           <DialogHeader>
             <DialogTitle>Raw File Contents</DialogTitle>
             <DialogDescription>
-              {selectedFileForView?.original_name} - {selectedFileForView ? formatFileSize(selectedFileForView.file_size) : ''}
+              {selectedFileForView?.filename} - {selectedFileForView ? formatFileSize(selectedFileForView.file_size) : ''}
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] w-full">
