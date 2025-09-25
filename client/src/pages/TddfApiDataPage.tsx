@@ -2660,6 +2660,74 @@ export default function TddfApiDataPage() {
 }
 
 // Raw Data Tab Component
+// Record Detail View Component
+function RecordDetailView({ record }: { record: any }) {
+  const [activeTab, setActiveTab] = useState<'fields' | 'raw'>('fields');
+  
+  // Parse TDDF record data
+  const parsedData = record.record_data || {};
+  const rawData = record.raw_line || record.raw_data || '';
+  
+  return (
+    <div className="w-full">
+      <div className="mb-4">
+        <h4 className="text-lg font-semibold mb-2">
+          {record.record_type} Record Details
+          <span className="ml-2 text-sm text-muted-foreground">Line {record.line_number}</span>
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-muted-foreground">File:</span>
+            <p className="truncate" title={record.original_filename}>{record.original_filename || 'Unknown'}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Processing Time:</span>
+            <p>{record.file_processing_time || 'Unknown'}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Business Date:</span>
+            <p>{record.file_processing_date ? format(new Date(record.file_processing_date), 'MMM d, yyyy') : 'Unknown'}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Record ID:</span>
+            <p>{record.id}</p>
+          </div>
+        </div>
+      </div>
+      
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'fields' | 'raw')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="fields" data-testid="tab-fields">Parsed Fields</TabsTrigger>
+          <TabsTrigger value="raw" data-testid="tab-raw">Raw Data</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="fields" className="mt-4">
+          <div className="space-y-2">
+            {Object.keys(parsedData).length > 0 ? (
+              Object.entries(parsedData).map(([key, value]) => (
+                <div key={key} className="flex justify-between items-start py-2 border-b border-border/40">
+                  <span className="font-medium text-sm capitalize">{key.replace(/_/g, ' ')}:</span>
+                  <span className="text-sm text-muted-foreground ml-4 text-right max-w-md break-all">
+                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-sm">No parsed fields available for this record.</p>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="raw" className="mt-4">
+          <div className="bg-muted/30 p-4 rounded-md">
+            <pre className="text-xs font-mono whitespace-pre-wrap break-all">{rawData}</pre>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 function RawDataTab() {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(0);
@@ -2667,6 +2735,7 @@ function RawDataTab() {
   const [recordType, setRecordType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showRecords, setShowRecords] = useState(false);
+  const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
   
   // Pagination options
   const pageSizeOptions = [
@@ -2841,6 +2910,10 @@ function RawDataTab() {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="BH">BH - Batch Header</SelectItem>
                   <SelectItem value="DT">DT - Detail Transaction</SelectItem>
+                  <SelectItem value="G2">G2 - Geographic Data</SelectItem>
+                  <SelectItem value="P1">P1 - Processing Data</SelectItem>
+                  <SelectItem value="E1">E1 - Enhanced Data</SelectItem>
+                  <SelectItem value="DR">DR - Detail Record</SelectItem>
                   <SelectItem value="TR">TR - Trailer</SelectItem>
                 </SelectContent>
               </Select>
@@ -2925,40 +2998,64 @@ function RawDataTab() {
                     <TableRow>
                       <TableHead className="w-20">Type</TableHead>
                       <TableHead className="w-16">Line</TableHead>
+                      <TableHead className="w-24">Proc Time</TableHead>
                       <TableHead>Content</TableHead>
                       <TableHead className="w-40">File</TableHead>
                       <TableHead className="w-32">Business Day</TableHead>
-                      <TableHead className="w-32">Created</TableHead>
+                      <TableHead className="w-16">View</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {records.map((record: any) => (
-                      <TableRow key={record.id}>
-                        <TableCell>
-                          <Badge 
-                            variant={record.record_type === 'BH' ? 'default' : 
-                                   record.record_type === 'DT' ? 'secondary' : 'outline'}
-                          >
-                            {record.record_type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{record.line_number}</TableCell>
-                        <TableCell className="max-w-md">
-                          <div className="truncate font-mono text-xs" title={record.raw_data}>
-                            {formatRecordContent(record)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="truncate text-sm" title={record.filename}>
-                          {record.filename}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {format(new Date(record.created_at), 'MMM d, HH:mm')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                      <>
+                        <TableRow key={record.id}>
+                          <TableCell>
+                            <Badge 
+                              className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+                              variant={record.record_type === 'BH' ? 'default' : 
+                                     record.record_type === 'DT' ? 'secondary' : 'outline'}
+                            >
+                              {record.record_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {record.file_processing_time || 'Unknown'}
+                          </TableCell>
+                          <TableCell className="max-w-md">
+                            <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
+                              {formatRecordContent(record)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="truncate text-sm" title={record.original_filename || record.filename}>
+                            {record.original_filename || record.filename || 'Unknown'}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {record.file_processing_date ? format(new Date(record.file_processing_date), 'MMM d, yyyy') : 
+                             record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
+                              data-testid={`button-view-record-${record.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {expandedRecord === record.id && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="p-0">
+                              <div className="border-t bg-muted/30 p-4">
+                                <RecordDetailView record={record} />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    ))
                   </TableBody>
                 </Table>
               </div>
