@@ -2892,15 +2892,15 @@ function RawDataTab() {
     <div className="space-y-6">
       {/* Summary Cards - Matching the design from attached image */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className="border-l-4 border-l-green-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">BH Records</p>
+                <p className="text-sm font-medium text-green-600">BH Records</p>
                 <p className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Batch Headers</p>
               </div>
-              <Database className="h-8 w-8 text-blue-500" />
+              <Database className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
