@@ -747,6 +747,12 @@ export default function MMSUploader() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      // Invalidate timing queries for all processed uploads to refresh encoding times in blue text
+      data.results?.forEach((result: any) => {
+        if (result.uploadId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/uploader', result.uploadId, 'timing'] });
+        }
+      });
       setSelectedUploads([]);
       console.log('[STEP-6-PROCESSING] Files successfully queued for Step 6 processing:', data);
       toast({ 
