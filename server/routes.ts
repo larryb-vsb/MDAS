@@ -24187,6 +24187,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete TDDF records for Raw Data tab
+  app.delete('/api/tddf-api/records/bulk-delete', isAuthenticated, async (req, res) => {
+    try {
+      const { recordIds } = req.body;
+      
+      if (!recordIds || !Array.isArray(recordIds) || recordIds.length === 0) {
+        return res.status(400).json({ error: 'Record IDs are required' });
+      }
+
+      console.log(`[TDDF-API] Bulk delete request for ${recordIds.length} records:`, recordIds);
+
+      // Validate all record IDs are numeric
+      const validIds = recordIds.filter(id => Number.isInteger(id) && id > 0);
+      if (validIds.length !== recordIds.length) {
+        return res.status(400).json({ error: 'All record IDs must be positive integers' });
+      }
+
+      // Use environment-appropriate table name
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Get record details before deletion for logging
+      const existingRecordsResult = await pool.query(`
+        SELECT r.id, r.record_type, r.line_number, u.filename
+        FROM ${tableName} r
+        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        WHERE r.id = ANY($1)
+      `, [recordIds]);
+
+      const existingRecords = existingRecordsResult.rows;
+      console.log(`[TDDF-API] Found ${existingRecords.length} records to delete out of ${recordIds.length} requested`);
+
+      if (existingRecords.length === 0) {
+        return res.status(404).json({ error: 'No matching records found' });
+      }
+
+      // Perform bulk delete
+      const deleteResult = await pool.query(`
+        DELETE FROM ${tableName}
+        WHERE id = ANY($1)
+      `, [recordIds]);
+
+      const deletedCount = deleteResult.rowCount || 0;
+      
+      console.log(`[TDDF-API] Successfully deleted ${deletedCount} records from ${tableName}`);
+      
+      // Log deletion details for audit
+      existingRecords.forEach(record => {
+        console.log(`[TDDF-API] Deleted record ID ${record.id}: ${record.record_type} from ${record.filename}, line ${record.line_number}`);
+      });
+
+      res.json({
+        success: true,
+        deletedCount,
+        message: `Successfully deleted ${deletedCount} record${deletedCount !== 1 ? 's' : ''}`,
+        deletedRecords: existingRecords
+      });
+
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete records', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // === Unified TDDF API Endpoints (for shared components) ===
   
   // Unified TDDF files endpoint with enhanced analytics
