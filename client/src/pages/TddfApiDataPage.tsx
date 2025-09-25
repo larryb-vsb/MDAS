@@ -3110,12 +3110,11 @@ function RawDataTab() {
                         />
                       </TableHead>
                       <TableHead className="w-20">Type</TableHead>
-                      <TableHead className="w-24">Scheduled Slot</TableHead>
-                      <TableHead className="w-16">Line</TableHead>
-                      <TableHead className="w-24">Proc Time</TableHead>
                       <TableHead>Content</TableHead>
                       <TableHead className="w-40">File</TableHead>
+                      <TableHead className="w-16">Line</TableHead>
                       <TableHead className="w-32">Business Day</TableHead>
+                      <TableHead className="w-24">Scheduled Slot</TableHead>
                       <TableHead className="w-16">View</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -3137,19 +3136,6 @@ function RawDataTab() {
                             {record.record_type}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {record.scheduledSlotLabel ? (
-                            <Badge variant="outline" className="text-xs">
-                              {record.scheduledSlotLabel}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {record.file_processing_time || 'Unknown'}
-                        </TableCell>
                         <TableCell className="max-w-md">
                           <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
                             {formatRecordContent(record)}
@@ -3158,9 +3144,19 @@ function RawDataTab() {
                         <TableCell className="truncate text-sm" title={record.original_filename || record.filename}>
                           {record.original_filename || record.filename || 'Unknown'}
                         </TableCell>
+                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
                         <TableCell className="text-sm">
                           {record.file_processing_date ? format(new Date(record.file_processing_date), 'MMM d, yyyy') : 
                            record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {record.scheduledSlotLabel ? (
+                            <Badge variant="outline" className="text-xs">
+                              {record.scheduledSlotLabel}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -3175,7 +3171,7 @@ function RawDataTab() {
                       </TableRow>,
                       expandedRecord === record.id && (
                         <TableRow key={`${record.id}-detail`}>
-                          <TableCell colSpan={9} className="p-0">
+                          <TableCell colSpan={8} className="p-0">
                             <div className="border-t bg-muted/30 p-4">
                               <RecordDetailView record={record} />
                             </div>
