@@ -24171,19 +24171,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const summary = summaryResult.rows[0];
       
-      // Process records to add intelligent processing time calculation
+      // Process records to add intelligent processing time calculation and scheduled slot info
       const processedRecords = recordsResult.rows.map(record => {
         let file_processing_time = 'N/A';
+        let scheduledSlot = null;
+        let scheduledSlotLabel = null;
+        let slotDayOffset = 0;
         
         // Try intelligent filename parsing first
         const filenameParseResult = parseTddfFilename(record.filename);
         
-        
-        if (filenameParseResult.parseSuccess && filenameParseResult.processingDelaySeconds !== null) {
-          file_processing_time = formatProcessingTime(filenameParseResult.processingDelaySeconds);
+        if (filenameParseResult.parseSuccess) {
+          // Extract scheduled slot information
+          scheduledSlot = filenameParseResult.scheduledSlotRaw;
+          scheduledSlotLabel = filenameParseResult.scheduledSlotLabel;
+          slotDayOffset = filenameParseResult.slotDayOffset;
+          
+          // Calculate processing time
+          if (filenameParseResult.processingDelaySeconds !== null) {
+            file_processing_time = formatProcessingTime(filenameParseResult.processingDelaySeconds);
+          }
         }
-        // Fallback to encoding time if available
-        else if (record.encoding_time_ms !== null) {
+        
+        // Fallback to encoding time if filename parsing failed
+        if (file_processing_time === 'N/A' && record.encoding_time_ms !== null) {
           if (record.encoding_time_ms < 1000) {
             file_processing_time = `${record.encoding_time_ms}ms`;
           } else {
@@ -24191,7 +24202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         // Fallback to started_at/completed_at calculation
-        else if (record.started_at && record.completed_at) {
+        else if (file_processing_time === 'N/A' && record.started_at && record.completed_at) {
           const delayMs = new Date(record.completed_at).getTime() - new Date(record.started_at).getTime();
           if (delayMs < 1000) {
             file_processing_time = `${delayMs}ms`;
@@ -24200,11 +24211,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Remove the raw timing fields from response and add calculated processing time
+        // Remove the raw timing fields from response and add calculated processing time and slot info
         const { encoding_time_ms, started_at, completed_at, ...cleanRecord } = record;
         return {
           ...cleanRecord,
-          file_processing_time
+          file_processing_time,
+          scheduledSlot,
+          scheduledSlotLabel,
+          slotDayOffset
         };
       });
       
