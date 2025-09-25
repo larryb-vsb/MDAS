@@ -3068,6 +3068,13 @@ function RawDataTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={isSelectAllChecked}
+                          onCheckedChange={handleSelectAll}
+                          data-testid="checkbox-select-all"
+                        />
+                      </TableHead>
                       <TableHead className="w-20">Type</TableHead>
                       <TableHead className="w-16">Line</TableHead>
                       <TableHead className="w-24">Proc Time</TableHead>
@@ -3080,6 +3087,13 @@ function RawDataTab() {
                   <TableBody>
                     {records.map((record: any) => [
                       <TableRow key={record.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRecords.has(record.id)}
+                            onCheckedChange={() => handleSelectRecord(record.id)}
+                            data-testid={`checkbox-record-${record.id}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Badge 
                             className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
@@ -3118,7 +3132,7 @@ function RawDataTab() {
                       </TableRow>,
                       expandedRecord === record.id && (
                         <TableRow key={`${record.id}-detail`}>
-                          <TableCell colSpan={7} className="p-0">
+                          <TableCell colSpan={8} className="p-0">
                             <div className="border-t bg-muted/30 p-4">
                               <RecordDetailView record={record} />
                             </div>
