@@ -9077,14 +9077,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Insert into tddf_api_files table
             const apiFileResult = await pool.query(`
               INSERT INTO ${getTableName('tddf_api_files')} 
-              (filename, original_name, file_size, file_hash, record_count, processed_records, status, schema_id, business_day, uploaded_by)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              (filename, original_name, file_size, file_hash, storage_path, record_count, processed_records, status, schema_id, business_day, uploaded_by)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
               RETURNING id
             `, [
               upload.filename,
               upload.filename,
               upload.file_size || 0,
               upload.id, // Use upload ID as hash for uniqueness
+              upload.storage_key || `uploader/${upload.id}/${upload.filename}`, // storage_path based on upload
               upload.line_count || 0,
               0, // processed_records starts at 0
               'processing',
