@@ -3079,6 +3079,7 @@ function RawDataTab() {
                         variant="destructive"
                         size="sm"
                         onClick={handleBulkDelete}
+                        disabled={selectedRecords.size === 0}
                         data-testid="button-bulk-delete"
                       >
                         <Trash2 className="h-4 w-4 mr-1" />

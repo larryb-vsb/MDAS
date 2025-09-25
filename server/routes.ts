@@ -30,6 +30,7 @@ import { ReplitStorageService } from "./replit-storage-service";
 import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 import { heatMapCacheProcessingStats } from "@shared/schema";
 import { backfillUniversalTimestamps } from "./services/universal-timestamp";
+import { parseTddfFilename, formatProcessingTime } from "./utils/tddfFilename";
 
 // Business day extraction utility for TDDF filenames
 function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
@@ -24158,21 +24159,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           r.created_at,
           u.filename,
           u.created_at as business_day,
-          CASE 
-            WHEN u.encoding_time_ms IS NOT NULL THEN 
-              CASE 
-                WHEN u.encoding_time_ms < 1000 THEN u.encoding_time_ms || 'ms'
-                ELSE ROUND(u.encoding_time_ms / 1000.0, 2) || 's'
-              END
-            WHEN u.started_at IS NOT NULL AND u.completed_at IS NOT NULL THEN 
-              CASE 
-                WHEN EXTRACT(EPOCH FROM (u.completed_at - u.started_at)) * 1000 < 1000 THEN 
-                  ROUND(EXTRACT(EPOCH FROM (u.completed_at - u.started_at)) * 1000) || 'ms'
-                ELSE 
-                  ROUND(EXTRACT(EPOCH FROM (u.completed_at - u.started_at)), 2) || 's'
-              END
-            ELSE 'N/A'
-          END as file_processing_time
+          u.encoding_time_ms,
+          u.started_at,
+          u.completed_at
         FROM ${getTableName('uploader_tddf_jsonb_records')} r
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         ${whereClause}
@@ -24182,8 +24171,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const summary = summaryResult.rows[0];
       
+      // Process records to add intelligent processing time calculation
+      const processedRecords = recordsResult.rows.map(record => {
+        let file_processing_time = 'N/A';
+        
+        // Try intelligent filename parsing first
+        const filenameParseResult = parseTddfFilename(record.filename);
+        
+        
+        if (filenameParseResult.parseSuccess && filenameParseResult.processingDelaySeconds !== null) {
+          file_processing_time = formatProcessingTime(filenameParseResult.processingDelaySeconds);
+        }
+        // Fallback to encoding time if available
+        else if (record.encoding_time_ms !== null) {
+          if (record.encoding_time_ms < 1000) {
+            file_processing_time = `${record.encoding_time_ms}ms`;
+          } else {
+            file_processing_time = `${Math.round(record.encoding_time_ms / 1000 * 100) / 100}s`;
+          }
+        }
+        // Fallback to started_at/completed_at calculation
+        else if (record.started_at && record.completed_at) {
+          const delayMs = new Date(record.completed_at).getTime() - new Date(record.started_at).getTime();
+          if (delayMs < 1000) {
+            file_processing_time = `${delayMs}ms`;
+          } else {
+            file_processing_time = `${Math.round(delayMs / 1000 * 100) / 100}s`;
+          }
+        }
+        
+        // Remove the raw timing fields from response and add calculated processing time
+        const { encoding_time_ms, started_at, completed_at, ...cleanRecord } = record;
+        return {
+          ...cleanRecord,
+          file_processing_time
+        };
+      });
+      
       res.json({
-        data: recordsResult.rows,
+        data: processedRecords,
         summary: {
           totalRecords: parseInt(summary.total_records),
           bhRecords: parseInt(summary.bh_records),
