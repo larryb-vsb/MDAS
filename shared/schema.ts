@@ -1356,6 +1356,7 @@ export const uploaderTddfJsonbRecords = pgTable(getTableName("uploader_tddf_json
   recordType: text("record_type").notNull(), // DT, BH, P1, P2, etc.
   lineNumber: integer("line_number"), // Line number in source file
   rawLine: text("raw_line"), // Original raw line data
+  rawLineHash: text("raw_line_hash"), // SHA-256 hash of raw line for duplicate detection
   recordData: jsonb("record_data").notNull(), // Complete TDDF record as JSON
   processingStatus: text("processing_status").default("pending").notNull(), // pending, processing, completed, failed
   createdAt: timestamp("created_at").defaultNow().notNull(),
