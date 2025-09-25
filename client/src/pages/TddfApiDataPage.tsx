@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw } from "lucide-react";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw, CreditCard } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
@@ -35,6 +35,35 @@ const FILE_TYPES = [
   { value: 'ach_transactions', label: 'ACH Transactions (.csv)', description: 'Horizon Core ACH Processing Detail File AH0314P1 .csv file' },
   { value: 'mastercard_di', label: 'MasterCard DI Report (.xlms)', description: 'MasterCard Data Integrity Edit Report records .xlms file' }
 ];
+
+// Card type badge configuration
+function getCardTypeBadges(cardType: string) {
+  const badges: Record<string, { label: string; className: string }> = {
+    'VD': { label: 'Visa Debit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'VC': { label: 'Visa Credit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'MD': { label: 'Mastercard Debit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    'MC': { label: 'Mastercard Credit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    'AX': { label: 'American Express', className: 'bg-green-50 text-green-700 border-green-200' },
+    'DS': { label: 'Discover', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+    'DI': { label: 'Diners Club', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+    'JC': { label: 'JCB', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  };
+  return badges[cardType] || { label: cardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
+}
+
+// Helper function to extract card type from record
+function extractCardType(record: any): string | null {
+  // First try extracted_fields, then dynamically extract from raw line
+  let cardType = record.parsed_data?.cardType || record.record_data?.cardType;
+  
+  // Dynamic extraction from positions 253-254 (1-based inclusive)
+  if (!cardType && record.raw_data && record.raw_data.length >= 254) {
+    cardType = record.raw_data.substring(252, 254).trim() || null;
+  }
+  
+  // Normalize to uppercase and trim
+  return cardType ? cardType.toUpperCase().trim() : null;
+}
 
 // Helper functions and interfaces now imported from shared library
 
@@ -3135,12 +3164,28 @@ function RawDataTab() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : record.record_type === 'DT' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
-                            variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
-                          >
-                            {record.record_type}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : record.record_type === 'DT' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
+                              variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
+                            >
+                              {record.record_type}
+                            </Badge>
+                            {/* Show card type badge for DT records */}
+                            {(record.record_type === 'DT' || record.record_type === '47') && (() => {
+                              const cardType = extractCardType(record);
+                              
+                              return cardType ? (
+                                <span 
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                >
+                                  <CreditCard className="h-3 w-3" />
+                                  {getCardTypeBadges(cardType).label}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-md">
                           <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
