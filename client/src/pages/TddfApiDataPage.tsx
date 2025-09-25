@@ -3379,7 +3379,12 @@ function RawDataTab({
     { value: 500, label: '500' },
     { value: 1000, label: '1K' },
     { value: 3000, label: '3K' },
-    { value: 5000, label: '5K' }
+    { value: 5000, label: '5K' },
+    { value: 10000, label: '10K' },
+    { value: 25000, label: '25K' },
+    { value: 50000, label: '50K' },
+    { value: 100000, label: '100K' },
+    { value: 150000, label: '150K' }
   ];
 
   // Tree view supporting functions
