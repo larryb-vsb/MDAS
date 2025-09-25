@@ -24117,31 +24117,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filename
       } = req.query;
       
-      // Build WHERE conditions for uploader records (fallback to uploader data)
-      let whereConditions = [];
-      const params = [];
-      let paramIndex = 1;
+      // Build WHERE conditions separately for summary and records queries
+      let summaryWhereConditions = [];
+      let recordsWhereConditions = [];
+      const summaryParams = [];
+      const recordsParams = [];
+      let summaryParamIndex = 1;
+      let recordsParamIndex = 1;
       
+      // Add common conditions to both queries
       if (recordType && recordType !== 'all') {
-        whereConditions.push(`r.record_type = $${paramIndex}`);
-        params.push(recordType as string);
-        paramIndex++;
+        summaryWhereConditions.push(`r.record_type = $${summaryParamIndex}`);
+        recordsWhereConditions.push(`r.record_type = $${recordsParamIndex}`);
+        summaryParams.push(recordType as string);
+        recordsParams.push(recordType as string);
+        summaryParamIndex++;
+        recordsParamIndex++;
       }
       
       if (search) {
-        whereConditions.push(`r.raw_line ILIKE $${paramIndex}`);
-        params.push(`%${search}%`);
-        paramIndex++;
+        summaryWhereConditions.push(`r.raw_line ILIKE $${summaryParamIndex}`);
+        recordsWhereConditions.push(`r.raw_line ILIKE $${recordsParamIndex}`);
+        summaryParams.push(`%${search}%`);
+        recordsParams.push(`%${search}%`);
+        summaryParamIndex++;
+        recordsParamIndex++;
       }
 
+      // Add filename condition only if filename is provided (for both queries since both will have JOIN)
       if (filename) {
-        whereConditions.push(`u.filename = $${paramIndex}`);
-        params.push(filename as string);
-        paramIndex++;
+        summaryWhereConditions.push(`u.filename = $${summaryParamIndex}`);
+        recordsWhereConditions.push(`u.filename = $${recordsParamIndex}`);
+        summaryParams.push(filename as string);
+        recordsParams.push(filename as string);
+        summaryParamIndex++;
+        recordsParamIndex++;
       }
       
-      const whereClause = whereConditions.length > 0 ? 
-        `WHERE ${whereConditions.join(' AND ')}` : '';
+      const summaryWhereClause = summaryWhereConditions.length > 0 ? 
+        `WHERE ${summaryWhereConditions.join(' AND ')}` : '';
+      const recordsWhereClause = recordsWhereConditions.length > 0 ? 
+        `WHERE ${recordsWhereConditions.join(' AND ')}` : '';
       
       // Get summary statistics from uploader TDDF records (environment-specific table)
       const environment = process.env.NODE_ENV || 'development';
@@ -24154,11 +24170,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
           COUNT(DISTINCT r.upload_id) as total_files
         FROM ${jsonbTableName} r
-        ${whereClause}
-      `, params.slice(0, paramIndex - 1));
+        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        ${summaryWhereClause}
+      `, summaryParams);
       
       // Get paginated records from uploader TDDF records
-      const recordsParams = [...params, limit, offset];
+      const finalRecordsParams = [...recordsParams, limit, offset];
       const recordsResult = await pool.query(`
         SELECT 
           r.id,
@@ -24175,10 +24192,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u.completed_at
         FROM ${jsonbTableName} r
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
-        ${whereClause}
+        ${recordsWhereClause}
         ORDER BY u.created_at DESC, r.line_number ASC
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-      `, recordsParams);
+        LIMIT $${recordsParamIndex} OFFSET $${recordsParamIndex + 1}
+      `, finalRecordsParams);
       
       const summary = summaryResult.rows[0];
       
