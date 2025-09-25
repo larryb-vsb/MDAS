@@ -2737,6 +2737,10 @@ function RawDataTab() {
   const [showRecords, setShowRecords] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
   
+  // Selection state for bulk operations
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
+  const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
+  
   // Pagination options
   const pageSizeOptions = [
     { value: 10, label: '10' },
@@ -2746,6 +2750,74 @@ function RawDataTab() {
     { value: 3000, label: '3K' },
     { value: 5000, label: '5K' }
   ];
+
+  // Selection handlers for bulk operations
+  const handleSelectRecord = (recordId: number) => {
+    const newSelected = new Set(selectedRecords);
+    if (newSelected.has(recordId)) {
+      newSelected.delete(recordId);
+    } else {
+      newSelected.add(recordId);
+    }
+    setSelectedRecords(newSelected);
+    
+    // Update select all state
+    if (newSelected.size === 0) {
+      setIsSelectAllChecked(false);
+    } else if (newSelected.size === records.length) {
+      setIsSelectAllChecked(true);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (isSelectAllChecked || selectedRecords.size === records.length) {
+      // Deselect all
+      setSelectedRecords(new Set());
+      setIsSelectAllChecked(false);
+    } else {
+      // Select all visible records
+      const allRecordIds = new Set(records.map((record: any) => record.id));
+      setSelectedRecords(allRecordIds);
+      setIsSelectAllChecked(true);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRecords.size === 0) {
+      toast({
+        title: "No Records Selected",
+        description: "Please select records to delete.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const recordIds = Array.from(selectedRecords);
+      await apiRequest('/api/tddf-api/records/bulk-delete', {
+        method: 'DELETE',
+        body: JSON.stringify({ recordIds }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      toast({
+        title: "Records Deleted",
+        description: `Successfully deleted ${recordIds.length} records.`,
+      });
+
+      // Clear selection and refetch data
+      setSelectedRecords(new Set());
+      setIsSelectAllChecked(false);
+      refetch();
+    } catch (error) {
+      console.error('Error deleting records:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete selected records. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Fetch raw data with React Query
   const { data: rawData, isLoading, error, refetch } = useQuery({
