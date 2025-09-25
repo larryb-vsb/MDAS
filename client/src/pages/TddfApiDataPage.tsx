@@ -46,12 +46,12 @@ function TimingDisplay({ uploadId }: { uploadId: string }) {
     );
   }
 
-  if (!timing?.success || !timing?.hasTiming) {
+  if (!timing || !(timing as any)?.success || !(timing as any)?.hasTiming) {
     return <span className="text-gray-500">no timing data</span>; // Show when no timing data
   }
 
   return (
-    <span className="text-blue-600">{timing.duration}</span>
+    <span className="text-blue-600">{(timing as any).duration}</span>
   );
 }
 
@@ -231,6 +231,7 @@ export default function TddfApiDataPage() {
   const [itemsPerPage, setItemsPerPage] = useState(100);
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
+
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1689,7 +1690,9 @@ export default function TddfApiDataPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setUploaderFileForView(upload)}
+                          onClick={() => {
+                            setUploaderFileForView(upload);
+                          }}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -3649,128 +3652,21 @@ function RawDataTab() {
         </Card>
       )}
 
-      {/* File Metadata Modal */}
+      {/* Simple Test Modal */}
       {uploaderFileForView && (
-        <Dialog open={!!uploaderFileForView} onOpenChange={() => setUploaderFileForView(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                File Information
-              </DialogTitle>
-              <DialogDescription>
-                Comprehensive metadata and processing details for {uploaderFileForView.filename}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-6">
-              {/* File Information Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    File Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Filename</Label>
-                      <div className="text-sm font-mono mt-1">{uploaderFileForView.filename}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Upload ID</Label>
-                      <div className="text-sm font-mono mt-1">{uploaderFileForView.id}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">File Size</Label>
-                      <div className="text-sm mt-1">{formatFileSize(uploaderFileForView.fileSize || 0)}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Total Lines</Label>
-                      <div className="text-sm mt-1">{uploaderFileForView.lineCount?.toLocaleString() || 'N/A'}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Database Table</Label>
-                      <div className="text-sm font-mono mt-1">dev_uploader_tddf_jsonb_records</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Upload Date</Label>
-                      <div className="text-sm mt-1">
-                        {new Date(uploaderFileForView.uploadedAt || uploaderFileForView.startTime || '').toLocaleString('en-US', {
-                          month: 'numeric',
-                          day: 'numeric', 
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                          timeZone: 'America/Chicago'
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                      <div className="mt-1">
-                        <Badge 
-                          variant={uploaderFileForView.currentPhase === 'completed' || uploaderFileForView.currentPhase === 'encoded' ? 'default' : 'secondary'}
-                          className={uploaderFileForView.currentPhase === 'completed' ? 'bg-green-800 text-white hover:bg-green-900' : uploaderFileForView.currentPhase === 'encoded' ? 'bg-green-600 text-white' : ''}
-                        >
-                          {uploaderFileForView.currentPhase || 'unknown'}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Total Records</Label>
-                      <div className="text-sm mt-1">{uploaderFileForView.lineCount ? (uploaderFileForView.lineCount - 1).toLocaleString() : 'N/A'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Processing Information Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Processing Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Last JSONB Encoded</Label>
-                      <div className="text-sm mt-1">
-                        <TimingDisplay uploadId={uploaderFileForView.id} />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Processing Notes</Label>
-                      <div className="text-sm mt-1">{uploaderFileForView.processingNotes || 'No processing notes available'}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Final File Type</Label>
-                      <div className="text-sm mt-1">{uploaderFileForView.finalFileType || 'tddf'}</div>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Storage Key</Label>
-                      <div className="text-sm font-mono mt-1">{uploaderFileForView.s3_key || 'N/A'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <h2 className="text-lg font-bold mb-4">File Details</h2>
+            <p>Filename: {uploaderFileForView.filename}</p>
+            <p>ID: {uploaderFileForView.id}</p>
+            <button 
+              onClick={() => setUploaderFileForView(null)}
+              className="mt-4 px-4 py-2 bg-gray-500 text-white rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
