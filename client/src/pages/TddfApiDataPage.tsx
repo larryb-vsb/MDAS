@@ -2689,6 +2689,197 @@ export default function TddfApiDataPage() {
 }
 
 // Raw Data Tab Component
+// Tree View Display Component
+interface TreeViewDisplayProps {
+  records: any[];
+  expandedBatches: Set<string>;
+  expandedTransactions: Set<string>;
+  onToggleBatch: (index: number) => void;
+  onToggleTransaction: (batchIndex: number, transactionIndex: number) => void;
+  getRecordTypeBadgeColor: (type: string) => string;
+  getRecordTypeName: (type: string) => string;
+  formatFieldValue: (key: string, value: any) => string;
+  groupRecordsHierarchically: (records: any[]) => any[];
+}
+
+function TreeViewDisplay({ 
+  records, 
+  expandedBatches, 
+  expandedTransactions, 
+  onToggleBatch, 
+  onToggleTransaction, 
+  getRecordTypeBadgeColor, 
+  getRecordTypeName, 
+  formatFieldValue, 
+  groupRecordsHierarchically 
+}: TreeViewDisplayProps) {
+  const hierarchicalData = groupRecordsHierarchically(records);
+
+  return (
+    <div className="space-y-3">
+      {hierarchicalData.map((batch, batchIndex) => {
+        const batchKey = `batch-${batchIndex}`;
+        const isExpanded = expandedBatches.has(batchKey);
+        
+        return (
+          <Card key={batchIndex} className="border-l-4 border-l-green-500">
+            {/* Batch Header */}
+            <CardHeader className="pb-2">
+              <div 
+                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
+                onClick={() => onToggleBatch(batchIndex)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-600" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                )}
+                
+                {batch.batchHeader ? (
+                  <>
+                    <Badge className={`text-white ${getRecordTypeBadgeColor(batch.batchHeader.record_type)}`}>
+                      {batch.batchHeader.record_type}
+                    </Badge>
+                    <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
+                    <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
+                  </>
+                ) : (
+                  <>
+                    <Badge className="bg-gray-500 text-white">Batch</Badge>
+                    <span className="font-medium">Implicit Batch {batchIndex + 1}</span>
+                  </>
+                )}
+                
+                <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                  <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
+                  {batch.trailer && <span>• Has Trailer</span>}
+                </div>
+              </div>
+            </CardHeader>
+
+            {/* Expanded Batch Content */}
+            {isExpanded && (
+              <CardContent className="pt-0">
+                {/* Batch Header Details */}
+                {batch.batchHeader && (
+                  <div className="mb-4 ml-6">
+                    <RecordDetailView record={batch.batchHeader} />
+                  </div>
+                )}
+
+                {/* Transactions */}
+                <div className="space-y-2 ml-6">
+                  {batch.transactions.map((transaction: any, transactionIndex: number) => {
+                    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
+                    const isTransactionExpanded = expandedTransactions.has(transactionKey);
+                    
+                    return (
+                      <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
+                        <CardHeader className="pb-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
+                            onClick={() => onToggleTransaction(batchIndex, transactionIndex)}
+                          >
+                            {isTransactionExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-600" />
+                            )}
+                            
+                            <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
+                              {transaction.dtRecord.record_type}
+                            </Badge>
+                            
+                            {/* Card Type Badge for DT records in tree view header */}
+                            {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
+                              const cardType = extractCardType(transaction.dtRecord);
+                              
+                              return cardType ? (
+                                <span 
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                >
+                                  <CreditCard className="h-3 w-3" />
+                                  {getCardTypeBadges(cardType).label}
+                                </span>
+                              ) : null;
+                            })()}
+                            
+                            <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
+                            <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
+                            
+                            {transaction.extensions.length > 0 && (
+                              <div className="ml-auto flex items-center gap-1">
+                                <span className="text-xs text-gray-600">{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
+                                <div className="flex gap-1">
+                                  {transaction.extensions.slice(0, 3).map((ext: any, i: number) => (
+                                    <Badge key={i} variant="outline" className={`text-xs ${getRecordTypeBadgeColor(ext.record_type)} text-white`}>
+                                      {ext.record_type}
+                                    </Badge>
+                                  ))}
+                                  {transaction.extensions.length > 3 && (
+                                    <Badge variant="outline" className="text-xs">+{transaction.extensions.length - 3}</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardHeader>
+
+                        {/* Expanded Transaction Content */}
+                        {isTransactionExpanded && (
+                          <CardContent className="pt-0">
+                            {/* DT Record Details */}
+                            <div className="mb-3">
+                              <RecordDetailView record={transaction.dtRecord} />
+                            </div>
+
+                            {/* Extension Records */}
+                            {transaction.extensions.length > 0 && (
+                              <div className="ml-4 space-y-2">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">Extensions:</h4>
+                                {transaction.extensions.map((extension: any, extIndex: number) => (
+                                  <div key={extIndex} className="ml-2">
+                                    <RecordDetailView record={extension} />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Trailer */}
+                {batch.trailer && (
+                  <div className="mt-4 ml-6">
+                    <Card className="border-l-4 border-l-red-500 bg-red-50/30">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
+                            {batch.trailer.record_type}
+                          </Badge>
+                          <span className="font-medium">{getRecordTypeName(batch.trailer.record_type)}</span>
+                          <span className="text-sm text-gray-600">Line {batch.trailer.line_number}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <RecordDetailView record={batch.trailer} />
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 // Record Detail View Component
 function RecordDetailView({ record }: { record: any }) {
   const [activeTab, setActiveTab] = useState<'fields' | 'raw'>('fields');
@@ -2790,6 +2981,165 @@ function RawDataTab() {
     { value: 3000, label: '3K' },
     { value: 5000, label: '5K' }
   ];
+
+  // Tree view supporting functions
+  const getRecordTypeBadgeColor = (recordType: string) => {
+    switch (recordType) {
+      case '01': case 'BH': return 'bg-green-500 hover:bg-green-600';
+      case '47': case 'DT': return 'bg-blue-500 hover:bg-blue-600';
+      case '98': case 'TR': return 'bg-red-500 hover:bg-red-600';
+      case 'P1': return 'bg-purple-500 hover:bg-purple-600';
+      case 'P2': return 'bg-purple-600 hover:bg-purple-700';
+      case 'G2': return 'bg-indigo-500 hover:bg-indigo-600';
+      case 'A1': return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'E1': return 'bg-pink-500 hover:bg-pink-600';
+      case 'LG': return 'bg-teal-500 hover:bg-teal-600';
+      case '10': return 'bg-green-600 hover:bg-green-700';
+      default: return 'bg-gray-500 hover:bg-gray-600';
+    }
+  };
+
+  const getRecordTypeName = (recordType: string) => {
+    switch (recordType) {
+      case '01': case 'BH': return 'Batch Header';
+      case '10': return 'File Header';
+      case '47': case 'DT': return 'Detail Transaction';
+      case '98': case 'TR': return 'Trailer';
+      case 'G2': return 'Geographic Extension';
+      case 'A1': return 'Airline Extension';
+      case 'E1': return 'E-Commerce Extension';
+      case 'P1': return 'Purchasing Card';
+      case 'P2': return 'Purchasing Card Ext';
+      case 'LG': return 'Lodge/Hotel';
+      default: return `Record ${recordType}`;
+    }
+  };
+
+  const formatFieldValue = (key: string, value: any) => {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'string' && value.trim() === '') return '-';
+    
+    if (key === 'merchantAccountNumber' && value) {
+      return value.toString().trim();
+    }
+    
+    if (typeof value === 'number') {
+      if (key.toLowerCase().includes('amount') || key.toLowerCase().includes('fee')) {
+        return (value / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      }
+      return value.toLocaleString();
+    }
+    
+    if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleString();
+        }
+      } catch (e) {
+        // Not a valid date, return as string
+      }
+    }
+    
+    return value.toString();
+  };
+
+  // Group records into hierarchical structure
+  const groupRecordsHierarchically = (records: any[]) => {
+    console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
+    
+    const recordTypes = [...new Set(records.map(r => r.record_type))];
+    console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
+    
+    const batches: Array<{
+      batchHeader: any | null;
+      transactions: Array<{
+        dtRecord: any;
+        extensions: any[];
+      }>;
+      trailer: any | null;
+    }> = [];
+
+    let currentBatch: any = null;
+    let currentTransaction: any = null;
+
+    for (const record of records) {
+      const recordType = record.record_type;
+
+      if (['01', 'BH', '10', '02'].includes(recordType)) {
+        if (currentBatch) {
+          batches.push(currentBatch);
+        }
+        currentBatch = {
+          batchHeader: record,
+          transactions: [],
+          trailer: null
+        };
+        currentTransaction = null;
+        console.log(`[TREE-VIEW] Started new batch with header record type ${recordType}`);
+      }
+      else if (['47', 'DT'].includes(recordType)) {
+        if (!currentBatch) {
+          currentBatch = {
+            batchHeader: null,
+            transactions: [],
+            trailer: null
+          };
+        }
+        currentTransaction = {
+          dtRecord: record,
+          extensions: []
+        };
+        currentBatch.transactions.push(currentTransaction);
+        console.log(`[TREE-VIEW] Added transaction record type ${recordType} to batch`);
+      }
+      else if (['98', 'TR', '99'].includes(recordType)) {
+        if (currentBatch) {
+          currentBatch.trailer = record;
+        }
+      }
+      else {
+        if (currentTransaction) {
+          currentTransaction.extensions.push(record);
+          console.log(`[TREE-VIEW] Added extension record type ${recordType} to current transaction`);
+        }
+      }
+    }
+
+    if (currentBatch) {
+      batches.push(currentBatch);
+    }
+
+    console.log(`[TREE-VIEW] Created ${batches.length} batches`);
+    return batches;
+  };
+
+  // Toggle handlers
+  const toggleBatchExpansion = (batchIndex: number) => {
+    const batchKey = `batch-${batchIndex}`;
+    setExpandedBatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(batchKey)) {
+        newSet.delete(batchKey);
+      } else {
+        newSet.add(batchKey);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleTransactionExpansion = (batchIndex: number, transactionIndex: number) => {
+    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
+    setExpandedTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionKey)) {
+        newSet.delete(transactionKey);
+      } else {
+        newSet.add(transactionKey);
+      }
+      return newSet;
+    });
+  };
 
   // Selection handlers for bulk operations
   const handleSelectRecord = (recordId: number) => {
@@ -2987,7 +3337,7 @@ function RawDataTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Pagination Size */}
             <div>
               <Label>Records per page</Label>
@@ -3027,6 +3377,23 @@ function RawDataTab() {
                   <SelectItem value="E1">E1 - Enhanced Data</SelectItem>
                   <SelectItem value="DR">DR - Detail Record</SelectItem>
                   <SelectItem value="TR">TR - Trailer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* View Mode */}
+            <div>
+              <Label>View Mode</Label>
+              <Select 
+                value={viewMode} 
+                onValueChange={(value: 'tree' | 'flat') => setViewMode(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="flat">Flat View</SelectItem>
+                  <SelectItem value="tree">Tree View</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -3159,7 +3526,7 @@ function RawDataTab() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {records.map((record: any) => [
+                    {viewMode === 'flat' && records.map((record: any) => [
                       <TableRow key={record.id}>
                         <TableCell>
                           <Checkbox
@@ -3237,6 +3604,21 @@ function RawDataTab() {
                     ]).flat().filter(Boolean)}
                   </TableBody>
                 </Table>
+
+                {/* Tree View Display */}
+                {viewMode === 'tree' && (
+                  <TreeViewDisplay 
+                    records={records}
+                    expandedBatches={expandedBatches}
+                    expandedTransactions={expandedTransactions}
+                    onToggleBatch={toggleBatchExpansion}
+                    onToggleTransaction={toggleTransactionExpansion}
+                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
+                    getRecordTypeName={getRecordTypeName}
+                    formatFieldValue={formatFieldValue}
+                    groupRecordsHierarchically={groupRecordsHierarchically}
+                  />
+                )}
               </div>
             )}
           </CardContent>
