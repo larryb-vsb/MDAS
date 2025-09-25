@@ -1625,8 +1625,8 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
   if (records.length === 0) return;
   
   const values = records.map((_, index) => {
-    const offset = index * 7;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+    const offset = index * 8;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, encode(digest($${offset + 5}, 'sha256'), 'hex'))`;
   }).join(', ');
   
   const params = records.flatMap(record => {
@@ -1644,7 +1644,7 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
   await batchPool.query(`
     INSERT INTO ${tableName} (
       upload_id, record_type, record_data, line_number, raw_line,
-      record_identifier, created_at
+      record_identifier, created_at, raw_line_hash
     ) VALUES ${values}
   `, params);
 }
