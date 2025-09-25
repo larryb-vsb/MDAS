@@ -92,6 +92,26 @@ function extractCardType(record: any): string | null {
   return cardType ? cardType.toUpperCase().trim() : null;
 }
 
+// Helper function to extract merchant account number from record
+function extractMerchantAccountNumber(record: any): string | null {
+  // Try various sources for merchantAccountNumber
+  let merchantAccountNumber = record.parsed_data?.merchantAccountNumber || 
+                              record.record_data?.merchantAccountNumber ||
+                              record.parsed_data?.merchant_account_number ||
+                              record.record_data?.merchant_account_number;
+  
+  // For BH records, also try specific BH field names
+  if (!merchantAccountNumber && (record.record_type === 'BH' || record.record_type === '10')) {
+    merchantAccountNumber = record.parsed_data?.acquirerBin || 
+                           record.record_data?.acquirerBin ||
+                           record.parsed_data?.acquirer_bin ||
+                           record.record_data?.acquirer_bin;
+  }
+  
+  // Return trimmed string or null
+  return merchantAccountNumber ? merchantAccountNumber.toString().trim() : null;
+}
+
 // Helper functions and interfaces now imported from shared library
 
 // Daily View Interfaces for TDDF API Data
@@ -2775,6 +2795,19 @@ function TreeViewDisplay({
                     </Badge>
                     <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
                     <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
+                    
+                    {/* Merchant Account Number for BH records in blue bold text */}
+                    {(() => {
+                      const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
+                      return merchantAccountNumber ? (
+                        <span 
+                          className="text-sm font-bold text-blue-600"
+                          data-testid="bh-merchant-account-number"
+                        >
+                          • {merchantAccountNumber}
+                        </span>
+                      ) : null;
+                    })()}
                   </>
                 ) : (
                   <>
@@ -2840,6 +2873,19 @@ function TreeViewDisplay({
                             
                             <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
                             <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
+                            
+                            {/* Merchant Account Number for DT records in blue bold text */}
+                            {(() => {
+                              const merchantAccountNumber = extractMerchantAccountNumber(transaction.dtRecord);
+                              return merchantAccountNumber ? (
+                                <span 
+                                  className="text-sm font-bold text-blue-600"
+                                  data-testid="dt-merchant-account-number"
+                                >
+                                  • {merchantAccountNumber}
+                                </span>
+                              ) : null;
+                            })()}
                             
                             {transaction.extensions.length > 0 && (
                               <div className="ml-auto flex items-center gap-1">
