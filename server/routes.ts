@@ -9378,12 +9378,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             SET 
               current_phase = $1,
               processing_errors = NULL,
-              last_updated = NOW(),
-              updated_by = $2
-            WHERE id = $3
+              last_updated = NOW()
+            WHERE id = $2
           `;
           
-          await pool.query(updateQuery, [targetPhase, username, file.id]);
+          await pool.query(updateQuery, [targetPhase, file.id]);
           
           resetResults.push({
             id: file.id,
@@ -14375,8 +14374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Upload not found" });
       }
 
-      // Only allow content viewing for uploaded files and beyond
-      if (!['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+      // Only allow content viewing for uploaded files and beyond, including error files for debugging
+      if (!['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed', 'error'].includes(upload.currentPhase || '')) {
         return res.status(400).json({ error: "File content not available at this stage" });
       }
 
