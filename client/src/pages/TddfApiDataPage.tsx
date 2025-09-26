@@ -249,6 +249,10 @@ export default function TddfApiDataPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(100);
+  
+  // Separate pagination state for uploaded files section
+  const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
+  const [uploadsItemsPerPage, setUploadsItemsPerPage] = useState(5);
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
 
@@ -273,12 +277,13 @@ export default function TddfApiDataPage() {
     }
   });
 
-  // Fetch modern uploader files (Step 6 processing data) with precache
-  const { data: files = [], isLoading: filesLoading } = useQuery<any[]>({
-    queryKey: ["/api/uploader", dateFilters],
+  // Fetch modern uploader files (Step 6 processing data) with server-side pagination
+  const { data: uploaderResponse = {}, isLoading: filesLoading } = useQuery<any>({
+    queryKey: ["/api/uploader", dateFilters, uploadsItemsPerPage, uploadsCurrentPage],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.append('limit', '1000'); // Get more files for overview
+      params.append('limit', uploadsItemsPerPage.toString());
+      params.append('offset', (uploadsCurrentPage * uploadsItemsPerPage).toString());
       if (dateFilters.status && dateFilters.status !== 'all') {
         params.append('phase', dateFilters.status); // Map status to phase
       }
@@ -289,11 +294,15 @@ export default function TddfApiDataPage() {
       });
       if (!response.ok) throw new Error('Failed to fetch uploader files');
       const data = await response.json();
-      // Return uploads array from the response structure
-      return data.uploads || [];
+      // Return the full response including total count
+      return data;
     },
     refetchInterval: 5000 // Slightly slower since we're using cache
   });
+
+  // Extract files and total count from response
+  const files = uploaderResponse.uploads || [];
+  const totalUploads = uploaderResponse.total || uploaderResponse.uploads?.length || 0;
 
   // Fetch API keys
   const { data: apiKeys = [], isLoading: keysLoading } = useQuery<TddfApiKey[]>({
@@ -381,7 +390,7 @@ export default function TddfApiDataPage() {
   const archivedFiles = archiveData?.files || [];
 
   // Fetch uploader files
-  const { data: uploaderResponse, isLoading: uploadsLoading } = useQuery({
+  const { data: uploadsResponse, isLoading: uploadsLoading } = useQuery({
     queryKey: ["/api/uploader", { 
       status: statusFilter, 
       fileType: fileTypeFilter, 
@@ -408,8 +417,8 @@ export default function TddfApiDataPage() {
     refetchInterval: 5000
   });
 
-  const uploads = (uploaderResponse as any)?.uploads || [];
-  const totalCount = (uploaderResponse as any)?.totalCount || 0;
+  const uploads = (uploadsResponse as any)?.uploads || [];
+  const totalCount = (uploadsResponse as any)?.totalCount || 0;
 
   // Sorting function for files table
   const handleSort = (column: string) => {
@@ -1750,7 +1759,7 @@ export default function TddfApiDataPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {uploads.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map((upload: any) => (
+                  {uploads.slice(uploadsCurrentPage * uploadsItemsPerPage, (uploadsCurrentPage + 1) * uploadsItemsPerPage).map((upload: any) => (
                     <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -1806,26 +1815,42 @@ export default function TddfApiDataPage() {
               )}
 
               {/* Pagination */}
-              {uploads.length > itemsPerPage && (
-                <div className="flex items-center justify-between">
+              {uploads.length > 0 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+                    <Select value={uploadsItemsPerPage.toString()} onValueChange={(value) => {
+                      setUploadsItemsPerPage(Number(value));
+                      setUploadsCurrentPage(0);
+                    }}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="text-sm text-muted-foreground">
-                    Showing {currentPage * itemsPerPage + 1} to {Math.min((currentPage + 1) * itemsPerPage, uploads.length)} of {uploads.length} uploads
+                    Showing {uploadsCurrentPage * uploadsItemsPerPage + 1} to {Math.min((uploadsCurrentPage + 1) * uploadsItemsPerPage, totalUploads)} of {totalUploads} uploads
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                      disabled={currentPage === 0}
+                      onClick={() => setUploadsCurrentPage(Math.max(0, uploadsCurrentPage - 1))}
+                      disabled={uploadsCurrentPage === 0}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <span className="text-sm">{currentPage + 1}</span>
+                    <span className="text-sm">{uploadsCurrentPage + 1} of {Math.ceil(totalUploads / uploadsItemsPerPage)}</span>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={(currentPage + 1) * itemsPerPage >= uploads.length}
+                      onClick={() => setUploadsCurrentPage(uploadsCurrentPage + 1)}
+                      disabled={(uploadsCurrentPage + 1) * uploadsItemsPerPage >= totalUploads}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -1840,7 +1865,7 @@ export default function TddfApiDataPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Processed TDDF Files ({files.length})</CardTitle>
+                  <CardTitle>Processed TDDF Files ({totalUploads})</CardTitle>
                   <CardDescription>
                     Files that have completed processing and are available in the daily view
                   </CardDescription>
@@ -2080,7 +2105,13 @@ export default function TddfApiDataPage() {
                           {file.business_day ? format(new Date(file.business_day), "MMM d, yyyy") : (
                             file.file_date ? (
                               <span className="text-muted-foreground">{file.file_date}</span>
-                            ) : "-"
+                            ) : (
+                              file.status === 'started' || file.status === 'uploading' || file.status === 'uploaded' ? (
+                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )
+                            )
                           )}
                         </TableCell>
                         <TableCell>{formatFileSize(file.file_size)}</TableCell>
@@ -2093,7 +2124,13 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.record_count > 0 ? file.record_count.toLocaleString() : "-"}
+                          {file.record_count > 0 ? file.record_count.toLocaleString() : (
+                            file.status === 'started' || file.status === 'uploading' || file.status === 'uploaded' ? (
+                              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )
+                          )}
                         </TableCell>
                         <TableCell>
                           {file.record_count > 0 && (
