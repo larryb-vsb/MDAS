@@ -319,6 +319,9 @@ class FileProcessorService {
     console.log(`[AUTO-STEP6] Starting automated Step 6 processing for ${readyFiles.length} files`);
     
     for (const file of readyFiles) {
+      const startTime = new Date();
+      let timingLogId: number | null = null;
+      
       try {
         console.log(`[AUTO-STEP6] Processing file: ${file.filename} (ID: ${file.id})`);
         
@@ -326,40 +329,104 @@ class FileProcessorService {
         const { processAllRecordsToMasterTable } = await import("../tddf-json-encoder");
         const { ReplitStorageService } = await import("../replit-storage-service");
         
+        // Create timing log entry for tracking
+        try {
+          const timingResult = await db.execute(sql`
+            INSERT INTO ${sql.identifier(getTableName('processing_timing_logs'))} 
+            (upload_id, operation_type, started_at, status, metadata)
+            VALUES (${file.id}, 'auto-step6', ${startTime}, 'in_progress', ${JSON.stringify({ filename: file.filename })})
+            RETURNING id
+          `);
+          timingLogId = timingResult.rows[0]?.id as number;
+          console.log(`[AUTO-STEP6-TIMING] Created timing log ${timingLogId} for upload ${file.id}`);
+        } catch (timingError: any) {
+          console.warn(`[AUTO-STEP6-TIMING] Could not create timing log: ${timingError.message}`);
+        }
+        
         // Get the file content from Replit storage
         const fileContent = await ReplitStorageService.getFileContent(file.storagePath);
         if (!fileContent) {
           throw new Error(`Failed to load file content from ${file.storagePath}`);
         }
         
-        // Update to processing phase
+        // Update to processing phase with encoding start time
         await db.execute(sql`
           UPDATE ${sql.identifier(getTableName('uploader_uploads'))}
-          SET current_phase = 'processing', processing_at = NOW()
+          SET current_phase = 'processing', 
+              processing_at = NOW(),
+              encoding_at = ${startTime}
           WHERE id = ${file.id}
         `);
         
         // Process the file - this calls the existing Step 6 processing logic
         const step6Result = await processAllRecordsToMasterTable(fileContent, file);
         
-        // Update to completed phase after successful processing
+        // Calculate encoding time
+        const endTime = new Date();
+        const encodingTimeMs = endTime.getTime() - startTime.getTime();
+        const recordsCreated = step6Result?.totalRecords || 0;
+        
+        // Update to completed phase with full timing data
         await db.execute(sql`
           UPDATE ${sql.identifier(getTableName('uploader_uploads'))}
-          SET current_phase = 'completed', completed_at = NOW()
+          SET current_phase = 'completed', 
+              completed_at = NOW(),
+              encoding_complete = ${endTime},
+              encoding_time_ms = ${encodingTimeMs},
+              json_records_created = ${recordsCreated}
           WHERE id = ${file.id}
         `);
         
-        console.log(`[AUTO-STEP6] ✅ Successfully completed Step 6 for ${file.filename}: ${step6Result?.totalRecords || 0} records processed`);
+        // Update timing log to completed
+        if (timingLogId) {
+          try {
+            await db.execute(sql`
+              UPDATE ${sql.identifier(getTableName('processing_timing_logs'))}
+              SET completed_at = ${endTime},
+                  status = 'completed',
+                  records_processed = ${recordsCreated},
+                  processing_time_ms = ${encodingTimeMs}
+              WHERE id = ${timingLogId}
+            `);
+          } catch (timingError: any) {
+            console.warn(`[AUTO-STEP6-TIMING] Could not update timing log ${timingLogId}: ${timingError.message}`);
+          }
+        }
+        
+        console.log(`[AUTO-STEP6] ✅ Successfully completed Step 6 for ${file.filename}: ${recordsCreated} records processed in ${encodingTimeMs}ms`);
         
       } catch (error) {
         console.error(`[AUTO-STEP6] ❌ Failed to process ${file.filename}:`, error);
         
-        // Mark file as failed
+        // Calculate failure time
+        const failureTime = new Date();
+        const failureTimeMs = failureTime.getTime() - startTime.getTime();
+        
+        // Mark file as failed with timing data
         await db.execute(sql`
           UPDATE ${sql.identifier(getTableName('uploader_uploads'))}
-          SET current_phase = 'error', processing_errors = ${error instanceof Error ? error.message : 'Auto Step 6 processing failed'}
+          SET current_phase = 'error', 
+              processing_errors = ${error instanceof Error ? error.message : 'Auto Step 6 processing failed'},
+              encoding_complete = ${failureTime},
+              encoding_time_ms = ${failureTimeMs}
           WHERE id = ${file.id}
         `);
+        
+        // Update timing log to failed
+        if (timingLogId) {
+          try {
+            await db.execute(sql`
+              UPDATE ${sql.identifier(getTableName('processing_timing_logs'))}
+              SET completed_at = ${failureTime},
+                  status = 'failed',
+                  processing_time_ms = ${failureTimeMs},
+                  error_message = ${error instanceof Error ? error.message : 'Auto Step 6 processing failed'}
+              WHERE id = ${timingLogId}
+            `);
+          } catch (timingError: any) {
+            console.warn(`[AUTO-STEP6-TIMING] Could not update failed timing log ${timingLogId}: ${timingError.message}`);
+          }
+        }
       }
     }
     
