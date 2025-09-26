@@ -256,6 +256,10 @@ export default function TddfApiDataPage() {
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
 
+  // Separate pagination state for processed files section (Section 2)
+  const [processedFilesCurrentPage, setProcessedFilesCurrentPage] = useState(0);
+  const [processedFilesItemsPerPage, setProcessedFilesItemsPerPage] = useState(10);
+
   // Global filename filtering state for cross-tab functionality
   const [globalFilenameFilter, setGlobalFilenameFilter] = useState<string>('');
   
@@ -300,9 +304,40 @@ export default function TddfApiDataPage() {
     refetchInterval: 5000 // Slightly slower since we're using cache
   });
 
-  // Extract files and total count from response
-  const files = uploaderResponse.uploads || [];
+  // Extract uploaded files and total count from response (for Section 1)
+  const uploadedFiles = uploaderResponse.uploads || [];
   const totalUploads = uploaderResponse.total || uploaderResponse.uploads?.length || 0;
+
+  // Fetch processed files separately for Section 2 with independent pagination
+  const { data: processedResponse = {}, isLoading: processedFilesLoading } = useQuery<any>({
+    queryKey: ["/api/uploader", "processed", processedFilesItemsPerPage, processedFilesCurrentPage, dateFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('limit', processedFilesItemsPerPage.toString());
+      params.append('offset', (processedFilesCurrentPage * processedFilesItemsPerPage).toString());
+      // Only get files that have completed processing (have business_day or record_count)
+      params.append('status', 'completed');
+      if (dateFilters.status && dateFilters.status !== 'all') {
+        params.append('phase', dateFilters.status);
+      }
+      
+      const queryString = params.toString();
+      const response = await fetch(`/api/uploader${queryString ? '?' + queryString : ''}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch processed files');
+      const data = await response.json();
+      return data;
+    },
+    refetchInterval: 5000
+  });
+
+  // Extract processed files and total count from response (for Section 2)
+  const processedFiles = processedResponse.uploads || [];
+  const totalProcessedFiles = processedResponse.total || processedResponse.uploads?.length || 0;
+
+  // Keep backward compatibility - files variable points to processed files for existing table
+  const files = processedFiles;
 
   // Fetch API keys
   const { data: apiKeys = [], isLoading: keysLoading } = useQuery<TddfApiKey[]>({
@@ -1759,7 +1794,7 @@ export default function TddfApiDataPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {uploads.slice(uploadsCurrentPage * uploadsItemsPerPage, (uploadsCurrentPage + 1) * uploadsItemsPerPage).map((upload: any) => (
+                  {uploadedFiles.slice(uploadsCurrentPage * uploadsItemsPerPage, (uploadsCurrentPage + 1) * uploadsItemsPerPage).map((upload: any) => (
                     <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -1865,7 +1900,7 @@ export default function TddfApiDataPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Processed TDDF Files ({totalUploads})</CardTitle>
+                  <CardTitle>Processed TDDF Files ({totalProcessedFiles})</CardTitle>
                   <CardDescription>
                     Files that have completed processing and are available in the daily view
                   </CardDescription>
@@ -2217,6 +2252,54 @@ export default function TddfApiDataPage() {
                   )}
                 </TableBody>
               </Table>
+              
+              {/* Pagination Controls for Processed Files */}
+              {totalProcessedFiles > 0 && (
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+                    <Select 
+                      value={processedFilesItemsPerPage.toString()} 
+                      onValueChange={(value) => {
+                        setProcessedFilesItemsPerPage(Number(value));
+                        setProcessedFilesCurrentPage(0); // Reset to first page when changing page size
+                      }}
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Showing {processedFilesCurrentPage * processedFilesItemsPerPage + 1} to {Math.min((processedFilesCurrentPage + 1) * processedFilesItemsPerPage, totalProcessedFiles)} of {totalProcessedFiles} processed files
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setProcessedFilesCurrentPage(Math.max(0, processedFilesCurrentPage - 1))}
+                      disabled={processedFilesCurrentPage === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm">{processedFilesCurrentPage + 1} of {Math.ceil(totalProcessedFiles / processedFilesItemsPerPage)}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setProcessedFilesCurrentPage(processedFilesCurrentPage + 1)}
+                      disabled={(processedFilesCurrentPage + 1) * processedFilesItemsPerPage >= totalProcessedFiles}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
