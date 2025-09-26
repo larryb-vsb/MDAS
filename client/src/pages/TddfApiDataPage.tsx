@@ -397,6 +397,21 @@ interface TddfApiKey {
   expiresAt?: string;
 }
 
+// API Response Interfaces
+interface AutoStep6Setting {
+  autoStep6Enabled: boolean;
+}
+
+interface AutoStep6SettingResponse {
+  message: string;
+  autoStep6Enabled: boolean;
+}
+
+interface WarningResetResponse {
+  resetCount: number;
+  message: string;
+}
+
 export default function TddfApiDataPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
@@ -465,7 +480,7 @@ export default function TddfApiDataPage() {
   const [autoStep6Enabled, setAutoStep6Enabled] = useState<boolean>(false);
 
   // Load Auto Step 6 setting on mount
-  const { data: autoStep6Setting } = useQuery({
+  const { data: autoStep6Setting } = useQuery<AutoStep6Setting>({
     queryKey: ['/api/uploader/auto-step6-setting'],
     enabled: true
   });
@@ -478,16 +493,16 @@ export default function TddfApiDataPage() {
   }, [autoStep6Setting]);
 
   // Mutation to save Auto Step 6 setting
-  const saveAutoStep6Setting = useMutation({
+  const saveAutoStep6Setting = useMutation<AutoStep6SettingResponse, Error, boolean>({
     mutationFn: async (enabled: boolean) => {
       const data = await apiRequest('/api/uploader/auto-step6-setting', {
         method: 'POST',
         body: JSON.stringify({ enabled }),
         headers: { 'Content-Type': 'application/json' }
-      });
+      }) as AutoStep6SettingResponse;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: AutoStep6SettingResponse) => {
       toast({
         title: data.message,
         description: `Auto Step 6 processing is now ${data.autoStep6Enabled ? 'enabled' : 'disabled'}`,
@@ -918,15 +933,15 @@ export default function TddfApiDataPage() {
   });
 
   // Reset errors mutation for bulk error recovery
-  const resetErrorsMutation = useMutation({
+  const resetErrorsMutation = useMutation<WarningResetResponse, Error, string[]>({
     mutationFn: async (fileIds: string[]) => {
       const response = await apiRequest('/api/uploader/reset-errors', {
         method: 'POST',
         body: { fileIds }
-      });
+      }) as WarningResetResponse;
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: WarningResetResponse) => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       setSelectedUploads([]);
       toast({ 
