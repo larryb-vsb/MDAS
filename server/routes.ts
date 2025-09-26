@@ -24527,35 +24527,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API monitoring and request logs
+  // Enhanced API monitoring and request logs with processing metrics
   app.get('/api/tddf-api/monitoring', isAuthenticated, async (req, res) => {
     try {
       const { timeRange = '24h' } = req.query;
       
       let timeFilter = '';
+      let truncUnit = 'hour';  // Valid DATE_TRUNC units: 'hour', 'day'
       const params = [];
       
       if (timeRange === '24h') {
         timeFilter = "WHERE requested_at >= NOW() - INTERVAL '24 hours'";
+        truncUnit = 'hour';
       } else if (timeRange === '7d') {
         timeFilter = "WHERE requested_at >= NOW() - INTERVAL '7 days'";
+        truncUnit = 'hour';  // Use hour for 7d as well, but limit results
+      } else if (timeRange === '30d') {
+        timeFilter = "WHERE requested_at >= NOW() - INTERVAL '30 days'";
+        truncUnit = 'day';
       }
       
+      // Basic API request stats
       const stats = await pool.query(`
         SELECT 
           COUNT(*) as total_requests,
           AVG(response_time) as avg_response_time,
           COUNT(CASE WHEN response_status >= 400 THEN 1 END) as error_count,
-          COUNT(DISTINCT api_key_id) as unique_api_keys
+          COUNT(DISTINCT api_key_id) as unique_api_keys,
+          MAX(requested_at) as last_request,
+          MIN(requested_at) as first_request
         FROM ${getTableName('tddf_api_request_logs')}
         ${timeFilter}
       `);
       
+      // Queue status
+      const queueStatus = await pool.query(`
+        SELECT 
+          COUNT(*) as total_queued,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_files,
+          COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing_files,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_files,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_files,
+          AVG(priority) as avg_priority
+        FROM ${getTableName('tddf_api_queue')}
+      `);
+      
+      // Processing metrics
+      const processingStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_files,
+          SUM(file_size) as total_bytes_processed,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_files,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_files,
+          AVG(CASE WHEN status = 'completed' THEN EXTRACT(EPOCH FROM (processing_completed - processing_started)) END) as avg_processing_time
+        FROM ${getTableName('tddf_api_files')}
+        WHERE uploaded_at >= NOW() - INTERVAL '${timeRange === '24h' ? '24 hours' : timeRange === '7d' ? '7 days' : '30 days'}'
+      `);
+      
+      // Top endpoints
       const topEndpoints = await pool.query(`
         SELECT 
           endpoint,
           COUNT(*) as request_count,
-          AVG(response_time) as avg_response_time
+          AVG(response_time) as avg_response_time,
+          COUNT(CASE WHEN response_status >= 400 THEN 1 END) as error_count,
+          MAX(requested_at) as last_request
         FROM ${getTableName('tddf_api_request_logs')}
         ${timeFilter}
         GROUP BY endpoint
@@ -24563,12 +24599,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 10
       `);
       
+      // Time-based trends
+      const trends = await pool.query(`
+        SELECT 
+          DATE_TRUNC('${truncUnit}', requested_at) as time_bucket,
+          COUNT(*) as request_count,
+          AVG(response_time) as avg_response_time,
+          COUNT(CASE WHEN response_status >= 400 THEN 1 END) as error_count,
+          COUNT(DISTINCT api_key_id) as unique_keys
+        FROM ${getTableName('tddf_api_request_logs')}
+        ${timeFilter}
+        GROUP BY DATE_TRUNC('${truncUnit}', requested_at)
+        ORDER BY time_bucket DESC
+        LIMIT 48
+      `);
+      
+      // API Key activity
+      const apiKeyStats = await pool.query(`
+        SELECT 
+          ak.key_name,
+          COUNT(rl.*) as request_count,
+          AVG(rl.response_time) as avg_response_time,
+          MAX(rl.requested_at) as last_used,
+          COUNT(CASE WHEN rl.response_status >= 400 THEN 1 END) as error_count
+        FROM ${getTableName('tddf_api_keys')} ak
+        LEFT JOIN ${getTableName('tddf_api_request_logs')} rl ON ak.id = rl.api_key_id
+        ${timeFilter.replace('WHERE', 'AND')}
+        WHERE ak.is_active = true
+        GROUP BY ak.id, ak.key_name
+        ORDER BY request_count DESC
+        LIMIT 5
+      `);
+      
       res.json({
-        stats: stats.rows[0],
-        topEndpoints: topEndpoints.rows
+        stats: {
+          ...stats.rows[0],
+          success_rate: stats.rows[0].total_requests > 0 ? 
+            ((stats.rows[0].total_requests - stats.rows[0].error_count) / stats.rows[0].total_requests * 100).toFixed(1) : '100'
+        },
+        queue: queueStatus.rows[0],
+        processing: {
+          ...processingStats.rows[0],
+          success_rate: processingStats.rows[0].total_files > 0 ?
+            (processingStats.rows[0].completed_files / processingStats.rows[0].total_files * 100).toFixed(1) : '0'
+        },
+        trends: trends.rows.reverse(), // Show chronological order
+        topEndpoints: topEndpoints.rows,
+        apiKeyActivity: apiKeyStats.rows,
+        metadata: {
+          timeRange,
+          interval: truncUnit,
+          generatedAt: new Date().toISOString()
+        }
       });
     } catch (error) {
-      console.error('Error fetching API monitoring data:', error);
+      console.error('Error fetching enhanced API monitoring data:', error);
       res.status(500).json({ error: 'Failed to fetch monitoring data' });
     }
   });

@@ -88,8 +88,53 @@ interface TddfApiMonitoring {
   stats: {
     total_requests: string;
     avg_response_time: string;
+    error_count: string;
+    unique_api_keys: string;
     success_rate: string;
-    error_rate: string;
+    last_request: string;
+    first_request: string;
+  };
+  queue: {
+    total_queued: string;
+    pending_files: string;
+    processing_files: string;
+    completed_files: string;
+    failed_files: string;
+    avg_priority: string;
+  };
+  processing: {
+    total_files: string;
+    total_bytes_processed: string;
+    completed_files: string;
+    failed_files: string;
+    avg_processing_time: string;
+    success_rate: string;
+  };
+  trends: Array<{
+    time_bucket: string;
+    request_count: string;
+    avg_response_time: string;
+    error_count: string;
+    unique_keys: string;
+  }>;
+  topEndpoints: Array<{
+    endpoint: string;
+    request_count: string;
+    avg_response_time: string;
+    error_count: string;
+    last_request: string;
+  }>;
+  apiKeyActivity: Array<{
+    key_name: string;
+    request_count: string;
+    avg_response_time: string;
+    last_used: string;
+    error_count: string;
+  }>;
+  metadata: {
+    timeRange: string;
+    interval: string;
+    generatedAt: string;
   };
 }
 
@@ -754,26 +799,233 @@ export default function ChartsPage() {
 
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">TDDF API Stats</span>
+                    <span className="text-sm font-medium">TDDF API Monitor</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <div className="text-center">
-                      <div className="text-sm font-bold">
+                      <div className="text-sm font-bold text-green-600">
                         {tddfApiMonitoring?.stats?.success_rate || '0'}%
                       </div>
                       <p className="text-xs text-muted-foreground">Success Rate</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-sm font-bold">
+                      <div className="text-sm font-bold text-blue-600">
                         {tddfApiMonitoring?.stats?.total_requests || '0'}
                       </div>
-                      <p className="text-xs text-muted-foreground">Total Requests</p>
+                      <p className="text-xs text-muted-foreground">Requests</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="text-center">
+                      <div className="text-sm font-bold text-purple-600">
+                        {tddfApiMonitoring?.queue?.pending_files || '0'}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Pending</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-bold text-orange-600">
+                        {tddfApiMonitoring?.processing?.success_rate || '0'}%
+                      </div>
+                      <p className="text-xs text-muted-foreground">Process Rate</p>
                     </div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Enhanced TDDF API Monitoring Section */}
+        <div className="grid gap-4 mt-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">TDDF API System Monitoring</h2>
+            <Badge variant="outline">
+              {tddfApiMonitoring?.metadata?.timeRange || '24h'} | Last Updated: {tddfApiMonitoring?.metadata?.generatedAt ? format(new Date(tddfApiMonitoring.metadata.generatedAt), 'HH:mm:ss') : 'Never'}
+            </Badge>
+          </div>
+
+          {/* API Request Metrics */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{tddfApiMonitoring?.stats?.total_requests || '0'}</div>
+                <p className="text-xs text-muted-foreground">
+                  {tddfApiMonitoring?.stats?.unique_api_keys || '0'} active keys
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {tddfApiMonitoring?.stats?.success_rate || '0'}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {tddfApiMonitoring?.stats?.error_count || '0'} errors
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {tddfApiMonitoring?.stats?.avg_response_time ? Math.round(parseFloat(tddfApiMonitoring.stats.avg_response_time)) : 0}ms
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  API latency
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Queue Status</CardTitle>
+                <Upload className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {tddfApiMonitoring?.queue?.pending_files || '0'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {tddfApiMonitoring?.queue?.processing_files || '0'} processing
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Processing Metrics */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">File Processing Stats</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Total Files:</span>
+                    <span className="text-sm font-bold">{tddfApiMonitoring?.processing?.total_files || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Completed:</span>
+                    <span className="text-sm font-bold text-green-600">{tddfApiMonitoring?.processing?.completed_files || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Failed:</span>
+                    <span className="text-sm font-bold text-red-600">{tddfApiMonitoring?.processing?.failed_files || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Success Rate:</span>
+                    <span className="text-sm font-bold">{tddfApiMonitoring?.processing?.success_rate || '0'}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Avg Time:</span>
+                    <span className="text-sm font-bold">
+                      {tddfApiMonitoring?.processing?.avg_processing_time ? 
+                        `${Math.round(parseFloat(tddfApiMonitoring.processing.avg_processing_time))}s` : '0s'}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Top API Endpoints</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {tddfApiMonitoring?.topEndpoints?.slice(0, 5).map((endpoint, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span className="text-xs font-mono truncate flex-1 mr-2">
+                        {endpoint.endpoint}
+                      </span>
+                      <div className="text-right">
+                        <div className="text-xs font-bold">{endpoint.request_count}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {Math.round(parseFloat(endpoint.avg_response_time || '0'))}ms
+                        </div>
+                      </div>
+                    </div>
+                  )) || (
+                    <div className="text-sm text-muted-foreground text-center">No endpoint data</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Active API Keys</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {tddfApiMonitoring?.apiKeyActivity?.slice(0, 5).map((key, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span className="text-sm truncate flex-1 mr-2">
+                        {key.key_name}
+                      </span>
+                      <div className="text-right">
+                        <div className="text-xs font-bold">{key.request_count}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {key.last_used ? format(new Date(key.last_used), 'HH:mm') : 'Never'}
+                        </div>
+                      </div>
+                    </div>
+                  )) || (
+                    <div className="text-sm text-muted-foreground text-center">No key activity</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Request Trends Chart */}
+          {tddfApiMonitoring?.trends && tddfApiMonitoring.trends.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>API Request Trends</CardTitle>
+                <CardDescription>Request volume and response times over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={tddfApiMonitoring.trends.map(trend => ({
+                    time: format(new Date(trend.time_bucket), 'HH:mm'),
+                    requests: parseInt(trend.request_count),
+                    responseTime: Math.round(parseFloat(trend.avg_response_time || '0')),
+                    errors: parseInt(trend.error_count || '0')
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis yAxisId="requests" orientation="left" />
+                    <YAxis yAxisId="responseTime" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="requests" dataKey="requests" fill="#3b82f6" name="Requests" />
+                    <Line 
+                      yAxisId="responseTime" 
+                      type="monotone" 
+                      dataKey="responseTime" 
+                      stroke="#ef4444" 
+                      name="Response Time (ms)"
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
