@@ -2643,7 +2643,7 @@ export default function TddfApiDataPage() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => handleViewFile(file)}
+                              onClick={() => handleViewUploaderFile(file)}
                               title="View raw file contents"
                               data-testid={`button-view-file-${file.id}`}
                             >
