@@ -9302,6 +9302,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset error status files - bulk operation to recover from processing failures
+  app.post("/api/uploader/reset-errors", isAuthenticated, async (req, res) => {
+    try {
+      const { fileIds } = req.body;
+      const username = (req as any).user?.username || 'system';
+      
+      console.log(`[RESET-ERRORS] Starting error reset for ${fileIds?.length || 'all'} files (by: ${username})`);
+      
+      let whereClause = `WHERE current_phase = 'error'`;
+      let queryParams = [];
+      
+      // If specific fileIds provided, filter by them  
+      if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
+        const placeholders = fileIds.map((_, index) => `$${index + 1}`).join(',');
+        whereClause = `WHERE current_phase = 'error' AND id IN (${placeholders})`;
+        queryParams = fileIds;
+        console.log(`[RESET-ERRORS] Resetting specific files: ${fileIds.join(', ')}`);
+      } else {
+        console.log(`[RESET-ERRORS] Resetting ALL files in error status`);
+      }
+      
+      const { getTableName } = await import("./table-config");
+      const uploadsTable = getTableName('uploader_uploads');
+      
+      // First, get the files that need to be reset to determine appropriate target phase
+      const errorFilesQuery = `
+        SELECT id, filename, final_file_type, detected_file_type, current_phase, processing_errors
+        FROM ${uploadsTable}
+        ${whereClause}
+        ORDER BY created_at DESC
+      `;
+      
+      const errorFilesResult = await pool.query(errorFilesQuery, queryParams);
+      const errorFiles = errorFilesResult.rows;
+      
+      if (errorFiles.length === 0) {
+        return res.json({
+          success: true,
+          message: "No files in error status found",
+          resetCount: 0,
+          resetFiles: []
+        });
+      }
+      
+      console.log(`[RESET-ERRORS] Found ${errorFiles.length} files in error status`);
+      
+      const resetResults = [];
+      let resetCount = 0;
+      
+      // Process each error file with smart phase detection
+      for (const file of errorFiles) {
+        try {
+          let targetPhase;
+          let resetReason;
+          
+          // Smart phase detection based on file type
+          if (file.final_file_type === 'tddf' || file.detected_file_type === 'tddf') {
+            // TDDF files go back to 'encoded' so Auto Step 6 can pick them up
+            targetPhase = 'encoded';
+            resetReason = 'TDDF file reset to encoded phase for Auto Step 6 processing';
+          } else if (file.detected_file_type) {
+            // Files that were identified go back to 'identified'
+            targetPhase = 'identified';
+            resetReason = 'File reset to identified phase for manual processing';
+          } else {
+            // Files that weren't identified go back to 'uploaded'
+            targetPhase = 'uploaded';
+            resetReason = 'File reset to uploaded phase for re-identification';
+          }
+          
+          // Update the file record
+          const updateQuery = `
+            UPDATE ${uploadsTable}
+            SET 
+              current_phase = $1,
+              processing_errors = NULL,
+              last_updated = NOW(),
+              updated_by = $2
+            WHERE id = $3
+          `;
+          
+          await pool.query(updateQuery, [targetPhase, username, file.id]);
+          
+          resetResults.push({
+            id: file.id,
+            filename: file.filename,
+            previousPhase: 'error',
+            newPhase: targetPhase,
+            fileType: file.final_file_type || file.detected_file_type || 'unknown',
+            resetReason
+          });
+          
+          resetCount++;
+          
+          console.log(`[RESET-ERRORS] Reset file ${file.filename} from 'error' to '${targetPhase}'`);
+          
+        } catch (fileError) {
+          console.error(`[RESET-ERRORS] Failed to reset file ${file.id}:`, fileError);
+          resetResults.push({
+            id: file.id,
+            filename: file.filename,
+            error: fileError instanceof Error ? fileError.message : "Unknown error"
+          });
+        }
+      }
+      
+      console.log(`[RESET-ERRORS] Successfully reset ${resetCount} out of ${errorFiles.length} error files`);
+      
+      res.json({
+        success: true,
+        message: `Successfully reset ${resetCount} file(s) from error status`,
+        resetCount,
+        totalFound: errorFiles.length,
+        resetFiles: resetResults,
+        note: 'TDDF files set to encoded phase will be automatically processed by Auto Step 6 system'
+      });
+      
+    } catch (error) {
+      console.error('[RESET-ERRORS] Error resetting error status files:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reset error status files' 
+      });
+    }
+  });
+
   // Force process all identified transaction CSV files
   app.post('/api/uploader/force-process-transaction-csv', async (req, res) => {
     // Bypass authentication for processing operations (development only)
