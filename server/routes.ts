@@ -12519,6 +12519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         encodingDetected: row.encoding_detected,
         validationErrors: row.validation_errors,
         processingNotes: row.processing_notes,
+        processingErrors: row.processing_errors,
         createdBy: row.created_by,
         serverId: row.server_id,
         sessionId: row.session_id,

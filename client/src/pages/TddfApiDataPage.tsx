@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw, CreditCard } from "lucide-react";
@@ -224,6 +225,10 @@ export default function TddfApiDataPage() {
   const [viewFileDialog, setViewFileDialog] = useState(false);
   const [selectedFileForView, setSelectedFileForView] = useState<TddfApiFile | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
+  
+  // Error details dialog state
+  const [errorDetailsDialog, setErrorDetailsDialog] = useState(false);
+  const [selectedErrorUpload, setSelectedErrorUpload] = useState<any>(null);
   
   // Date filtering state
   const [dateFilters, setDateFilters] = useState({
@@ -931,6 +936,36 @@ export default function TddfApiDataPage() {
     } catch (error) {
       setFileContent("Error loading file content");
     }
+  };
+
+  // Handle showing error details for uploader files
+  const handleShowErrorDetails = (upload: any) => {
+    setSelectedErrorUpload(upload);
+    setErrorDetailsDialog(true);
+  };
+
+  // Get brief error summary for tooltip
+  const getErrorSummary = (processingErrors: any): string => {
+    if (!processingErrors) return "No error details available";
+    
+    try {
+      if (typeof processingErrors === 'string') {
+        return processingErrors.length > 100 
+          ? processingErrors.substring(0, 100) + '...' 
+          : processingErrors;
+      }
+      
+      if (typeof processingErrors === 'object') {
+        const errorText = JSON.stringify(processingErrors);
+        return errorText.length > 100 
+          ? errorText.substring(0, 100) + '...' 
+          : errorText;
+      }
+    } catch {
+      return "Error parsing error details";
+    }
+    
+    return "Unknown error format";
   };
 
 
@@ -1870,12 +1905,34 @@ export default function TddfApiDataPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}
-                          className={upload.currentPhase === 'completed' ? 'bg-green-800 text-white hover:bg-green-900' : ''}
-                        >
-                          {upload.currentPhase || 'started'}
-                        </Badge>
+                        {upload.currentPhase === 'error' ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge 
+                                  variant="destructive"
+                                  className="cursor-pointer hover:bg-red-700"
+                                  onClick={() => handleShowErrorDetails(upload)}
+                                >
+                                  {upload.currentPhase || 'started'}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">
+                                  <strong>Error:</strong> {getErrorSummary(upload.processingErrors)}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">Click for full details</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <Badge 
+                            variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}
+                            className={upload.currentPhase === 'completed' ? 'bg-green-800 text-white hover:bg-green-900' : ''}
+                          >
+                            {upload.currentPhase || 'started'}
+                          </Badge>
+                        )}
                         {upload.uploadProgress !== undefined && upload.uploadProgress < 100 && (
                           <div className="w-16">
                             <Progress value={upload.uploadProgress} className="h-2" />
@@ -3055,6 +3112,112 @@ export default function TddfApiDataPage() {
             <Button variant="outline" onClick={() => setViewingArchiveFile(null)}>
               Close
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Details Dialog */}
+      <Dialog open={errorDetailsDialog} onOpenChange={setErrorDetailsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Processing Error Details
+            </DialogTitle>
+            <DialogDescription>
+              {selectedErrorUpload?.filename} - Error occurred during processing
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* File Information */}
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+              <div>
+                <Label className="text-sm font-medium">File Name</Label>
+                <p className="text-sm">{selectedErrorUpload?.filename}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">File Type</Label>
+                <p className="text-sm">{selectedErrorUpload?.finalFileType || selectedErrorUpload?.detectedFileType || 'Unknown'}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">File Size</Label>
+                <p className="text-sm">{selectedErrorUpload?.fileSize ? formatFileSize(selectedErrorUpload.fileSize) : 'Unknown'}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Upload Date</Label>
+                <p className="text-sm">
+                  {selectedErrorUpload?.uploadedAt ? new Date(selectedErrorUpload.uploadedAt).toLocaleString('en-US', { 
+                    month: 'numeric', 
+                    day: 'numeric', 
+                    year: 'numeric', 
+                    hour: 'numeric', 
+                    minute: '2-digit', 
+                    hour12: true,
+                    timeZone: 'America/Chicago'
+                  }) : 'Unknown'}
+                </p>
+              </div>
+            </div>
+
+            {/* Error Details */}
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                Error Information
+              </Label>
+              <ScrollArea className="max-h-[40vh] w-full">
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                  {selectedErrorUpload?.processingErrors ? (
+                    <pre className="text-xs font-mono whitespace-pre-wrap text-red-800 dark:text-red-200">
+                      {typeof selectedErrorUpload.processingErrors === 'string' 
+                        ? selectedErrorUpload.processingErrors
+                        : JSON.stringify(selectedErrorUpload.processingErrors, null, 2)
+                      }
+                    </pre>
+                  ) : (
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      No detailed error information available
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Processing Notes (if available) */}
+            {selectedErrorUpload?.processingNotes && (
+              <div>
+                <Label className="text-sm font-medium mb-2">Processing Notes</Label>
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    {selectedErrorUpload.processingNotes}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setErrorDetailsDialog(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  // TODO: Implement reset functionality when we add the reset button
+                  toast({
+                    title: "Reset Error Status",
+                    description: "Reset functionality will be available soon",
+                    variant: "default"
+                  });
+                }}
+              >
+                Reset Error Status
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
