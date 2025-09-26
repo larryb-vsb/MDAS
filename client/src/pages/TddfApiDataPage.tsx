@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw, CreditCard } from "lucide-react";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw, CreditCard, AlertTriangle, RotateCcw } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
@@ -53,6 +53,223 @@ function TimingDisplay({ uploadId }: { uploadId: string }) {
 
   return (
     <span className="text-blue-600">{(timing as any).duration}</span>
+  );
+}
+
+// Warning Details Component
+interface WarningDetails {
+  hasWarnings: boolean;
+  warnings: Array<{
+    timestamp: string;
+    message: string;
+    source: string;
+    type: string;
+    details: any;
+  }>;
+  currentStatus: string;
+  uploadStatus: string;
+  filename: string;
+  warningCount: number;
+  lastWarningAt: string;
+  canReset: boolean;
+}
+
+function WarningDialog({ uploadId, filename, open, onOpenChange }: { 
+  uploadId: string; 
+  filename: string; 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch warning details
+  const { data: warningData, isLoading } = useQuery<WarningDetails>({
+    queryKey: ['/api/uploader', uploadId, 'warnings'],
+    queryFn: () => apiRequest(`/api/uploader/${uploadId}/warnings`),
+    enabled: open && !!uploadId
+  });
+
+  // Reset warning mutation
+  const resetWarningMutation = useMutation({
+    mutationFn: (uploadId: string) => 
+      apiRequest(`/api/uploader/${uploadId}/reset-warning`, {
+        method: 'POST',
+        body: JSON.stringify({ confirmReset: true })
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Warning Reset Successfully",
+        description: "The warning status has been cleared and the file is ready for reprocessing."
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Reset Failed",
+        description: error.message || "Failed to reset warning status",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleResetWarning = () => {
+    if (warningData?.canReset) {
+      resetWarningMutation.mutate(uploadId);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            Warning Details
+          </DialogTitle>
+          <DialogDescription>
+            {filename} - Warning information and recovery options
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            Loading warning details...
+          </div>
+        ) : !warningData?.hasWarnings ? (
+          <div className="text-center p-8">
+            <CheckCircle className="h-12 w-12 mx-auto text-green-600 mb-4" />
+            <p className="text-lg font-medium">No Warnings Found</p>
+            <p className="text-muted-foreground">This file is not currently in warning status.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Warning Summary */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-medium text-yellow-800">File Warning Status</h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Current Phase: <Badge variant="outline" className="ml-1">{warningData.currentStatus}</Badge>
+                  </p>
+                  {warningData.lastWarningAt && (
+                    <p className="text-xs text-yellow-600 mt-1">
+                      Last warning: {format(new Date(warningData.lastWarningAt), "MMM d, yyyy 'at' h:mm a")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Details */}
+            <div className="space-y-3">
+              <h4 className="font-medium">Warning Details ({warningData.warnings.length})</h4>
+              {warningData.warnings.map((warning, index) => (
+                <div key={index} className="border rounded-lg p-3 bg-card">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs">
+                          {warning.type}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          from {warning.source}
+                        </span>
+                      </div>
+                      <p className="text-sm">{warning.message}</p>
+                      {warning.timestamp && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(warning.timestamp), "MMM d, yyyy 'at' h:mm:ss a")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Technical Details (Expandable) */}
+                  {warning.details && Object.keys(warning.details).length > 0 && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                        View technical details
+                      </summary>
+                      <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto max-h-32">
+                        {JSON.stringify(warning.details, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                {warningData.canReset ? (
+                  <p>You can reset this warning to retry processing.</p>
+                ) : (
+                  <p>Warning cannot be reset at this time.</p>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+                </Button>
+                {warningData.canReset && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="default" 
+                        className="bg-yellow-600 hover:bg-yellow-700"
+                        disabled={resetWarningMutation.isPending}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Reset Warning
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reset Warning Status</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will clear the warning status and reset the file to continue processing. 
+                          The warning information will be logged for audit purposes.
+                          <br /><br />
+                          <strong>File:</strong> {filename}
+                          <br />
+                          <strong>Current Status:</strong> {warningData.currentStatus}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleResetWarning}
+                          className="bg-yellow-600 hover:bg-yellow-700"
+                          disabled={resetWarningMutation.isPending}
+                        >
+                          {resetWarningMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Resetting...
+                            </>
+                          ) : (
+                            <>
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Reset Warning
+                            </>
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -309,6 +526,10 @@ export default function TddfApiDataPage() {
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
   const [uploaderFileContent, setUploaderFileContent] = useState<string>('');
   const [loadingUploaderContent, setLoadingUploaderContent] = useState(false);
+  
+  // Warning dialog state
+  const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+  const [selectedWarningUpload, setSelectedWarningUpload] = useState<{ id: string; filename: string } | null>(null);
 
   // Separate pagination state for processed files section (Section 2)
   const [processedFilesCurrentPage, setProcessedFilesCurrentPage] = useState(0);
@@ -1002,6 +1223,12 @@ export default function TddfApiDataPage() {
   const handleShowErrorDetails = (upload: any) => {
     setSelectedErrorUpload(upload);
     setErrorDetailsDialog(true);
+  };
+
+  // Handle showing warning details for uploader files
+  const handleShowWarningDetails = (upload: any) => {
+    setSelectedWarningUpload({ id: upload.id, filename: upload.filename });
+    setWarningDialogOpen(true);
   };
 
   // Get brief error summary for tooltip
@@ -2017,6 +2244,28 @@ export default function TddfApiDataPage() {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                        ) : upload.currentPhase === 'warning' ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge 
+                                  variant="outline"
+                                  className="cursor-pointer border-yellow-500 text-yellow-700 bg-yellow-50 hover:bg-yellow-100"
+                                  onClick={() => handleShowWarningDetails(upload)}
+                                  data-testid="badge-warning"
+                                >
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  warning
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">
+                                  <strong>Warning:</strong> {upload.processingNotes || 'File has processing warnings'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">Click to view details and reset</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         ) : (
                           <Badge 
                             variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}
@@ -2024,6 +2273,19 @@ export default function TddfApiDataPage() {
                           >
                             {upload.currentPhase || 'started'}
                           </Badge>
+                        )}
+                        
+                        {/* Add View Warning button for warning status */}
+                        {upload.currentPhase === 'warning' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleShowWarningDetails(upload)}
+                            data-testid="button-view-warning"
+                            className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100"
+                          >
+                            <AlertTriangle className="h-4 w-4" />
+                          </Button>
                         )}
                         {upload.uploadProgress !== undefined && upload.uploadProgress < 100 && (
                           <div className="w-16">
@@ -3388,6 +3650,21 @@ export default function TddfApiDataPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Warning Details Dialog */}
+      {selectedWarningUpload && (
+        <WarningDialog
+          uploadId={selectedWarningUpload.id}
+          filename={selectedWarningUpload.filename}
+          open={warningDialogOpen}
+          onOpenChange={(open) => {
+            setWarningDialogOpen(open);
+            if (!open) {
+              setSelectedWarningUpload(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
