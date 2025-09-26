@@ -241,6 +241,53 @@ export default function TddfApiDataPage() {
   const [keep, setKeep] = useState<boolean>(false);
   const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
   const [autoStep6Enabled, setAutoStep6Enabled] = useState<boolean>(false);
+
+  // Load Auto Step 6 setting on mount
+  const { data: autoStep6Setting } = useQuery({
+    queryKey: ['/api/uploader/auto-step6-setting'],
+    enabled: true
+  });
+
+  // Update local state when API data loads
+  useEffect(() => {
+    if (autoStep6Setting?.autoStep6Enabled !== undefined) {
+      setAutoStep6Enabled(autoStep6Setting.autoStep6Enabled);
+    }
+  }, [autoStep6Setting]);
+
+  // Mutation to save Auto Step 6 setting
+  const saveAutoStep6Setting = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const data = await apiRequest('/api/uploader/auto-step6-setting', {
+        method: 'POST',
+        body: JSON.stringify({ enabled }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.message,
+        description: `Auto Step 6 processing is now ${data.autoStep6Enabled ? 'enabled' : 'disabled'}`,
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/auto-step6-setting'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to save Auto Step 6 setting",
+        variant: "destructive"
+      });
+      console.error('Error saving Auto Step 6 setting:', error);
+    }
+  });
+
+  // Handle Auto Step 6 toggle change
+  const handleAutoStep6Change = async (enabled: boolean) => {
+    setAutoStep6Enabled(enabled); // Update local state immediately for responsive UI
+    saveAutoStep6Setting.mutate(enabled);
+  };
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [filenameFilter, setFilenameFilter] = useState('');
@@ -1622,7 +1669,8 @@ export default function TddfApiDataPage() {
                     </div>
                     <Switch
                       checked={autoStep6Enabled}
-                      onCheckedChange={setAutoStep6Enabled}
+                      onCheckedChange={handleAutoStep6Change}
+                      disabled={saveAutoStep6Setting.isPending}
                     />
                   </div>
                 </div>

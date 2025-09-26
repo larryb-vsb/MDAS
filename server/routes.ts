@@ -9247,6 +9247,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Auto Step 6 setting
+  app.get("/api/uploader/auto-step6-setting", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[AUTO-STEP6] Fetching Auto Step 6 setting');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_step6_enabled'
+      `);
+      
+      const enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+      
+      console.log(`[AUTO-STEP6] Current Auto Step 6 setting: ${enabled}`);
+      
+      res.json({
+        autoStep6Enabled: enabled
+      });
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error fetching Auto Step 6 setting:', error);
+      res.status(500).json({ error: 'Failed to fetch Auto Step 6 setting' });
+    }
+  });
+
+  // Save Auto Step 6 setting
+  app.post("/api/uploader/auto-step6-setting", isAuthenticated, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      const username = (req as any).user?.username || 'unknown';
+      
+      console.log(`[AUTO-STEP6] Updating Auto Step 6 setting to: ${enabled} (by: ${username})`);
+      
+      // Upsert the setting
+      await db.execute(sql`
+        INSERT INTO ${sql.identifier(getTableName('system_settings'))} (setting_key, setting_value, setting_type, description, last_updated_by)
+        VALUES ('auto_step6_enabled', ${enabled ? 'true' : 'false'}, 'boolean', 'Enable automatic Step 6 JSON encoding for uploaded TDDF files', ${username})
+        ON CONFLICT (setting_key)
+        DO UPDATE SET 
+          setting_value = ${enabled ? 'true' : 'false'},
+          last_updated_by = ${username},
+          updated_at = NOW()
+      `);
+      
+      console.log(`[AUTO-STEP6] Successfully updated Auto Step 6 setting to: ${enabled}`);
+      
+      res.json({
+        success: true,
+        autoStep6Enabled: enabled,
+        message: `Auto Step 6 processing ${enabled ? 'enabled' : 'disabled'}`
+      });
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error saving Auto Step 6 setting:', error);
+      res.status(500).json({ error: 'Failed to save Auto Step 6 setting' });
+    }
+  });
+
   // Force process all identified transaction CSV files
   app.post('/api/uploader/force-process-transaction-csv', async (req, res) => {
     // Bypass authentication for processing operations (development only)
@@ -12374,14 +12429,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalCount = allUploads.length; // Use merged count from all environments
       
       console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'} in environment ${environment || 'current'}, total: ${totalCount}`);
-      
-      // TEMP DEBUG: Log business_day extraction for processed files
-      if (phase === 'completed' && uploads.length > 0) {
-        console.log('[BUSINESS-DAY-DEBUG] Sample business_day extraction:');
-        uploads.slice(0, 3).forEach(upload => {
-          console.log(`[BUSINESS-DAY-DEBUG] File: ${upload.filename} → business_day: ${upload.business_day}, record_count: ${upload.record_count}`);
-        });
-      }
       
       // Return paginated response format when limit/offset is used
       if (limit || offset) {

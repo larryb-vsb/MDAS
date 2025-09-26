@@ -241,6 +241,125 @@ class FileProcessorService {
   }
   
   /**
+   * Check if Auto Step 6 processing is enabled
+   */
+  private async isAutoStep6Enabled(): Promise<boolean> {
+    try {
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_step6_enabled'
+      `);
+      
+      return result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error checking Auto Step 6 setting:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Find files ready for automated Step 6 processing
+   */
+  private async getFilesReadyForStep6(): Promise<any[]> {
+    try {
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      console.log(`[AUTO-STEP6] Looking for files ready for Step 6 in table: ${uploadsTableName}`);
+      
+      const result = await db.execute(sql`
+        SELECT 
+          id,
+          filename,
+          storage_path,
+          file_type,
+          current_phase,
+          uploaded_at,
+          final_file_type
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE current_phase = 'encoded'
+          AND final_file_type = 'tddf'
+        ORDER BY uploaded_at ASC
+        LIMIT 5
+      `);
+      
+      const files = result.rows.map(row => ({
+        id: row.id,
+        filename: row.filename,
+        storagePath: row.storage_path,
+        fileType: row.file_type,
+        currentPhase: row.current_phase,
+        uploadedAt: row.uploaded_at,
+        finalFileType: row.final_file_type
+      }));
+      
+      console.log(`[AUTO-STEP6] Found ${files.length} TDDF files ready for Step 6 processing`);
+      return files;
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error finding files ready for Step 6:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Automatically process Step 6 for eligible files when Auto mode is enabled
+   */
+  private async processAutoStep6(): Promise<void> {
+    const autoStep6Enabled = await this.isAutoStep6Enabled();
+    if (!autoStep6Enabled) {
+      return; // Auto Step 6 is disabled, skip
+    }
+
+    console.log('[AUTO-STEP6] Auto Step 6 processing is enabled, checking for eligible files...');
+    
+    const readyFiles = await this.getFilesReadyForStep6();
+    if (readyFiles.length === 0) {
+      return; // No files ready for Step 6
+    }
+
+    console.log(`[AUTO-STEP6] Starting automated Step 6 processing for ${readyFiles.length} files`);
+    
+    for (const file of readyFiles) {
+      try {
+        console.log(`[AUTO-STEP6] Processing file: ${file.filename} (ID: ${file.id})`);
+        
+        // Import the Step 6 processing function
+        const { processAllRecordsToMasterTable } = await import("../storage");
+        
+        // Update to processing phase
+        await db.execute(sql`
+          UPDATE ${sql.identifier(getTableName('uploader_uploads'))}
+          SET current_phase = 'processing', processing_at = NOW()
+          WHERE id = ${file.id}
+        `);
+        
+        // Process the file - this calls the existing Step 6 processing logic
+        const step6Result = await processAllRecordsToMasterTable(null, file);
+        
+        // Update to completed phase after successful processing
+        await db.execute(sql`
+          UPDATE ${sql.identifier(getTableName('uploader_uploads'))}
+          SET current_phase = 'completed', completed_at = NOW()
+          WHERE id = ${file.id}
+        `);
+        
+        console.log(`[AUTO-STEP6] ✅ Successfully completed Step 6 for ${file.filename}: ${step6Result?.totalRecords || 0} records processed`);
+        
+      } catch (error) {
+        console.error(`[AUTO-STEP6] ❌ Failed to process ${file.filename}:`, error);
+        
+        // Mark file as failed
+        await db.execute(sql`
+          UPDATE ${sql.identifier(getTableName('uploader_uploads'))}
+          SET current_phase = 'error', processing_errors = ${error instanceof Error ? error.message : 'Auto Step 6 processing failed'}
+          WHERE id = ${file.id}
+        `);
+      }
+    }
+    
+    console.log('[AUTO-STEP6] Automated Step 6 processing completed');
+  }
+
+  /**
    * Get all unprocessed files from the database for the current environment
    * Uses database-level concurrency control to prevent multiple nodes from processing the same files
    */
@@ -365,6 +484,9 @@ class FileProcessorService {
       
       console.log(`[${serverId}] Found ${unprocessedFiles.length} unprocessed files to process`);
       this.queuedFiles = [...unprocessedFiles];
+      
+      // Process Auto Step 6 first (if enabled and files are ready)
+      await this.processAutoStep6();
       
       // Process files one by one with atomic database locking
       for (const file of unprocessedFiles) {

@@ -3025,6 +3025,18 @@ export const tddfApiDailyProcessingLog = pgTable(getTableName("tddf_api_daily_pr
   startTimeIdx: index("tddf_api_daily_log_start_time_idx").on(table.startTime)
 }));
 
+// System Settings Table - Store application-wide settings like Auto 6 toggle
+export const systemSettings = pgTable(getTableName("system_settings"), {
+  id: serial("id").primaryKey(),
+  settingKey: text("setting_key").notNull().unique(), // e.g., 'auto_step6_enabled'
+  settingValue: text("setting_value").notNull(), // Store as string, parse as needed
+  settingType: text("setting_type").default("boolean"), // boolean, string, number, json
+  description: text("description"), // Human-readable description
+  lastUpdatedBy: text("last_updated_by").default("system"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
 // Zod schemas for TDDF Daily View System
 export const insertTddfDatamasterSchema = createInsertSchema(tddfDatamaster);
 export const insertTddfApiDailyStatsSchema = createInsertSchema(tddfApiDailyStats);
@@ -3033,8 +3045,10 @@ export const insertTddfApiDailyRecordBreakdownSchema = createInsertSchema(tddfAp
 export const insertTddfApiDailyImportStatusSchema = createInsertSchema(tddfApiDailyImportStatus);
 export const insertTddfApiDailyCacheMetadataSchema = createInsertSchema(tddfApiDailyCacheMetadata);
 export const insertTddfApiDailyProcessingLogSchema = createInsertSchema(tddfApiDailyProcessingLog);
+export const insertSystemSettingsSchema = createInsertSchema(systemSettings);
 
 export type TddfDatamaster = typeof tddfDatamaster.$inferSelect;
+export type SystemSettings = typeof systemSettings.$inferSelect;
 export type TddfApiDailyStats = typeof tddfApiDailyStats.$inferSelect;
 export type TddfApiDailyMerchantTotals = typeof tddfApiDailyMerchantTotals.$inferSelect;
 export type TddfApiDailyRecordBreakdown = typeof tddfApiDailyRecordBreakdown.$inferSelect;
@@ -3049,3 +3063,4 @@ export type InsertTddfApiDailyRecordBreakdown = typeof insertTddfApiDailyRecordB
 export type InsertTddfApiDailyImportStatus = typeof insertTddfApiDailyImportStatusSchema._type;
 export type InsertTddfApiDailyCacheMetadata = typeof insertTddfApiDailyCacheMetadataSchema._type;
 export type InsertTddfApiDailyProcessingLog = typeof insertTddfApiDailyProcessingLogSchema._type;
+export type InsertSystemSettings = typeof insertSystemSettingsSchema._type;
