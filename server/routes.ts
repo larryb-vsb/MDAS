@@ -15259,6 +15259,217 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get warning details for an upload
+  app.get("/api/uploader/:id/warnings", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { getTableName } = await import("./table-config");
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      console.log(`[WARNING-API] Getting warning details for upload: ${id}`);
+      
+      // Get upload data with warning information
+      const result = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          upload_status,
+          current_phase,
+          processing_notes,
+          processing_warnings,
+          warning_count,
+          last_warning_at,
+          processing_errors,
+          last_updated
+        FROM ${uploaderTableName}
+        WHERE id = $1
+      `, [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Upload not found' });
+      }
+      
+      const upload = result.rows[0];
+      const isInWarning = upload.current_phase === 'warning';
+      
+      if (!isInWarning) {
+        return res.json({
+          hasWarnings: false,
+          warnings: [],
+          currentStatus: upload.current_phase,
+          canReset: false
+        });
+      }
+      
+      // Parse warning information
+      const warnings = [];
+      
+      // Primary warning from processing_notes
+      if (upload.processing_notes) {
+        warnings.push({
+          timestamp: upload.last_warning_at || upload.last_updated,
+          message: upload.processing_notes,
+          source: 'File Processing',
+          type: 'Processing Error',
+          details: {
+            upload_status: upload.upload_status,
+            current_phase: upload.current_phase
+          }
+        });
+      }
+      
+      // Additional warnings from processing_warnings JSON field
+      if (upload.processing_warnings) {
+        try {
+          const additionalWarnings = JSON.parse(upload.processing_warnings);
+          if (Array.isArray(additionalWarnings)) {
+            warnings.push(...additionalWarnings);
+          }
+        } catch (parseError) {
+          console.warn(`[WARNING-API] Failed to parse processing_warnings for ${id}: ${parseError}`);
+        }
+      }
+      
+      // Processing errors as warnings
+      if (upload.processing_errors) {
+        try {
+          const errors = JSON.parse(upload.processing_errors);
+          if (Array.isArray(errors)) {
+            errors.forEach(error => {
+              warnings.push({
+                timestamp: error.timestamp || upload.last_updated,
+                message: error.message || error.error || 'Unknown processing error',
+                source: error.source || 'Processing Pipeline',
+                type: 'Processing Error',
+                details: error
+              });
+            });
+          }
+        } catch (parseError) {
+          console.warn(`[WARNING-API] Failed to parse processing_errors for ${id}: ${parseError}`);
+        }
+      }
+      
+      console.log(`[WARNING-API] Found ${warnings.length} warnings for upload ${id}`);
+      
+      res.json({
+        hasWarnings: true,
+        warnings: warnings,
+        currentStatus: upload.current_phase,
+        uploadStatus: upload.upload_status,
+        filename: upload.filename,
+        warningCount: upload.warning_count || warnings.length,
+        lastWarningAt: upload.last_warning_at,
+        canReset: true
+      });
+      
+    } catch (error: any) {
+      console.error('[WARNING-API] Error fetching warning details:', error);
+      res.status(500).json({ error: 'Failed to fetch warning details' });
+    }
+  });
+
+  // Reset warning status for an upload
+  app.post("/api/uploader/:id/reset-warning", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { confirmReset } = req.body;
+      const username = (req as any).user?.username || 'system';
+      
+      if (!confirmReset) {
+        return res.status(400).json({ error: 'Reset confirmation required' });
+      }
+      
+      console.log(`[WARNING-RESET] User ${username} resetting warning for upload: ${id}`);
+      
+      const { getTableName } = await import("./table-config");
+      const uploaderTableName = getTableName('uploader_uploads');
+      const systemLogsTable = getTableName('system_logs');
+      
+      // Get current upload data
+      const currentResult = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          upload_status,
+          current_phase,
+          processing_notes,
+          processing_warnings,
+          warning_count
+        FROM ${uploaderTableName}
+        WHERE id = $1
+      `, [id]);
+      
+      if (currentResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Upload not found' });
+      }
+      
+      const upload = currentResult.rows[0];
+      
+      if (upload.current_phase !== 'warning') {
+        return res.status(400).json({ 
+          error: 'Upload is not in warning status',
+          currentPhase: upload.current_phase
+        });
+      }
+      
+      // Determine appropriate reset phase based on upload_status
+      let resetPhase = 'uploaded'; // Default safe state
+      if (upload.upload_status === 'uploaded') {
+        resetPhase = 'identified'; // File was uploaded and identified before warning
+      } else if (upload.upload_status === 'uploading') {
+        resetPhase = 'uploading'; // Still in upload process
+      }
+      
+      // Reset warning status and clear warning fields
+      const resetResult = await pool.query(`
+        UPDATE ${uploaderTableName}
+        SET 
+          current_phase = $1,
+          processing_notes = NULL,
+          processing_warnings = NULL,
+          warning_count = 0,
+          last_warning_at = NULL,
+          last_updated = NOW()
+        WHERE id = $2
+        RETURNING current_phase, upload_status
+      `, [resetPhase, id]);
+      
+      // Log the reset action
+      await pool.query(`
+        INSERT INTO ${systemLogsTable} (level, source, message, details, timestamp)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [
+        'info',
+        'Warning Reset',
+        `Warning reset for upload: ${upload.filename}`,
+        JSON.stringify({
+          upload_id: id,
+          filename: upload.filename,
+          previous_phase: 'warning',
+          reset_phase: resetPhase,
+          reset_by: username,
+          previous_warning: upload.processing_notes
+        }),
+        new Date()
+      ]);
+      
+      console.log(`[WARNING-RESET] Successfully reset warning for ${id}, new phase: ${resetPhase}`);
+      
+      res.json({
+        success: true,
+        message: 'Warning status reset successfully',
+        uploadId: id,
+        newPhase: resetPhase,
+        resetBy: username
+      });
+      
+    } catch (error: any) {
+      console.error('[WARNING-RESET] Error resetting warning:', error);
+      res.status(500).json({ error: 'Failed to reset warning status' });
+    }
+  });
+
 
 
   // Get JSONB data for a specific upload (temporarily remove auth for debugging)
