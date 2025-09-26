@@ -1029,7 +1029,7 @@ export default function TddfApiDataPage() {
     if (selectedFiles.size === files.length) {
       setSelectedFiles(new Set());
     } else {
-      setSelectedFiles(new Set(files.map(f => f.id)));
+      setSelectedFiles(new Set(files.map((f: TddfApiFile) => f.id)));
     }
   };
 
@@ -1325,7 +1325,7 @@ export default function TddfApiDataPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{files.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  {files.filter(f => f.current_phase === "encoded").length} Step 6 processed
+                  {files.filter((f: TddfApiFile) => f.current_phase === "encoded").length} Step 6 processed
                 </p>
               </CardContent>
             </Card>
@@ -1352,10 +1352,10 @@ export default function TddfApiDataPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {files.filter(f => f.current_phase === "processing" || f.current_phase === "encoding").length}
+                  {files.filter((f: TddfApiFile) => f.current_phase === "processing" || f.current_phase === "encoding").length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {files.filter(f => f.current_phase === "processing").length} active
+                  {files.filter((f: TddfApiFile) => f.current_phase === "processing").length} active
                 </p>
               </CardContent>
             </Card>
@@ -1389,7 +1389,7 @@ export default function TddfApiDataPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatFileSize(files.reduce((sum, f) => sum + (Number(f.file_size) || 0), 0))}
+                    {formatFileSize(files.reduce((sum: number, f: TddfApiFile) => sum + (Number(f.file_size) || 0), 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Across {files.length} files
@@ -1405,11 +1405,11 @@ export default function TddfApiDataPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {files.length > 0 
-                      ? ((files.filter(f => f.status === "completed").length / files.length) * 100).toFixed(1)
+                      ? ((files.filter((f: TddfApiFile) => f.status === "completed").length / files.length) * 100).toFixed(1)
                       : 0}%
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {files.filter(f => f.status === "completed").length} of {files.length} files
+                    {files.filter((f: TddfApiFile) => f.status === "completed").length} of {files.length} files
                   </p>
                 </CardContent>
               </Card>
@@ -1422,7 +1422,7 @@ export default function TddfApiDataPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {files.length > 0 
-                      ? formatFileSize(files.reduce((sum, f) => sum + (Number(f.file_size) || 0), 0) / files.length)
+                      ? formatFileSize(files.reduce((sum: number, f: TddfApiFile) => sum + (Number(f.file_size) || 0), 0) / files.length)
                       : "0 B"}
                   </div>
                   <p className="text-xs text-muted-foreground">
