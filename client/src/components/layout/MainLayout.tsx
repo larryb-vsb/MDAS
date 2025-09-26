@@ -101,6 +101,7 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { logger } from "@shared/logger";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -337,7 +338,7 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
       href={href!}
       onClick={() => {
         // Force close mobile menu for main navigation items
-        console.log('Main nav item clicked:', label);
+        logger.navigation('Main nav item clicked:', label);
         if (onClick) {
           onClick();
         }
@@ -438,7 +439,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                     ) : false
                   }
                   onClick={() => {
-                    console.log('Mobile nav item clicked:', item.label);
+                    logger.navigation('Mobile nav item clicked:', item.label);
                     // Close the sheet immediately for navigation
                     setOpen(false);
                   }}
@@ -544,7 +545,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 }
                 onClick={() => {
                   // Desktop navigation click handler
-                  console.log('Desktop nav item clicked:', item.label);
+                  logger.navigation('Desktop nav item clicked:', item.label);
                 }}
                 submenu={item.submenu}
                 isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}

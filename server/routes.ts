@@ -31,6 +31,7 @@ import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 import { heatMapCacheProcessingStats } from "@shared/schema";
 import { backfillUniversalTimestamps } from "./services/universal-timestamp";
 import { parseTddfFilename, formatProcessingTime } from "./utils/tddfFilename";
+import { logger } from "../shared/logger";
 
 // Business day extraction utility for TDDF filenames
 function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
@@ -73,21 +74,21 @@ function getCacheTableName(target: string, source: string, year?: number): strin
 
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  console.log(`[AUTH-DEBUG] Checking authentication for ${req.method} ${req.path}`);
+  logger.auth(`Checking authentication for ${req.method} ${req.path}`);
   
   // For TDDF API routes, bypass auth only in development environment
   if ((req.path.startsWith('/api/tddf-api/') || req.path.includes('/jsonb-data') || req.path.includes('/re-encode') || req.path.includes('/uploader/uploader_') || req.path.includes('/global-merchant-search')) && process.env.NODE_ENV === 'development') {
-    console.log(`[AUTH-DEBUG] TDDF API route - bypassing auth for development testing`);
+    logger.auth(`TDDF API route - bypassing auth for development testing`);
     // Set a mock user for the request
     (req as any).user = { username: 'test-user' };
     return next();
   }
   
   if (req.isAuthenticated()) {
-    console.log(`[AUTH-DEBUG] User authenticated: ${(req.user as any)?.username}`);
+    logger.auth(`User authenticated: ${(req.user as any)?.username}`);
     return next();
   }
-  console.log(`[AUTH-DEBUG] Authentication failed for ${req.method} ${req.path}`);
+  logger.auth(`Authentication failed for ${req.method} ${req.path}`);
   res.status(401).json({ error: "Not authenticated" });
 }
 
@@ -9433,7 +9434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (process.env.NODE_ENV !== 'development') {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for development processing');
+    logger.auth('TDDF API route - bypassing auth for development processing');
     try {
       console.log('[FORCE-PROCESS-TXN] Starting force processing of all identified transaction CSV files...');
       
@@ -10050,7 +10051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (process.env.NODE_ENV !== 'development') {
       return res.status(401).json({ error: 'Debug endpoints only available in development' });
     }
-    console.log('[AUTH-DEBUG] Development debug status check');
+    logger.auth('Development debug status check');
     try {
       const uploadsTable = getTableName('uploader_uploads');
       const result = await pool.query(`
@@ -12386,11 +12387,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Main uploader files list with pagination support - MUST BE BEFORE /api/uploader/:id
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
-    console.log('[UPLOADER-DEBUG] GET /api/uploader endpoint reached');
-    console.log('[UPLOADER-DEBUG] Query parameters:', req.query);
+    logger.uploader('GET /api/uploader endpoint reached');
+    logger.uploader('Query parameters:', req.query);
     try {
       const { phase, sessionId, limit, offset, environment } = req.query;
-      console.log('[UPLOADER-DEBUG] Parsed parameters:', { phase, sessionId, limit, offset, environment });
+      logger.uploader('Parsed parameters:', { phase, sessionId, limit, offset, environment });
       
       // Support cross-environment viewing: use specific table if environment is specified
       let tableName = getTableName('uploader_uploads'); // Default to current environment
@@ -12400,7 +12401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tableName = 'dev_uploader_uploads'; // Development table
       }
       
-      console.log('[UPLOADER-DEBUG] Using table:', tableName, 'for environment:', environment || 'current');
+      logger.uploader('Using table:', tableName, 'for environment:', environment || 'current');
       
       // Query both environments and merge results to show cross-environment transferred files
       let allUploads: any[] = [];
@@ -12554,7 +12555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get total count for pagination (if limit/offset is used)
       let totalCount = allUploads.length; // Use merged count from all environments
       
-      console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'} in environment ${environment || 'current'}, total: ${totalCount}`);
+      logger.uploader(`Found ${uploads.length} uploads for session ${sessionId || 'all'} in environment ${environment || 'current'}, total: ${totalCount}`);
       
       // Return paginated response format when limit/offset is used
       if (limit || offset) {
@@ -21189,8 +21190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TDDF1 Merchant Volume Analytics API Endpoints
   app.get('/api/tddf1/merchants', isAuthenticated, async (req, res) => {
-    console.log('[AUTH-DEBUG] Checking authentication for GET /api/tddf1/merchants');
-    console.log('[AUTH-DEBUG] User authenticated:', !!req.user?.username);
+    logger.auth('Checking authentication for GET /api/tddf1/merchants');
+    logger.auth('User authenticated:', !!req.user?.username);
     
     try {
       const {

@@ -1,4 +1,5 @@
 import { createReadStream, createWriteStream, promises as fsPromises, existsSync, writeFileSync, mkdirSync } from "fs";
+import { logger } from "../shared/logger";
 import path from "path";
 import os from "os";
 import archiver from "archiver";
@@ -14503,9 +14504,9 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Debug logging to identify field mapping
-      console.log(`[UPLOADER-DEBUG] Update fields for ${id}:`, fields);
-      console.log(`[UPLOADER-DEBUG] SET clause: ${setClause}`);
-      console.log(`[UPLOADER-DEBUG] Updates object:`, JSON.stringify(updates, null, 2));
+      logger.uploader(`Update fields for ${id}:`, fields);
+      logger.uploader(`SET clause: ${setClause}`);
+      logger.uploader(`Updates object:`, JSON.stringify(updates, null, 2));
       
       // Update query - last_updated is included in updates object if needed
       const query = `
@@ -14516,8 +14517,8 @@ export class DatabaseStorage implements IStorage {
       `;
       
       const values = [id, ...fields.map(field => updates[field as keyof UploaderUpload])];
-      console.log(`[UPLOADER-DEBUG] Full query: ${query}`);
-      console.log(`[UPLOADER-DEBUG] Values:`, values);
+      logger.uploader(`Full query: ${query}`);
+      logger.uploader(`Values:`, values);
       
       const result = await pool.query(query, values);
       

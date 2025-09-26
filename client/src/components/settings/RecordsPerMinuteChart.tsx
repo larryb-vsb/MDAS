@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
+import { logger } from '@shared/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, Clock } from 'lucide-react';
@@ -40,12 +41,12 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
     queryKey: ['/api/processing/performance-chart-history', timeRange],
     queryFn: async () => {
-      console.log(`[CHART DEBUG] Fetching data for timeRange: ${timeRange} hours (${timeRange * 60} minutes)`);
+      logger.charts(`Fetching data for timeRange: ${timeRange} hours (${timeRange * 60} minutes)`);
       const response = await fetch(`/api/processing/performance-chart-history?hours=${timeRange}`);
       if (!response.ok) throw new Error('Failed to fetch data');
       const data = await response.json();
-      console.log(`[CHART DEBUG] Received ${data.data?.length || 0} data points for ${timeRange} hours`);
-      console.log(`[CHART DEBUG] API period response: ${data.period}`);
+      logger.charts(`Received ${data.data?.length || 0} data points for ${timeRange} hours`);
+      logger.charts(`API period response: ${data.period}`);
       return data;
     },
     refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
