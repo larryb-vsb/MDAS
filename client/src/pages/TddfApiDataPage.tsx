@@ -694,6 +694,33 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Reset errors mutation for bulk error recovery
+  const resetErrorsMutation = useMutation({
+    mutationFn: async (fileIds: string[]) => {
+      const response = await apiRequest('/api/uploader/reset-errors', {
+        method: 'POST',
+        body: { fileIds }
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      toast({ 
+        title: "Error status reset completed", 
+        description: `${data.resetCount} file(s) reset successfully. TDDF files will be automatically processed by Auto Step 6.`,
+        variant: "default"
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Reset errors failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
@@ -1780,6 +1807,38 @@ export default function TddfApiDataPage() {
                       >
                         <Zap className="h-4 w-4 mr-1" />
                         Manual Process Step 6
+                      </Button>
+
+                      {/* Reset Errors Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const errorFiles = selectedUploads.filter(id => {
+                            const upload = uploads.find((u: UploaderUpload) => u.id === id);
+                            return upload && upload.currentPhase === 'error';
+                          });
+                          
+                          if (errorFiles.length === 0) {
+                            toast({ 
+                              title: "No error files selected", 
+                              description: "Please select files that are in 'error' status to reset",
+                              variant: "destructive" 
+                            });
+                            return;
+                          }
+                          
+                          // Trigger reset errors API call
+                          resetErrorsMutation.mutate(errorFiles);
+                        }}
+                        className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                        disabled={resetErrorsMutation.isPending || !selectedUploads.some(id => {
+                          const upload = uploads.find((u: UploaderUpload) => u.id === id);
+                          return upload && upload.currentPhase === 'error';
+                        })}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Reset Errors
                       </Button>
                       
                       <Button 
@@ -3207,15 +3266,25 @@ export default function TddfApiDataPage() {
               <Button
                 variant="default"
                 onClick={() => {
-                  // TODO: Implement reset functionality when we add the reset button
-                  toast({
-                    title: "Reset Error Status",
-                    description: "Reset functionality will be available soon",
-                    variant: "default"
-                  });
+                  if (!selectedErrorUpload) return;
+                  
+                  // Reset error status for single file
+                  resetErrorsMutation.mutate([selectedErrorUpload.id]);
+                  setErrorDetailsDialog(false);
                 }}
+                disabled={resetErrorsMutation.isPending}
               >
-                Reset Error Status
+                {resetErrorsMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Resetting...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Reset Error Status
+                  </>
+                )}
               </Button>
             </div>
           </div>
