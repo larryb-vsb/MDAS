@@ -307,6 +307,8 @@ export default function TddfApiDataPage() {
   const [uploadsItemsPerPage, setUploadsItemsPerPage] = useState(5);
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
+  const [uploaderFileContent, setUploaderFileContent] = useState<string>('');
+  const [loadingUploaderContent, setLoadingUploaderContent] = useState(false);
 
   // Separate pagination state for processed files section (Section 2)
   const [processedFilesCurrentPage, setProcessedFilesCurrentPage] = useState(0);
@@ -962,6 +964,37 @@ export default function TddfApiDataPage() {
       }
     } catch (error) {
       setFileContent("Error loading file content");
+    }
+  };
+
+  // Handle viewing uploader file content
+  const handleViewUploaderFile = async (upload: UploaderUpload) => {
+    setUploaderFileForView(upload);
+    setLoadingUploaderContent(true);
+    
+    try {
+      const response = await fetch(`/api/uploader/${upload.id}/content`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      if (data.content) {
+        setUploaderFileContent(data.content);
+      } else {
+        throw new Error(data.error || 'No file content received');
+      }
+    } catch (error) {
+      console.error('Error loading uploader file content:', error);
+      toast({
+        title: "Error loading file",
+        description: error instanceof Error ? error.message : "Failed to load uploader file content",
+        variant: "destructive"
+      });
+      setUploaderFileContent('Error loading file content');
+    } finally {
+      setLoadingUploaderContent(false);
     }
   };
 
@@ -2001,7 +2034,7 @@ export default function TddfApiDataPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setUploaderFileForView(upload);
+                            handleViewUploaderFile(upload);
                           }}
                         >
                           <Eye className="h-4 w-4" />
@@ -3169,6 +3202,71 @@ export default function TddfApiDataPage() {
               })()}
             </div>
             <Button variant="outline" onClick={() => setViewingArchiveFile(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Uploader File Viewer Dialog */}
+      <Dialog open={!!uploaderFileForView} onOpenChange={() => setUploaderFileForView(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[85vh]" data-testid="dialog-uploader-viewer">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Uploader File Contents
+            </DialogTitle>
+            <DialogDescription>
+              {uploaderFileForView?.filename} - {uploaderFileForView ? formatFileSize(uploaderFileForView.fileSize || 0) : ''}
+              {uploaderFileForView && ` | Phase: ${uploaderFileForView.currentPhase}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[65vh] w-full border rounded-md">
+            {loadingUploaderContent ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                Loading file content...
+              </div>
+            ) : (
+              <div className="relative bg-muted">
+                <pre className="text-xs font-mono whitespace-nowrap p-0 m-0 min-w-max">
+                  {(() => {
+                    // Normalize line endings for proper display
+                    const normalizedContent = uploaderFileContent
+                      .replaceAll('\r\n', '\n')
+                      .replaceAll('\r', '\n');
+                    const lines = normalizedContent.split('\n').filter((line, index, arr) => 
+                      // Keep all lines except empty trailing ones
+                      index < arr.length - 1 || line.trim() !== ''
+                    );
+                    return lines.map((line, index) => (
+                      <div key={index} className="flex hover:bg-muted-foreground/10">
+                        <div className="sticky left-0 bg-muted border-r px-3 py-0.5 text-muted-foreground min-w-[4rem] text-right select-none">
+                          {index + 1}
+                        </div>
+                        <div className="px-3 py-0.5 min-w-0">{line || '\u00A0'}</div>
+                      </div>
+                    ));
+                  })()}
+                </pre>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Phase: {uploaderFileForView?.currentPhase} | 
+              File Type: {uploaderFileForView?.fileType} |
+              File Lines: {(() => {
+                if (!uploaderFileContent) return 0;
+                const normalizedContent = uploaderFileContent
+                  .replaceAll('\r\n', '\n')
+                  .replaceAll('\r', '\n');
+                return normalizedContent.split('\n').filter((line, index, arr) => 
+                  index < arr.length - 1 || line.trim() !== ''
+                ).length;
+              })()}
+            </div>
+            <Button variant="outline" onClick={() => setUploaderFileForView(null)}>
               Close
             </Button>
           </div>
