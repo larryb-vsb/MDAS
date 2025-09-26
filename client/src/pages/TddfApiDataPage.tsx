@@ -245,7 +245,7 @@ export default function TddfApiDataPage() {
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [filenameFilter, setFilenameFilter] = useState('');
   const [environmentFilter, setEnvironmentFilter] = useState('current');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'businessDay' | 'records' | 'progress'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(100);
@@ -416,7 +416,7 @@ export default function TddfApiDataPage() {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortBy(column as 'name' | 'date' | 'size');
+      setSortBy(column as 'name' | 'date' | 'size' | 'businessDay' | 'records' | 'progress');
       setSortOrder('asc');
     }
   };
@@ -434,6 +434,16 @@ export default function TddfApiDataPage() {
         return (new Date(a.uploadedAt || a.uploaded_at || 0).getTime() - new Date(b.uploadedAt || b.uploaded_at || 0).getTime()) * direction;
       case 'size':
         return ((a.fileSize || a.file_size || 0) - (b.fileSize || b.file_size || 0)) * direction;
+      case 'businessDay':
+        const aBusinessDay = a.business_day ? new Date(a.business_day).getTime() : 0;
+        const bBusinessDay = b.business_day ? new Date(b.business_day).getTime() : 0;
+        return (aBusinessDay - bBusinessDay) * direction;
+      case 'records':
+        return ((a.record_count || 0) - (b.record_count || 0)) * direction;
+      case 'progress':
+        const aProgress = (a.record_count > 0) ? ((a.processed_records || 0) / a.record_count) * 100 : 0;
+        const bProgress = (b.record_count > 0) ? ((b.processed_records || 0) / b.record_count) * 100 : 0;
+        return (aProgress - bProgress) * direction;
       default:
         return 0;
     }
@@ -1988,7 +1998,15 @@ export default function TddfApiDataPage() {
                         {getSortIndicator('name')}
                       </div>
                     </TableHead>
-                    <TableHead>Business Day</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('businessDay')}
+                    >
+                      <div className="flex items-center">
+                        Business Day
+                        {getSortIndicator('businessDay')}
+                      </div>
+                    </TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('size')}
@@ -2000,8 +2018,24 @@ export default function TddfApiDataPage() {
                     </TableHead>
                     <TableHead>Schema</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Records</TableHead>
-                    <TableHead>Progress</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('records')}
+                    >
+                      <div className="flex items-center">
+                        Records
+                        {getSortIndicator('records')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('progress')}
+                    >
+                      <div className="flex items-center">
+                        Progress
+                        {getSortIndicator('progress')}
+                      </div>
+                    </TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('date')}
