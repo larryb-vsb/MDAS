@@ -1438,7 +1438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tddfRawStatsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_raw_lines,
-          COUNT(CASE WHEN processed_into_table = '${tddfRecordsTableName}' THEN 1 END) as dt_records_processed,
+          COUNT(CASE WHEN target_table = '${tddfRecordsTableName}' THEN 1 END) as dt_records_processed,
           COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
           COUNT(CASE WHEN skip_reason IS NOT NULL 
                   AND skip_reason != 'non_dt_record' 
@@ -8565,7 +8565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await pool.query(`
             UPDATE ${tableName} 
             SET processing_status = 'processed',
-                processed_into_table = 'dev_tddf_records',
+                target_table = 'dev_tddf_records',
                 processed_record_id = $2,
                 processed_at = NOW(),
                 updated_at = NOW()
@@ -17902,7 +17902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await pool.query(`
           INSERT INTO ${uploadedFilesTable} 
           (id, original_filename, file_type, uploaded_at, uploaded_by, status, file_size, 
-           raw_lines_count, storage_path, processing_status, upload_environment, processed_into_table)
+           raw_lines_count, storage_path, processing_status, upload_environment, target_table)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         `, [
           uploadId,
@@ -18101,7 +18101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await pool.query(`
           INSERT INTO ${uploadedFilesTable} 
           (id, original_filename, file_type, uploaded_at, uploaded_by, status, file_size, 
-           raw_lines_count, storage_path, processing_status, upload_environment, processed_into_table)
+           raw_lines_count, storage_path, processing_status, upload_environment, target_table)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         `, [
           uploadId,
