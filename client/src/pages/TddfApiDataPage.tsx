@@ -1274,11 +1274,23 @@ export default function TddfApiDataPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">TDDF API Data System</h1>
-          <p className="text-muted-foreground">
-            High-performance position-based flat file processing with dynamic schema configuration
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setLocation('/')}
+            className="flex items-center gap-2"
+            data-testid="button-back-home"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">TDDF API Data System</h1>
+            <p className="text-muted-foreground">
+              High-performance position-based flat file processing with dynamic schema configuration
+            </p>
+          </div>
         </div>
         <Badge variant="outline">
           {files.length} Files | {schemas.length} Schemas | {apiKeys.length} API Keys
