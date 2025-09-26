@@ -322,8 +322,15 @@ class FileProcessorService {
       try {
         console.log(`[AUTO-STEP6] Processing file: ${file.filename} (ID: ${file.id})`);
         
-        // Import the Step 6 processing function
-        const { processAllRecordsToMasterTable } = await import("../storage");
+        // Import the Step 6 processing function and Replit storage service
+        const { processAllRecordsToMasterTable } = await import("../tddf-json-encoder");
+        const { ReplitStorageService } = await import("../replit-storage-service");
+        
+        // Get the file content from Replit storage
+        const fileContent = await ReplitStorageService.getFileContent(file.storagePath);
+        if (!fileContent) {
+          throw new Error(`Failed to load file content from ${file.storagePath}`);
+        }
         
         // Update to processing phase
         await db.execute(sql`
@@ -333,7 +340,7 @@ class FileProcessorService {
         `);
         
         // Process the file - this calls the existing Step 6 processing logic
-        const step6Result = await processAllRecordsToMasterTable(null, file);
+        const step6Result = await processAllRecordsToMasterTable(fileContent, file);
         
         // Update to completed phase after successful processing
         await db.execute(sql`
