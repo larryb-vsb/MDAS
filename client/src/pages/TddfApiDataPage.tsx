@@ -316,10 +316,9 @@ export default function TddfApiDataPage() {
       params.append('limit', processedFilesItemsPerPage.toString());
       params.append('offset', (processedFilesCurrentPage * processedFilesItemsPerPage).toString());
       // Only get files that have completed processing (have business_day or record_count)
-      params.append('status', 'completed');
-      if (dateFilters.status && dateFilters.status !== 'all') {
-        params.append('phase', dateFilters.status);
-      }
+      // Use filter status if available, otherwise default to 'encoded' for completed files
+      const targetPhase = (dateFilters.status && dateFilters.status !== 'all') ? dateFilters.status : 'encoded';
+      params.append('phase', targetPhase);
       
       const queryString = params.toString();
       const response = await fetch(`/api/uploader${queryString ? '?' + queryString : ''}`, {
