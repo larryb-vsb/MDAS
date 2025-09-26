@@ -12346,13 +12346,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startTime: row.start_time,
         // Mark cross-environment transferred files
         isCrossEnvTransfer: row.session_id === 'cross_env_transfer',
-        sourceEnvironment: row.source_env || 'current'
+        sourceEnvironment: row.source_env || 'current',
+        // Map business data fields for frontend compatibility
+        business_day: (() => {
+          // First try parsed database fields
+          const dbDate = row.parsed_scheduled_datetime || row.parsed_actual_datetime;
+          if (dbDate) return dbDate;
+          
+          // Fallback: extract date from filename (e.g., VERMNTSB.6759_TDDF_2400_08042025_001357.TSYSO -> 08042025)
+          const filename = row.filename || '';
+          const dateMatch = filename.match(/_(\d{8})_/); // Pattern: _MMDDYYYY_
+          if (dateMatch) {
+            const dateStr = dateMatch[1]; // e.g., "08042025"
+            const month = dateStr.substring(0, 2);
+            const day = dateStr.substring(2, 4); 
+            const year = dateStr.substring(4, 8);
+            // Return as YYYY-MM-DD format
+            return `${year}-${month}-${day} 00:00:00`;
+          }
+          
+          return null;
+        })(),
+        record_count: row.line_count || row.tddf_records_created || 0
       }));
       
       // Get total count for pagination (if limit/offset is used)
       let totalCount = allUploads.length; // Use merged count from all environments
       
       console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'} in environment ${environment || 'current'}, total: ${totalCount}`);
+      
+      // TEMP DEBUG: Log business_day extraction for processed files
+      if (phase === 'completed' && uploads.length > 0) {
+        console.log('[BUSINESS-DAY-DEBUG] Sample business_day extraction:');
+        uploads.slice(0, 3).forEach(upload => {
+          console.log(`[BUSINESS-DAY-DEBUG] File: ${upload.filename} → business_day: ${upload.business_day}, record_count: ${upload.record_count}`);
+        });
+      }
       
       // Return paginated response format when limit/offset is used
       if (limit || offset) {

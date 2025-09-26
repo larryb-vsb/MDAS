@@ -316,8 +316,8 @@ export default function TddfApiDataPage() {
       params.append('limit', processedFilesItemsPerPage.toString());
       params.append('offset', (processedFilesCurrentPage * processedFilesItemsPerPage).toString());
       // Only get files that have completed processing (have business_day or record_count)
-      // Use filter status if available, otherwise default to 'encoded' for completed files
-      const targetPhase = (dateFilters.status && dateFilters.status !== 'all') ? dateFilters.status : 'encoded';
+      // Use filter status if available, otherwise default to 'completed' for completed files
+      const targetPhase = (dateFilters.status && dateFilters.status !== 'all') ? dateFilters.status : 'completed';
       params.append('phase', targetPhase);
       
       const queryString = params.toString();
