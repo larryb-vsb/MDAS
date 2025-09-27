@@ -68,6 +68,15 @@ class MMSWatcher {
             await this.debugAllFiles();
           }
         }
+        
+        // Step 6: Check for encoded files that need completion processing
+        console.log('[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...');
+        const hasEncodedFiles = await this.hasFilesInPhase('encoded');
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] Found encoded files: ${hasEncodedFiles}`);
+        if (hasEncodedFiles) {
+          console.log('[MMS-WATCHER] [AUTO-STEP6] Processing encoded files for Step 6 completion');
+          await this.processEncodedFiles();
+        }
       }
       
       // Manual encoding will be handled separately via manual queue
@@ -1644,6 +1653,88 @@ class MMSWatcher {
     } catch (error) {
       console.error(`[MMS-WATCHER] [MONTHLY-CACHE] Error checking monthly cache:`, error);
     }
+  }
+
+  // Stage 6: Step 6 Processing Service - Process encoded files to completion
+  async processEncodedFiles() {
+    try {
+      // Find files in "encoded" phase that need Step 6 processing
+      const encodedFiles = await this.storage.getUploaderUploads({
+        phase: 'encoded'
+      });
+
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] Found ${encodedFiles.length} files in 'encoded' phase`);
+      
+      if (encodedFiles.length === 0) {
+        return; // No files to process
+      }
+
+      // Filter for TDDF files that need Step 6 processing
+      const tddfFiles = encodedFiles.filter(upload => 
+        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf'
+      );
+
+      if (tddfFiles.length === 0) {
+        return; // No TDDF files to process
+      }
+
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] Processing ${tddfFiles.length} encoded TDDF files for Step 6 completion...`);
+
+      for (const upload of tddfFiles) {
+        try {
+          console.log(`[MMS-WATCHER] [AUTO-STEP6] Starting Step 6 processing for: ${upload.filename} (${upload.id})`);
+          
+          // Update to processing phase first
+          await this.storage.updateUploaderPhase(upload.id, 'processing', {
+            processingStartedAt: new Date(),
+            processingNotes: `Step 6 processing started by MMS Watcher at ${new Date().toISOString()}`
+          });
+
+          // Get file content from Replit Object Storage
+          const { ReplitStorageService } = await import('./replit-storage-service.js');
+          const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+          
+          // Import and run Step 6 processing
+          const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
+          const step6Results = await processAllRecordsToMasterTable(fileContent, upload);
+          
+          if (step6Results.success) {
+            // Update to completed phase with Step 6 results
+            await this.storage.updateUploaderPhase(upload.id, 'completed', {
+              processingCompletedAt: new Date(),
+              processingStatus: 'completed',
+              processingNotes: `Step 6 completed by MMS Watcher: ${step6Results.totalRecords} records processed to master table in ${step6Results.processingTimeMs}ms`,
+              totalRecordsProcessed: step6Results.totalRecords,
+              masterRecordsCreated: step6Results.masterRecords,
+              apiRecordsCreated: step6Results.apiRecords,
+              skippedLines: step6Results.skippedLines,
+              step6ProcessingTimeMs: step6Results.processingTimeMs,
+              completedAt: new Date()
+            });
+
+            console.log(`[MMS-WATCHER] [AUTO-STEP6] ✅ Step 6 completed for: ${upload.filename} -> ${step6Results.totalRecords} total records processed in ${step6Results.processingTimeMs}ms`);
+          } else {
+            throw new Error(step6Results.error || 'Step 6 processing failed');
+          }
+        } catch (error) {
+          console.error(`[MMS-WATCHER] [AUTO-STEP6] Error processing file ${upload.filename}:`, error);
+          await this.markStep6Failed(upload, error.message);
+        }
+      }
+    } catch (error) {
+      console.error('[MMS-WATCHER] [AUTO-STEP6] Error processing encoded files:', error);
+    }
+  }
+
+  async markStep6Failed(upload, errorMessage) {
+    await this.storage.updateUploaderUpload(upload.id, {
+      currentPhase: 'failed',
+      processingNotes: `Step 6 processing failed: ${errorMessage}`,
+      processingStatus: 'failed',
+      failedAt: new Date()
+    });
+    
+    console.log(`[MMS-WATCHER] [AUTO-STEP6] ❌ Failed Step 6 processing: ${upload.filename} - ${errorMessage}`);
   }
   
   extractDateFromFilename(filename) {
