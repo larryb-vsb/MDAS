@@ -2350,6 +2350,11 @@ export default function TddfApiDataPage() {
                         <SelectItem value="5">5</SelectItem>
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="250">250</SelectItem>
+                        <SelectItem value="500">500</SelectItem>
+                        <SelectItem value="1000">1K</SelectItem>
+                        <SelectItem value="1500">1.5K</SelectItem>
+                        <SelectItem value="2000">2K</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2758,6 +2763,12 @@ export default function TddfApiDataPage() {
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="25">25</SelectItem>
                         <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="250">250</SelectItem>
+                        <SelectItem value="500">500</SelectItem>
+                        <SelectItem value="1000">1K</SelectItem>
+                        <SelectItem value="1500">1.5K</SelectItem>
+                        <SelectItem value="2000">2K</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
