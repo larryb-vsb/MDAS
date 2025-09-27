@@ -94,6 +94,7 @@ function Router() {
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/login" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
