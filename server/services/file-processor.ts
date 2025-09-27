@@ -573,10 +573,38 @@ class FileProcessorService {
       // Process files one by one with atomic database locking
       for (const file of unprocessedFiles) {
         try {
-          // Atomic database lock: try to claim this file for processing
-          const claimed = await this.claimFileForProcessing(file.id);
+          // Atomic database lock: try to claim this file for processing with retry logic
+          let claimed = false;
+          let attemptNumber = 1;
+          const maxRetries = 3;
+          
+          while (attemptNumber <= maxRetries && !claimed) {
+            claimed = await this.claimFileForProcessing(file.id, file.originalFilename, attemptNumber);
+            
+            if (!claimed && attemptNumber < maxRetries) {
+              // Exponential backoff: wait longer between retries to reduce contention
+              const waitTimeMs = 100 * Math.pow(2, attemptNumber - 1); // 100ms, 200ms, 400ms
+              const retryContext = FileTaggedLogger.createContext({ id: file.id, filename: file.originalFilename }, 6, 'RETRY');
+              FileTaggedLogger.warn(retryContext, `File claim failed, retrying in ${waitTimeMs}ms`, { 
+                attemptNumber, 
+                maxRetries, 
+                waitTimeMs,
+                reason: 'concurrency_retry' 
+              });
+              
+              await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+              attemptNumber++;
+            }
+          }
+          
           if (!claimed) {
-            console.log(`[${serverId}] File ${file.originalFilename} already claimed by another server, skipping`);
+            const exhaustedContext = FileTaggedLogger.createContext({ id: file.id, filename: file.originalFilename }, 6, 'EXHAUSTED');
+            FileTaggedLogger.warn(exhaustedContext, `File claim failed after ${maxRetries} attempts - potential duplicate risk`, { 
+              attemptNumber: maxRetries, 
+              reason: 'max_retries_exceeded',
+              duplicateRisk: true
+            });
+            console.log(`[${serverId}] File ${file.originalFilename} could not be claimed after ${maxRetries} attempts, skipping`);
             continue;
           }
           
@@ -662,7 +690,7 @@ class FileProcessorService {
    * Atomically claim a file for processing using database-level locking
    * Returns true if successfully claimed, false if already claimed by another server
    */
-  private async claimFileForProcessing(fileId: string): Promise<boolean> {
+  private async claimFileForProcessing(fileId: string, filename?: string, attemptNumber: number = 1): Promise<boolean> {
     const serverId = getCachedServerId();
     const currentTime = new Date();
     
@@ -685,12 +713,20 @@ class FileProcessorService {
       `);
       
       const claimed = result.rows.length > 0;
+      
       if (claimed) {
+        const claimContext = FileTaggedLogger.createContext({ id: fileId, filename: filename || fileId }, 6, 'CLAIM-SUCCESS');
+        FileTaggedLogger.success(claimContext, `File claimed for processing (attempt ${attemptNumber})`, { serverId, attemptNumber });
         console.log(`[${serverId}] Successfully claimed file ${fileId} for processing`);
+      } else {
+        const claimContext = FileTaggedLogger.createContext({ id: fileId, filename: filename || fileId }, 6, 'CLAIM-FAILED');
+        FileTaggedLogger.warn(claimContext, `File claim failed - likely already processing (attempt ${attemptNumber})`, { serverId, attemptNumber, reason: 'concurrency_conflict' });
       }
       
       return claimed;
     } catch (error) {
+      const errorContext = FileTaggedLogger.createContext({ id: fileId, filename: filename || fileId }, 6, 'CLAIM-ERROR');
+      FileTaggedLogger.error(errorContext, `Database error during file claim (attempt ${attemptNumber})`, error);
       console.error(`[${serverId}] Error claiming file ${fileId}:`, error);
       return false;
     }
