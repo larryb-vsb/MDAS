@@ -7,6 +7,7 @@ import { getCachedServerId } from "../utils/server-id";
 import { getTableName } from "../table-config";
 import { systemLogger } from '../system-logger';
 import { NODE_ENV } from '../env-config';
+import { FileTaggedLogger } from '../../shared/file-tagged-logger.js';
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -323,7 +324,8 @@ class FileProcessorService {
       let timingLogId: number | null = null;
       
       try {
-        console.log(`[AUTO-STEP6] Processing file: ${file.filename} (ID: ${file.id})`);
+        const context = FileTaggedLogger.createContext(file, 6, 'START');
+        FileTaggedLogger.stepStart(context, 'Auto Step 6 processing initiated');
         
         // Import the Step 6 processing function and Replit storage service
         const { processAllRecordsToMasterTable } = await import("../tddf-json-encoder");
@@ -393,10 +395,16 @@ class FileProcessorService {
           }
         }
         
-        console.log(`[AUTO-STEP6] ✅ Successfully completed Step 6 for ${file.filename}: ${recordsCreated} records processed in ${encodingTimeMs}ms`);
+        const successContext = FileTaggedLogger.createContext(file, 6, 'COMPLETE');
+        FileTaggedLogger.success(successContext, 'Auto Step 6 completed', { 
+          recordsCreated, 
+          processingTimeMs: encodingTimeMs,
+          recordsPerSecond: recordsCreated / (encodingTimeMs / 1000) 
+        });
         
       } catch (error) {
-        console.error(`[AUTO-STEP6] ❌ Failed to process ${file.filename}:`, error);
+        const failureContext = FileTaggedLogger.createContext(file, 6, 'FAILED');
+        FileTaggedLogger.failure(failureContext, 'Auto Step 6 processing failed', error);
         
         // Calculate failure time
         const failureTime = new Date();
@@ -572,6 +580,8 @@ class FileProcessorService {
             continue;
           }
           
+          const processingContext = FileTaggedLogger.createContext({ id: file.id, filename: file.originalFilename }, 6, 'START');
+          FileTaggedLogger.stepStart(processingContext, 'File processing initiated');
           console.log(`\n=== [${serverId}] PROCESSING FILE: ${file.originalFilename} (ID: ${file.id}) ===`);
           const startTime = new Date();
           
@@ -593,6 +603,8 @@ class FileProcessorService {
           const processingTimeMs = endTime.getTime() - startTime.getTime();
           const processingTimeSec = (processingTimeMs / 1000).toFixed(2);
           
+          const completedContext = FileTaggedLogger.createContext({ id: file.id, filename: file.originalFilename }, 6, 'COMPLETE');
+          FileTaggedLogger.success(completedContext, 'File processing completed', { processingTimeSeconds: processingTimeSec });
           console.log(`✅ [${serverId}] COMPLETED: ${file.originalFilename} in ${processingTimeSec} seconds`);
           this.processedFileCount += 1;
           
@@ -600,6 +612,8 @@ class FileProcessorService {
           this.currentlyProcessingFile = null;
           
         } catch (error) {
+          const failedContext = FileTaggedLogger.createContext({ id: file.id, filename: file.originalFilename }, 6, 'FAILED');
+          FileTaggedLogger.failure(failedContext, 'File processing failed', error);
           console.error(`❌ [${serverId}] FAILED: ${file.originalFilename} - ${error.message}`);
           if (error instanceof Error) {
             this.processingErrors[file.id] = error.message;

@@ -3,6 +3,7 @@
 // This service monitors files that reach "uploaded" status and progresses them through the remaining phases
 
 import { JsonbDuplicateCleanup } from './jsonb-duplicate-cleanup.js';
+import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
 
 class MMSWatcher {
   constructor(storage) {
@@ -423,7 +424,8 @@ class MMSWatcher {
               identificationMethod: 'manual_watcher_triggered'
             })
           });
-          console.log(`[MMS-WATCHER] [MANUAL-45] ${upload.filename}: uploaded → identified`);
+          const context = FileTaggedLogger.createContext(upload, 4, 'COMPLETE');
+          FileTaggedLogger.success(context, 'uploaded → identified (manual)');
           this.manual45Queue.delete(uploadId);
           
         } else if (upload.currentPhase === 'identified') {
@@ -433,12 +435,14 @@ class MMSWatcher {
           
         } else {
           // File in unexpected phase, remove from queue
-          console.log(`[MMS-WATCHER] [MANUAL-45] File ${upload.filename} in unexpected phase ${upload.currentPhase}, removing from queue`);
+          const context = FileTaggedLogger.createContext(upload, 4, 'ERROR');
+          FileTaggedLogger.warn(context, `File in unexpected phase ${upload.currentPhase}, removing from queue`);
           this.manual45Queue.delete(uploadId);
         }
 
       } catch (error) {
-        console.error(`[MMS-WATCHER] [MANUAL-45] Error processing ${uploadId}:`, error);
+        const errorContext = { uploadId, filename: 'unknown', step: 4, action: 'ERROR' };
+        FileTaggedLogger.error(errorContext, `Manual processing failed for ${uploadId}`, error);
         this.manual45Queue.delete(uploadId); // Remove failed files from queue
       }
     }
@@ -447,7 +451,8 @@ class MMSWatcher {
   // Manual encoding process for single files
   async processIdentifiedFileManual(upload) {
     try {
-      console.log(`[MMS-WATCHER] [MANUAL-45] Starting encoding for ${upload.filename}`);
+      const context = FileTaggedLogger.createContext(upload, 5, 'START');
+      FileTaggedLogger.stepStart(context, 'Manual encoding initiated');
       
       // Parse existing processing notes safely
       let existingNotes = {};
@@ -499,10 +504,12 @@ class MMSWatcher {
         })
       });
 
-      console.log(`[MMS-WATCHER] [MANUAL-45] ${upload.filename}: identified → encoding → encoded (${encodingResult.totalRecords || 0} records)`);
+      const successContext = FileTaggedLogger.createContext(upload, 5, 'COMPLETE');
+      FileTaggedLogger.success(successContext, `identified → encoding → encoded`, { totalRecords: encodingResult.totalRecords || 0 });
 
     } catch (error) {
-      console.error(`[MMS-WATCHER] [MANUAL-45] Encoding failed for ${upload.filename}:`, error);
+      const failureContext = FileTaggedLogger.createContext(upload, 5, 'FAILED');
+      FileTaggedLogger.failure(failureContext, 'Manual encoding failed', error);
       
       // Re-parse existing processing notes safely for error handling
       try {
@@ -581,7 +588,8 @@ class MMSWatcher {
   }
 
   async identifyFile(upload) {
-    console.log(`[MMS-WATCHER] Identifying file: ${upload.filename} (${upload.id})`);
+    const context = FileTaggedLogger.createContext(upload, 4, 'START');
+    FileTaggedLogger.stepStart(context, 'File identification initiated');
     
     // Get file content from Replit Object Storage
     const { ReplitStorageService } = await import('./replit-storage-service.js');
@@ -603,7 +611,8 @@ class MMSWatcher {
       processingNotes: `File identified: ${identification.detectedType} format, ${identification.lineCount} lines, headers: ${identification.hasHeaders}`
     });
 
-    console.log(`[MMS-WATCHER] ✅ File identified: ${upload.filename} -> ${identification.detectedType} (${identification.lineCount} lines)`);
+    const successContext = FileTaggedLogger.createContext(upload, 4, 'COMPLETE');
+    FileTaggedLogger.success(successContext, `File identified: ${identification.detectedType}`, { lineCount: identification.lineCount, format: identification.format });
   }
 
   // Debug method to show all files

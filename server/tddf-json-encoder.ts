@@ -8,6 +8,7 @@ import { UploaderUpload } from '@shared/schema';
 import { parseTddfFilename } from './filename-parser';
 import { batchPool } from './db';
 import crypto from 'crypto';
+import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
 
 /**
  * Extract processing datetime from TDDF filename
