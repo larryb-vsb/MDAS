@@ -2369,8 +2369,8 @@ export default function TddfApiDataPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setUploadsCurrentPage(uploadsCurrentPage + 1)}
-                      disabled={(uploadsCurrentPage + 1) * uploadsItemsPerPage >= totalUploads}
+                      onClick={() => setUploadsCurrentPage(Math.min(Math.ceil(totalUploads / uploadsItemsPerPage) - 1, uploadsCurrentPage + 1))}
+                      disabled={uploadsCurrentPage >= Math.ceil(totalUploads / uploadsItemsPerPage) - 1}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -2777,8 +2777,8 @@ export default function TddfApiDataPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setProcessedFilesCurrentPage(processedFilesCurrentPage + 1)}
-                      disabled={(processedFilesCurrentPage + 1) * processedFilesItemsPerPage >= totalProcessedFiles}
+                      onClick={() => setProcessedFilesCurrentPage(Math.min(Math.ceil(totalProcessedFiles / processedFilesItemsPerPage) - 1, processedFilesCurrentPage + 1))}
+                      disabled={processedFilesCurrentPage >= Math.ceil(totalProcessedFiles / processedFilesItemsPerPage) - 1}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
