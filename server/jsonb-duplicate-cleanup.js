@@ -10,7 +10,7 @@ class JsonbDuplicateCleanup {
   constructor() {
     this.pool = batchPool;
     this.environment = process.env.NODE_ENV || 'development';
-    this.tableName = this.environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+    this.tableName = this.environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
     this.logFile = `jsonb_duplicate_log_${new Date().toISOString().split('T')[0]}.log`;
   }
 
@@ -23,35 +23,48 @@ class JsonbDuplicateCleanup {
     try {
       console.log(`[JSONB-CLEANUP] Scanning ${this.tableName} for duplicates...`);
       
-      // Find duplicates based on extracted reference numbers for DT records
+      // Find duplicates based on raw_line_hash (more accurate hash-based detection)
       const duplicateQuery = `
-        WITH reference_duplicates AS (
+        WITH hash_duplicates AS (
           SELECT 
-            extracted_fields->>'referenceNumber' as reference_number,
+            raw_line_hash,
             COUNT(*) as duplicate_count,
             ARRAY_AGG(id ORDER BY created_at) as record_ids,
             ARRAY_AGG(upload_id ORDER BY created_at) as upload_ids,
-            ARRAY_AGG(filename ORDER BY created_at) as filenames,
+            ARRAY_AGG(original_filename ORDER BY created_at) as filenames,
+            ARRAY_AGG(created_at ORDER BY created_at) as created_times
+          FROM ${this.tableName}
+          WHERE raw_line_hash IS NOT NULL
+          GROUP BY raw_line_hash
+          HAVING COUNT(*) > 1
+        ),
+        reference_duplicates AS (
+          SELECT 
+            record_data->>'referenceNumber' as reference_number,
+            COUNT(*) as duplicate_count,
+            ARRAY_AGG(id ORDER BY created_at) as record_ids,
+            ARRAY_AGG(upload_id ORDER BY created_at) as upload_ids,
+            ARRAY_AGG(original_filename ORDER BY created_at) as filenames,
             ARRAY_AGG(created_at ORDER BY created_at) as created_times
           FROM ${this.tableName}
           WHERE record_type = 'DT' 
-            AND extracted_fields->>'referenceNumber' IS NOT NULL
-            AND extracted_fields->>'referenceNumber' != ''
-          GROUP BY extracted_fields->>'referenceNumber'
-          HAVING COUNT(*) > 1
-        ),
-        line_duplicates AS (
-          SELECT 
-            raw_line,
-            record_type,
-            COUNT(*) as duplicate_count,
-            ARRAY_AGG(id ORDER BY created_at) as record_ids,
-            ARRAY_AGG(upload_id ORDER BY created_at) as upload_ids,
-            ARRAY_AGG(filename ORDER BY created_at) as filenames
-          FROM ${this.tableName}
-          GROUP BY raw_line, record_type
+            AND record_data->>'referenceNumber' IS NOT NULL
+            AND record_data->>'referenceNumber' != ''
+          GROUP BY record_data->>'referenceNumber'
           HAVING COUNT(*) > 1
         )
+        SELECT 
+          'hash' as duplicate_type,
+          raw_line_hash as duplicate_key,
+          duplicate_count,
+          record_ids,
+          upload_ids,
+          filenames,
+          created_times as timestamps
+        FROM hash_duplicates
+        
+        UNION ALL
+        
         SELECT 
           'reference' as duplicate_type,
           reference_number as duplicate_key,
@@ -61,18 +74,6 @@ class JsonbDuplicateCleanup {
           filenames,
           created_times as timestamps
         FROM reference_duplicates
-        
-        UNION ALL
-        
-        SELECT 
-          'raw_line' as duplicate_type,
-          SUBSTRING(raw_line, 1, 50) || '...' as duplicate_key,
-          duplicate_count,
-          record_ids,
-          upload_ids,
-          filenames,
-          NULL as timestamps
-        FROM line_duplicates
         
         ORDER BY duplicate_count DESC, duplicate_type;
       `;
@@ -208,12 +209,10 @@ class JsonbDuplicateCleanup {
           (SELECT COUNT(*) FROM ${this.tableName}) as total_records,
           COUNT(DISTINCT upload_id) as total_files,
           COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
-          COUNT(DISTINCT CASE WHEN record_type = 'DT' THEN extracted_fields->>'referenceNumber' END) as unique_references,
-          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) - 
-          COUNT(DISTINCT CASE WHEN record_type = 'DT' THEN extracted_fields->>'referenceNumber' END) as potential_reference_duplicates
+          COUNT(DISTINCT raw_line_hash) as unique_hashes,
+          (SELECT COUNT(*) FROM ${this.tableName}) - COUNT(DISTINCT raw_line_hash) as potential_hash_duplicates
         FROM ${this.tableName}
-        WHERE extracted_fields->>'referenceNumber' IS NOT NULL
-          AND extracted_fields->>'referenceNumber' != '';
+        WHERE raw_line_hash IS NOT NULL;
       `;
 
       const result = await client.query(statsQuery);
