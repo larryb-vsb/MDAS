@@ -168,6 +168,8 @@ const CARD_TYPE_COLORS = {
 
 export default function ChartsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isBuildingCache, setIsBuildingCache] = useState(false);
+  const [buildStatus, setBuildStatus] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -249,6 +251,38 @@ export default function ChartsPage() {
     }
   });
 
+  // Build cache mutation
+  const buildCacheMutation = useMutation({
+    mutationFn: () => apiRequest('/api/charts/build-cache', {
+      method: 'POST',
+      body: JSON.stringify({ requestedBy: 'admin' })
+    }),
+    onMutate: () => {
+      setIsBuildingCache(true);
+      setBuildStatus("Checking required tables...");
+    },
+    onSuccess: (data: any) => {
+      setBuildStatus(data.message || "Cache tables built successfully");
+      queryClient.invalidateQueries({ queryKey: ['/api/charts/60day-trends'] });
+      toast({
+        title: "Cache Built Successfully",
+        description: `${data.tablesCreated || 0} tables created. ${data.message}`,
+      });
+    },
+    onError: (error: any) => {
+      setBuildStatus("Build failed");
+      toast({
+        title: "Cache Build Failed",
+        description: error.message || "Failed to build cache tables.",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      setIsBuildingCache(false);
+      setTimeout(() => setBuildStatus(""), 5000); // Clear status after 5 seconds
+    }
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -313,10 +347,30 @@ export default function ChartsPage() {
           <Badge variant="outline" className="text-sm">
             Last updated: {format(new Date(summary.lastRefreshDatetime), 'MMM d, yyyy h:mm a')}
           </Badge>
+          {buildStatus && (
+            <Badge variant="secondary" className="text-sm">
+              {buildStatus}
+            </Badge>
+          )}
+          <Button
+            onClick={() => buildCacheMutation.mutate()}
+            disabled={isBuildingCache || isRefreshing}
+            size="sm"
+            variant="secondary"
+            data-testid="button-build-cache"
+          >
+            {isBuildingCache ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Database className="w-4 h-4 mr-2" />
+            )}
+            Build Cache
+          </Button>
           <Button
             onClick={() => refreshMutation.mutate()}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isBuildingCache}
             size="sm"
+            data-testid="button-refresh-data"
           >
             {isRefreshing ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

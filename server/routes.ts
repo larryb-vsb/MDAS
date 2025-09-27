@@ -20223,6 +20223,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Build charts cache tables
+  app.post("/api/charts/build-cache", isAuthenticated, async (req, res) => {
+    try {
+      const { requestedBy } = req.body;
+      const username = requestedBy || ((req.user as any)?.username) || 'unknown';
+      
+      console.log(`[CHARTS-BUILD-CACHE] Building required cache tables requested by: ${username}`);
+      
+      let tablesCreated = 0;
+      const checkingTable = getTableName('charts_pre_cache');
+      
+      // Check if dev_charts_pre_cache exists
+      const tableExistsResult = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = $1
+        )
+      `, [checkingTable]);
+      
+      const tableExists = tableExistsResult.rows[0].exists;
+      
+      if (!tableExists) {
+        console.log(`[CHARTS-BUILD-CACHE] Creating table: ${checkingTable}`);
+        
+        // Create the charts pre-cache table
+        await pool.query(`
+          CREATE TABLE ${checkingTable} AS
+          SELECT 
+            DATE(uploaded_at) as processing_date,
+            COUNT(*) as files_processed,
+            SUM(file_size) as total_bytes,
+            COUNT(CASE WHEN processing_status = 'completed' THEN 1 END) as successful_files,
+            COUNT(CASE WHEN processing_status = 'failed' THEN 1 END) as failed_files,
+            AVG(CASE WHEN completed_at IS NOT NULL AND started_at IS NOT NULL 
+              THEN EXTRACT(EPOCH FROM (completed_at - started_at)) END) as avg_processing_time_seconds
+          FROM ${getTableName('uploader_uploads')}
+          WHERE uploaded_at >= CURRENT_DATE - INTERVAL '60 days'
+          GROUP BY DATE(uploaded_at)
+          ORDER BY processing_date
+        `);
+        
+        tablesCreated++;
+        console.log(`[CHARTS-BUILD-CACHE] Created table: ${checkingTable}`);
+      } else {
+        console.log(`[CHARTS-BUILD-CACHE] Table already exists: ${checkingTable}`);
+      }
+      
+      res.json({
+        success: true,
+        message: `Cache build complete. Checking table: ${checkingTable}`,
+        tablesCreated,
+        tableChecked: checkingTable,
+        tableExists: tableExists,
+        builtBy: username,
+        builtAt: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[CHARTS-BUILD-CACHE] Error building cache tables:', error);
+      res.status(500).json({ 
+        error: "Failed to build cache tables",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // ==========================================
   // TDDF1 API ENDPOINTS
   // ==========================================
