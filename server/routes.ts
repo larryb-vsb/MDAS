@@ -12430,6 +12430,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const countResult = await pool.query(countQuery, countParams);
         totalCount = parseInt(countResult.rows[0]?.count || '0');
         
+        // Also count cross-environment transferred files if we're in development
+        if (tableName.includes('dev_')) {
+          try {
+            const prodCountQuery = `SELECT COUNT(*) as count FROM uploader_uploads WHERE session_id = 'cross_env_transfer'`;
+            const prodCountResult = await pool.query(prodCountQuery);
+            const prodCount = parseInt(prodCountResult.rows[0]?.count || '0');
+            totalCount += prodCount;
+          } catch (prodError) {
+            console.log('[CROSS-ENV] Production table not accessible for count, skipping cross-env count');
+          }
+        }
+        
         // Then query current environment table with proper pagination
         let query = `SELECT *, 'current' as source_env FROM ${tableName}`;
         const params: any[] = [];
