@@ -25,6 +25,8 @@ export interface TddfApiFile {
   storage_path: string;
   schema_id?: number;
   status: string;
+  current_phase?: string; // Added to match usage in TddfApiDataPage
+  fileType?: string; // Added to match usage in TddfApiDataPage
   record_count: number;
   processed_records: number;
   error_records: number;

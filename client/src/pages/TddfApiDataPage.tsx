@@ -1451,7 +1451,7 @@ export default function TddfApiDataPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {files.length > 0 
-                      ? (100 - (files.filter(f => f.status === "failed" || f.status === "error").length / files.length) * 100).toFixed(1)
+                      ? (100 - (files.filter((f: TddfApiFile) => f.status === "failed" || f.status === "error").length / files.length) * 100).toFixed(1)
                       : 100}%
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1471,7 +1471,7 @@ export default function TddfApiDataPage() {
                 <CardContent>
                   <div className="space-y-3">
                     {['completed', 'processing', 'uploaded', 'failed', 'error'].map((status) => {
-                      const count = files.filter(f => f.status === status).length;
+                      const count = files.filter((f: TddfApiFile) => f.status === status).length;
                       const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
                       return (
                         <div key={status} className="flex items-center justify-between">
@@ -1556,13 +1556,13 @@ export default function TddfApiDataPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold text-green-600">
-                          {files.reduce((sum, f) => sum + (f.record_count || 0), 0).toLocaleString()}
+                          {files.reduce((sum: number, f: TddfApiFile) => sum + (f.record_count || 0), 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-muted-foreground">Total Records</div>
                       </div>
                       <div className="text-center p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold text-blue-600">
-                          {files.reduce((sum, f) => sum + (f.processed_records || 0), 0).toLocaleString()}
+                          {files.reduce((sum: number, f: TddfApiFile) => sum + (f.processed_records || 0), 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-muted-foreground">Processed Records</div>
                       </div>
@@ -1572,8 +1572,8 @@ export default function TddfApiDataPage() {
                       <div className="flex justify-between text-sm">
                         <span>Processing Progress</span>
                         <span>
-                          {files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
-                            ? ((files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100).toFixed(1)
+                          {files.reduce((sum: number, f: TddfApiFile) => sum + (f.record_count || 0), 0) > 0 
+                            ? ((files.reduce((sum: number, f: TddfApiFile) => sum + (f.processed_records || 0), 0) / files.reduce((sum: number, f: TddfApiFile) => sum + (f.record_count || 0), 0)) * 100).toFixed(1)
                             : 0}%
                         </span>
                       </div>
@@ -1581,8 +1581,8 @@ export default function TddfApiDataPage() {
                         <div 
                           className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                           style={{ 
-                            width: `${files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
-                              ? (files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100
+                            width: `${files.reduce((sum: number, f: TddfApiFile) => sum + (f.record_count || 0), 0) > 0 
+                              ? (files.reduce((sum: number, f: TddfApiFile) => sum + (f.processed_records || 0), 0) / files.reduce((sum: number, f: TddfApiFile) => sum + (f.record_count || 0), 0)) * 100
                               : 0}%`
                           }}
                         />
@@ -1591,7 +1591,7 @@ export default function TddfApiDataPage() {
 
                     <div className="text-xs text-muted-foreground">
                       Average records per file: {files.length > 0 
-                        ? Math.round(files.reduce((sum, f) => sum + (f.record_count || 0), 0) / files.length).toLocaleString()
+                        ? Math.round(files.reduce((sum: number, f: TddfApiFile) => sum + (f.record_count || 0), 0) / files.length).toLocaleString()
                         : 0}
                     </div>
                   </div>
@@ -1610,7 +1610,7 @@ export default function TddfApiDataPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="text-center p-3 bg-muted rounded-lg">
                             <div className="text-lg font-bold">
-                              {files.filter(f => {
+                              {files.filter((f: TddfApiFile) => {
                                 const uploadDate = new Date(f.uploaded_at || '');
                                 const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
                                 return uploadDate > dayAgo;
@@ -1620,7 +1620,7 @@ export default function TddfApiDataPage() {
                           </div>
                           <div className="text-center p-3 bg-muted rounded-lg">
                             <div className="text-lg font-bold">
-                              {files.filter(f => {
+                              {files.filter((f: TddfApiFile) => {
                                 const uploadDate = new Date(f.uploaded_at || '');
                                 const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                                 return uploadDate > weekAgo;
@@ -1632,7 +1632,7 @@ export default function TddfApiDataPage() {
                         
                         <div className="space-y-2">
                           <div className="text-sm font-medium">Latest Upload Activity</div>
-                          {files.slice(0, 3).map((file) => (
+                          {files.slice(0, 3).map((file: TddfApiFile) => (
                             <div key={file.id} className="flex items-center justify-between text-xs p-2 bg-muted rounded">
                               <span className="truncate max-w-[60%]">{file.filename}</span>
                               <span className="text-muted-foreground">
@@ -1662,7 +1662,7 @@ export default function TddfApiDataPage() {
                 <div className="space-y-4">
                   {schemas.length > 0 ? (
                     schemas.map((schema) => {
-                      const schemaFiles = files.filter(f => f.schema_name === schema.name);
+                      const schemaFiles = files.filter((f: TddfApiFile) => f.schema_name === schema.name);
                       const usagePercentage = files.length > 0 ? (schemaFiles.length / files.length) * 100 : 0;
                       return (
                         <div key={schema.id} className="flex items-center justify-between">
@@ -1706,7 +1706,7 @@ export default function TddfApiDataPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {files.slice(0, 5).map((file) => (
+                  {files.slice(0, 5).map((file: TddfApiFile) => (
                     <div key={file.id} className="flex items-center justify-between p-2 border rounded">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{file.filename}</p>
@@ -2533,7 +2533,7 @@ export default function TddfApiDataPage() {
                           if (selectedFiles.size === files.length) {
                             setSelectedFiles(new Set());
                           } else {
-                            setSelectedFiles(new Set(files.map(f => f.id)));
+                            setSelectedFiles(new Set(files.map((f: TddfApiFile) => f.id)));
                           }
                         }}
                         aria-label="Select all files"
@@ -3129,7 +3129,7 @@ export default function TddfApiDataPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    queue.map((item) => (
+                    queue.map((item: any) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium max-w-xs truncate">
                           {item.filename || `File ${item.file_id}`}
@@ -3555,7 +3555,7 @@ export default function TddfApiDataPage() {
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-sm text-muted-foreground">
               Phase: {uploaderFileForView?.currentPhase} | 
-              File Type: {uploaderFileForView?.fileType} |
+              File Type: {uploaderFileForView?.fileFormat || 'Unknown'} |
               File Lines: {(() => {
                 if (!uploaderFileContent) return 0;
                 const normalizedContent = uploaderFileContent
