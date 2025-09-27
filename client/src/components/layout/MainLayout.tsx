@@ -172,11 +172,6 @@ const navItems = [
     href: "/analytics"
   },
   {
-    icon: <BarChart3 className="h-5 w-5 text-green-400" />,
-    label: "Charts",
-    href: "/charts"
-  },
-  {
     icon: <Activity className="h-5 w-5 text-blue-400" />,
     label: "Processing",
     href: "/processing"

@@ -41,7 +41,6 @@ import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
 import StorageManagement from "@/pages/StorageManagement";
 import ObjectStorageCleanup from "@/pages/ObjectStorageCleanup";
 import PreCacheManagement from "@/pages/PreCacheManagement";
-import ChartsPage from "@/pages/ChartsPage";
 import TddfApiDataPage from "@/pages/TddfApiDataPage";
 import TddfJsonViewerPage from "@/pages/TddfJsonViewerPage";
 function Router() {
@@ -86,7 +85,6 @@ function Router() {
       <ProtectedRoute path="/storage-cleanup" component={ObjectStorageCleanup} />
       <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
       <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
-      <ProtectedRoute path="/charts" component={ChartsPage} />
       <ProtectedRoute path="/tddf-api" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-api-data" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-viewer" component={TddfApiDataPage} />
