@@ -18744,26 +18744,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark scan as in progress
       await pool.query(`
         UPDATE ${getTableName('duplicate_finder_cache')} 
-        SET scan_in_progress = TRUE, scan_status = 'red', updated_at = NOW()
+        SET scan_in_progress = TRUE, scan_status = 'red'
         WHERE cache_key = 'duplicate_scan_status'
       `);
 
-      // Perform duplicate scan (simplified version)
-      const tddfTableName = getTableName('tddf_jsonb');
+      // Perform duplicate scan using uploader TDDF JSONB records table with hash-based detection
+      const environment = process.env.NODE_ENV || 'development';
+      const uploaderTddfTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      
       const duplicateResult = await pool.query(`
         SELECT COUNT(*) as duplicate_count
         FROM (
-          SELECT extracted_fields->>'referenceNumber', COUNT(*) as cnt
-          FROM ${tddfTableName}
-          WHERE record_type = 'DT' 
-          AND extracted_fields->>'referenceNumber' IS NOT NULL
-          GROUP BY extracted_fields->>'referenceNumber'
+          SELECT raw_line_hash, COUNT(*) as cnt
+          FROM ${uploaderTddfTableName}
+          WHERE raw_line_hash IS NOT NULL
+          GROUP BY raw_line_hash
           HAVING COUNT(*) > 1
         ) duplicates
       `);
 
       const totalResult = await pool.query(`
-        SELECT COUNT(*) as total FROM ${tddfTableName} WHERE record_type = 'DT'
+        SELECT COUNT(*) as total FROM ${uploaderTddfTableName}
       `);
 
       const duplicateCount = parseInt(duplicateResult.rows[0].duplicate_count || '0');
@@ -18778,8 +18779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             total_scanned = $3,
             last_scan_date = NOW(),
             scan_in_progress = FALSE,
-            cooldown_until = NOW() + INTERVAL '6 minutes',
-            updated_at = NOW()
+            cooldown_until = NOW() + INTERVAL '6 minutes'
         WHERE cache_key = 'duplicate_scan_status'
       `, [scanStatus, duplicateCount, totalScanned]);
 
@@ -18795,7 +18795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Reset scan in progress flag on error
       await pool.query(`
         UPDATE ${getTableName('duplicate_finder_cache')} 
-        SET scan_in_progress = FALSE, scan_status = 'red', updated_at = NOW()
+        SET scan_in_progress = FALSE, scan_status = 'red'
         WHERE cache_key = 'duplicate_scan_status'
       `).catch(console.error);
       
