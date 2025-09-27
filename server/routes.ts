@@ -12403,11 +12403,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.uploader('Using table:', tableName, 'for environment:', environment || 'current');
       
-      // Query both environments and merge results to show cross-environment transferred files
+      // Get total count first for pagination
+      let totalCount = 0;
       let allUploads: any[] = [];
       
       try {
-        // Query current environment table
+        // First, get total count for pagination
+        let countQuery = `SELECT COUNT(*) as count FROM ${tableName}`;
+        const countParams: any[] = [];
+        const countConditions: string[] = [];
+        
+        if (phase) {
+          countConditions.push(`current_phase = $${countParams.length + 1}`);
+          countParams.push(phase);
+        }
+        
+        if (sessionId) {
+          countConditions.push(`session_id = $${countParams.length + 1}`);
+          countParams.push(sessionId);
+        }
+        
+        if (countConditions.length > 0) {
+          countQuery += ` WHERE ${countConditions.join(' AND ')}`;
+        }
+        
+        const countResult = await pool.query(countQuery, countParams);
+        totalCount = parseInt(countResult.rows[0]?.count || '0');
+        
+        // Then query current environment table with proper pagination
         let query = `SELECT *, 'current' as source_env FROM ${tableName}`;
         const params: any[] = [];
         const conditions: string[] = [];
@@ -12427,6 +12450,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         query += ` ORDER BY created_at DESC`;
+        
+        // Apply SQL-level pagination
+        if (limit) {
+          query += ` LIMIT $${params.length + 1}`;
+          params.push(parseInt(limit as string));
+        }
+        
+        if (offset) {
+          query += ` OFFSET $${params.length + 1}`;
+          params.push(parseInt(offset as string));
+        }
         
         const currentResult = await pool.query(query, params);
         allUploads = currentResult.rows;
@@ -12480,13 +12514,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allUploads = result.rows;
       }
       
-      // Sort all uploads by created_at descending
-      allUploads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      // Apply pagination after merging
-      const limitNum = limit ? parseInt(limit as string) : allUploads.length;
-      const offsetNum = offset ? parseInt(offset as string) : 0;
-      const paginatedUploads = allUploads.slice(offsetNum, offsetNum + limitNum);
+      // No need for additional sorting since SQL query already handles ORDER BY and pagination
+      const paginatedUploads = allUploads;
       
       // Convert snake_case database fields to camelCase for frontend compatibility
       const uploads = paginatedUploads.map(row => ({
@@ -12552,8 +12581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         record_count: row.line_count || row.tddf_records_created || 0
       }));
       
-      // Get total count for pagination (if limit/offset is used)
-      let totalCount = allUploads.length; // Use merged count from all environments
+      // totalCount is already calculated from SQL COUNT query above
       
       logger.uploader(`Found ${uploads.length} uploads for session ${sessionId || 'all'} in environment ${environment || 'current'}, total: ${totalCount}`);
       
