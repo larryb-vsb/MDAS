@@ -22973,7 +22973,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'completed',
             totalRecordsProcessed: displayTotalRecords,
             masterTableRecords: step6Result.masterRecords,
-            apiRecordsProcessed: step6Result.apiRecords
+            apiRecordsProcessed: step6Result.apiRecords,
+            merchantsCreated: step6Result.merchantsCreated || 0,
+            merchantsUpdated: step6Result.merchantsUpdated || 0,
+            terminalsCreated: step6Result.terminalsCreated || 0,
+            terminalsUpdated: step6Result.terminalsUpdated || 0
           });
           
           console.log(`[ARCHIVE-STEP-6] Successfully processed ${archiveFile.archive_filename}: ${step6Result.totalRecords} total records`);
