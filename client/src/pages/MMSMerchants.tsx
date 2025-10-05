@@ -32,7 +32,6 @@ import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, E
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
-import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 
 interface TddfMerchant {
   id?: number;
@@ -212,14 +211,10 @@ export default function MMSMerchants() {
           />
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+            <TabsList className="grid w-full grid-cols-2 max-w-[600px]">
               <TabsTrigger value="tddf" className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 TDDF Merchants
-              </TabsTrigger>
-              <TabsTrigger value="tddf1" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                TDDF1 Merchants
               </TabsTrigger>
               <TabsTrigger value="ach" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
