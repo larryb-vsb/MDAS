@@ -102,8 +102,13 @@ export default function MMSMerchants() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = merchants.map(m => m.id || m.merchantAccountNumber || m.client_mid);
-      setSelectedMerchants(new Set(allIds.filter(Boolean)));
+      const allIds = merchants
+        .map(m => {
+          const id = m.id?.toString() || m.merchantAccountNumber || m.client_mid;
+          return id;
+        })
+        .filter((id): id is string => Boolean(id));
+      setSelectedMerchants(new Set(allIds));
     } else {
       setSelectedMerchants(new Set());
     }
@@ -390,7 +395,7 @@ export default function MMSMerchants() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {formatTableDate(merchant.lastTransactionDate || merchant.created_at)}
+                                {formatTableDate(merchant.lastTransactionDate || merchant.created_at || null)}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
