@@ -1101,20 +1101,6 @@ export default function MerchantDetail() {
 
                       <FormField
                         control={form.control}
-                        name="clientSinceDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Client Since Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
                         name="association"
                         render={({ field }) => (
                           <FormItem>
@@ -1135,6 +1121,55 @@ export default function MerchantDetail() {
                             <FormLabel>MCC (Merchant Category Code)</FormLabel>
                             <FormControl>
                               <Input {...field} value={field.value || ''} placeholder="Enter MCC code" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Key Dates Section - Grouped at Top */}
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3 border-b pb-6">
+                      <div className="md:col-span-3">
+                        <h3 className="text-lg font-semibold mb-4">Key Dates</h3>
+                      </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="clientSinceDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Merchant Activation Date (Opened Date)</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="boardDt"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date of First Deposit</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="asOfDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date of Last Deposit</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1653,12 +1688,12 @@ export default function MerchantDetail() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
-                      <p className="mt-1 text-2xl font-semibold">{data?.analytics.totalTransactions || 0}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Monthly Transactions</h3>
+                      <p className="mt-1 text-2xl font-semibold">{data?.analytics.monthlyStats.transactions || 0}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Total Amount</h3>
-                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.totalAmount || 0)}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
+                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(parseFloat(data?.analytics.monthlyStats.revenue || '0'))}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">Merchant Type</h3>
