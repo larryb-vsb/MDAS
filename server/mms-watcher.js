@@ -953,6 +953,31 @@ class MMSWatcher {
     return isMerchantDetailFile;
   }
 
+  // Helper method to parse dates from merchant detail files
+  parseDate(dateString) {
+    if (!dateString || dateString.trim() === '' || dateString === '99/99/9999' || dateString === '00/00/0000') {
+      return null;
+    }
+    
+    try {
+      // Handle MM/DD/YYYY format
+      if (dateString.includes('/')) {
+        const [month, day, year] = dateString.split('/');
+        return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      }
+      
+      // Handle YYYY-MM-DD format
+      if (dateString.includes('-')) {
+        return new Date(dateString);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`[MMS-WATCHER] Error parsing date: ${dateString}`, error);
+      return null;
+    }
+  }
+
   async markIdentificationFailed(upload, errorMessage) {
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'failed',
@@ -1244,19 +1269,89 @@ class MMSWatcher {
         console.log(`[MMS-WATCHER] [MERCHANT-DETAIL] Processing merchant detail file: ${upload.filename}`);
         
         try {
-          // TODO: Implement actual merchant detail processing
-          // For now, mark as encoded to progress through pipeline
+          // Get file content from Replit Object Storage
+          const { ReplitStorageService } = await import('./replit-storage-service.js');
+          const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+          
+          if (!fileContent) {
+            throw new Error('File content not accessible');
+          }
+          
+          // Parse merchant detail records
+          const lines = fileContent.split('\n').filter(line => line.trim());
+          const dataRecords = lines.filter(line => line.startsWith('6759'));
+          
+          console.log(`[MMS-WATCHER] [MERCHANT-DETAIL] Found ${dataRecords.length} merchant records to process`);
+          
+          let merchantsCreated = 0;
+          let merchantsUpdated = 0;
+          const errors = [];
+          
+          // Process each merchant record
+          for (const line of dataRecords) {
+            try {
+              const fields = line.split('\t');
+              
+              // Extract merchant data from tab-delimited fields
+              const merchantData = {
+                id: fields[2]?.trim() || null, // Merchant number/ID (field 2)
+                name: fields[4]?.trim() || 'Unknown Merchant', // Merchant name (field 4)
+                merchantType: '0', // Set merchant type to 0 for DACQ_MER_DTL files
+                association: fields[5]?.trim() || null, // Association (field 5)
+                mcc: fields[6]?.trim() || null, // MCC (field 6)
+                visaMcc: fields[7]?.trim() || null, // Visa MCC (field 7)
+                dbaNameCwob: fields[8]?.trim() || null, // DBA Name (field 8)
+                city: fields[9]?.trim() || null, // City (field 9)
+                state: fields[10]?.trim() || null, // State (field 10)
+                zipCode: fields[11]?.trim() || null, // Zip code (field 11)
+                masterMID: fields[3]?.trim() || null, // Chain/Master ID (field 3)
+                bank: fields[1]?.trim() || null, // Bank number (field 1)
+                asOfDate: this.parseDate(fields[56]) || null, // As-of date (field 56)
+                boardDt: this.parseDate(fields[57]) || null, // Board date (field 57)
+                status: 'Active'
+              };
+              
+              // Validate required fields
+              if (!merchantData.id) {
+                errors.push(`Missing merchant ID for record: ${fields.slice(0, 5).join(' | ')}`);
+                continue;
+              }
+              
+              // Check if merchant exists
+              const existingMerchant = await this.storage.getMerchantById(merchantData.id);
+              
+              if (existingMerchant) {
+                // Update existing merchant
+                await this.storage.updateMerchant(merchantData.id, merchantData);
+                merchantsUpdated++;
+              } else {
+                // Create new merchant
+                await this.storage.createMerchant(merchantData);
+                merchantsCreated++;
+              }
+              
+            } catch (recordError) {
+              errors.push(`Error processing merchant record: ${recordError.message}`);
+              console.error(`[MMS-WATCHER] [MERCHANT-DETAIL] Record error:`, recordError);
+            }
+          }
+          
+          // Update upload status
           await this.storage.updateUploaderPhase(upload.id, 'encoded', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
-            encodingNotes: `Merchant detail file ready for processing (${upload.lineCount} lines)`,
-            processingNotes: `Merchant detail file identified and ready for import processing`,
-            fileTypeIdentified: 'merchant_detail'
+            encodingNotes: `Successfully processed merchant detail file: ${merchantsCreated} created, ${merchantsUpdated} updated`,
+            processingNotes: `Auto-processed by MMS Watcher: ${dataRecords.length} merchant records processed`,
+            fileTypeIdentified: 'merchant_detail',
+            recordsProcessed: dataRecords.length,
+            recordsCreated: merchantsCreated,
+            recordsUpdated: merchantsUpdated,
+            processingErrors: errors.length > 0 ? errors : null
           });
           
-          console.log(`[MMS-WATCHER] ✅ Merchant detail file marked as encoded: ${upload.filename} (${upload.lineCount} lines) - Ready for processing`);
+          console.log(`[MMS-WATCHER] ✅ Merchant detail file processed: ${upload.filename} -> ${merchantsCreated} created, ${merchantsUpdated} updated`);
         } catch (error) {
-          console.error(`[MMS-WATCHER] Error marking merchant detail file ${upload.filename}:`, error);
+          console.error(`[MMS-WATCHER] Error processing merchant detail file ${upload.filename}:`, error);
           
           await this.storage.updateUploaderPhase(upload.id, 'failed', {
             encodingCompletedAt: new Date(),
