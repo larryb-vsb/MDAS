@@ -4,13 +4,12 @@ import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import MerchantList from "@/components/merchants/MerchantList";
 import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
-import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw, Building2, CreditCard, FileText, Upload } from "lucide-react";
+import { RefreshCw, Building2, CreditCard, FileText } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -29,7 +28,7 @@ export default function Merchants() {
   const queryClient = useQueryClient();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState("ach");
+  const [activeTab, setActiveTab] = useState("all");
   
   // State for filters and pagination
   const [statusFilter, setStatusFilter] = useState("All");
@@ -44,9 +43,12 @@ export default function Merchants() {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, uploadFilter, itemsPerPage]);
   
+  // Determine merchantType based on active tab
+  const merchantType = activeTab === "ach" ? "3" : "All";
+  
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
-    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery],
+    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery, merchantType],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -62,6 +64,10 @@ export default function Merchants() {
       
       if (searchQuery.trim()) {
         params.append('search', searchQuery.trim());
+      }
+      
+      if (merchantType !== "All") {
+        params.append('merchantType', merchantType);
       }
       
       const response = await fetch(`/api/merchants?${params.toString()}`);
@@ -171,7 +177,7 @@ export default function Merchants() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            {activeTab === "ach" && (
+            {(activeTab === "all" || activeTab === "ach") && (
               <Button 
                 onClick={() => setLocation('/merchants/new')}
                 className="bg-gradient-to-r from-blue-500 to-blue-700"
@@ -184,19 +190,51 @@ export default function Merchants() {
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
-            <TabsTrigger value="ach" className="flex items-center gap-2">
+            <TabsTrigger value="all" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               All Merchants
             </TabsTrigger>
-            <TabsTrigger value="tddf" className="flex items-center gap-2">
+            <TabsTrigger value="ach" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
+              ACH Merchants
+            </TabsTrigger>
+            <TabsTrigger value="tddf" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
               TDDF Merchants
             </TabsTrigger>
-            <TabsTrigger value="tddf1" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              TDDF1 Merchants
-            </TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="all" className="mt-6">
+            <MerchantFilters
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              uploadFilter={uploadFilter}
+              setUploadFilter={setUploadFilter}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
+            
+            <MerchantList
+              merchants={data?.merchants || []}
+              pagination={data?.pagination || {
+                currentPage: 1,
+                totalPages: 1,
+                totalItems: 0,
+                itemsPerPage: itemsPerPage
+              }}
+              isLoading={isLoading}
+              error={error}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              selectedMerchants={selectedMerchants}
+              setSelectedMerchants={setSelectedMerchants}
+              onDeleteSelected={handleDeleteSelected}
+              deleteMutation={deleteMutation}
+              mergeMutation={mergeMutation}
+            />
+          </TabsContent>
           
           <TabsContent value="ach" className="mt-6">
             <MerchantFilters
@@ -233,10 +271,6 @@ export default function Merchants() {
           
           <TabsContent value="tddf" className="mt-6">
             <TddfMerchantsTable />
-          </TabsContent>
-          
-          <TabsContent value="tddf1" className="mt-6">
-            <Tddf1MerchantVolumeTab />
           </TabsContent>
         </Tabs>
       </div>
