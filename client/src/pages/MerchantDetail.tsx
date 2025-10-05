@@ -79,9 +79,9 @@ const merchantSchema = z.object({
   clientMID: z.string().optional(),
   otherClientNumber1: z.string().optional(),
   otherClientNumber2: z.string().optional(),
-  clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
+  clientSinceDate: z.string().optional(),
   status: z.string(),
-  merchantType: z.string().nullable().optional(), // Store as plain text value
+  merchantType: z.string().nullable().optional(),
   salesChannel: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -89,10 +89,29 @@ const merchantSchema = z.object({
   zipCode: z.string().optional(),
   country: z.string().optional(),
   category: z.string().optional(),
-  asOfDate: z.string().optional(), // As of date from demographic import
-  association: z.string().optional(), // Business association field
-  mcc: z.string().optional(), // Merchant Category Code
-  // Removed editDate and updatedBy - they are now display-only fields outside the form
+  asOfDate: z.string().optional(),
+  association: z.string().optional(),
+  mcc: z.string().optional(),
+  bank: z.string().optional(),
+  associateMerchantNumber: z.string().optional(),
+  dbaNameCwob: z.string().optional(),
+  cwobDebitRisk: z.string().optional(),
+  vwobEbtReturn: z.string().optional(),
+  bypassEa: z.string().optional(),
+  bypassCo: z.string().optional(),
+  merchantRecordSt: z.string().optional(),
+  boardDt: z.string().optional(),
+  saleAmt: z.string().optional(),
+  creditAmt: z.string().optional(),
+  negativeAmount: z.string().optional(),
+  numberO: z.string().optional(),
+  bypassForce: z.string().optional(),
+  feeVisa: z.string().optional(),
+  visaMcc: z.string().optional(),
+  dailyAuthLimit: z.string().optional(),
+  bypassEx: z.string().optional(),
+  excessiveDepositAmount: z.string().optional(),
+  threshold: z.string().optional(),
 });
 
 // Define transaction form schema
@@ -132,6 +151,26 @@ interface MerchantDetailsResponse {
     mcc: string | null; // Merchant Category Code
     editDate: string | null; // System-controlled last edit date
     updatedBy: string | null; // System-controlled updated by field
+    bank: string | null;
+    associateMerchantNumber: string | null;
+    dbaNameCwob: string | null;
+    cwobDebitRisk: string | null;
+    vwobEbtReturn: string | null;
+    bypassEa: string | null;
+    bypassCo: string | null;
+    merchantRecordSt: string | null;
+    boardDt: string | null;
+    saleAmt: number | null;
+    creditAmt: number | null;
+    negativeAmount: number | null;
+    numberO: string | null;
+    bypassForce: string | null;
+    feeVisa: number | null;
+    visaMcc: string | null;
+    dailyAuthLimit: number | null;
+    bypassEx: string | null;
+    excessiveDepositAmount: number | null;
+    threshold: number | null;
   };
   transactions: {
     transactionId: string;
@@ -157,6 +196,66 @@ interface MerchantDetailsResponse {
     }[];
   };
 }
+
+// MCC Schema field interface
+interface MccSchemaField {
+  position: string;
+  fieldName: string;
+  fieldLength: number;
+  format: string;
+  description: string | null;
+  mmsEnabled: number;
+}
+
+// Field mapping utility: maps MCC schema fieldName to merchant database field names (camelCase)
+const fieldNameMapping: Record<string, string> = {
+  'Bank': 'bank',
+  'Bank Number': 'bank',
+  'Association': 'association',
+  'Group (Level 1)': 'association',
+  'MCC': 'mcc',
+  'CLASS': 'mcc',
+  'Merchant Category Code': 'mcc',
+  'Associate Merchant Number': 'associateMerchantNumber',
+  'DBA Name CWOB': 'dbaNameCwob',
+  'CWOB Debit Risk': 'cwobDebitRisk',
+  'VWOB EBT Return': 'vwobEbtReturn',
+  'Bypass EA': 'bypassEa',
+  'Bypass Co': 'bypassCo',
+  'Merchant Record St': 'merchantRecordSt',
+  'Merchant Record Status': 'merchantRecordSt',
+  'Board Dt': 'boardDt',
+  'Board Date': 'boardDt',
+  'Merchant Activation Date': 'boardDt',
+  'Sale Amt': 'saleAmt',
+  'Sale Amount': 'saleAmt',
+  'Credit Amt': 'creditAmt',
+  'Credit Amount': 'creditAmt',
+  'Negative Amount': 'negativeAmount',
+  'Number O': 'numberO',
+  'Bypass Force': 'bypassForce',
+  'Fee Visa': 'feeVisa',
+  'Visa MCC': 'visaMcc',
+  'Daily Auth Limit': 'dailyAuthLimit',
+  'Bypass Ex': 'bypassEx',
+  'Exposure Amount': 'excessiveDepositAmount',
+  'Excessive Deposit Amount': 'excessiveDepositAmount',
+  'Threshold': 'threshold',
+  'Date of First Deposit': 'asOfDate',
+  'Date of Last Deposit': 'asOfDate',
+  'As of Date': 'asOfDate',
+  'SIC': 'mcc',
+  'Trans Destination': 'merchantRecordSt',
+  'Merchant Email Address': 'address',
+  'Chargeback Email Address': 'address'
+};
+
+// Helper function to get input type based on MCC schema format
+const getInputType = (format: string): 'text' | 'number' | 'date' => {
+  if (format === 'N') return 'number';
+  if (format === 'D') return 'date';
+  return 'text';
+};
 
 // Add Transaction Form Component
 function AddTransactionForm({ 
@@ -270,6 +369,16 @@ export default function MerchantDetail() {
       if (!res.ok) throw new Error('Failed to fetch merchant');
       return res.json();
     })
+  });
+
+  // Fetch MCC schema fields where mmsEnabled = 1
+  const { data: mccSchemaFields, isLoading: mccSchemaLoading } = useQuery<MccSchemaField[]>({
+    queryKey: ['/api/mcc-schema'],
+    queryFn: () => fetch('/api/mcc-schema').then(res => {
+      if (!res.ok) throw new Error('Failed to fetch MCC schema');
+      return res.json();
+    }),
+    select: (data) => data.filter(field => field.mmsEnabled === 1)
   });
 
   // Frontend displays real-time merchant data with user tracking
@@ -424,8 +533,27 @@ export default function MerchantDetail() {
       category: data?.merchant.category || '',
       asOfDate: data?.merchant.asOfDate ? new Date(data.merchant.asOfDate).toISOString().split('T')[0] : '',
       association: data?.merchant.association || '',
-      mcc: data?.merchant.mcc || ''
-      // Removed editDate as it's now display-only
+      mcc: data?.merchant.mcc || '',
+      bank: data?.merchant.bank || '',
+      associateMerchantNumber: data?.merchant.associateMerchantNumber || '',
+      dbaNameCwob: data?.merchant.dbaNameCwob || '',
+      cwobDebitRisk: data?.merchant.cwobDebitRisk || '',
+      vwobEbtReturn: data?.merchant.vwobEbtReturn || '',
+      bypassEa: data?.merchant.bypassEa || '',
+      bypassCo: data?.merchant.bypassCo || '',
+      merchantRecordSt: data?.merchant.merchantRecordSt || '',
+      boardDt: data?.merchant.boardDt ? new Date(data.merchant.boardDt).toISOString().split('T')[0] : '',
+      saleAmt: data?.merchant.saleAmt?.toString() || '',
+      creditAmt: data?.merchant.creditAmt?.toString() || '',
+      negativeAmount: data?.merchant.negativeAmount?.toString() || '',
+      numberO: data?.merchant.numberO || '',
+      bypassForce: data?.merchant.bypassForce || '',
+      feeVisa: data?.merchant.feeVisa?.toString() || '',
+      visaMcc: data?.merchant.visaMcc || '',
+      dailyAuthLimit: data?.merchant.dailyAuthLimit?.toString() || '',
+      bypassEx: data?.merchant.bypassEx || '',
+      excessiveDepositAmount: data?.merchant.excessiveDepositAmount?.toString() || '',
+      threshold: data?.merchant.threshold?.toString() || '',
     },
     values: {
       name: data?.merchant.name || '',
@@ -444,8 +572,27 @@ export default function MerchantDetail() {
       category: data?.merchant.category || '',
       asOfDate: data?.merchant.asOfDate ? new Date(data.merchant.asOfDate).toISOString().split('T')[0] : '',
       association: data?.merchant.association || '',
-      mcc: data?.merchant.mcc || ''
-      // Removed editDate as it's now display-only
+      mcc: data?.merchant.mcc || '',
+      bank: data?.merchant.bank || '',
+      associateMerchantNumber: data?.merchant.associateMerchantNumber || '',
+      dbaNameCwob: data?.merchant.dbaNameCwob || '',
+      cwobDebitRisk: data?.merchant.cwobDebitRisk || '',
+      vwobEbtReturn: data?.merchant.vwobEbtReturn || '',
+      bypassEa: data?.merchant.bypassEa || '',
+      bypassCo: data?.merchant.bypassCo || '',
+      merchantRecordSt: data?.merchant.merchantRecordSt || '',
+      boardDt: data?.merchant.boardDt ? new Date(data.merchant.boardDt).toISOString().split('T')[0] : '',
+      saleAmt: data?.merchant.saleAmt?.toString() || '',
+      creditAmt: data?.merchant.creditAmt?.toString() || '',
+      negativeAmount: data?.merchant.negativeAmount?.toString() || '',
+      numberO: data?.merchant.numberO || '',
+      bypassForce: data?.merchant.bypassForce || '',
+      feeVisa: data?.merchant.feeVisa?.toString() || '',
+      visaMcc: data?.merchant.visaMcc || '',
+      dailyAuthLimit: data?.merchant.dailyAuthLimit?.toString() || '',
+      bypassEx: data?.merchant.bypassEx || '',
+      excessiveDepositAmount: data?.merchant.excessiveDepositAmount?.toString() || '',
+      threshold: data?.merchant.threshold?.toString() || '',
     },
   });
 
@@ -672,7 +819,11 @@ export default function MerchantDetail() {
               ) : (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    {/* Core fields - always visible */}
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 border-b pb-6">
+                      <div className="md:col-span-2">
+                        <h3 className="text-lg font-semibold mb-4">Core Information</h3>
+                      </div>
                       <FormField
                         control={form.control}
                         name="name"
@@ -963,20 +1114,93 @@ export default function MerchantDetail() {
                           </FormItem>
                         )}
                       />
+                    </div>
 
-                      {/* Display-only fields for edit date and updated by */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 mt-2">
-                        <div>
-                          <FormLabel>Last Updated</FormLabel>
-                          <div className="p-2 border rounded-md bg-gray-50 text-sm">
-                            {data?.merchant.editDate ? new Date(data.merchant.editDate).toLocaleString() : 'Not available'}
-                          </div>
+                    {/* Dynamic MCC Schema Fields */}
+                    {mccSchemaLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="w-full h-8" />
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                          <Skeleton className="w-full h-10" />
+                          <Skeleton className="w-full h-10" />
+                          <Skeleton className="w-full h-10" />
+                          <Skeleton className="w-full h-10" />
                         </div>
-                        <div>
-                          <FormLabel>Updated By</FormLabel>
-                          <div className="p-2 border rounded-md bg-gray-50 text-sm">
-                            {data?.merchant.updatedBy || 'System'}
+                      </div>
+                    ) : (
+                      mccSchemaFields && mccSchemaFields.length > 0 && (
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 border-b pb-6">
+                          <div className="md:col-span-2">
+                            <h3 className="text-lg font-semibold mb-4">TSYS Risk & Configuration Fields</h3>
+                            <p className="text-sm text-gray-500">
+                              Fields configured in MCC TSYS Config (showing {mccSchemaFields.length} enabled fields)
+                            </p>
                           </div>
+                          {mccSchemaFields.map((schemaField) => {
+                            const fieldKey = fieldNameMapping[schemaField.fieldName];
+                            
+                            // Skip if no mapping found or if it's a core field already shown
+                            if (!fieldKey || ['name', 'status', 'merchantType'].includes(fieldKey)) {
+                              return null;
+                            }
+
+                            const inputType = getInputType(schemaField.format);
+                            const label = schemaField.fieldName;
+                            const description = schemaField.description;
+
+                            return (
+                              <FormField
+                                key={schemaField.position}
+                                control={form.control}
+                                name={fieldKey as any}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>
+                                      {label}
+                                      {description && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="ml-1 text-xs text-gray-400 cursor-help">ℹ</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>{description}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        {...field} 
+                                        type={inputType}
+                                        value={field.value || ''} 
+                                        placeholder={`Enter ${label.toLowerCase()}`}
+                                        step={inputType === 'number' ? '0.01' : undefined}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            );
+                          })}
+                        </div>
+                      )
+                    )}
+
+                    {/* Display-only fields for edit date and updated by */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <FormLabel>Last Updated</FormLabel>
+                        <div className="p-2 border rounded-md bg-gray-50 text-sm">
+                          {data?.merchant.editDate ? new Date(data.merchant.editDate).toLocaleString() : 'Not available'}
+                        </div>
+                      </div>
+                      <div>
+                        <FormLabel>Updated By</FormLabel>
+                        <div className="p-2 border rounded-md bg-gray-50 text-sm">
+                          {data?.merchant.updatedBy || 'System'}
                         </div>
                       </div>
                     </div>
