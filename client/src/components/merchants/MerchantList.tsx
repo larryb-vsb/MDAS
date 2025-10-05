@@ -101,11 +101,12 @@ export default function MerchantList({
   
   // Handler for selecting/deselecting a merchant
   const toggleMerchantSelection = (merchantId: string) => {
-    setSelectedMerchants(prev => 
-      (prev || []).includes(merchantId) 
-        ? (prev || []).filter(id => id !== merchantId) 
-        : [...(prev || []), merchantId]
-    );
+    const current = selectedMerchants || [];
+    if (current.includes(merchantId)) {
+      setSelectedMerchants(current.filter((id: string) => id !== merchantId));
+    } else {
+      setSelectedMerchants([...current, merchantId]);
+    }
   };
   
   // Handler for selecting/deselecting all merchants

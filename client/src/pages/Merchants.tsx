@@ -115,9 +115,16 @@ export default function Merchants() {
   // Merge merchants mutation
   const mergeMutation = useMutation({
     mutationFn: async ({ targetMerchantId, sourceMerchantIds }: { targetMerchantId: string; sourceMerchantIds: string[] }) => {
-      const response = await apiRequest('POST', `/api/merchants/merge`, {
-        targetMerchantId, 
-        sourceMerchantIds
+      const response = await apiRequest<{
+        merchantsRemoved: number;
+        targetMerchant: { name: string };
+        transactionsTransferred: number;
+      }>(`/api/merchants/merge`, {
+        method: 'POST',
+        body: {
+          targetMerchantId, 
+          sourceMerchantIds
+        }
       });
       return response;
     },
@@ -228,8 +235,6 @@ export default function Merchants() {
                 itemsPerPage: itemsPerPage
               }}
               isLoading={isLoading}
-              error={error}
-              currentPage={currentPage}
               onPageChange={handlePageChange}
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={handleItemsPerPageChange}
@@ -260,8 +265,6 @@ export default function Merchants() {
                 itemsPerPage: itemsPerPage
               }}
               isLoading={isLoading}
-              error={error}
-              currentPage={currentPage}
               onPageChange={handlePageChange}
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={handleItemsPerPageChange}
