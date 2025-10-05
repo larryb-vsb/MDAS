@@ -436,10 +436,6 @@ export default function MMSMerchants() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
-            <TabsContent value="tddf1" className="mt-6">
-              <Tddf1MerchantVolumeTab />
-            </TabsContent>
 
             <TabsContent value="ach" className="mt-6">
               <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
