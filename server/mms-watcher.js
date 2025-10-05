@@ -1287,6 +1287,9 @@ class MMSWatcher {
           let merchantsUpdated = 0;
           const errors = [];
           
+          // Import comprehensive field mapping
+          const { extractMerchantData } = await import('./merchant-detail-field-mapping.js');
+          
           // Process each merchant record
           for (const line of dataRecords) {
             try {
@@ -1299,19 +1302,8 @@ class MMSWatcher {
                 continue;
               }
               
-              // Extract merchant data from tab-delimited fields
-              // Using camelCase field names to match storage function expectations
-              const merchantData = {
-                id: fields[2]?.trim() || null, // Merchant number/ID (field 2)
-                name: fields[4]?.trim() || 'Unknown Merchant', // Merchant name (field 4)
-                merchantType: '0', // REQUIRED: Set merchant type to 0 for DACQ_MER_DTL files (MCC Merchants)
-                city: fields[9]?.trim() || null, // City (field 9)
-                state: fields[10]?.trim() || null, // State (field 10)
-                zipCode: fields[11]?.trim() || null, // Zip code (field 11)
-                clientMID: fields[3]?.trim() || null, // Chain/Master ID (field 3)
-                bank: fields[1]?.trim() || null, // Bank number (field 1)
-                status: 'Active'
-              };
+              // Extract ALL MMS-enabled fields using comprehensive field mapping
+              const merchantData = extractMerchantData(fields);
               
               // Validate required fields
               if (!merchantData.id) {
