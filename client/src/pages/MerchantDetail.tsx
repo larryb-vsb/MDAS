@@ -396,11 +396,9 @@ export default function MerchantDetail() {
   const paginatedTsysFields = useMemo(() => {
     if (!mccSchemaFields) return { fields: [], totalItems: 0, totalPages: 1 };
     
-    // Filter out fields without mapping or core fields
-    const validFields = mccSchemaFields.filter(schemaField => {
-      const fieldKey = fieldNameMapping[schemaField.fieldName];
-      return fieldKey && !['name', 'status', 'merchantType'].includes(fieldKey);
-    });
+    // Show all enabled fields from MCC schema (already filtered by mmsEnabled=1)
+    // Don't filter by mapping - show all fields even if no data available
+    const validFields = mccSchemaFields;
     
     const totalItems = validFields.length;
     const totalPages = Math.ceil(totalItems / tsysItemsPerPage) || 1;
