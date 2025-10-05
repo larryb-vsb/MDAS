@@ -230,7 +230,7 @@ export interface IStorage {
   getTddfMerchantsCacheStats(): Promise<{ totalMerchants: number; lastUpdated: Date; oldestRecord: Date; averageUpdateAge: number }>;
 
   // Merchant operations
-  getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
+  getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string, merchantType?: string): Promise<{
     merchants: any[];
     pagination: {
       currentPage: number;
@@ -1158,7 +1158,8 @@ export class DatabaseStorage implements IStorage {
     limit: number = 10, 
     status: string = "All", 
     lastUpload: string = "Any time",
-    search: string = ""
+    search: string = "",
+    merchantType: string = "All"
   ): Promise<{
     merchants: any[];
     pagination: {
@@ -1180,7 +1181,8 @@ export class DatabaseStorage implements IStorage {
         limit === 10 && 
         status === "All" && 
         lastUpload === "Any time" && 
-        search === ""
+        search === "" &&
+        merchantType === "All"
       );
 
       if (canUsePreCache) {
@@ -1326,6 +1328,12 @@ export class DatabaseStorage implements IStorage {
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
+      }
+      
+      // Apply merchant type filter
+      if (merchantType !== "All") {
+        conditions.push(`merchant_type = $${queryParams.length + 1}`);
+        queryParams.push(merchantType);
       }
       
       // Build WHERE clause
