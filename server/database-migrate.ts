@@ -5,6 +5,14 @@ import { NODE_ENV } from './env-config';
 import { ensureTddfCacheTables, ensureProductionDatabaseHealth } from './startup-cache-validation';
 
 /**
+ * Get environment-aware table name
+ */
+const getTableName = (baseName: string) => {
+  const prefix = NODE_ENV === 'development' ? 'dev_' : '';
+  return `${prefix}${baseName}`;
+};
+
+/**
  * Migrates the database schema by checking for tables and creating them if they don't exist
  * This function checks each required table individually and creates only missing ones
  */
@@ -378,52 +386,54 @@ async function createSecurityLogsTable() {
 async function checkAndAddMerchantColumns() {
   console.log('Checking if merchant_type and sales_channel columns exist...');
   
+  const merchantsTable = getTableName('merchants');
+  
   try {
     // Check for merchant_type column and its data type
     const merchantTypeResult = await db.execute(sql`
       SELECT column_name, data_type
       FROM information_schema.columns
-      WHERE table_name = 'merchants'
+      WHERE table_name = ${merchantsTable}
       AND column_name = 'merchant_type'
     `);
     
     if (merchantTypeResult.rows.length === 0) {
-      console.log('Adding merchant_type column to merchants table as TEXT');
-      await db.execute(sql`
-        ALTER TABLE merchants
+      console.log(`Adding merchant_type column to ${merchantsTable} table as TEXT`);
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         ADD COLUMN merchant_type TEXT
-      `);
+      `));
     } else if (merchantTypeResult.rows[0].data_type === 'integer') {
       // If the column exists but is integer type, alter it to TEXT
       console.log('Changing merchant_type column from INTEGER to TEXT');
       
       // First, create a temporary column to store the converted values
-      await db.execute(sql`
-        ALTER TABLE merchants
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         ADD COLUMN merchant_type_temp TEXT
-      `);
+      `));
       
       // Copy values from integer column to text column
-      await db.execute(sql`
-        UPDATE merchants 
+      await db.execute(sql.raw(`
+        UPDATE ${merchantsTable}
         SET merchant_type_temp = 
           CASE 
             WHEN merchant_type IS NULL THEN NULL
             ELSE merchant_type::TEXT 
           END
-      `);
+      `));
       
       // Drop the old integer column
-      await db.execute(sql`
-        ALTER TABLE merchants
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         DROP COLUMN merchant_type
-      `);
+      `));
       
       // Rename the temp column to the original name
-      await db.execute(sql`
-        ALTER TABLE merchants
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         RENAME COLUMN merchant_type_temp TO merchant_type
-      `);
+      `));
       
       console.log('Successfully converted merchant_type column to TEXT');
     }
@@ -432,64 +442,64 @@ async function checkAndAddMerchantColumns() {
     const salesChannelResult = await db.execute(sql`
       SELECT column_name
       FROM information_schema.columns
-      WHERE table_name = 'merchants'
+      WHERE table_name = ${merchantsTable}
       AND column_name = 'sales_channel'
     `);
     
     if (salesChannelResult.rows.length === 0) {
-      console.log('Adding sales_channel column to merchants table');
-      await db.execute(sql`
-        ALTER TABLE merchants
+      console.log(`Adding sales_channel column to ${merchantsTable} table`);
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         ADD COLUMN sales_channel TEXT
-      `);
+      `));
     }
     
     // Make sure edit_date has default value
     const editDateResult = await db.execute(sql`
       SELECT column_default
       FROM information_schema.columns
-      WHERE table_name = 'merchants'
+      WHERE table_name = ${merchantsTable}
       AND column_name = 'edit_date'
     `);
     
     if (editDateResult.rows.length > 0 && !editDateResult.rows[0].column_default) {
       console.log('Updating edit_date column to have a default value');
-      await db.execute(sql`
-        ALTER TABLE merchants
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         ALTER COLUMN edit_date SET DEFAULT CURRENT_TIMESTAMP
-      `);
+      `));
     }
     
     // Check for as_of_date column
     const asOfDateResult = await db.execute(sql`
       SELECT column_name
       FROM information_schema.columns
-      WHERE table_name = 'merchants'
+      WHERE table_name = ${merchantsTable}
       AND column_name = 'as_of_date'
     `);
     
     if (asOfDateResult.rows.length === 0) {
-      console.log('Adding as_of_date column to merchants table');
-      await db.execute(sql`
-        ALTER TABLE merchants
+      console.log(`Adding as_of_date column to ${merchantsTable} table`);
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         ADD COLUMN as_of_date TIMESTAMP WITH TIME ZONE
-      `);
+      `));
     }
     
     // Check for updated_by column
     const updatedByResult = await db.execute(sql`
       SELECT column_name
       FROM information_schema.columns
-      WHERE table_name = 'merchants'
+      WHERE table_name = ${merchantsTable}
       AND column_name = 'updated_by'
     `);
     
     if (updatedByResult.rows.length === 0) {
-      console.log('Adding updated_by column to merchants table');
-      await db.execute(sql`
-        ALTER TABLE merchants
+      console.log(`Adding updated_by column to ${merchantsTable} table`);
+      await db.execute(sql.raw(`
+        ALTER TABLE ${merchantsTable}
         ADD COLUMN updated_by TEXT
-      `);
+      `));
     }
     
     console.log('Merchant columns check complete');
