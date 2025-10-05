@@ -3577,7 +3577,7 @@ export class DatabaseStorage implements IStorage {
               const processingCompletedTime = new Date();
               const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
               
-              // Mark with error but include processing timing using environment-specific table
+              // Mark with error but include processing timing
               await db.execute(sql`
                 UPDATE ${sql.identifier(uploadedFilesTableName)}
                 SET processed = true,
@@ -3589,7 +3589,84 @@ export class DatabaseStorage implements IStorage {
                 WHERE id = ${file.id}
               `);
               
-              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
+            }
+          } else if (file.fileType === 'merchant_detail') {
+            try {
+              // Process TSYS merchant detail fixed-width files using MCC schema
+              console.log(`[MERCHANT-DETAIL] Processing merchant_detail file ${file.id} (${file.originalFilename})`);
+              let dbContent = null;
+              try {
+                const dbContentResults = await db.execute(sql`
+                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
+                `);
+                dbContent = dbContentResults.rows[0]?.file_content;
+                console.log(`[MERCHANT-DETAIL] Content retrieved: ${dbContent ? 'SUCCESS' : 'NULL'}`);
+              } catch (error) {
+                console.error(`[MERCHANT-DETAIL] Database content error for ${file.id}:`, error);
+              }
+              
+              if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                console.log(`[MERCHANT-DETAIL] Processing file from database content: ${file.id}`);
+                const processingStartTime = new Date();
+                const processingMetrics = await this.processMerchantDetailFileFromContent(dbContent);
+                
+                // Calculate processing time
+                const processingCompletedTime = new Date();
+                const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+                
+                // Update database with processing metrics and completion status
+                await db.execute(sql`
+                  UPDATE ${sql.identifier(uploadedFilesTableName)}
+                  SET records_processed = ${processingMetrics.rowsProcessed},
+                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.merchantsUpdated},
+                      records_with_errors = ${processingMetrics.errors},
+                      processing_time_ms = ${processingTimeMs},
+                      processing_details = ${JSON.stringify({
+                        totalRows: processingMetrics.rowsProcessed,
+                        merchantsUpdated: processingMetrics.merchantsUpdated,
+                        errors: processingMetrics.errors,
+                        processingTimeSeconds: (processingTimeMs / 1000).toFixed(2)
+                      })},
+                      processing_status = 'completed',
+                      processing_completed_at = ${processingCompletedTime.toISOString()},
+                      processed_at = ${processingCompletedTime.toISOString()},
+                      processed = true,
+                      processing_errors = null
+                  WHERE id = ${file.id}
+                `);
+                
+                console.log(`📊 [MERCHANT-DETAIL] Processed ${processingMetrics.rowsProcessed} rows, updated ${processingMetrics.merchantsUpdated} merchants, ${processingMetrics.errors} errors in ${(processingTimeMs / 1000).toFixed(2)}s`);
+                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
+              } else {
+                console.error(`[MERCHANT-DETAIL] File ${file.id} content not available`);
+                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+              }
+              
+              console.log(`Merchant detail file ${file.id} successfully processed`);
+            } catch (error) {
+              console.error(`Error processing merchant_detail file ${file.id}:`, error);
+              
+              // Enhanced error message
+              let errorMessage = error instanceof Error ? error.message : "Unknown error during processing";
+              
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true,
+                    processing_errors = ${errorMessage},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${Math.abs(processingTimeMs)}
+                WHERE id = ${file.id}
+              `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
             }
           } else if (file.fileType === 'sub_merchant_terminals') {
             try {
@@ -4034,6 +4111,101 @@ export class DatabaseStorage implements IStorage {
       parser.write(csvContent);
       parser.end();
     });
+  }
+
+  // Process TSYS merchant detail fixed-width file using MCC schema configuration
+  async processMerchantDetailFileFromContent(base64Content: string): Promise<{ rowsProcessed: number; merchantsUpdated: number; errors: number }> {
+    console.log('[MERCHANT-DETAIL] Processing TSYS merchant detail file using MCC schema');
+    
+    try {
+      // Decode base64 content
+      const fileContent = Buffer.from(base64Content, 'base64').toString('utf8');
+      
+      // Import and use the schema-based parser
+      const { parseMerchantDetailFile, mapParsedToMerchantSchema } = await import('./merchant-detail-parser');
+      
+      // Parse the entire file using MCC schema configuration
+      const parseResult = await parseMerchantDetailFile(fileContent);
+      
+      console.log(`[MERCHANT-DETAIL] Parsed ${parseResult.totalLines} lines`);
+      console.log(`[MERCHANT-DETAIL] Successful: ${parseResult.successfulLines}, Errors: ${parseResult.errorLines}`);
+      console.log(`[MERCHANT-DETAIL] Used ${parseResult.schemaFieldCount} schema fields`);
+      
+      // Get merchants table for updates
+      const merchantsTableName = getTableName('merchants');
+      let merchantsUpdated = 0;
+      let errors = 0;
+      
+      // Process each parsed record
+      for (const parsed of parseResult.records) {
+        try {
+          // Check if this record has critical errors
+          if (parsed._errors.length > 0) {
+            console.log(`[MERCHANT-DETAIL] Record has ${parsed._errors.length} validation errors, skipping update`);
+            errors++;
+            continue;
+          }
+          
+          // Map to merchant schema
+          const merchantData = mapParsedToMerchantSchema(parsed);
+          
+          // Extract bank number which is the key identifier
+          const bankNum = merchantData.bankNumber;
+          
+          if (!bankNum) {
+            console.log('[MERCHANT-DETAIL] No bank number found, skipping record');
+            errors++;
+            continue;
+          }
+          
+          // Find merchants with this bank number
+          const existingMerchants = await db.execute(sql`
+            SELECT id FROM ${sql.identifier(merchantsTableName)} 
+            WHERE bank_number = ${bankNum}
+          `);
+          
+          if (existingMerchants.rows.length > 0) {
+            // Update existing merchant(s) with parsed fields
+            for (const merchant of existingMerchants.rows) {
+              await pool.query(`
+                UPDATE ${merchantsTableName}
+                SET 
+                  exposure_amount = COALESCE($1, exposure_amount),
+                  merchant_activation_date = COALESCE($2, merchant_activation_date),
+                  board_dt = COALESCE($3, board_dt),
+                  updated_at = NOW(),
+                  updated_by = 'mcc_import'
+                WHERE id = $4
+              `, [
+                merchantData.exposureAmount || null,
+                merchantData.merchantActivationDate || null,
+                merchantData.merchantActivationDate || null,
+                merchant.id
+              ]);
+              
+              merchantsUpdated++;
+            }
+            console.log(`[MERCHANT-DETAIL] Updated ${existingMerchants.rows.length} merchant(s) for bank ${bankNum}`);
+          } else {
+            console.log(`[MERCHANT-DETAIL] No existing merchant found for bank ${bankNum}`);
+          }
+        } catch (recordError) {
+          console.error('[MERCHANT-DETAIL] Error processing record:', recordError);
+          errors++;
+        }
+      }
+      
+      console.log(`[MERCHANT-DETAIL] Complete: Updated ${merchantsUpdated} merchants, ${errors} errors`);
+      
+      return {
+        rowsProcessed: parseResult.totalLines,
+        merchantsUpdated,
+        errors
+      };
+    } catch (error) {
+      console.error('[MERCHANT-DETAIL] File processing error:', error);
+      throw error;
+    }
   }
 
   // Process a merchant demographics CSV file
