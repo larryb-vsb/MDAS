@@ -1702,6 +1702,25 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Helper function to map camelCase field names to snake_case database columns
+  private mapFieldToColumn(fieldName: string): string {
+    const fieldMapping: Record<string, string> = {
+      'merchantType': 'merchant_type',
+      'clientMID': 'client_mid',
+      'otherClientNumber1': 'other_client_number1',
+      'otherClientNumber2': 'other_client_number2',
+      'clientSinceDate': 'client_since_date',
+      'salesChannel': 'sales_channel',
+      'zipCode': 'zip_code',
+      'lastUploadDate': 'last_upload_date',
+      'asOfDate': 'as_of_date',
+      'editDate': 'edit_date',
+      'updatedBy': 'updated_by',
+      'createdAt': 'created_at'
+    };
+    return fieldMapping[fieldName] || fieldName;
+  }
+
   // @ENVIRONMENT-CRITICAL - Merchant update operations
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any> {
@@ -1726,7 +1745,10 @@ export class DatabaseStorage implements IStorage {
         // Search index will be maintained at database level
         
         // Update merchant with environment-aware table naming
-        const updateFields = Object.keys(merchantData).map((key, i) => `${key} = $${i + 2}`).join(', ');
+        // Map camelCase field names to snake_case database columns
+        const updateFields = Object.keys(merchantData).map((key, i) => 
+          `${this.mapFieldToColumn(key)} = $${i + 2}`
+        ).join(', ');
         const updateValues = [merchantId, ...Object.values(merchantData)];
         
         await pool.query(

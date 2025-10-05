@@ -1292,22 +1292,24 @@ class MMSWatcher {
             try {
               const fields = line.split('\t');
               
+              // Validate field count - DACQ_MER_DTL files should have 177 fields
+              if (fields.length < 177) {
+                errors.push(`Invalid field count for record (expected 177, got ${fields.length}): ${fields.slice(0, 5).join(' | ')}`);
+                console.error(`[MMS-WATCHER] [MERCHANT-DETAIL] Field count validation failed: ${fields.length}/177 fields`);
+                continue;
+              }
+              
               // Extract merchant data from tab-delimited fields
+              // Using camelCase field names to match storage function expectations
               const merchantData = {
                 id: fields[2]?.trim() || null, // Merchant number/ID (field 2)
                 name: fields[4]?.trim() || 'Unknown Merchant', // Merchant name (field 4)
-                merchantType: '0', // Set merchant type to 0 for DACQ_MER_DTL files
-                association: fields[5]?.trim() || null, // Association (field 5)
-                mcc: fields[6]?.trim() || null, // MCC (field 6)
-                visaMcc: fields[7]?.trim() || null, // Visa MCC (field 7)
-                dbaNameCwob: fields[8]?.trim() || null, // DBA Name (field 8)
+                merchantType: '0', // REQUIRED: Set merchant type to 0 for DACQ_MER_DTL files (MCC Merchants)
                 city: fields[9]?.trim() || null, // City (field 9)
                 state: fields[10]?.trim() || null, // State (field 10)
                 zipCode: fields[11]?.trim() || null, // Zip code (field 11)
-                masterMID: fields[3]?.trim() || null, // Chain/Master ID (field 3)
+                clientMID: fields[3]?.trim() || null, // Chain/Master ID (field 3)
                 bank: fields[1]?.trim() || null, // Bank number (field 1)
-                asOfDate: this.parseDate(fields[56]) || null, // As-of date (field 56)
-                boardDt: this.parseDate(fields[57]) || null, // Board date (field 57)
                 status: 'Active'
               };
               
