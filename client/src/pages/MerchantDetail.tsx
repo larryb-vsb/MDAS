@@ -71,7 +71,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { SubMerchantTerminals } from '@/components/merchants/SubMerchantTerminals';
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 // Define the merchant form schema
 const merchantSchema = z.object({
@@ -372,13 +372,18 @@ export default function MerchantDetail() {
   });
 
   // Fetch MCC schema fields where mmsEnabled = 1
-  const { data: mccSchemaFields, isLoading: mccSchemaLoading } = useQuery<MccSchemaField[]>({
+  // Auto-refresh every 5 minutes when page is visible
+  const { data: mccSchemaFields, isLoading: mccSchemaLoading, refetch: refetchMccSchema } = useQuery<MccSchemaField[]>({
     queryKey: ['/api/mcc-schema'],
     queryFn: () => fetch('/api/mcc-schema').then(res => {
       if (!res.ok) throw new Error('Failed to fetch MCC schema');
       return res.json();
     }),
-    select: (data) => data.filter(field => field.mmsEnabled === 1)
+    select: (data) => data.filter(field => field.mmsEnabled === 1),
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    refetchIntervalInBackground: false, // Only refresh when page is visible
+    refetchOnMount: true, // Always fetch fresh data when component mounts
+    refetchOnWindowFocus: true // Refetch when user returns to tab
   });
 
   // Frontend displays real-time merchant data with user tracking
@@ -1116,75 +1121,77 @@ export default function MerchantDetail() {
                       />
                     </div>
 
-                    {/* Dynamic MCC Schema Fields */}
+                    {/* Dynamic MCC Schema Fields - Name/Value List Display */}
                     {mccSchemaLoading ? (
                       <div className="space-y-2">
                         <Skeleton className="w-full h-8" />
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                          <Skeleton className="w-full h-10" />
-                          <Skeleton className="w-full h-10" />
-                          <Skeleton className="w-full h-10" />
-                          <Skeleton className="w-full h-10" />
-                        </div>
+                        <Skeleton className="w-full h-32" />
                       </div>
                     ) : (
                       mccSchemaFields && mccSchemaFields.length > 0 && (
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 border-b pb-6">
-                          <div className="md:col-span-2">
-                            <h3 className="text-lg font-semibold mb-4">TSYS Risk & Configuration Fields</h3>
-                            <p className="text-sm text-gray-500">
-                              Fields configured in MCC TSYS Config (showing {mccSchemaFields.length} enabled fields)
-                            </p>
+                        <div className="border-b pb-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h3 className="text-lg font-semibold">TSYS Risk & Configuration Fields</h3>
+                              <p className="text-sm text-gray-500">
+                                Fields configured in MCC TSYS Config (showing {mccSchemaFields.length} enabled fields)
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => refetchMccSchema()}
+                              className="flex items-center gap-2"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Refresh
+                            </Button>
                           </div>
-                          {mccSchemaFields.map((schemaField) => {
-                            const fieldKey = fieldNameMapping[schemaField.fieldName];
-                            
-                            // Skip if no mapping found or if it's a core field already shown
-                            if (!fieldKey || ['name', 'status', 'merchantType'].includes(fieldKey)) {
-                              return null;
-                            }
+                          
+                          {/* Simple Name-Value List */}
+                          <div className="space-y-2 bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
+                            {mccSchemaFields.map((schemaField) => {
+                              const fieldKey = fieldNameMapping[schemaField.fieldName];
+                              
+                              // Skip if no mapping found or if it's a core field already shown
+                              if (!fieldKey || ['name', 'status', 'merchantType'].includes(fieldKey)) {
+                                return null;
+                              }
 
-                            const inputType = getInputType(schemaField.format);
-                            const label = schemaField.fieldName;
-                            const description = schemaField.description;
+                              const value = data?.merchant[fieldKey as keyof typeof data.merchant];
+                              let displayValue = '—';
+                              if (value !== null && value !== undefined) {
+                                if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                  // ISO date string
+                                  displayValue = new Date(value).toLocaleDateString();
+                                } else {
+                                  displayValue = String(value);
+                                }
+                              }
 
-                            return (
-                              <FormField
-                                key={schemaField.position}
-                                control={form.control}
-                                name={fieldKey as any}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>
-                                      {label}
-                                      {description && (
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <span className="ml-1 text-xs text-gray-400 cursor-help">ℹ</span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                              <p>{description}</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                      )}
-                                    </FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        {...field} 
-                                        type={inputType}
-                                        value={field.value || ''} 
-                                        placeholder={`Enter ${label.toLowerCase()}`}
-                                        step={inputType === 'number' ? '0.01' : undefined}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            );
-                          })}
+                              return (
+                                <div key={schemaField.position} className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-800 last:border-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm">{schemaField.fieldName}</span>
+                                    {schemaField.description && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="text-xs text-gray-400 cursor-help">ℹ</span>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>{schemaField.description}</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                  </div>
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">{displayValue}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       )
                     )}
