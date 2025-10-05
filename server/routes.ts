@@ -7334,6 +7334,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // MCC TSYS Merchant Schema Configuration API Routes
+  
+  // Get all MCC schema fields
+  app.get("/api/mcc-schema", isAuthenticated, async (req, res) => {
+    try {
+      const fields = await storage.getMccSchemaFields();
+      res.json(fields);
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error fetching fields:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch MCC schema fields" 
+      });
+    }
+  });
+
+  // Upload and process CSV to populate/update MCC schema fields
+  app.post("/api/mcc-schema/upload-csv", isAuthenticated, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileContent = req.file.buffer.toString('utf-8');
+      const lines = fileContent.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      // Find required column indices
+      const positionIdx = headers.indexOf('position');
+      const fieldNameIdx = headers.findIndex(h => h.includes('field') && h.includes('name'));
+      const fieldLengthIdx = headers.findIndex(h => h.includes('field') && h.includes('length'));
+      const formatIdx = headers.indexOf('format');
+      const descriptionIdx = headers.findIndex(h => h.includes('description'));
+      const mmsIdx = headers.indexOf('mms');
+
+      if (positionIdx === -1) {
+        return res.status(400).json({ error: "CSV must contain a 'position' column" });
+      }
+
+      const fields: any[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const values = line.split(',').map(v => v.trim());
+        
+        if (values.length > positionIdx && values[positionIdx]) {
+          const field = {
+            position: values[positionIdx],
+            fieldName: fieldNameIdx !== -1 ? values[fieldNameIdx] : '',
+            fieldLength: fieldLengthIdx !== -1 ? parseInt(values[fieldLengthIdx]) || 0 : 0,
+            format: formatIdx !== -1 ? values[formatIdx] : '',
+            description: descriptionIdx !== -1 ? values[descriptionIdx] : null,
+            mmsEnabled: mmsIdx !== -1 ? parseInt(values[mmsIdx]) || 0 : 0
+          };
+          
+          if (field.fieldName && field.format) {
+            fields.push(field);
+          }
+        }
+      }
+
+      if (fields.length === 0) {
+        return res.status(400).json({ error: "No valid fields found in CSV" });
+      }
+
+      const result = await storage.bulkUpsertMccSchemaFields(fields);
+      
+      res.json({
+        success: true,
+        message: `Processed ${fields.length} fields`,
+        inserted: result.inserted,
+        updated: result.updated
+      });
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error uploading CSV:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to upload CSV" 
+      });
+    }
+  });
+
+  // Update a single MCC schema field
+  app.patch("/api/mcc-schema/:position", isAuthenticated, async (req, res) => {
+    try {
+      const position = req.params.position;
+      const updates = req.body;
+      
+      const updatedField = await storage.updateMccSchemaField(position, updates);
+      res.json(updatedField);
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error updating field:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update field" 
+      });
+    }
+  });
+
+  // Delete MCC schema fields (single or bulk)
+  app.delete("/api/mcc-schema", isAuthenticated, async (req, res) => {
+    try {
+      const { positions } = req.body;
+      
+      if (!positions || !Array.isArray(positions) || positions.length === 0) {
+        return res.status(400).json({ error: "positions array is required" });
+      }
+      
+      await storage.deleteMccSchemaFields(positions);
+      
+      res.json({
+        success: true,
+        deletedCount: positions.length,
+        message: `Successfully deleted ${positions.length} field(s)`
+      });
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error deleting fields:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete fields" 
+      });
+    }
+  });
+
   // Get TDDF merchants aggregated from DT records
   app.get("/api/tddf/merchants", isAuthenticated, async (req, res) => {
     try {

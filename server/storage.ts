@@ -21,6 +21,7 @@ import {
   tddfBatchHeaders,
   schemaContent as schemaContentTable,
   subMerchantTerminals,
+  merchantMccSchema,
   Merchant,
   Transaction,
   Terminal,
@@ -28,6 +29,7 @@ import {
   TddfRawImport,
   TddfBatchHeader,
   SubMerchantTerminal,
+  MerchantMccSchema,
   InsertMerchant,
   InsertTransaction,
   InsertTerminal,
@@ -35,6 +37,7 @@ import {
   InsertTddfRawImport,
   InsertUploadedFile,
   InsertSubMerchantTerminal,
+  InsertMerchantMccSchema,
   User,
   InsertUser,
   ApiUser,
@@ -228,6 +231,13 @@ export interface IStorage {
   // TDDF merchants cache operations
   refreshTddfMerchantsCache(): Promise<{ rebuilt: number; updated: Date; performance: { buildTimeMs: number; recordsProcessed: number } }>;
   getTddfMerchantsCacheStats(): Promise<{ totalMerchants: number; lastUpdated: Date; oldestRecord: Date; averageUpdateAge: number }>;
+
+  // MCC TSYS Merchant Schema Configuration operations
+  getMccSchemaFields(): Promise<MerchantMccSchema[]>;
+  upsertMccSchemaField(fieldData: InsertMerchantMccSchema): Promise<MerchantMccSchema>;
+  updateMccSchemaField(position: string, fieldData: Partial<InsertMerchantMccSchema>): Promise<MerchantMccSchema>;
+  deleteMccSchemaFields(positions: string[]): Promise<void>;
+  bulkUpsertMccSchemaFields(fields: InsertMerchantMccSchema[]): Promise<{ inserted: number; updated: number }>;
 
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string, merchantType?: string): Promise<{
@@ -13986,6 +13996,188 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('[TDDF CACHE] Error getting cache stats:', error);
+      throw error;
+    }
+  }
+
+  // MCC TSYS Merchant Schema Configuration operations
+  async getMccSchemaFields(): Promise<MerchantMccSchema[]> {
+    try {
+      const tableName = getTableName('Merchant_MCC_Schema');
+      const result = await pool.query(`
+        SELECT * FROM ${tableName}
+        ORDER BY position
+      `);
+      return result.rows.map(row => ({
+        position: row.position,
+        fieldName: row.field_name,
+        fieldLength: row.field_length,
+        format: row.format,
+        description: row.description,
+        mmsEnabled: row.mms_enabled,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }));
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error getting fields:', error);
+      throw error;
+    }
+  }
+
+  async upsertMccSchemaField(fieldData: InsertMerchantMccSchema): Promise<MerchantMccSchema> {
+    try {
+      const tableName = getTableName('Merchant_MCC_Schema');
+      const result = await pool.query(`
+        INSERT INTO ${tableName} (position, field_name, field_length, format, description, mms_enabled)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (position)
+        DO UPDATE SET
+          field_name = EXCLUDED.field_name,
+          field_length = EXCLUDED.field_length,
+          format = EXCLUDED.format,
+          description = EXCLUDED.description,
+          mms_enabled = EXCLUDED.mms_enabled,
+          updated_at = NOW()
+        RETURNING *
+      `, [
+        fieldData.position,
+        fieldData.fieldName,
+        fieldData.fieldLength,
+        fieldData.format,
+        fieldData.description || null,
+        fieldData.mmsEnabled
+      ]);
+      
+      const row = result.rows[0];
+      return {
+        position: row.position,
+        fieldName: row.field_name,
+        fieldLength: row.field_length,
+        format: row.format,
+        description: row.description,
+        mmsEnabled: row.mms_enabled,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error upserting field:', error);
+      throw error;
+    }
+  }
+
+  async updateMccSchemaField(position: string, fieldData: Partial<InsertMerchantMccSchema>): Promise<MerchantMccSchema> {
+    try {
+      const tableName = getTableName('Merchant_MCC_Schema');
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (fieldData.fieldName !== undefined) {
+        updates.push(`field_name = $${paramIndex++}`);
+        values.push(fieldData.fieldName);
+      }
+      if (fieldData.fieldLength !== undefined) {
+        updates.push(`field_length = $${paramIndex++}`);
+        values.push(fieldData.fieldLength);
+      }
+      if (fieldData.format !== undefined) {
+        updates.push(`format = $${paramIndex++}`);
+        values.push(fieldData.format);
+      }
+      if (fieldData.description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(fieldData.description);
+      }
+      if (fieldData.mmsEnabled !== undefined) {
+        updates.push(`mms_enabled = $${paramIndex++}`);
+        values.push(fieldData.mmsEnabled);
+      }
+      updates.push(`updated_at = NOW()`);
+      values.push(position);
+
+      const result = await pool.query(`
+        UPDATE ${tableName}
+        SET ${updates.join(', ')}
+        WHERE position = $${paramIndex}
+        RETURNING *
+      `, values);
+
+      if (result.rows.length === 0) {
+        throw new Error(`Field with position ${position} not found`);
+      }
+
+      const row = result.rows[0];
+      return {
+        position: row.position,
+        fieldName: row.field_name,
+        fieldLength: row.field_length,
+        format: row.format,
+        description: row.description,
+        mmsEnabled: row.mms_enabled,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error updating field:', error);
+      throw error;
+    }
+  }
+
+  async deleteMccSchemaFields(positions: string[]): Promise<void> {
+    try {
+      const tableName = getTableName('Merchant_MCC_Schema');
+      const placeholders = positions.map((_, i) => `$${i + 1}`).join(',');
+      await pool.query(`
+        DELETE FROM ${tableName}
+        WHERE position IN (${placeholders})
+      `, positions);
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error deleting fields:', error);
+      throw error;
+    }
+  }
+
+  async bulkUpsertMccSchemaFields(fields: InsertMerchantMccSchema[]): Promise<{ inserted: number; updated: number }> {
+    try {
+      const tableName = getTableName('Merchant_MCC_Schema');
+      let inserted = 0;
+      let updated = 0;
+
+      for (const field of fields) {
+        const checkResult = await pool.query(`
+          SELECT position FROM ${tableName} WHERE position = $1
+        `, [field.position]);
+
+        await pool.query(`
+          INSERT INTO ${tableName} (position, field_name, field_length, format, description, mms_enabled)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (position)
+          DO UPDATE SET
+            field_name = EXCLUDED.field_name,
+            field_length = EXCLUDED.field_length,
+            format = EXCLUDED.format,
+            description = EXCLUDED.description,
+            mms_enabled = EXCLUDED.mms_enabled,
+            updated_at = NOW()
+        `, [
+          field.position,
+          field.fieldName,
+          field.fieldLength,
+          field.format,
+          field.description || null,
+          field.mmsEnabled
+        ]);
+
+        if (checkResult.rows.length > 0) {
+          updated++;
+        } else {
+          inserted++;
+        }
+      }
+
+      return { inserted, updated };
+    } catch (error) {
+      console.error('[MCC SCHEMA] Error bulk upserting fields:', error);
       throw error;
     }
   }
