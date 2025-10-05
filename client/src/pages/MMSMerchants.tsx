@@ -441,12 +441,12 @@ export default function MMSMerchants() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="ach" className="mt-6">
+            <TabsContent value="all" className="mt-6">
               <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
                   <CardTitle className="flex items-center gap-2">
                     <Building2 className="h-5 w-5 text-blue-600" />
-                    ACH Merchants ({data?.pagination?.totalItems || 0})
+                    All Merchants ({data?.pagination?.totalItems || 0})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
@@ -455,7 +455,7 @@ export default function MMSMerchants() {
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
-                        placeholder="Search ACH merchants by name, MID, or city..."
+                        placeholder="Search all merchants by name, MID, or city..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10 bg-white border-gray-200 focus:border-blue-300 focus:ring-blue-200"
@@ -473,20 +473,20 @@ export default function MMSMerchants() {
                     </Select>
                   </div>
 
-                  {/* ACH Merchants Table */}
+                  {/* All Merchants Table */}
                   {isLoading ? (
                     <div className="flex items-center justify-center h-64">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     </div>
                   ) : error ? (
                     <div className="text-center py-12">
-                      <p className="text-red-600">Error loading ACH merchants: {error.message}</p>
+                      <p className="text-red-600">Error loading merchants: {error.message}</p>
                     </div>
-                  ) : merchants.filter(m => m.merchant_type === 'ACH' || true).length === 0 ? (
+                  ) : merchants.length === 0 ? (
                     <div className="text-center py-12">
                       <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <p className="text-gray-500">No ACH merchants found</p>
-                      <p className="text-sm text-gray-400 mt-2">Upload VSB merchant files to see ACH merchants here</p>
+                      <p className="text-gray-500">No merchants found</p>
+                      <p className="text-sm text-gray-400 mt-2">Upload merchant files to see merchants here</p>
                     </div>
                   ) : (
                     <div className="rounded-lg overflow-hidden border border-gray-200 bg-white">
@@ -510,7 +510,7 @@ export default function MMSMerchants() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {merchants.filter(m => m.merchant_type === 'ACH' || true).map((merchant: any) => {
+                          {merchants.map((merchant: any) => {
                             const merchantId = merchant.id || merchant.client_mid;
                             return (
                               <TableRow 
@@ -555,7 +555,7 @@ export default function MMSMerchants() {
                       <div className="text-sm text-gray-700">
                         Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
                         {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                        {pagination.totalItems} ACH merchants
+                        {pagination.totalItems} merchants
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
