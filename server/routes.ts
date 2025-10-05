@@ -2350,8 +2350,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = req.query.status as string || "All";
       const lastUpload = req.query.lastUpload as string || "Any time";
       const search = req.query.search as string || "";
+      const merchantType = req.query.merchantType as string || "All";
 
-      const result = await storage.getMerchants(page, limit, status, lastUpload, search);
+      const result = await storage.getMerchants(page, limit, status, lastUpload, search, merchantType);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch merchants" });
