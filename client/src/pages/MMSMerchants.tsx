@@ -35,14 +35,20 @@ import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeat
 import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 
 interface TddfMerchant {
+  id?: number;
   merchantName: string;
+  name?: string;
   merchantAccountNumber: string;
+  client_mid?: string;
   mccCode: string;
+  merchant_type?: string;
   transactionTypeIdentifier: string;
   terminalCount: number;
   totalTransactions: number;
   totalAmount: number;
+  sale_amt?: number;
   lastTransactionDate: string;
+  created_at?: string;
   posRelativeCode?: string;
 }
 
