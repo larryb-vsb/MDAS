@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw, Building2, CreditCard, FileText, Settings } from "lucide-react";
+import { RefreshCw, Building2, CreditCard, FileText, Settings, Store } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -45,7 +45,7 @@ export default function Merchants() {
   }, [searchQuery, statusFilter, uploadFilter, itemsPerPage]);
   
   // Determine merchantType based on active tab
-  const merchantType = activeTab === "ach" ? "3" : "All";
+  const merchantType = activeTab === "ach" ? "3" : activeTab === "mcc" ? "0,1" : "All";
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
@@ -185,7 +185,7 @@ export default function Merchants() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            {(activeTab === "all" || activeTab === "ach") && (
+            {(activeTab === "all" || activeTab === "mcc" || activeTab === "ach") && (
               <Button 
                 onClick={() => setLocation('/merchants/new')}
                 className="bg-gradient-to-r from-blue-500 to-blue-700"
@@ -197,10 +197,14 @@ export default function Merchants() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
+          <TabsList className="grid w-full grid-cols-5 max-w-[1000px]">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               All Merchants
+            </TabsTrigger>
+            <TabsTrigger value="mcc" className="flex items-center gap-2">
+              <Store className="h-4 w-4" />
+              MCC Merchants
             </TabsTrigger>
             <TabsTrigger value="ach" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -217,6 +221,36 @@ export default function Merchants() {
           </TabsList>
           
           <TabsContent value="all" className="mt-6">
+            <MerchantFilters
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              uploadFilter={uploadFilter}
+              setUploadFilter={setUploadFilter}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
+            
+            <MerchantList
+              merchants={data?.merchants || []}
+              pagination={data?.pagination || {
+                currentPage: 1,
+                totalPages: 1,
+                totalItems: 0,
+                itemsPerPage: itemsPerPage
+              }}
+              isLoading={isLoading}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              selectedMerchants={selectedMerchants}
+              setSelectedMerchants={setSelectedMerchants}
+              onDeleteSelected={handleDeleteSelected}
+              deleteMutation={deleteMutation}
+              mergeMutation={mergeMutation}
+            />
+          </TabsContent>
+          
+          <TabsContent value="mcc" className="mt-6">
             <MerchantFilters
               statusFilter={statusFilter}
               setStatusFilter={setStatusFilter}
