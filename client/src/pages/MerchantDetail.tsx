@@ -362,6 +362,10 @@ export default function MerchantDetail() {
   const [sortField, setSortField] = useState<'traceNumber' | 'date' | 'type' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
+  // Pagination state for TSYS Risk & Configuration Fields
+  const [tsysCurrentPage, setTsysCurrentPage] = useState(1);
+  const [tsysItemsPerPage, setTsysItemsPerPage] = useState(5);
+  
   // Fetch merchant details
   const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
     queryKey: ['/api/merchants', id],
@@ -387,6 +391,25 @@ export default function MerchantDetail() {
   });
 
   // Frontend displays real-time merchant data with user tracking
+  
+  // Calculate paginated TSYS fields
+  const paginatedTsysFields = useMemo(() => {
+    if (!mccSchemaFields) return { fields: [], totalItems: 0, totalPages: 1 };
+    
+    // Filter out fields without mapping or core fields
+    const validFields = mccSchemaFields.filter(schemaField => {
+      const fieldKey = fieldNameMapping[schemaField.fieldName];
+      return fieldKey && !['name', 'status', 'merchantType'].includes(fieldKey);
+    });
+    
+    const totalItems = validFields.length;
+    const totalPages = Math.ceil(totalItems / tsysItemsPerPage) || 1;
+    const startIndex = (tsysCurrentPage - 1) * tsysItemsPerPage;
+    const endIndex = startIndex + tsysItemsPerPage;
+    const fields = validFields.slice(startIndex, endIndex);
+    
+    return { fields, totalItems, totalPages };
+  }, [mccSchemaFields, tsysCurrentPage, tsysItemsPerPage]);
   
   // Date range for transaction history visualization
   const [dateRange, setDateRange] = useState({
@@ -1128,13 +1151,13 @@ export default function MerchantDetail() {
                         <Skeleton className="w-full h-32" />
                       </div>
                     ) : (
-                      mccSchemaFields && mccSchemaFields.length > 0 && (
+                      paginatedTsysFields.totalItems > 0 && (
                         <div className="border-b pb-6">
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h3 className="text-lg font-semibold">TSYS Risk & Configuration Fields</h3>
                               <p className="text-sm text-gray-500">
-                                Fields configured in MCC TSYS Config (showing {mccSchemaFields.length} enabled fields)
+                                Fields configured in MCC TSYS Config (showing {paginatedTsysFields.totalItems} enabled fields)
                               </p>
                             </div>
                             <Button
@@ -1143,6 +1166,7 @@ export default function MerchantDetail() {
                               size="sm"
                               onClick={() => refetchMccSchema()}
                               className="flex items-center gap-2"
+                              data-testid="button-refresh-tsys-fields"
                             >
                               <RefreshCw className="h-4 w-4" />
                               Refresh
@@ -1151,14 +1175,8 @@ export default function MerchantDetail() {
                           
                           {/* Simple Name-Value List */}
                           <div className="space-y-2 bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
-                            {mccSchemaFields.map((schemaField) => {
+                            {paginatedTsysFields.fields.map((schemaField) => {
                               const fieldKey = fieldNameMapping[schemaField.fieldName];
-                              
-                              // Skip if no mapping found or if it's a core field already shown
-                              if (!fieldKey || ['name', 'status', 'merchantType'].includes(fieldKey)) {
-                                return null;
-                              }
-
                               const value = data?.merchant[fieldKey as keyof typeof data.merchant];
                               let displayValue = '—';
                               if (value !== null && value !== undefined) {
@@ -1191,6 +1209,59 @@ export default function MerchantDetail() {
                                 </div>
                               );
                             })}
+                          </div>
+                          
+                          {/* Pagination Controls */}
+                          <div className="flex items-center justify-between mt-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Items per page:</span>
+                              <Select
+                                value={tsysItemsPerPage.toString()}
+                                onValueChange={(value) => {
+                                  setTsysItemsPerPage(parseInt(value));
+                                  setTsysCurrentPage(1);
+                                }}
+                              >
+                                <SelectTrigger className="w-20" data-testid="select-tsys-page-size">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="5">5</SelectItem>
+                                  <SelectItem value="10">10</SelectItem>
+                                  <SelectItem value="20">20</SelectItem>
+                                  <SelectItem value="50">50</SelectItem>
+                                  <SelectItem value="75">75</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                Page {tsysCurrentPage} of {paginatedTsysFields.totalPages}
+                              </span>
+                              <div className="flex gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setTsysCurrentPage(prev => Math.max(1, prev - 1))}
+                                  disabled={tsysCurrentPage === 1}
+                                  data-testid="button-tsys-prev-page"
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setTsysCurrentPage(prev => Math.min(paginatedTsysFields.totalPages, prev + 1))}
+                                  disabled={tsysCurrentPage === paginatedTsysFields.totalPages}
+                                  data-testid="button-tsys-next-page"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )

@@ -41,6 +41,7 @@ MMS employs a modern client-server architecture.
 - **Intuitive Interactions**: Implements features like interactive heat maps, comprehensive sorting, clear progress indicators, and color-coded status displays.
 - **Standardized Elements**: Employs shared components (e.g., Cache Control Widget, Heat Map Component Library) for consistent functionality.
 - **PDF Reporting System**: Monthly PDF report generation for TDDF1 data with professional layout, executive summary, and key metrics.
+- **Dynamic Merchant Demographics**: MCC schema-driven Demographics form with auto-refresh (5-minute intervals), manual refresh button, and paginated TSYS Risk & Configuration Fields display (5, 10, 20, 50, 75 items per page, default 5).
 
 ## External Dependencies
 
