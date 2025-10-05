@@ -3037,6 +3037,18 @@ export const systemSettings = pgTable(getTableName("system_settings"), {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
+// MCC TSYS Merchant Schema Configuration Table
+export const merchantMccSchema = pgTable(getTableName("Merchant_MCC_Schema"), {
+  position: text("position").primaryKey(), // e.g., "4-Jan", "11-Jun", "20-35"
+  fieldName: text("field_name").notNull(), // e.g., "Bank Number", "Association"
+  fieldLength: integer("field_length").notNull(), // e.g., 4, 6, 16
+  format: text("format").notNull(), // e.g., "AN", "N"
+  description: text("description"), // Field description
+  mmsEnabled: integer("mms_enabled").notNull().default(0), // 0 or 1
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
 // Zod schemas for TDDF Daily View System
 export const insertTddfDatamasterSchema = createInsertSchema(tddfDatamaster);
 export const insertTddfApiDailyStatsSchema = createInsertSchema(tddfApiDailyStats);
@@ -3046,6 +3058,7 @@ export const insertTddfApiDailyImportStatusSchema = createInsertSchema(tddfApiDa
 export const insertTddfApiDailyCacheMetadataSchema = createInsertSchema(tddfApiDailyCacheMetadata);
 export const insertTddfApiDailyProcessingLogSchema = createInsertSchema(tddfApiDailyProcessingLog);
 export const insertSystemSettingsSchema = createInsertSchema(systemSettings);
+export const insertMerchantMccSchemaSchema = createInsertSchema(merchantMccSchema).omit({ createdAt: true, updatedAt: true });
 
 export type TddfDatamaster = typeof tddfDatamaster.$inferSelect;
 export type SystemSettings = typeof systemSettings.$inferSelect;
@@ -3055,6 +3068,7 @@ export type TddfApiDailyRecordBreakdown = typeof tddfApiDailyRecordBreakdown.$in
 export type TddfApiDailyImportStatus = typeof tddfApiDailyImportStatus.$inferSelect;
 export type TddfApiDailyCacheMetadata = typeof tddfApiDailyCacheMetadata.$inferSelect;
 export type TddfApiDailyProcessingLog = typeof tddfApiDailyProcessingLog.$inferSelect;
+export type MerchantMccSchema = typeof merchantMccSchema.$inferSelect;
 
 export type InsertTddfDatamaster = typeof insertTddfDatamasterSchema._type;
 export type InsertTddfApiDailyStats = typeof insertTddfApiDailyStatsSchema._type;
@@ -3064,3 +3078,4 @@ export type InsertTddfApiDailyImportStatus = typeof insertTddfApiDailyImportStat
 export type InsertTddfApiDailyCacheMetadata = typeof insertTddfApiDailyCacheMetadataSchema._type;
 export type InsertTddfApiDailyProcessingLog = typeof insertTddfApiDailyProcessingLogSchema._type;
 export type InsertSystemSettings = typeof insertSystemSettingsSchema._type;
+export type InsertMerchantMccSchema = z.infer<typeof insertMerchantMccSchemaSchema>;
