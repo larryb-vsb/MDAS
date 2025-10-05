@@ -14,9 +14,10 @@ class MMSWatcher {
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
-    this.auto45Enabled = false; // Auto 4-5 processing disabled by default - controlled via API
+    this.auto45Enabled = true; // Auto 4-5 processing ENABLED for testing merchant detail detection
     this.manual45Queue = new Set(); // Manual processing queue for single-step progression
     console.log('[MMS-WATCHER] Watcher service initialized');
+    console.log('[MMS-WATCHER] 🔧 MERCHANT DETAIL DETECTION CODE IS LOADED - Ready to detect DACQ_MER_DTL files');
   }
 
   start() {
@@ -680,6 +681,13 @@ class MMSWatcher {
         hasHeaders = true; // Terminal files typically have headers
         console.log('[MMS-WATCHER] Detected terminal format from filename patterns');
       }
+      // Merchant Detail file detection - MUST come before TDDF check (.tsyso files)
+      else if (this.detectMerchantDetailFile(filename, lines)) {
+        detectedType = 'merchant_detail';
+        format = 'tab_delimited';
+        hasHeaders = false; // Has HEADER record but not CSV-style headers
+        console.log('[MMS-WATCHER] Detected merchant detail import format (DACQ_MER_DTL)');
+      }
       // TDDF file detection (.tsyso extension or specific TDDF patterns)
       else if (filename.toLowerCase().endsWith('.tsyso') || this.detectTddfPattern(lines)) {
         detectedType = 'tddf';
@@ -905,6 +913,44 @@ class MMSWatcher {
     }
     
     return isTerminalFile;
+  }
+
+  detectMerchantDetailFile(filename, lines) {
+    console.log(`[MMS-WATCHER] [MERCHANT-DETAIL-CHECK] Called with filename: ${filename}, lines count: ${lines ? lines.length : 'UNDEFINED'}`);
+    if (!filename || lines.length === 0) {
+      console.log(`[MMS-WATCHER] [MERCHANT-DETAIL-CHECK] Early return - filename: ${!!filename}, lines.length: ${lines ? lines.length : 'UNDEFINED'}`);
+      return false;
+    }
+    
+    // Check filename for DACQ_MER_DTL pattern
+    const hasMerchantDetailPattern = filename.toUpperCase().includes('DACQ_MER_DTL');
+    
+    // Check first line for HEADER record with ACQ MERCHANT DETAIL
+    const firstLine = lines[0] || '';
+    const hasHeaderRecord = firstLine.toUpperCase().startsWith('HEADER') && 
+                           firstLine.toUpperCase().includes('ACQ MERCHANT DETAIL');
+    
+    // Check last line for TRAILER record
+    const lastLine = lines[lines.length - 1] || '';
+    const hasTrailerRecord = lastLine.toUpperCase().startsWith('TRAILER');
+    
+    const isMerchantDetailFile = hasMerchantDetailPattern && hasHeaderRecord && hasTrailerRecord;
+    
+    // Debug logging
+    console.log(`[MMS-WATCHER] Merchant detail check for ${filename}:`);
+    console.log(`[MMS-WATCHER]   - Has DACQ_MER_DTL pattern: ${hasMerchantDetailPattern}`);
+    console.log(`[MMS-WATCHER]   - First line starts with HEADER: ${firstLine.toUpperCase().startsWith('HEADER')}`);
+    console.log(`[MMS-WATCHER]   - First line includes ACQ MERCHANT DETAIL: ${firstLine.toUpperCase().includes('ACQ MERCHANT DETAIL')}`);
+    console.log(`[MMS-WATCHER]   - Last line starts with TRAILER: ${hasTrailerRecord}`);
+    console.log(`[MMS-WATCHER]   - First line preview: "${firstLine.substring(0, 100)}..."`);
+    console.log(`[MMS-WATCHER]   - Last line preview: "${lastLine.substring(0, 50)}"`);
+    console.log(`[MMS-WATCHER]   - Is merchant detail file: ${isMerchantDetailFile}`);
+    
+    if (isMerchantDetailFile) {
+      console.log(`[MMS-WATCHER] ✅ Merchant Detail file detected: ${filename} (${lines.length} lines, HEADER/TRAILER confirmed)`);
+    }
+    
+    return isMerchantDetailFile;
   }
 
   async markIdentificationFailed(upload, errorMessage) {
