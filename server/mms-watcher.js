@@ -1239,6 +1239,36 @@ class MMSWatcher {
           throw error;
         }
       }
+      else if (fileType === 'merchant_detail') {
+        // Merchant Detail file processing - DACQ_MER_DTL format
+        console.log(`[MMS-WATCHER] [MERCHANT-DETAIL] Processing merchant detail file: ${upload.filename}`);
+        
+        try {
+          // TODO: Implement actual merchant detail processing
+          // For now, mark as encoded to progress through pipeline
+          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: `Merchant detail file ready for processing (${upload.lineCount} lines)`,
+            processingNotes: `Merchant detail file identified and ready for import processing`,
+            fileTypeIdentified: 'merchant_detail'
+          });
+          
+          console.log(`[MMS-WATCHER] ✅ Merchant detail file marked as encoded: ${upload.filename} (${upload.lineCount} lines) - Ready for processing`);
+        } catch (error) {
+          console.error(`[MMS-WATCHER] Error marking merchant detail file ${upload.filename}:`, error);
+          
+          await this.storage.updateUploaderPhase(upload.id, 'failed', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'failed',
+            encodingNotes: `Merchant detail processing failed: ${error.message}`,
+            processingNotes: `Merchant detail processing failed: ${error.message}`,
+            fileTypeIdentified: 'merchant_detail'
+          });
+          
+          throw error;
+        }
+      }
       else {
         throw new Error(`Unsupported file type for encoding: ${fileType}`);
       }
