@@ -7417,12 +7417,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a single MCC schema field
-  app.patch("/api/mcc-schema/:position", isAuthenticated, async (req, res) => {
+  app.patch("/api/mcc-schema/:id", isAuthenticated, async (req, res) => {
     try {
-      const position = req.params.position;
+      const id = parseInt(req.params.id);
       const updates = req.body;
       
-      const updatedField = await storage.updateMccSchemaField(position, updates);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid field ID" });
+      }
+      
+      const updatedField = await storage.updateMccSchemaField(id, updates);
       res.json(updatedField);
     } catch (error) {
       console.error('[MCC SCHEMA] Error updating field:', error);
@@ -7435,18 +7439,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete MCC schema fields (single or bulk)
   app.delete("/api/mcc-schema", isAuthenticated, async (req, res) => {
     try {
-      const { positions } = req.body;
+      const { ids } = req.body;
       
-      if (!positions || !Array.isArray(positions) || positions.length === 0) {
-        return res.status(400).json({ error: "positions array is required" });
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids array is required" });
       }
       
-      await storage.deleteMccSchemaFields(positions);
+      await storage.deleteMccSchemaFields(ids);
       
       res.json({
         success: true,
-        deletedCount: positions.length,
-        message: `Successfully deleted ${positions.length} field(s)`
+        deletedCount: ids.length,
+        message: `Successfully deleted ${ids.length} field(s)`
       });
     } catch (error) {
       console.error('[MCC SCHEMA] Error deleting fields:', error);

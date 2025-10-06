@@ -235,8 +235,8 @@ export interface IStorage {
   // MCC TSYS Merchant Schema Configuration operations
   getMccSchemaFields(): Promise<MerchantMccSchema[]>;
   upsertMccSchemaField(fieldData: InsertMerchantMccSchema): Promise<MerchantMccSchema>;
-  updateMccSchemaField(position: string, fieldData: Partial<InsertMerchantMccSchema>): Promise<MerchantMccSchema>;
-  deleteMccSchemaFields(positions: string[]): Promise<void>;
+  updateMccSchemaField(id: number, fieldData: Partial<InsertMerchantMccSchema>): Promise<MerchantMccSchema>;
+  deleteMccSchemaFields(ids: number[]): Promise<void>;
   bulkUpsertMccSchemaFields(fields: InsertMerchantMccSchema[]): Promise<{ inserted: number; updated: number }>;
 
   // Merchant operations
@@ -14234,8 +14234,10 @@ export class DatabaseStorage implements IStorage {
         ORDER BY position
       `);
       return result.rows.map(row => ({
+        id: row.id,
         position: row.position,
         fieldName: row.field_name,
+        key: row.key,
         fieldLength: row.field_length,
         format: row.format,
         description: row.description,
@@ -14290,16 +14292,24 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateMccSchemaField(position: string, fieldData: Partial<InsertMerchantMccSchema>): Promise<MerchantMccSchema> {
+  async updateMccSchemaField(id: number, fieldData: Partial<InsertMerchantMccSchema>): Promise<MerchantMccSchema> {
     try {
       const tableName = getTableName('Merchant_MCC_Schema');
       const updates: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
 
+      if (fieldData.position !== undefined) {
+        updates.push(`position = $${paramIndex++}`);
+        values.push(fieldData.position);
+      }
       if (fieldData.fieldName !== undefined) {
         updates.push(`field_name = $${paramIndex++}`);
         values.push(fieldData.fieldName);
+      }
+      if (fieldData.key !== undefined) {
+        updates.push(`key = $${paramIndex++}`);
+        values.push(fieldData.key);
       }
       if (fieldData.fieldLength !== undefined) {
         updates.push(`field_length = $${paramIndex++}`);
@@ -14318,23 +14328,25 @@ export class DatabaseStorage implements IStorage {
         values.push(fieldData.mmsEnabled);
       }
       updates.push(`updated_at = NOW()`);
-      values.push(position);
+      values.push(id);
 
       const result = await pool.query(`
         UPDATE ${tableName}
         SET ${updates.join(', ')}
-        WHERE position = $${paramIndex}
+        WHERE id = $${paramIndex}
         RETURNING *
       `, values);
 
       if (result.rows.length === 0) {
-        throw new Error(`Field with position ${position} not found`);
+        throw new Error(`Field with id ${id} not found`);
       }
 
       const row = result.rows[0];
       return {
+        id: row.id,
         position: row.position,
         fieldName: row.field_name,
+        key: row.key,
         fieldLength: row.field_length,
         format: row.format,
         description: row.description,
@@ -14348,14 +14360,14 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteMccSchemaFields(positions: string[]): Promise<void> {
+  async deleteMccSchemaFields(ids: number[]): Promise<void> {
     try {
       const tableName = getTableName('Merchant_MCC_Schema');
-      const placeholders = positions.map((_, i) => `$${i + 1}`).join(',');
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
       await pool.query(`
         DELETE FROM ${tableName}
-        WHERE position IN (${placeholders})
-      `, positions);
+        WHERE id IN (${placeholders})
+      `, ids);
     } catch (error) {
       console.error('[MCC SCHEMA] Error deleting fields:', error);
       throw error;
