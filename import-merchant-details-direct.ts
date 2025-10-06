@@ -13,23 +13,11 @@ async function parseAndImportFile(storagePath: string) {
   const lines = fileContent.split(/\r?\n/).filter(line => line.trim().length > 0);
   console.log(`Total lines: ${lines.length}\n`);
   
-  // Detect format by checking first line
-  if (lines.length > 0) {
-    const firstLine = lines[0];
-    const tabCount = (firstLine.match(/\t/g) || []).length;
-    console.log(`Format detection: ${tabCount} tabs found`);
-    console.log(`First 3 sample lines:`);
-    lines.slice(0, 3).forEach((line, idx) => {
-      const fields = line.split('\t');
-      console.log(`  [${idx+1}] ${fields.length} fields: ${fields.slice(0, 15).map((f, i) => `[${i}]${f.substring(0, 20)}`).join(' | ')}`);
-    });
-    console.log('');
-  }
-  
   let updated = 0;
   let notFound = 0;
   let errors = 0;
   let vsbMerchants = 0;
+  let skipped = 0;
   
   const merchantsTable = getTableName('merchants');
   
@@ -40,78 +28,86 @@ async function parseAndImportFile(storagePath: string) {
       const fields = line.split('\t');
       
       // Skip header or malformed lines
-      if (fields.length < 10 || fields[0].includes('HEADER')) {
-        console.log(`[${i+1}] Skipping: ${fields[0].substring(0, 50)}`);
+      if (fields.length < 10 || fields[0]?.includes('HEADER')) {
+        console.log(`[${i+1}] Skipping header/short line\n`);
+        skipped++;
         continue;
       }
       
-      // Parse fields based on actual structure
-      // From the file: Bank, MerchantNum, ClientMID, Name, Group, City, State, Zip...
+      // Parse fields based on actual file structure from screenshot
       const bankNum = fields[0]?.trim();
-      const merchantNum = fields[2]?.trim();
-      const clientMID = fields[3]?.trim();
-      const name = fields[4]?.trim();
-      const groupDesc = fields[6]?.trim();
+      const dbaName = fields[4]?.trim();  // DBA Name as merchant name
+      const groupDesc = fields[5]?.trim();
       
-      // City/State/Zip might be in different positions, let me try different combinations
+      // City/State/Zip are in later fields - let me find them
       let city = '';
       let state = '';
       let zip = '';
       
-      // Try to find city, state, zip in the remaining fields
+      // Look for state (2-letter code) in fields 7-15
       for (let j = 7; j < Math.min(fields.length, 20); j++) {
         const field = fields[j]?.trim();
         if (!field) continue;
         
-        // State codes are 2 characters
+        // State codes are 2 uppercase letters
         if (field.length === 2 && /^[A-Z]{2}$/.test(field) && !state) {
           state = field;
-          // City might be before state
-          if (j > 0 && fields[j-1] && fields[j-1].trim().length > 2) {
+          // City might be 1-2 fields before state
+          if (j > 0 && fields[j-1]?.trim()) {
             city = fields[j-1].trim();
           }
-          // Zip might be after state  
-          if (j < fields.length - 1 && fields[j+1]) {
-            const nextField = fields[j+1].trim();
-            if (/^\d{5}(-\d{4})?$/.test(nextField) || /^\d{5,9}$/.test(nextField)) {
-              zip = nextField;
+          // Zip might be 1-2 fields after state
+          if (j < fields.length - 1) {
+            const nextField = fields[j+1]?.trim();
+            // Zip can be 5-9 digits
+            if (nextField && /^\d{5,9}$/.test(nextField)) {
+              // Remove leading zeros for proper zip format
+              zip = nextField.replace(/^0+/, '');
+              if (zip.length === 4) zip = '0' + zip; // Keep at least 5 digits
             }
           }
           break;
         }
       }
       
-      console.log(`[${i+1}] Bank: ${bankNum}, MerchantNum: ${merchantNum}, ClientMID: ${clientMID}`);
-      console.log(`       Name: ${name}, Group: ${groupDesc}`);
+      console.log(`[${i+1}] Bank: ${bankNum}`);
+      console.log(`       DBA Name: ${dbaName}`);
+      console.log(`       Group: ${groupDesc}`);
       console.log(`       City: ${city}, State: ${state}, Zip: ${zip}`);
       
+      if (!dbaName) {
+        console.log(`  ⚠️  No DBA name, skipping\n`);
+        skipped++;
+        continue;
+      }
+      
       // Track Vermont State Bank merchants
-      if (groupDesc && (groupDesc.includes('VERMONT STATE BANK') || groupDesc.includes('VSB-BANK'))) {
+      if (groupDesc && groupDesc.includes('VSB-BANK')) {
         vsbMerchants++;
         console.log(`  🏦 Vermont State Bank merchant #${vsbMerchants}`);
       }
       
-      // Find merchant by client_mid
+      // Find merchant by DBA name (exact match, case-insensitive)
       const findResult = await pool.query(`
-        SELECT id, name, city, state, zip_code, client_mid
+        SELECT id, name, city, state, zip_code
         FROM ${merchantsTable} 
-        WHERE client_mid = $1
+        WHERE UPPER(name) = UPPER($1)
         LIMIT 1
-      `, [clientMID]);
+      `, [dbaName]);
       
       if (findResult.rows.length === 0) {
-        console.log(`  ❌ No merchant found for ClientMID ${clientMID}\n`);
+        console.log(`  ❌ No merchant found for DBA Name: "${dbaName}"\n`);
         notFound++;
         continue;
       }
       
       const merchant = findResult.rows[0];
-      console.log(`  ✅ Found merchant: ${merchant.name} (ID: ${merchant.id})`);
-      console.log(`     Current values: City="${merchant.city||''}", State="${merchant.state||''}", Zip="${merchant.zip_code||''}"`);
+      console.log(`  ✅ MATCHED merchant in database: "${merchant.name}" (ID: ${merchant.id})`);
+      console.log(`     BEFORE: City="${merchant.city||''}", State="${merchant.state||''}", Zip="${merchant.zip_code||''}"`);
       
       // Only update if we have new values
       if (!city && !state && !zip) {
-        console.log(`  ⚠️  No geographic data to update\n`);
+        console.log(`  ⚠️  No geographic data in file to update\n`);
         continue;
       }
       
@@ -129,22 +125,24 @@ async function parseAndImportFile(storagePath: string) {
       `, [city, state, zip, merchant.id]);
       
       const updatedMerchant = updateResult.rows[0];
-      console.log(`  📝 UPDATED TO: City="${updatedMerchant.city}", State="${updatedMerchant.state}", Zip="${updatedMerchant.zip_code}"\n`);
+      console.log(`  📝 AFTER:  City="${updatedMerchant.city}", State="${updatedMerchant.state}", Zip="${updatedMerchant.zip_code}"`);
+      console.log(`  ✅ SUCCESSFULLY UPDATED!\n`);
       updated++;
       
     } catch (error: any) {
-      console.error(`  ❌ Error on line ${i+1}:`, error.message);
+      console.error(`  ❌ ERROR on line ${i+1}:`, error.message, '\n');
       errors++;
     }
   }
   
   console.log(`\n========================================`);
-  console.log(`SUMMARY`);
+  console.log(`            SUMMARY`);
   console.log(`========================================`);
-  console.log(`Total lines processed: ${lines.length}`);
+  console.log(`Total lines in file: ${lines.length}`);
   console.log(`✅ Successfully updated: ${updated}`);
   console.log(`❌ Not found in database: ${notFound}`);
   console.log(`⚠️  Errors: ${errors}`);
+  console.log(`⏭️  Skipped (headers/invalid): ${skipped}`);
   console.log(`🏦 Vermont State Bank merchants: ${vsbMerchants}`);
   console.log(`========================================\n`);
   
@@ -157,9 +155,12 @@ async function main() {
     'dev-uploader/2025-10-05/uploader_1759696290972_v52jphrnw/VERMNTSB.6759_DACQ_MER_DTL_10012025_011606.TSYSO'
   ];
   
-  console.log('🚀 TSYS Merchant Detail Import - VERBOSE LOGGING ENABLED');
-  console.log('📋 State and Zip Code fields WILL BE UPDATED during import\n');
-  console.log('ℹ️  Matching merchants by ClientMID from import file\n');
+  console.log('╔══════════════════════════════════════════════════════════╗');
+  console.log('║  TSYS MERCHANT DETAIL IMPORT - VERBOSE LOGGING ENABLED   ║');
+  console.log('╚══════════════════════════════════════════════════════════╝');
+  console.log('📋 State and Zip Code fields WILL BE UPDATED during import');
+  console.log('🔍 Matching merchants by DBA Name from file');
+  console.log('');
   
   let totalUpdated = 0;
   let totalVSB = 0;
@@ -174,11 +175,18 @@ async function main() {
     }
   }
   
-  console.log('\n\n╔════════════════════════════════════════╗');
-  console.log('║     IMPORT COMPLETE - FINAL TOTALS     ║');
-  console.log('╚════════════════════════════════════════╝');
+  console.log('\n\n╔════════════════════════════════════════════════════════╗');
+  console.log('║          IMPORT COMPLETE - FINAL TOTALS                ║');
+  console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`Total merchants updated: ${totalUpdated}`);
   console.log(`Vermont State Bank merchants found: ${totalVSB}`);
+  console.log('');
+  
+  if (totalUpdated > 0) {
+    console.log('✅ SUCCESS: State and Zip Code data has been imported!');
+  } else {
+    console.log('⚠️  WARNING: No merchants were updated. Check if DBA names match database.');
+  }
   console.log('');
   
   process.exit(0);
