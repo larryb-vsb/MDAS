@@ -25,8 +25,10 @@ import { Upload, Trash2, Edit2, Search, CheckSquare, Square, ArrowUpDown } from 
 import { apiRequest } from "@/lib/queryClient";
 
 interface MccSchemaField {
+  id: number;
   position: string;
   fieldName: string;
+  key: string | null;
   fieldLength: number;
   format: string;
   description: string | null;
@@ -43,7 +45,7 @@ export default function MccSchemaConfig() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [selectedFields, setSelectedFields] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingField, setEditingField] = useState<MccSchemaField | null>(null);
   const [sortField, setSortField] = useState<SortField>('position');
@@ -94,8 +96,8 @@ export default function MccSchemaConfig() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ position, data }: { position: string; data: Partial<MccSchemaField> }) => {
-      return apiRequest(`/api/mcc-schema/${position}`, {
+    mutationFn: async ({ id, data }: { id: number; data: Partial<MccSchemaField> }) => {
+      return apiRequest(`/api/mcc-schema/${id}`, {
         method: 'PATCH',
         body: data,
       });
@@ -120,10 +122,10 @@ export default function MccSchemaConfig() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (positions: string[]) => {
+    mutationFn: async (ids: number[]) => {
       return apiRequest('/api/mcc-schema', {
         method: 'DELETE',
-        body: { positions },
+        body: { ids },
       });
     },
     onSuccess: (data: any) => {
@@ -154,15 +156,15 @@ export default function MccSchemaConfig() {
     if (selectedFields.length === filteredAndSortedFields.length) {
       setSelectedFields([]);
     } else {
-      setSelectedFields(filteredAndSortedFields.map(f => f.position));
+      setSelectedFields(filteredAndSortedFields.map(f => f.id));
     }
   };
 
-  const handleSelectField = (position: string) => {
+  const handleSelectField = (id: number) => {
     setSelectedFields(prev =>
-      prev.includes(position)
-        ? prev.filter(p => p !== position)
-        : [...prev, position]
+      prev.includes(id)
+        ? prev.filter(p => p !== id)
+        : [...prev, id]
     );
   };
 
@@ -175,7 +177,9 @@ export default function MccSchemaConfig() {
   const handleEditClick = (field: MccSchemaField) => {
     setEditingField(field);
     setEditFormData({
+      position: field.position,
       fieldName: field.fieldName,
+      key: field.key,
       fieldLength: field.fieldLength,
       format: field.format,
       description: field.description,
@@ -186,7 +190,7 @@ export default function MccSchemaConfig() {
   const handleEditSave = () => {
     if (editingField) {
       updateMutation.mutate({
-        position: editingField.position,
+        id: editingField.id,
         data: editFormData,
       });
     }
@@ -314,6 +318,9 @@ export default function MccSchemaConfig() {
               >
                 Field Name <SortIcon field="fieldName" />
               </TableHead>
+              <TableHead data-testid="header-key">
+                Key
+              </TableHead>
               <TableHead 
                 className="cursor-pointer select-none"
                 onClick={() => handleSort('fieldLength')}
@@ -342,28 +349,28 @@ export default function MccSchemaConfig() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredAndSortedFields.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                   {searchQuery ? 'No fields match your search' : 'No fields configured. Upload a CSV to get started.'}
                 </TableCell>
               </TableRow>
             ) : (
               filteredAndSortedFields.map((field) => (
                 <TableRow 
-                  key={field.position}
+                  key={field.id}
                   data-testid={`row-field-${field.position}`}
-                  className={selectedFields.includes(field.position) ? 'bg-blue-50' : ''}
+                  className={selectedFields.includes(field.id) ? 'bg-blue-50' : ''}
                 >
                   <TableCell>
                     <Checkbox
                       data-testid={`checkbox-field-${field.position}`}
-                      checked={selectedFields.includes(field.position)}
-                      onCheckedChange={() => handleSelectField(field.position)}
+                      checked={selectedFields.includes(field.id)}
+                      onCheckedChange={() => handleSelectField(field.id)}
                     />
                   </TableCell>
                   <TableCell data-testid={`text-position-${field.position}`} className="font-mono">
@@ -371,6 +378,9 @@ export default function MccSchemaConfig() {
                   </TableCell>
                   <TableCell data-testid={`text-field-name-${field.position}`}>
                     {field.fieldName}
+                  </TableCell>
+                  <TableCell data-testid={`text-key-${field.position}`} className="font-mono text-sm text-gray-600">
+                    {field.key || '-'}
                   </TableCell>
                   <TableCell data-testid={`text-field-length-${field.position}`}>
                     {field.fieldLength}
@@ -417,12 +427,34 @@ export default function MccSchemaConfig() {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                data-testid="input-edit-position"
+                value={editFormData.position || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, position: e.target.value })}
+                placeholder="e.g., 4-Jan, 11-Jun, 20-35"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="fieldName">Field Name</Label>
               <Input
                 id="fieldName"
                 data-testid="input-edit-field-name"
                 value={editFormData.fieldName || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, fieldName: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="key">Key (Database Column)</Label>
+              <Input
+                id="key"
+                data-testid="input-edit-key"
+                value={editFormData.key || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, key: e.target.value })}
+                placeholder="e.g., agent_bank_number, dba_name"
               />
             </div>
 
