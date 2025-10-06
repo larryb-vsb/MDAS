@@ -14328,24 +14328,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[DASHBOARD-BUILD] Building comprehensive dashboard cache...');
     
     try {
-      // ACH Merchants data (from merchants table)
-      const achMerchantsQuery = `SELECT COUNT(*) as total FROM ${getTableName('merchants')}`;
+      // ACH Merchants data (filtered for merchant_type = '3')
+      const achMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE merchant_type = '3'
+      `;
       const achMerchantsResult = await pool.query(achMerchantsQuery);
       const achMerchants = parseInt(achMerchantsResult.rows[0]?.total || '0');
       
-      // MCC Merchants data (simplified query - using pre-cached count if available)
+      // MCC Merchants data (filtered for merchant_type = '0' OR blank/null)
       const mccMerchantsQuery = `
-        SELECT COALESCE(
-          (SELECT COUNT(DISTINCT (extracted_fields->>'merchantAccountNumber'))
-           FROM ${getTableName('tddf_jsonb')} 
-           WHERE record_type = 'DT' AND extracted_fields->>'merchantAccountNumber' IS NOT NULL
-           LIMIT 1000), 263) as total
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE merchant_type = '0' OR merchant_type = '' OR merchant_type IS NULL
       `;
       const mccMerchantsResult = await pool.query(mccMerchantsQuery);
-      const mccMerchants = parseInt(mccMerchantsResult.rows[0]?.total || '263');
+      const mccMerchants = parseInt(mccMerchantsResult.rows[0]?.total || '0');
+      
+      // Total merchants (all types)
+      const totalMerchantsQuery = `SELECT COUNT(*) as total FROM ${getTableName('merchants')}`;
+      const totalMerchantsResult = await pool.query(totalMerchantsQuery);
+      const totalMerchants = parseInt(totalMerchantsResult.rows[0]?.total || '0');
       
       // Debug logging for merchant counts
-      console.log(`[DASHBOARD-BUILD] Merchant counts - ACH: ${achMerchants}, MCC: ${mccMerchants}, Total: ${achMerchants + mccMerchants}`);
+      console.log(`[DASHBOARD-BUILD] Merchant counts - Total: ${totalMerchants}, ACH (type=3): ${achMerchants}, MCC (type=0/blank): ${mccMerchants}`);
       
       // Terminals data - all terminals are MCC
       const terminalsQuery = `SELECT COUNT(*) as total_count FROM ${getTableName('api_terminals')}`;
@@ -14387,12 +14394,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build metrics object
       const metrics = {
         merchants: {
-          total: achMerchants + mccMerchants,
+          total: totalMerchants,
           ach: achMerchants,
           mmc: mccMerchants
         },
         newMerchants30Day: {
-          total: Math.round((achMerchants + mccMerchants) * 0.05), // 5% new in 30 days (estimated)
+          total: Math.round(totalMerchants * 0.05), // 5% new in 30 days (estimated)
           ach: Math.round(achMerchants * 0.05),
           mmc: Math.round(mccMerchants * 0.05)
         },
@@ -14440,7 +14447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
       const buildTime = Date.now() - startTime;
       
-      const totalRecordCount = achMerchants + mccMerchants + tddfTransactions;
+      const totalRecordCount = totalMerchants + tddfTransactions;
       
       const upsertQuery = `
         INSERT INTO ${tableName} (cache_key, cache_data, expires_at, build_time_ms, record_count)
