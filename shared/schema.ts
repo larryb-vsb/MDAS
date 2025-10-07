@@ -3043,6 +3043,7 @@ export const merchantMccSchema = pgTable(getTableName("Merchant_MCC_Schema"), {
   position: text("position").notNull().unique(), // e.g., "4-Jan", "11-Jun", "20-35" - now editable
   fieldName: text("field_name").notNull(), // e.g., "Bank Number", "Association"
   key: text("key"), // Database column mapping key (e.g., "agent_bank_number", "dba_name")
+  tabPosition: text("tab_position"), // Tab position in tab-delimited file (e.g., "1 (Unused #1)", "2 (Unused #2)")
   fieldLength: integer("field_length").notNull(), // e.g., 4, 6, 16
   format: text("format").notNull(), // e.g., "AN", "N"
   description: text("description"), // Field description

@@ -29,6 +29,7 @@ interface MccSchemaField {
   position: string;
   fieldName: string;
   key: string | null;
+  tabPosition: string | null;
   fieldLength: number;
   format: string;
   description: string | null;
@@ -321,6 +322,9 @@ export default function MccSchemaConfig() {
               <TableHead data-testid="header-key">
                 Key
               </TableHead>
+              <TableHead data-testid="header-tab-position">
+                Tab Position
+              </TableHead>
               <TableHead 
                 className="cursor-pointer select-none"
                 onClick={() => handleSort('fieldLength')}
@@ -349,13 +353,13 @@ export default function MccSchemaConfig() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredAndSortedFields.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                   {searchQuery ? 'No fields match your search' : 'No fields configured. Upload a CSV to get started.'}
                 </TableCell>
               </TableRow>
@@ -381,6 +385,9 @@ export default function MccSchemaConfig() {
                   </TableCell>
                   <TableCell data-testid={`text-key-${field.position}`} className="font-mono text-sm text-gray-600">
                     {field.key || '-'}
+                  </TableCell>
+                  <TableCell data-testid={`text-tab-position-${field.position}`} className="text-sm">
+                    {field.tabPosition || '-'}
                   </TableCell>
                   <TableCell data-testid={`text-field-length-${field.position}`}>
                     {field.fieldLength}
@@ -455,6 +462,17 @@ export default function MccSchemaConfig() {
                 value={editFormData.key || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, key: e.target.value })}
                 placeholder="e.g., agent_bank_number, dba_name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tabPosition">Tab Position</Label>
+              <Input
+                id="tabPosition"
+                data-testid="input-edit-tab-position"
+                value={editFormData.tabPosition || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, tabPosition: e.target.value })}
+                placeholder="e.g., 1 (Unused #1), 2 (Unused #2)"
               />
             </div>
 

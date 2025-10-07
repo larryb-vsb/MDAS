@@ -14238,6 +14238,7 @@ export class DatabaseStorage implements IStorage {
         position: row.position,
         fieldName: row.field_name,
         key: row.key,
+        tabPosition: row.tab_position,
         fieldLength: row.field_length,
         format: row.format,
         description: row.description,
@@ -14255,11 +14256,13 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('Merchant_MCC_Schema');
       const result = await pool.query(`
-        INSERT INTO ${tableName} (position, field_name, field_length, format, description, mms_enabled)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO ${tableName} (position, field_name, key, tab_position, field_length, format, description, mms_enabled)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT (position)
         DO UPDATE SET
           field_name = EXCLUDED.field_name,
+          key = EXCLUDED.key,
+          tab_position = EXCLUDED.tab_position,
           field_length = EXCLUDED.field_length,
           format = EXCLUDED.format,
           description = EXCLUDED.description,
@@ -14269,6 +14272,8 @@ export class DatabaseStorage implements IStorage {
       `, [
         fieldData.position,
         fieldData.fieldName,
+        fieldData.key || null,
+        fieldData.tabPosition || null,
         fieldData.fieldLength,
         fieldData.format,
         fieldData.description || null,
@@ -14277,8 +14282,11 @@ export class DatabaseStorage implements IStorage {
       
       const row = result.rows[0];
       return {
+        id: row.id,
         position: row.position,
         fieldName: row.field_name,
+        key: row.key,
+        tabPosition: row.tab_position,
         fieldLength: row.field_length,
         format: row.format,
         description: row.description,
@@ -14310,6 +14318,10 @@ export class DatabaseStorage implements IStorage {
       if (fieldData.key !== undefined) {
         updates.push(`key = $${paramIndex++}`);
         values.push(fieldData.key);
+      }
+      if (fieldData.tabPosition !== undefined) {
+        updates.push(`tab_position = $${paramIndex++}`);
+        values.push(fieldData.tabPosition);
       }
       if (fieldData.fieldLength !== undefined) {
         updates.push(`field_length = $${paramIndex++}`);
@@ -14347,6 +14359,7 @@ export class DatabaseStorage implements IStorage {
         position: row.position,
         fieldName: row.field_name,
         key: row.key,
+        tabPosition: row.tab_position,
         fieldLength: row.field_length,
         format: row.format,
         description: row.description,
@@ -14386,11 +14399,13 @@ export class DatabaseStorage implements IStorage {
         `, [field.position]);
 
         await pool.query(`
-          INSERT INTO ${tableName} (position, field_name, field_length, format, description, mms_enabled)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO ${tableName} (position, field_name, key, tab_position, field_length, format, description, mms_enabled)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           ON CONFLICT (position)
           DO UPDATE SET
             field_name = EXCLUDED.field_name,
+            key = EXCLUDED.key,
+            tab_position = EXCLUDED.tab_position,
             field_length = EXCLUDED.field_length,
             format = EXCLUDED.format,
             description = EXCLUDED.description,
@@ -14399,6 +14414,8 @@ export class DatabaseStorage implements IStorage {
         `, [
           field.position,
           field.fieldName,
+          field.key || null,
+          field.tabPosition || null,
           field.fieldLength,
           field.format,
           field.description || null,
