@@ -220,6 +220,9 @@ function parseTabDelimitedLine(
   // Split line by tabs
   const tabValues = line.split('\t');
   
+  console.log(`[TAB-PARSER] Line has ${tabValues.length} tab-delimited values`);
+  console.log(`[TAB-PARSER] First 5 values:`, tabValues.slice(0, 5));
+  
   // Group fields by tab position
   const fieldsByTab = schemaFields.reduce((acc, field) => {
     const tabPos = field.tabPosition ? parseInt(field.tabPosition) : -1;
@@ -229,6 +232,8 @@ function parseTabDelimitedLine(
     }
     return acc;
   }, {} as Record<number, MccSchemaField[]>);
+  
+  console.log(`[TAB-PARSER] Grouped fields by tab position:`, Object.keys(fieldsByTab).length, 'positions');
   
   // Process each tab position
   for (const [tabPosStr, fields] of Object.entries(fieldsByTab)) {
@@ -255,6 +260,10 @@ function parseTabDelimitedLine(
       
       if (result.error) {
         parsed._errors.push(result.error);
+      }
+      
+      if (tabValue) {
+        console.log(`[TAB-PARSER] Tab ${tabPos} (${field.fieldName}): "${tabValue}" -> ${fieldKey} = ${result.value}`);
       }
     }
   }
