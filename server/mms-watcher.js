@@ -1265,8 +1265,8 @@ class MMSWatcher {
         }
       }
       else if (fileType === 'merchant_detail') {
-        // Merchant Detail file processing - DACQ_MER_DTL format
-        console.log(`[MMS-WATCHER] [MERCHANT-DETAIL] Processing merchant detail file: ${upload.filename}`);
+        // Merchant Detail file processing - DACQ_MER_DTL format using MCC Schema
+        console.log(`[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Processing merchant detail file with MCC schema: ${upload.filename}`);
         
         try {
           // Get file content from Replit Object Storage
@@ -1277,37 +1277,43 @@ class MMSWatcher {
             throw new Error('File content not accessible');
           }
           
+          // Import MCC schema-based parser
+          const { parseMerchantDetailLine, getMccSchemaFields, mapParsedToMerchantSchema } = await import('./merchant-detail-parser.ts');
+          
+          // Load MCC schema once for all records
+          const schemaFields = await getMccSchemaFields();
+          console.log(`[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Loaded ${schemaFields.length} MCC schema fields for parsing`);
+          
           // Parse merchant detail records
           const lines = fileContent.split('\n').filter(line => line.trim());
           const dataRecords = lines.filter(line => line.startsWith('6759'));
           
-          console.log(`[MMS-WATCHER] [MERCHANT-DETAIL] Found ${dataRecords.length} merchant records to process`);
+          console.log(`[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Found ${dataRecords.length} merchant records to process`);
           
           let merchantsCreated = 0;
           let merchantsUpdated = 0;
           const errors = [];
+          const warnings = [];
           
-          // Import comprehensive field mapping
-          const { extractMerchantData } = await import('./merchant-detail-field-mapping.js');
-          
-          // Process each merchant record
-          for (const line of dataRecords) {
+          // Process each merchant record using MCC schema parser
+          for (let i = 0; i < dataRecords.length; i++) {
+            const line = dataRecords[i];
+            
             try {
-              const fields = line.split('\t');
+              // Parse line using MCC schema (auto-detects tab-delimited vs fixed-width)
+              const parsedData = await parseMerchantDetailLine(line, schemaFields);
               
-              // Validate field count - DACQ_MER_DTL files should have 177 fields
-              if (fields.length < 177) {
-                errors.push(`Invalid field count for record (expected 177, got ${fields.length}): ${fields.slice(0, 5).join(' | ')}`);
-                console.error(`[MMS-WATCHER] [MERCHANT-DETAIL] Field count validation failed: ${fields.length}/177 fields`);
-                continue;
+              // Check for parsing errors
+              if (parsedData._errors && parsedData._errors.length > 0) {
+                warnings.push(`Line ${i + 1} parsing warnings: ${parsedData._errors.join('; ')}`);
               }
               
-              // Extract ALL MMS-enabled fields using comprehensive field mapping
-              const merchantData = extractMerchantData(fields);
+              // Map parsed data to merchant table schema
+              const merchantData = mapParsedToMerchantSchema(parsedData, schemaFields);
               
               // Validate required fields
               if (!merchantData.id) {
-                errors.push(`Missing merchant ID for record: ${fields.slice(0, 5).join(' | ')}`);
+                errors.push(`Missing merchant ID for record at line ${i + 1}`);
                 continue;
               }
               
@@ -1325,8 +1331,8 @@ class MMSWatcher {
               }
               
             } catch (recordError) {
-              errors.push(`Error processing merchant record: ${recordError.message}`);
-              console.error(`[MMS-WATCHER] [MERCHANT-DETAIL] Record error:`, recordError);
+              errors.push(`Error processing record at line ${i + 1}: ${recordError.message}`);
+              console.error(`[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Record error:`, recordError);
             }
           }
           
@@ -1334,16 +1340,17 @@ class MMSWatcher {
           await this.storage.updateUploaderPhase(upload.id, 'encoded', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
-            encodingNotes: `Successfully processed merchant detail file: ${merchantsCreated} created, ${merchantsUpdated} updated`,
-            processingNotes: `Auto-processed by MMS Watcher: ${dataRecords.length} merchant records processed`,
+            encodingNotes: `Successfully processed merchant detail file using MCC schema: ${merchantsCreated} created, ${merchantsUpdated} updated${warnings.length > 0 ? ` (${warnings.length} warnings)` : ''}`,
+            processingNotes: `Auto-processed by MMS Watcher using MCC Schema Parser: ${dataRecords.length} merchant records processed, ${schemaFields.length} schema fields used`,
             fileTypeIdentified: 'merchant_detail',
             recordsProcessed: dataRecords.length,
             recordsCreated: merchantsCreated,
             recordsUpdated: merchantsUpdated,
-            processingErrors: errors.length > 0 ? errors : null
+            processingErrors: errors.length > 0 ? errors : null,
+            processingWarnings: warnings.length > 0 ? warnings : null
           });
           
-          console.log(`[MMS-WATCHER] ✅ Merchant detail file processed: ${upload.filename} -> ${merchantsCreated} created, ${merchantsUpdated} updated`);
+          console.log(`[MMS-WATCHER] ✅ Merchant detail file processed with MCC schema: ${upload.filename} -> ${merchantsCreated} created, ${merchantsUpdated} updated, ${warnings.length} warnings`);
         } catch (error) {
           console.error(`[MMS-WATCHER] Error processing merchant detail file ${upload.filename}:`, error);
           
@@ -1351,7 +1358,7 @@ class MMSWatcher {
             encodingCompletedAt: new Date(),
             encodingStatus: 'failed',
             encodingNotes: `Merchant detail processing failed: ${error.message}`,
-            processingNotes: `Merchant detail processing failed: ${error.message}`,
+            processingNotes: `Merchant detail processing with MCC schema failed: ${error.message}`,
             fileTypeIdentified: 'merchant_detail'
           });
           

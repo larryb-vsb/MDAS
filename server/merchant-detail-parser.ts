@@ -19,7 +19,7 @@ interface MccSchemaField {
 }
 
 interface ParsedMerchantDetail {
-  [key: string]: string | number | null;
+  [key: string]: string | number | null | string[];
   _raw: string;
   _errors: string[];
 }
@@ -378,22 +378,59 @@ export async function parseMerchantDetailFile(
 
 /**
  * Map parsed merchant detail to merchant database schema
+ * Uses the 'key' field from MCC schema to map to correct database columns
  */
-export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail): any {
-  return {
-    // Core merchant identification fields from schema
-    bankNumber: parsed.bankNumber || null,
-    bank: parsed.bank || 'Valley State Bank',
-    
-    // Exposure and risk fields
-    exposureAmount: parsed.exposureAmount || null,
-    
-    // Date fields
-    merchantActivationDate: parsed.merchantActivationDate ? new Date(parsed.merchantActivationDate as string) : null,
-    dateOfFirstDeposit: parsed.dateOfFirstDeposit ? new Date(parsed.dateOfFirstDeposit as string) : null,
-    dateOfLastDeposit: parsed.dateOfLastDeposit ? new Date(parsed.dateOfLastDeposit as string) : null,
-    
-    // Additional fields from schema
-    ...(parsed as any)
+export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFields: MccSchemaField[]): any {
+  const merchantData: any = {
+    // Required fields
+    name: null,
+    status: 'Active',
+    merchantType: '0', // DACQ files are always type 0
   };
+  
+  // Map each schema field using its 'key' field
+  for (const field of schemaFields) {
+    if (!field.key) continue; // Skip fields without database mapping
+    
+    // Get the parsed value using either the key or generated field name
+    const fieldKey = field.key || field.fieldName
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .split(' ')
+      .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+    
+    const value = parsed[fieldKey];
+    
+    // Map to database column using the 'key' field
+    if (value !== null && value !== undefined) {
+      merchantData[field.key] = value;
+    }
+  }
+  
+  // Special handling for required fields
+  // Ensure 'id' field is properly set (Account Number/Client MID)
+  if (!merchantData.id && parsed.accountNumber) {
+    merchantData.id = parsed.accountNumber;
+  }
+  if (!merchantData.id && parsed.clientMid) {
+    merchantData.id = parsed.clientMid;
+  }
+  
+  // Ensure 'name' field is set (DBA Name or Legal Name)
+  if (!merchantData.name && parsed.dbaName) {
+    merchantData.name = parsed.dbaName;
+  }
+  if (!merchantData.name && parsed.legalName) {
+    merchantData.name = parsed.legalName;
+  }
+  if (!merchantData.name && parsed.associationName) {
+    merchantData.name = parsed.associationName;
+  }
+  
+  // Set default bank if not provided
+  if (!merchantData.bank) {
+    merchantData.bank = 'Valley State Bank';
+  }
+  
+  return merchantData;
 }
