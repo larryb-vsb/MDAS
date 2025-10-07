@@ -401,6 +401,8 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     merchantType: '0', // DACQ files are always type 0
   };
   
+  let mappedCount = 0;
+  
   // Map each schema field using its 'key' field
   for (const field of schemaFields) {
     // Generate camelCase field name from field_name
@@ -419,8 +421,14 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     
     if (value !== null && value !== undefined) {
       merchantData[dbColumnName] = value;
+      mappedCount++;
+      if (mappedCount <= 10) {
+        console.log(`[MAPPER] ${field.fieldName} (${generatedFieldName}) -> ${dbColumnName} = ${value}`);
+      }
     }
   }
+  
+  console.log(`[MAPPER] Mapped ${mappedCount} fields to database columns`);
   
   // Special handling for required fields
   // Ensure 'id' field is properly set (Account Number/Client MID)
