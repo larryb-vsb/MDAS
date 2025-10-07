@@ -67,7 +67,7 @@ function parsePosition(position: string): { start: number; end: number } | null 
 /**
  * Parse date string from various formats
  */
-function parseDate(value: string): string | null {
+function parseDate(value: string): Date | null {
   const trimmed = value.trim();
   
   // Empty values
@@ -77,12 +77,13 @@ function parseDate(value: string): string | null {
   
   // YYYY/MM/DD format
   if (/^\d{4}\/\d{2}\/\d{2}$/.test(trimmed)) {
-    return trimmed.replace(/\//g, '-');
+    const dateStr = trimmed.replace(/\//g, '-');
+    return new Date(dateStr);
   }
   
   // YYYY-MM-DD format (already correct)
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
+    return new Date(trimmed);
   }
   
   // MMDDYYYY format (common in TSYS files)
@@ -97,8 +98,14 @@ function parseDate(value: string): string | null {
     const yearNum = parseInt(year, 10);
     
     if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2100) {
-      return `${year}-${month}-${day}`;
+      return new Date(`${year}-${month}-${day}`);
     }
+  }
+  
+  // MM/DD/YYYY format
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    const [month, day, year] = trimmed.split('/');
+    return new Date(`${year}-${month}-${day}`);
   }
   
   return null;
@@ -112,7 +119,7 @@ function validateAndConvertField(
   format: string, 
   fieldName: string,
   fieldLength: number
-): { value: string | number | null; error: string | null } {
+): { value: string | number | Date | null; error: string | null } {
   const trimmed = value.trim();
   
   // Empty values are null
