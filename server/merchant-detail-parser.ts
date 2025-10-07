@@ -10,6 +10,8 @@ import { getTableName } from './table-config';
 interface MccSchemaField {
   position: string;
   fieldName: string;
+  key: string | null;
+  tabPosition: string | null;
   fieldLength: number;
   format: string;
   description: string | null;
@@ -163,8 +165,8 @@ export async function getMccSchemaFields(): Promise<MccSchemaField[]> {
   
   try {
     const result = await pool.query(`
-      SELECT position, field_name as "fieldName", field_length as "fieldLength", 
-             format, description, mms_enabled as "mmsEnabled"
+      SELECT position, field_name as "fieldName", key, tab_position as "tabPosition",
+             field_length as "fieldLength", format, description, mms_enabled as "mmsEnabled"
       FROM ${tableName}
       WHERE mms_enabled = 1
       ORDER BY position
@@ -178,21 +180,92 @@ export async function getMccSchemaFields(): Promise<MccSchemaField[]> {
 }
 
 /**
- * Parse a single merchant detail line using MCC schema
+ * Detect if the file is tab-delimited or fixed-width
  */
-export async function parseMerchantDetailLine(
-  line: string, 
-  schemaFields?: MccSchemaField[]
-): Promise<ParsedMerchantDetail> {
-  // Get schema if not provided
-  const fields = schemaFields || await getMccSchemaFields();
-  
+function detectFileFormat(line: string): 'tab-delimited' | 'fixed-width' {
+  // Check if line contains tabs
+  if (line.includes('\t')) {
+    return 'tab-delimited';
+  }
+  return 'fixed-width';
+}
+
+/**
+ * Parse tab-delimited line using tab_position from schema
+ */
+function parseTabDelimitedLine(
+  line: string,
+  schemaFields: MccSchemaField[]
+): ParsedMerchantDetail {
   const parsed: ParsedMerchantDetail = {
     _raw: line,
     _errors: []
   };
   
-  for (const field of fields) {
+  // Split line by tabs
+  const tabValues = line.split('\t');
+  
+  // Group fields by tab position
+  const fieldsByTab = schemaFields.reduce((acc, field) => {
+    const tabPos = field.tabPosition ? parseInt(field.tabPosition) : -1;
+    if (tabPos >= 0) {
+      if (!acc[tabPos]) acc[tabPos] = [];
+      acc[tabPos].push(field);
+    }
+    return acc;
+  }, {} as Record<number, MccSchemaField[]>);
+  
+  // Process each tab position
+  for (const [tabPosStr, fields] of Object.entries(fieldsByTab)) {
+    const tabPos = parseInt(tabPosStr);
+    const tabValue = tabValues[tabPos] || '';
+    
+    // For each field at this tab position, extract using position within the tab's value
+    for (const field of fields) {
+      const positions = parsePosition(field.position);
+      
+      if (!positions) {
+        parsed._errors.push(`Invalid position format for ${field.fieldName}: ${field.position}`);
+        continue;
+      }
+      
+      // Extract value from the tab's content using relative position
+      const rawValue = tabValue.substring(positions.start, positions.end);
+      
+      // Validate and convert
+      const result = validateAndConvertField(rawValue, field.format, field.fieldName, field.fieldLength);
+      
+      // Use 'key' field if available, otherwise generate from fieldName
+      const fieldKey = field.key || field.fieldName
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .split(' ')
+        .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('');
+      
+      parsed[fieldKey] = result.value;
+      
+      if (result.error) {
+        parsed._errors.push(result.error);
+      }
+    }
+  }
+  
+  return parsed;
+}
+
+/**
+ * Parse fixed-width line using position ranges
+ */
+function parseFixedWidthLine(
+  line: string,
+  schemaFields: MccSchemaField[]
+): ParsedMerchantDetail {
+  const parsed: ParsedMerchantDetail = {
+    _raw: line,
+    _errors: []
+  };
+  
+  for (const field of schemaFields) {
     const positions = parsePosition(field.position);
     
     if (!positions) {
@@ -206,8 +279,8 @@ export async function parseMerchantDetailLine(
     // Validate and convert
     const result = validateAndConvertField(rawValue, field.format, field.fieldName, field.fieldLength);
     
-    // Create safe field key (camelCase from field name)
-    const fieldKey = field.fieldName
+    // Use 'key' field if available, otherwise generate from fieldName
+    const fieldKey = field.key || field.fieldName
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .split(' ')
       .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -221,6 +294,29 @@ export async function parseMerchantDetailLine(
   }
   
   return parsed;
+}
+
+/**
+ * Parse a single merchant detail line using MCC schema
+ * Automatically detects tab-delimited vs fixed-width format
+ */
+export async function parseMerchantDetailLine(
+  line: string, 
+  schemaFields?: MccSchemaField[]
+): Promise<ParsedMerchantDetail> {
+  // Get schema if not provided
+  const fields = schemaFields || await getMccSchemaFields();
+  
+  // Detect file format
+  const format = detectFileFormat(line);
+  
+  console.log(`[MCC-PARSER] Detected format: ${format}`);
+  
+  if (format === 'tab-delimited') {
+    return parseTabDelimitedLine(line, fields);
+  } else {
+    return parseFixedWidthLine(line, fields);
+  }
 }
 
 /**
