@@ -26,24 +26,39 @@ interface ParsedMerchantDetail {
 
 /**
  * Parse position string into start/end indices
- * Examples: "1-4" => {start: 0, end: 4}, "1818-1827" => {start: 1817, end: 1827}
+ * Examples: "1-4" => {start: 0, end: 4}, "1818-1827" => {start: 1817, end: 1827}, "377" => {start: 376, end: 377}
  */
 function parsePosition(position: string): { start: number; end: number } | null {
   try {
     const parts = position.split('-');
-    if (parts.length !== 2) {
-      return null;
+    
+    // Handle single number positions (e.g., "377" for single character at position 377)
+    if (parts.length === 1) {
+      const pos = parseInt(parts[0], 10);
+      if (isNaN(pos) || pos < 1) {
+        return null;
+      }
+      return {
+        start: pos - 1,  // Convert to 0-based index
+        end: pos         // Single character
+      };
     }
     
-    const start = parseInt(parts[0], 10);
-    const end = parseInt(parts[1], 10);
-    
-    if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
-      return null;
+    // Handle range positions (e.g., "1-4" for positions 1 through 4)
+    if (parts.length === 2) {
+      const start = parseInt(parts[0], 10);
+      const end = parseInt(parts[1], 10);
+      
+      if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
+        return null;
+      }
+      
+      // Convert to 0-based index for substring extraction
+      return { start: start - 1, end: end };
     }
     
-    // Convert to 0-based index for substring extraction
-    return { start: start - 1, end: end };
+    // Invalid format (more than 2 parts)
+    return null;
   } catch {
     return null;
   }
@@ -292,21 +307,22 @@ function parseFixedWidthLine(
 
 /**
  * Parse a single merchant detail line using MCC schema
- * Automatically detects tab-delimited vs fixed-width format
+ * Uses provided file format or auto-detects if not specified
  */
 export async function parseMerchantDetailLine(
   line: string, 
-  schemaFields?: MccSchemaField[]
+  schemaFields?: MccSchemaField[],
+  fileFormat?: string
 ): Promise<ParsedMerchantDetail> {
   // Get schema if not provided
   const fields = schemaFields || await getMccSchemaFields();
   
-  // Detect file format
-  const format = detectFileFormat(line);
+  // Use provided format or auto-detect
+  const format = fileFormat || detectFileFormat(line);
   
-  console.log(`[MCC-PARSER] Detected format: ${format}`);
+  console.log(`[MCC-PARSER] Using format: ${format}${fileFormat ? ' (from database)' : ' (auto-detected)'}`);
   
-  if (format === 'tab-delimited') {
+  if (format === 'tab-delimited' || format === 'tab_delimited') {
     return parseTabDelimitedLine(line, fields);
   } else {
     return parseFixedWidthLine(line, fields);
@@ -317,7 +333,8 @@ export async function parseMerchantDetailLine(
  * Parse entire merchant detail file
  */
 export async function parseMerchantDetailFile(
-  fileContent: string
+  fileContent: string,
+  fileFormat?: string
 ): Promise<{ 
   records: ParsedMerchantDetail[];
   totalLines: number;
@@ -326,6 +343,7 @@ export async function parseMerchantDetailFile(
   schemaFieldCount: number;
 }> {
   console.log('[MCC-PARSER] Starting merchant detail file parsing...');
+  console.log(`[MCC-PARSER] File format: ${fileFormat || 'auto-detect'}`);
   
   // Get schema fields once for all lines
   const schemaFields = await getMccSchemaFields();
@@ -340,7 +358,7 @@ export async function parseMerchantDetailFile(
     const line = lines[i];
     
     try {
-      const parsed = await parseMerchantDetailLine(line, schemaFields);
+      const parsed = await parseMerchantDetailLine(line, schemaFields, fileFormat);
       records.push(parsed);
       
       if (parsed._errors.length === 0) {
@@ -371,6 +389,13 @@ export async function parseMerchantDetailFile(
 }
 
 /**
+ * Convert camelCase to snake_case
+ */
+function camelToSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/**
  * Map parsed merchant detail to merchant database schema
  * Uses the 'key' field from MCC schema to map to correct database columns
  */
@@ -395,8 +420,8 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     
     // Map to database column
     // If field has a 'key', use that as the database column name
-    // Otherwise, use the generated camelCase name
-    const dbColumnName = field.key || generatedFieldName;
+    // Otherwise, convert camelCase to snake_case
+    const dbColumnName = field.key || camelToSnakeCase(generatedFieldName);
     
     if (value !== null && value !== undefined) {
       merchantData[dbColumnName] = value;
@@ -437,7 +462,8 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
  */
 export async function processMerchantDetailFile(
   fileContent: string,
-  uploadId?: string
+  uploadId?: string,
+  fileFormat?: string
 ): Promise<{
   success: boolean;
   totalRecords: number;
@@ -450,9 +476,10 @@ export async function processMerchantDetailFile(
   
   try {
     console.log('[MERCHANT-IMPORT] Starting merchant detail file processing...');
+    console.log(`[MERCHANT-IMPORT] File format: ${fileFormat || 'auto-detect'}`);
     
-    // Parse the file
-    const parseResult = await parseMerchantDetailFile(fileContent);
+    // Parse the file with specified format
+    const parseResult = await parseMerchantDetailFile(fileContent, fileFormat);
     console.log(`[MERCHANT-IMPORT] Parsed ${parseResult.records.length} records`);
     
     // Get schema fields for mapping

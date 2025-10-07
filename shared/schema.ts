@@ -93,7 +93,60 @@ export const merchants = pgTable(getTableName("merchants"), {
   riskFlags: text("risk_flags").array(), // Array of risk flag indicators
   complianceStatus: text("compliance_status"), // Compliance status
   reviewRequired: boolean("review_required").default(false), // Manual review flag
-  riskNotes: text("risk_notes") // Risk assessment notes
+  riskNotes: text("risk_notes"), // Risk assessment notes
+  
+  // TSYS MCC Schema Fields (MMS-enabled fields only - 51 fields)
+  bankNumber: text("bank_number"), // The merchant's bank number
+  groupLevel1: text("group_level_1"), // The group number in which the association points to
+  associationNumber: text("association_number"), // The identification number of an association
+  accountNumber: text("account_number"), // The TSYS Acquiring Solutions account number
+  associationName: text("association_name"), // The name of the association
+  groupLevel1Name: text("group_level_1_name"), // The name of the group
+  sic: text("sic"), // Standard Industry Classification
+  class: text("class"), // MCC (Merchant Category Code)
+  dbaName: text("dba_name"), // The trade name under which merchants operate
+  dbaAddressCity: text("dba_address_city"), // The city from where merchants operate
+  dbaAddressState: text("dba_address_state"), // The state code associated with merchant's business
+  dbaZip: text("dba_zip"), // The ZIP code of merchant's business location
+  phone1: text("phone_1"), // The merchant's phone number
+  phone2: text("phone_2"), // The merchant's phone number
+  businessLicense: text("business_license"), // The business license number
+  bankOfficer1: text("bank_officer_1"), // Bank officer who approved merchant
+  bankOfficer2: text("bank_officer_2"), // Bank officer who approved DDA
+  federalTaxId: text("federal_tax_id"), // The merchant federal tax ID
+  stateTaxId: text("state_tax_id"), // The merchant state tax ID
+  merchantTypeField: text("merchant_type_field"), // Merchant type from MCC schema
+  ownerName: text("owner_name"), // Owner name
+  managerName: text("manager_name"), // Manager name
+  lastActivityDate: timestamp("last_activity_date"), // Last activity date
+  dailyFeeIndicator: text("daily_fee_indicator"), // Daily fee indicator
+  mcRegId: text("mc_reg_id"), // MC Reg ID
+  customerServiceNumber: text("customer_service_number"), // Customer service number
+  updateDateTime: timestamp("update_date_time"), // Update date time stamp
+  statusChangeDate: timestamp("status_change_date"), // Status change date
+  discoverMapFlag: text("discover_map_flag"), // Discover MAP Flag
+  amexOptblueFlag: text("amex_optblue_flag"), // Amex OptBlue Flag
+  visaDescriptor: text("visa_descriptor"), // Visa Descriptor
+  mcDescriptor: text("mc_descriptor"), // MC Descriptor
+  url: text("url"), // URL
+  closeDate: timestamp("close_date"), // Close date
+  dateOfLastAuth: timestamp("date_of_last_auth"), // Date of last auth
+  dunsNumber: text("duns_number"), // DUNS Number
+  printStatementIndicator: text("print_statement_indicator"), // Print statement indicator
+  visaBin: text("visa_bin"), // Visa BIN
+  mcBin: text("mc_bin"), // MC BIN
+  mcIca: text("mc_ica"), // MC ICA
+  amexCapId: text("amex_cap_id"), // Amex CAP ID
+  discoverAiid: text("discover_aiid"), // Discover AIID
+  ddaNumber: text("dda_number"), // DDA Number
+  transitRoutingNumber: text("transit_routing_number"), // Transit Routing Number
+  exposureAmount: text("exposure_amount"), // Exposure Amount
+  merchantActivationDate: timestamp("merchant_activation_date"), // Merchant Activation Date
+  dateOfFirstDeposit: timestamp("date_of_first_deposit"), // Date of First Deposit
+  dateOfLastDeposit: timestamp("date_of_last_deposit"), // Date of Last Deposit
+  transDestination: text("trans_destination"), // Trans Destination
+  merchantEmailAddress: text("merchant_email_address"), // Merchant Email Address
+  chargebackEmailAddress: text("chargeback_email_address") // Chargeback Email Address
 });
 
 // API Merchants table - for merchant imports from file uploads (ACH merchants)

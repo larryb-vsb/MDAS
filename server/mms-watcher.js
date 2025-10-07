@@ -1931,7 +1931,7 @@ class MMSWatcher {
           
           // Import and run merchant detail processing
           const { processMerchantDetailFile } = await import('./merchant-detail-parser.ts');
-          const merchantResults = await processMerchantDetailFile(fileContent, upload.id);
+          const merchantResults = await processMerchantDetailFile(fileContent, upload.id, upload.fileFormat || upload.file_format);
           
           if (merchantResults.success) {
             // Update to completed phase with merchant processing results
