@@ -414,16 +414,15 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     
     const value = parsed[generatedFieldName];
     
-    // Map to database column
-    // If field has a 'key', use that as the database column name
-    // Otherwise, convert camelCase to snake_case
-    const dbColumnName = field.key || camelToSnakeCase(generatedFieldName);
+    // Use camelCase property name for Drizzle ORM
+    // Drizzle expects merchantData.bankNumber (not merchantData.bank_number)
+    const propertyName = field.key || generatedFieldName;
     
     if (value !== null && value !== undefined) {
-      merchantData[dbColumnName] = value;
+      merchantData[propertyName] = value;
       mappedCount++;
       if (mappedCount <= 10) {
-        console.log(`[MAPPER] ${field.fieldName} (${generatedFieldName}) -> ${dbColumnName} = ${value}`);
+        console.log(`[MAPPER] ${field.fieldName} (${generatedFieldName}) -> ${propertyName} = ${value}`);
       }
     }
   }
