@@ -7367,6 +7367,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const formatIdx = headers.indexOf('format');
       const descriptionIdx = headers.findIndex(h => h.includes('description'));
       const mmsIdx = headers.indexOf('mms');
+      const keyIdx = headers.indexOf('key');
+      const tabPositionIdx = headers.findIndex(h => h.includes('tab') && (h.includes('position') || h === 'tab'));
 
       if (positionIdx === -1) {
         return res.status(400).json({ error: "CSV must contain a 'position' column" });
@@ -7387,7 +7389,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fieldLength: fieldLengthIdx !== -1 ? parseInt(values[fieldLengthIdx]) || 0 : 0,
             format: formatIdx !== -1 ? values[formatIdx] : '',
             description: descriptionIdx !== -1 ? values[descriptionIdx] : null,
-            mmsEnabled: mmsIdx !== -1 ? parseInt(values[mmsIdx]) || 0 : 0
+            mmsEnabled: mmsIdx !== -1 ? parseInt(values[mmsIdx]) || 0 : 0,
+            key: keyIdx !== -1 ? (values[keyIdx] || null) : null,
+            tabPosition: tabPositionIdx !== -1 ? (values[tabPositionIdx] || null) : null
           };
           
           if (field.fieldName && field.format) {
