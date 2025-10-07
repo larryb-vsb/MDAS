@@ -142,6 +142,7 @@ export interface IStorage {
   updateUploaderPhase(id: string, phase: string, phaseData?: Record<string, any>): Promise<UploaderUpload>;
   deleteUploaderUploads(uploadIds: string[]): Promise<void>;
   cancelUploaderEncoding(uploadIds: string[]): Promise<{ success: boolean; canceledCount: number; errors: string[] }>;
+  setPreviousLevel(uploadIds: string[]): Promise<{ success: boolean; updatedCount: number; errors: string[] }>;
 
   // Terminal operations
   getTerminals(): Promise<Terminal[]>;
@@ -15131,6 +15132,73 @@ export class DatabaseStorage implements IStorage {
       return { 
         success: false, 
         canceledCount: 0, 
+        errors: [error.message || 'Unknown error occurred'] 
+      };
+    }
+  }
+
+  async setPreviousLevel(uploadIds: string[]): Promise<{ success: boolean; updatedCount: number; errors: string[] }> {
+    try {
+      if (!uploadIds || uploadIds.length === 0) {
+        return { success: true, updatedCount: 0, errors: [] };
+      }
+
+      const uploaderTableName = getTableName('uploader_uploads');
+      const errors: string[] = [];
+      let updatedCount = 0;
+      
+      console.log(`[UPLOADER] Setting previous level for ${uploadIds.length} files`);
+      
+      // Define phase progression order
+      const phaseOrder = ['started', 'uploading', 'uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'];
+      
+      // Get current phase of all files
+      const placeholders = uploadIds.map((_, index) => `$${index + 1}`).join(', ');
+      const checkResult = await pool.query(`
+        SELECT id, filename, current_phase FROM ${uploaderTableName} 
+        WHERE id IN (${placeholders})
+      `, uploadIds);
+      
+      for (const row of checkResult.rows) {
+        const currentPhase = row.current_phase;
+        const currentIndex = phaseOrder.indexOf(currentPhase);
+        
+        if (currentIndex <= 0) {
+          errors.push(`${row.filename}: Cannot go back from phase '${currentPhase}'`);
+          continue;
+        }
+        
+        const previousPhase = phaseOrder[currentIndex - 1];
+        
+        // Update the file to previous phase
+        const updateResult = await pool.query(`
+          UPDATE ${uploaderTableName}
+          SET
+            current_phase = $1,
+            processing_notes = COALESCE(processing_notes, '') || ' | Moved back to ' || $1 || ' phase by user',
+            last_updated = NOW()
+          WHERE id = $2
+        `, [previousPhase, row.id]);
+        
+        if (updateResult.rowCount) {
+          updatedCount++;
+          console.log(`[UPLOADER] ${row.filename}: ${currentPhase} → ${previousPhase}`);
+        }
+      }
+      
+      console.log(`[UPLOADER] Successfully moved ${updatedCount} files to previous level`);
+      
+      return { 
+        success: true, 
+        updatedCount, 
+        errors: errors.length > 0 ? errors : [] 
+      };
+      
+    } catch (error: any) {
+      console.error('[UPLOADER] Error setting previous level:', error);
+      return { 
+        success: false, 
+        updatedCount: 0, 
         errors: [error.message || 'Unknown error occurred'] 
       };
     }

@@ -14657,93 +14657,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[UPLOADER API] Set previous level request for ${uploadIds.length} uploads:`, uploadIds);
       
-      let processedCount = 0;
-      const errors = [];
+      const result = await storage.setPreviousLevel(uploadIds);
       
-      console.log(`[UPLOADER API] 🔍 Starting loop to process ${uploadIds.length} uploads`);
-      
-      for (const uploadId of uploadIds) {
-        try {
-          console.log(`[UPLOADER API] 🔍 Looking up upload: ${uploadId}`);
-          const upload = await storage.getUploaderUploadById(uploadId);
-          
-          if (!upload) {
-            console.log(`[UPLOADER API] ❌ Upload ${uploadId} not found in database`);
-            errors.push(`Upload ${uploadId} not found`);
-            continue;
-          }
-          
-          console.log(`[UPLOADER API] ✅ Found upload: ${upload.filename} in phase: ${upload.currentPhase}`);
-          
-          let newPhase: string;
-          let updateData: any = {
-            processing_notes: `Moved from ${upload.currentPhase} to previous level at ${new Date().toISOString()}`
-          };
-          
-          // Always set back to uploaded status (user preference)
-          newPhase = 'uploaded';
-          updateData.processing_notes = `Reset to uploaded status from ${upload.currentPhase} at ${new Date().toISOString()}`;
-          
-          // Clear all processing data based on current phase
-          switch (upload.currentPhase) {
-            case 'processing':
-              // Clear processing data and fall through to clear encoding data
-              // Note: Only clearing fields that exist in database schema
-              // Fall through to clear encoding data
-            case 'failed':
-            case 'encoded':
-              // Clear encoding data (using snake_case field names for database)
-              updateData.encoding_status = null;
-              updateData.encoding_time_ms = null;
-              updateData.json_records_created = null;
-              updateData.tddf_records_created = null;
-              updateData.encoding_complete = null;
-              // Fall through to also clear identification data
-            case 'identified':
-            case 'hold':
-              // Clear identification data (using snake_case field names for database)
-              updateData.final_file_type = null;
-              updateData.identification_results = null;
-              break;
-              
-            case 'uploaded':
-              errors.push(`Upload ${upload.filename} is already at the minimum level (uploaded)`);
-              continue;
-              
-            default:
-              errors.push(`Upload ${upload.filename} has invalid phase: ${upload.currentPhase}`);
-              continue;
-          }
-          
-          updateData.currentPhase = newPhase;
-          
-          await storage.updateUploaderUpload(uploadId, updateData);
-          
-          processedCount++;
-          console.log(`[UPLOADER API] ✅ PHASE TRANSITION: Moved upload ${uploadId} (${upload.filename}) from ${upload.currentPhase} to ${newPhase}`);
-          console.log(`[UPLOADER API] ✅ UPDATE DATA: ${JSON.stringify(updateData)}`);
-          
-        } catch (error: any) {
-          console.error(`Error setting previous level for upload ${uploadId}:`, error);
-          errors.push(`Failed to process upload ${uploadId}: ${error.message}`);
-        }
+      if (result.success) {
+        console.log(`[UPLOADER API] Successfully moved ${result.updatedCount} files to previous level`);
+        res.json({
+          success: true,
+          message: `Successfully moved ${result.updatedCount} files to previous level`,
+          updatedCount: result.updatedCount,
+          errors: result.errors
+        });
+      } else {
+        console.log(`[UPLOADER API] Failed to set previous level:`, result.errors);
+        res.status(400).json({
+          success: false,
+          message: `Failed to set previous level: ${result.errors.join(', ')}`,
+          updatedCount: result.updatedCount,
+          errors: result.errors
+        });
       }
-      
-      console.log(`[UPLOADER API] Successfully processed ${processedCount} uploads to previous level`);
-      
-      const response: any = { 
-        success: true, 
-        message: `Successfully moved ${processedCount} files to previous level`,
-        processedCount
-      };
-      
-      if (errors.length > 0) {
-        response.warnings = errors;
-        response.message += ` (${errors.length} warnings)`;
-      }
-      
-      res.json(response);
-      
     } catch (error: any) {
       console.error('Set previous level error:', error);
       res.status(500).json({ error: error.message });

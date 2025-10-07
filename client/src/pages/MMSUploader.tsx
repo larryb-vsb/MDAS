@@ -544,12 +544,22 @@ export default function MMSUploader() {
       });
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       setSelectedUploads([]);
+      console.log(`[SET-PREVIOUS-LEVEL] Successfully moved ${data.updatedCount} files to previous level`);
+      toast({ 
+        title: 'Files Moved Back', 
+        description: `Successfully moved ${data.updatedCount || 0} files to previous level` 
+      });
     },
-    onError: (error) => {
-      console.error('Error setting previous level:', error);
+    onError: (error: any) => {
+      console.error('[SET-PREVIOUS-LEVEL] Error setting previous level:', error);
+      toast({ 
+        title: 'Move Failed', 
+        description: `Failed to move files: ${error?.message || 'Unknown error'}`,
+        variant: 'destructive'
+      });
     }
   });
 
