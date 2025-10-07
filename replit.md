@@ -34,7 +34,7 @@ MMS employs a modern client-server architecture.
 - **Cross-Environment Storage Management**: Allows users to view and scan files from both dev-uploader/ and prod-uploader/ storage locations via dropdown selection interface.
 - **Startup TDDF Cache Validation**: Automatic validation and creation of missing TDDF cache tables during application startup.
 - **Production Self-Correcting Database**: Comprehensive production database health validation with automatic table creation and user provisioning, ensuring critical tables exist and preventing dashboard failures.
-- **Editable MCC Schema Configuration**: MCC Schema table redesigned with auto-increment 'id' primary key (replacing 'position'), enabling position value editing. Added 'key' field for database column mapping. Supports full CRUD operations for TSYS merchant detail field configuration.
+- **Editable MCC Schema Configuration**: MCC Schema table redesigned with auto-increment 'id' primary key (replacing 'position'), enabling position value editing. Added 'key' field for database column mapping and 'tab_position' field to track tab-delimited file structure. Supports full CRUD operations for TSYS merchant detail field configuration with comprehensive UI for editing all schema attributes.
 
 ### UI/UX Decisions
 - **Consistent Design**: Utilizes TailwindCSS and shadcn/ui for a modern, professional appearance.
