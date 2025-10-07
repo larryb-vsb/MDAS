@@ -38,7 +38,7 @@ interface MccSchemaField {
   updatedAt: string;
 }
 
-type SortField = 'position' | 'fieldName' | 'fieldLength' | 'format' | 'mmsEnabled';
+type SortField = 'tabPosition' | 'position' | 'fieldName' | 'fieldLength' | 'format' | 'mmsEnabled';
 type SortOrder = 'asc' | 'desc';
 
 export default function MccSchemaConfig() {
@@ -222,6 +222,15 @@ export default function MccSchemaConfig() {
       let compareA: any = a[sortField];
       let compareB: any = b[sortField];
 
+      // Handle tab position sorting - treat as numbers, nulls last
+      if (sortField === 'tabPosition') {
+        const numA = compareA ? parseInt(compareA) : Number.MAX_SAFE_INTEGER;
+        const numB = compareB ? parseInt(compareB) : Number.MAX_SAFE_INTEGER;
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return sortOrder === 'asc' ? numA - numB : numB - numA;
+        }
+      }
+
       if (typeof compareA === 'string') {
         compareA = compareA.toLowerCase();
         compareB = compareB.toLowerCase();
@@ -307,6 +316,13 @@ export default function MccSchemaConfig() {
               </TableHead>
               <TableHead 
                 className="cursor-pointer select-none"
+                onClick={() => handleSort('tabPosition')}
+                data-testid="header-tab-position"
+              >
+                Tab <SortIcon field="tabPosition" />
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer select-none"
                 onClick={() => handleSort('position')}
                 data-testid="header-position"
               >
@@ -321,9 +337,6 @@ export default function MccSchemaConfig() {
               </TableHead>
               <TableHead data-testid="header-key">
                 Key
-              </TableHead>
-              <TableHead data-testid="header-tab-position">
-                Tab Position
               </TableHead>
               <TableHead 
                 className="cursor-pointer select-none"
@@ -377,6 +390,9 @@ export default function MccSchemaConfig() {
                       onCheckedChange={() => handleSelectField(field.id)}
                     />
                   </TableCell>
+                  <TableCell data-testid={`text-tab-position-${field.position}`} className="text-sm">
+                    {field.tabPosition || '-'}
+                  </TableCell>
                   <TableCell data-testid={`text-position-${field.position}`} className="font-mono">
                     {field.position}
                   </TableCell>
@@ -385,9 +401,6 @@ export default function MccSchemaConfig() {
                   </TableCell>
                   <TableCell data-testid={`text-key-${field.position}`} className="font-mono text-sm text-gray-600">
                     {field.key || '-'}
-                  </TableCell>
-                  <TableCell data-testid={`text-tab-position-${field.position}`} className="text-sm">
-                    {field.tabPosition || '-'}
                   </TableCell>
                   <TableCell data-testid={`text-field-length-${field.position}`}>
                     {field.fieldLength}
