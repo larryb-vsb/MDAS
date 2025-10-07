@@ -206,8 +206,8 @@ function detectFileFormat(line: string): 'tab-delimited' | 'fixed-width' {
 }
 
 /**
- * Parse space/tab-delimited line using tab_position from schema
- * Splits by whitespace or tabs, then uses tab_position as column index
+ * Parse tab-delimited line using tab_position from schema
+ * Splits ONLY by tabs (\t), uses tab_position as column index
  */
 function parseTabDelimitedLine(
   line: string,
@@ -218,11 +218,11 @@ function parseTabDelimitedLine(
     _errors: []
   };
   
-  // Split line by whitespace (spaces or tabs) - handles both formats
-  const values = line.trim().split(/\s+/);
+  // Split line by TABS ONLY - do not split by spaces
+  const values = line.split('\t');
   
-  console.log(`[TAB-PARSER] Line has ${values.length} whitespace-delimited values`);
-  console.log(`[TAB-PARSER] First 10 values:`, values.slice(0, 10));
+  console.log(`[TAB-PARSER] Line has ${values.length} tab-delimited columns`);
+  console.log(`[TAB-PARSER] First 10 columns:`, values.slice(0, 10));
   
   // Process each schema field using tab_position as column index
   for (const field of schemaFields) {
