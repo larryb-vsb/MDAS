@@ -220,17 +220,11 @@ function parseTabDelimitedLine(
     const tabPos = parseInt(tabPosStr);
     const tabValue = tabValues[tabPos] || '';
     
-    // For each field at this tab position, extract using position within the tab's value
+    // For tab-delimited files, each field gets the entire value at that tab position
+    // No need to parse position ranges - just use the tab value directly
     for (const field of fields) {
-      const positions = parsePosition(field.position);
-      
-      if (!positions) {
-        parsed._errors.push(`Invalid position format for ${field.fieldName}: ${field.position}`);
-        continue;
-      }
-      
-      // Extract value from the tab's content using relative position
-      const rawValue = tabValue.substring(positions.start, positions.end);
+      // For tab-delimited, the entire tab value is the field value
+      const rawValue = tabValue;
       
       // Validate and convert
       const result = validateAndConvertField(rawValue, field.format, field.fieldName, field.fieldLength);
@@ -390,20 +384,22 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
   
   // Map each schema field using its 'key' field
   for (const field of schemaFields) {
-    if (!field.key) continue; // Skip fields without database mapping
-    
-    // Get the parsed value using either the key or generated field name
-    const fieldKey = field.key || field.fieldName
+    // Generate camelCase field name from field_name
+    const generatedFieldName = field.fieldName
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .split(' ')
       .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
     
-    const value = parsed[fieldKey];
+    const value = parsed[generatedFieldName];
     
-    // Map to database column using the 'key' field
+    // Map to database column
+    // If field has a 'key', use that as the database column name
+    // Otherwise, use the generated camelCase name
+    const dbColumnName = field.key || generatedFieldName;
+    
     if (value !== null && value !== undefined) {
-      merchantData[field.key] = value;
+      merchantData[dbColumnName] = value;
     }
   }
   
@@ -433,4 +429,99 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
   }
   
   return merchantData;
+}
+
+/**
+ * Process merchant detail file - parse and import to database
+ * This is the main entry point called by the MMS watcher
+ */
+export async function processMerchantDetailFile(
+  fileContent: string,
+  uploadId?: string
+): Promise<{
+  success: boolean;
+  totalRecords: number;
+  imported: number;
+  skipped: number;
+  processingTimeMs: number;
+  error?: string;
+}> {
+  const startTime = Date.now();
+  
+  try {
+    console.log('[MERCHANT-IMPORT] Starting merchant detail file processing...');
+    
+    // Parse the file
+    const parseResult = await parseMerchantDetailFile(fileContent);
+    console.log(`[MERCHANT-IMPORT] Parsed ${parseResult.records.length} records`);
+    
+    // Get schema fields for mapping
+    const schemaFields = await getMccSchemaFields();
+    console.log(`[MERCHANT-IMPORT] Loaded ${schemaFields.length} MCC schema fields for mapping`);
+    
+    // Import to database
+    const { db } = await import('./db.ts');
+    const { merchants } = await import('@shared/schema.ts');
+    
+    let imported = 0;
+    let skipped = 0;
+    
+    for (const record of parseResult.records) {
+      // Skip records with errors
+      if (record._errors && record._errors.length > 0) {
+        console.log(`[MERCHANT-IMPORT] Skipping record with errors:`, record._errors);
+        skipped++;
+        continue;
+      }
+      
+      try {
+        // Map to merchant schema
+        const merchantData = mapParsedToMerchantSchema(record, schemaFields);
+        
+        // Validate required fields
+        if (!merchantData.id || !merchantData.name) {
+          console.log(`[MERCHANT-IMPORT] Skipping record - missing required fields (id: ${merchantData.id}, name: ${merchantData.name})`);
+          skipped++;
+          continue;
+        }
+        
+        // Insert or update merchant
+        await db.insert(merchants)
+          .values(merchantData)
+          .onConflictDoUpdate({
+            target: merchants.id,
+            set: merchantData
+          });
+        
+        imported++;
+      } catch (error) {
+        console.error(`[MERCHANT-IMPORT] Error importing merchant:`, error);
+        skipped++;
+      }
+    }
+    
+    const processingTimeMs = Date.now() - startTime;
+    
+    console.log(`[MERCHANT-IMPORT] ✅ Processing complete: ${imported} imported, ${skipped} skipped in ${processingTimeMs}ms`);
+    
+    return {
+      success: true,
+      totalRecords: parseResult.records.length,
+      imported,
+      skipped,
+      processingTimeMs
+    };
+  } catch (error) {
+    const processingTimeMs = Date.now() - startTime;
+    console.error('[MERCHANT-IMPORT] Error processing merchant detail file:', error);
+    
+    return {
+      success: false,
+      totalRecords: 0,
+      imported: 0,
+      skipped: 0,
+      processingTimeMs,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 }

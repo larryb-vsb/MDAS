@@ -1855,11 +1855,22 @@ class MMSWatcher {
         upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf'
       );
 
-      if (tddfFiles.length === 0) {
-        return; // No TDDF files to process
+      // Filter for Merchant Detail files that need Step 6 processing
+      const merchantDetailFiles = encodedFiles.filter(upload => 
+        upload.finalFileType === 'merchant_detail' || upload.detectedFileType === 'merchant_detail'
+      );
+
+      if (tddfFiles.length === 0 && merchantDetailFiles.length === 0) {
+        return; // No files to process
       }
 
-      console.log(`[MMS-WATCHER] [AUTO-STEP6] Processing ${tddfFiles.length} encoded TDDF files for Step 6 completion...`);
+      if (tddfFiles.length > 0) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] Processing ${tddfFiles.length} encoded TDDF files for Step 6 completion...`);
+      }
+      
+      if (merchantDetailFiles.length > 0) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] Processing ${merchantDetailFiles.length} encoded Merchant Detail files...`);
+      }
 
       for (const upload of tddfFiles) {
         try {
@@ -1899,6 +1910,48 @@ class MMSWatcher {
           }
         } catch (error) {
           console.error(`[MMS-WATCHER] [AUTO-STEP6] Error processing file ${upload.filename}:`, error);
+          await this.markStep6Failed(upload, error.message);
+        }
+      }
+
+      // Process Merchant Detail files
+      for (const upload of merchantDetailFiles) {
+        try {
+          console.log(`[MMS-WATCHER] [MERCHANT-STEP6] Starting merchant detail processing for: ${upload.filename} (${upload.id})`);
+          
+          // Update to processing phase first
+          await this.storage.updateUploaderPhase(upload.id, 'processing', {
+            processingStartedAt: new Date(),
+            processingNotes: `Merchant detail processing started by MMS Watcher at ${new Date().toISOString()}`
+          });
+
+          // Get file content from Replit Object Storage
+          const { ReplitStorageService } = await import('./replit-storage-service.js');
+          const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+          
+          // Import and run merchant detail processing
+          const { processMerchantDetailFile } = await import('./merchant-detail-parser.ts');
+          const merchantResults = await processMerchantDetailFile(fileContent, upload.id);
+          
+          if (merchantResults.success) {
+            // Update to completed phase with merchant processing results
+            await this.storage.updateUploaderPhase(upload.id, 'completed', {
+              processingCompletedAt: new Date(),
+              processingStatus: 'completed',
+              processingNotes: `Merchant detail processing completed: ${merchantResults.totalRecords} merchants imported in ${merchantResults.processingTimeMs}ms`,
+              totalRecordsProcessed: merchantResults.totalRecords,
+              merchantsImported: merchantResults.imported,
+              merchantsSkipped: merchantResults.skipped,
+              merchantProcessingTimeMs: merchantResults.processingTimeMs,
+              completedAt: new Date()
+            });
+
+            console.log(`[MMS-WATCHER] [MERCHANT-STEP6] ✅ Merchant detail processing completed for: ${upload.filename} -> ${merchantResults.imported} merchants imported in ${merchantResults.processingTimeMs}ms`);
+          } else {
+            throw new Error(merchantResults.error || 'Merchant detail processing failed');
+          }
+        } catch (error) {
+          console.error(`[MMS-WATCHER] [MERCHANT-STEP6] Error processing merchant detail file ${upload.filename}:`, error);
           await this.markStep6Failed(upload, error.message);
         }
       }
