@@ -206,7 +206,8 @@ function detectFileFormat(line: string): 'tab-delimited' | 'fixed-width' {
 }
 
 /**
- * Parse tab-delimited line using tab_position from schema
+ * Parse space/tab-delimited line using tab_position from schema
+ * Splits by whitespace or tabs, then uses tab_position as column index
  */
 function parseTabDelimitedLine(
   line: string,
@@ -217,54 +218,38 @@ function parseTabDelimitedLine(
     _errors: []
   };
   
-  // Split line by tabs
-  const tabValues = line.split('\t');
+  // Split line by whitespace (spaces or tabs) - handles both formats
+  const values = line.trim().split(/\s+/);
   
-  console.log(`[TAB-PARSER] Line has ${tabValues.length} tab-delimited values`);
-  console.log(`[TAB-PARSER] First 5 values:`, tabValues.slice(0, 5));
+  console.log(`[TAB-PARSER] Line has ${values.length} whitespace-delimited values`);
+  console.log(`[TAB-PARSER] First 10 values:`, values.slice(0, 10));
   
-  // Group fields by tab position
-  const fieldsByTab = schemaFields.reduce((acc, field) => {
-    const tabPos = field.tabPosition ? parseInt(field.tabPosition) : -1;
-    if (tabPos >= 0) {
-      if (!acc[tabPos]) acc[tabPos] = [];
-      acc[tabPos].push(field);
-    }
-    return acc;
-  }, {} as Record<number, MccSchemaField[]>);
-  
-  console.log(`[TAB-PARSER] Grouped fields by tab position:`, Object.keys(fieldsByTab).length, 'positions');
-  
-  // Process each tab position
-  for (const [tabPosStr, fields] of Object.entries(fieldsByTab)) {
-    const tabPos = parseInt(tabPosStr);
-    const tabValue = tabValues[tabPos] || '';
+  // Process each schema field using tab_position as column index
+  for (const field of schemaFields) {
+    const colIndex = field.tabPosition ? parseInt(field.tabPosition) : -1;
     
-    // For tab-delimited files, each field gets the entire value at that tab position
-    // No need to parse position ranges - just use the tab value directly
-    for (const field of fields) {
-      // For tab-delimited, the entire tab value is the field value
-      const rawValue = tabValue;
-      
-      // Validate and convert
-      const result = validateAndConvertField(rawValue, field.format, field.fieldName, field.fieldLength);
-      
-      // Use 'key' field if available, otherwise generate from fieldName
-      const fieldKey = field.key || field.fieldName
-        .replace(/[^a-zA-Z0-9\s]/g, '')
-        .split(' ')
-        .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join('');
-      
-      parsed[fieldKey] = result.value;
-      
-      if (result.error) {
-        parsed._errors.push(result.error);
-      }
-      
-      if (tabValue) {
-        console.log(`[TAB-PARSER] Tab ${tabPos} (${field.fieldName}): "${tabValue}" -> ${fieldKey} = ${result.value}`);
-      }
+    if (colIndex < 0) continue;
+    
+    const rawValue = values[colIndex] || '';
+    
+    // Validate and convert
+    const result = validateAndConvertField(rawValue, field.format, field.fieldName, field.fieldLength);
+    
+    // Use 'key' field if available, otherwise generate from fieldName
+    const fieldKey = field.key || field.fieldName
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .split(' ')
+      .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+    
+    parsed[fieldKey] = result.value;
+    
+    if (result.error) {
+      parsed._errors.push(result.error);
+    }
+    
+    if (rawValue && colIndex < 10) {
+      console.log(`[TAB-PARSER] Col ${colIndex} (${field.fieldName}): "${rawValue}" -> ${fieldKey} = ${result.value}`);
     }
   }
   
