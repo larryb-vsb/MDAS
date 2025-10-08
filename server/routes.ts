@@ -4163,6 +4163,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the proper storage method which provides complete analytics including revenue trend data
       const merchantDetails = await storage.getMerchantById(merchantId);
       
+      if (!merchantDetails) {
+        return res.status(404).json({ error: `Merchant with ID ${merchantId} not found` });
+      }
+      
       res.json(merchantDetails);
     } catch (error) {
       console.error("Error fetching merchant details:", error);

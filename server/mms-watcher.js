@@ -1033,10 +1033,11 @@ class MMSWatcher {
         console.log(`[MMS-WATCHER] [DEBUG] Identified file: ${file.filename}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
       });
 
-      // Filter for files that need encoding (TDDF files, merchant CSV files, and terminal CSV files)
+      // Filter for files that need encoding (TDDF files, merchant files, transaction CSV files, and terminal CSV files)
       const encodableFiles = identifiedFiles.filter(upload => 
         upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf' ||
         upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv' ||
+        upload.finalFileType === 'merchant_detail' || upload.detectedFileType === 'merchant_detail' || upload.fileType === 'merchant_detail' ||
         upload.finalFileType === 'transaction_csv' || upload.detectedFileType === 'transaction_csv' || upload.fileType === 'transaction_csv' ||
         upload.finalFileType === 'terminal' || upload.detectedFileType === 'terminal' || upload.fileType === 'terminal' ||
         upload.finalFileType === 'sub_merchant_terminals' || upload.detectedFileType === 'sub_merchant_terminals' || upload.fileType === 'sub_merchant_terminals'

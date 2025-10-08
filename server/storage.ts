@@ -1485,7 +1485,7 @@ export class DatabaseStorage implements IStorage {
         revenue: number;
       }[];
     };
-  }> {
+  } | null> {
     try {
       // Use unified merchants table directly
       const merchantsTableName = getTableName('merchants');
@@ -1496,7 +1496,8 @@ export class DatabaseStorage implements IStorage {
       const merchant = merchantQuery.rows[0];
       
       if (!merchant) {
-        throw new Error(`Merchant with ID ${merchantId} not found`);
+        console.log(`[GET MERCHANT] Merchant ${merchantId} not found, returning null`);
+        return null;
       }
       
       // updatedBy field requires explicit string conversion due to database encoding
