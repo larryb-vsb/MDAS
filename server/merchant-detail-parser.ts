@@ -501,7 +501,7 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     // Required fields
     name: null,
     status: 'Active',
-    merchantType: '0', // DACQ files are always type 0
+    merchantType: '1', // TSYSO DACQ_MER_DTL files are always Type 1 (MCC Merchants)
   };
   
   console.log('[LOCATION-TRACE] ========== LOCATION FIELD MAPPING START ==========');
