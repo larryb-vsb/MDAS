@@ -331,8 +331,7 @@ const fieldNameMapping: Record<string, string> = {
   'Last Statement Date': 'lastStatementDate',
   'Open Date': 'openDate',
   'Last Credit Check Date': 'lastCreditCheckDate',
-  'Fin Statement Due Date': 'finStatementDueDate',
-  'Close Date': 'closeDate'
+  'Fin Statement Due Date': 'finStatementDueDate'
 };
 
 // Helper function to get input type based on MCC schema format
