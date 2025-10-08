@@ -9360,11 +9360,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Process ALL records to master tddfJsonb table (Step 6 processing)
           const step6Result = await processAllRecordsToMasterTable(fileContent, upload);
           
-          // Update to completed phase after Step 6 processing
+          // CRITICAL: Only TDDF files reach 'completed' phase
+          // Merchant detail files stop at 'encoded' phase
+          const finalPhase = upload.finalFileType === 'merchant_detail' ? 'encoded' : 'completed';
+          
           await storage.updateUploaderUpload(uploadId, {
-            currentPhase: 'completed',
+            currentPhase: finalPhase,
             lastUpdated: new Date()
           });
+          
+          console.log(`[STEP-6-PROCESSING] File ${upload.filename} final phase: ${finalPhase} (type: ${upload.finalFileType})`);
 
           // Update API processing system to completed status
           if (apiFileId) {
