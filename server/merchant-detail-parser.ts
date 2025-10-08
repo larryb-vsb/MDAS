@@ -19,7 +19,7 @@ interface MccSchemaField {
 }
 
 interface ParsedMerchantDetail {
-  [key: string]: string | number | null | string[];
+  [key: string]: string | number | Date | null | string[];
   _raw: string;
   _errors: string[];
 }
