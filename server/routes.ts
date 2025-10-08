@@ -9115,13 +9115,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Route to appropriate processor based on file type
           if (upload.finalFileType === 'merchant_detail') {
-            console.log(`[MANUAL-ENCODE] Processing merchant detail file: ${upload.filename}`);
+            // TSYSO DACQ_MER_DTL files - tab-delimited merchant detail
+            console.log(`[MANUAL-ENCODE] Processing TSYSO merchant detail file: ${upload.filename}`);
             
             // Import and use merchant detail parser
             const { processMerchantDetailFile } = await import('./merchant-detail-parser');
             encodingResult = await processMerchantDetailFile(fileContent, uploadId, upload.fileFormat);
             
-            console.log(`[MANUAL-ENCODE] Merchant import complete: ${encodingResult.imported} imported, ${encodingResult.skipped} skipped`);
+            console.log(`[MANUAL-ENCODE] TSYSO merchant import complete: ${encodingResult.imported} imported, ${encodingResult.skipped} skipped`);
+          } else if (upload.fileFormat === 'csv' && upload.filename.toLowerCase().includes('merchant')) {
+            // CSV merchant files - detect by format and filename
+            console.log(`[MANUAL-ENCODE] Processing CSV merchant file: ${upload.filename}`);
+            
+            // Import and use CSV merchant processor
+            encodingResult = await storage.processMerchantFileFromContent(fileContent);
+            
+            console.log(`[MANUAL-ENCODE] CSV merchant import complete: ${encodingResult.merchantsCreated} created, ${encodingResult.merchantsUpdated} updated`);
           } else {
             console.log(`[MANUAL-ENCODE] Processing TDDF file: ${upload.filename}`);
             
@@ -9142,7 +9151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             uploadId,
             filename: upload.filename,
             status: 'completed',
-            recordsCreated: encodingResult.totalRecords || encodingResult.imported || 0
+            recordsCreated: encodingResult.totalRecords || encodingResult.imported || encodingResult.merchantsCreated || 0
           });
           
           console.log(`[MANUAL-ENCODE] Successfully processed ${upload.filename}`);
