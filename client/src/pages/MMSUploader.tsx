@@ -2715,7 +2715,7 @@ export default function MMSUploader() {
                       {/* Set Previous Level Button - show when eligible files are selected */}
                       {selectedUploads.some(id => {
                         const upload = uploads.find(u => u.id === id);
-                        return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing');
+                        return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing' || upload.currentPhase === 'completed');
                       }) && (
                         <Button
                           variant="outline"
@@ -2723,7 +2723,7 @@ export default function MMSUploader() {
                           onClick={() => {
                             const eligibleUploads = selectedUploads.filter(id => {
                               const upload = uploads.find(u => u.id === id);
-                              return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing');
+                              return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing' || upload.currentPhase === 'completed');
                             });
                             if (eligibleUploads.length > 0) {
                               handleSetPreviousLevelSelected();
@@ -2735,7 +2735,7 @@ export default function MMSUploader() {
                           <ChevronLeft className="h-4 w-4 mr-2" />
                           {setPreviousLevelMutation.isPending ? 'Setting...' : `Set Previous ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
-                            return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing');
+                            return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing' || upload.currentPhase === 'completed');
                           }).length}`}
                         </Button>
                       )}
