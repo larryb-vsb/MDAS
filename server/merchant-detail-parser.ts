@@ -454,6 +454,13 @@ export async function parseMerchantDetailFile(
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     
+    // Skip HEADER and TRAILER rows - they're for validation, not merchant data
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('HEADER') || trimmedLine.startsWith('TRAILER')) {
+      console.log(`[MCC-PARSER] Skipping ${trimmedLine.startsWith('HEADER') ? 'HEADER' : 'TRAILER'} row at line ${i + 1}`);
+      continue;
+    }
+    
     try {
       const parsed = await parseMerchantDetailLine(line, schemaFields, fileFormat);
       records.push(parsed);
