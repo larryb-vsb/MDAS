@@ -140,8 +140,9 @@ export class OptimizedTddfEncoder {
     await this.createOptimizedTddfTable(db, tableName);
     await this.batchInsertRecords(db, tableName, records);
     
-    // Update merchant volume analytics
-    await this.updateMerchantAnalytics(db, records, filename);
+    // REMOVED: TDDF processing should only create transactions, not update merchants
+    // Merchants are updated via CSV (Type 3) or TSYSO DACQ_MER_DTL (Type 1) files only
+    // await this.updateMerchantAnalytics(db, records, filename);
     
     return {
       processedRecords: records.length,
