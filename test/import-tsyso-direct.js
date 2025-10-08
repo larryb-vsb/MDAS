@@ -40,22 +40,32 @@ async function importTSYSOFile() {
     console.log('========================================');
     console.log('Import Results:');
     console.log('========================================');
-    console.log(`✅ Success: ${result.success}`);
-    console.log(`📊 Total Records: ${result.totalRecords}`);
-    console.log(`✅ Total Imported: ${result.imported}`);
-    console.log(`  ➕ Inserted (new): ${result.inserted || 0}`);
-    console.log(`  🔄 Updated (existing): ${result.updated || 0}`);
-    console.log(`⏭️  Skipped: ${result.skipped}`);
-    console.log(`⏱️  Processing Time: ${result.processingTimeMs}ms`);
     
-    if (result.error) {
-      console.log(`❌ Error: ${result.error}`);
+    if (result.success) {
+      console.log(`✅ Success: ${result.success}`);
+      console.log(`📊 Total Records: ${result.totalRecords}`);
+      console.log(`✅ Total Imported: ${result.imported}`);
+      console.log(`  ➕ Inserted (new): ${result.inserted || 0}`);
+      console.log(`  🔄 Updated (existing): ${result.updated || 0}`);
+      console.log(`⏭️  Skipped: ${result.skipped}`);
+      console.log(`⏱️  Processing Time: ${result.processingTimeMs}ms`);
+      console.log('========================================');
+    } else {
+      console.log(`❌ Success: false`);
+      console.log(`📊 Total Records: ${result.totalRecords}`);
+      console.log(`❌ Total Imported: ${result.imported}`);
+      console.log(`  ➕ Inserted (new): ${result.inserted || 0}`);
+      console.log(`  🔄 Updated (existing): ${result.updated || 0}`);
+      console.log(`⏭️  Skipped: ${result.skipped}`);
+      console.log(`⏱️  Processing Time: ${result.processingTimeMs}ms`);
+      console.log(`❌ Error: ${result.error || 'Unknown error'}`);
+      console.log('========================================');
+      console.error('❌ Import FAILED - see error details above');
+      process.exit(1);
     }
     
-    console.log('========================================');
-    
   } catch (error) {
-    console.error('❌ Import failed:', error);
+    console.error('❌ Import FAILED:', error);
     process.exit(1);
   }
 }
@@ -67,6 +77,6 @@ importTSYSOFile()
     process.exit(0);
   })
   .catch(error => {
-    console.error('❌ Fatal error:', error);
+    console.error('❌ Import FAILED - Fatal error:', error);
     process.exit(1);
   });
