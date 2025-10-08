@@ -14,10 +14,11 @@ class MMSWatcher {
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
-    this.auto45Enabled = true; // Auto 4-5 processing ENABLED for testing merchant detail detection
+    this.auto45Enabled = false; // Auto 4-5 processing DISABLED by default - user must enable manually
     this.manual45Queue = new Set(); // Manual processing queue for single-step progression
     console.log('[MMS-WATCHER] Watcher service initialized');
     console.log('[MMS-WATCHER] 🔧 MERCHANT DETAIL DETECTION CODE IS LOADED - Ready to detect DACQ_MER_DTL files');
+    console.log(`[MMS-WATCHER] Auto 4-5 initialized to: ${this.auto45Enabled ? 'ENABLED' : 'DISABLED'}`);
   }
 
   start() {
