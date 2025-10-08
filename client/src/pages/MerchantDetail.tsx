@@ -213,6 +213,7 @@ interface MerchantDetailsResponse {
     transDestination: string | null;
     merchantEmailAddress: string | null;
     chargebackEmailAddress: string | null;
+    merchantStatus: string | null;
   };
   transactions: {
     transactionId: string;
@@ -333,6 +334,23 @@ const getInputType = (format: string): 'text' | 'number' | 'date' => {
   if (format === 'N') return 'number';
   if (format === 'D') return 'date';
   return 'text';
+};
+
+// Convert TSYS merchant status code to display text
+const convertTsysStatus = (tsysStatusCode: string | null | undefined): string => {
+  if (!tsysStatusCode || tsysStatusCode.trim() === '') return 'Active';
+  
+  const code = tsysStatusCode.trim().toUpperCase();
+  switch (code) {
+    case 'I': return 'Inactive';
+    case 'F': return 'Fraud';
+    case 'S': return 'Suspect';
+    case 'Z': return 'No Auth';
+    case 'C': return 'Closed';
+    case 'D': return 'Inactive'; // Delete = Inactive
+    case 'B': return 'No Deposits';
+    default: return 'Active';
+  }
 };
 
 // Add Transaction Form Component
@@ -1778,8 +1796,8 @@ export default function MerchantDetail() {
                       <p className="mt-1 text-2xl font-semibold">{data?.merchant.merchantType || 'N/A'}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                      <p className="mt-1 text-2xl font-semibold text-blue-600">{data?.merchant.status || 'Unknown'}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Merchant Status</h3>
+                      <p className="mt-1 text-2xl font-semibold text-blue-600">{convertTsysStatus(data?.merchant.merchantStatus)}</p>
                     </div>
                   </div>
                 )}
