@@ -171,6 +171,48 @@ interface MerchantDetailsResponse {
     bypassEx: string | null;
     excessiveDepositAmount: number | null;
     threshold: number | null;
+    groupLevel1: string | null;
+    associationNumber: string | null;
+    accountNumber: string | null;
+    associationName: string | null;
+    groupLevel1Name: string | null;
+    sic: string | null;
+    class: string | null;
+    dbaName: string | null;
+    phone1: string | null;
+    phone2: string | null;
+    businessLicense: string | null;
+    bankOfficer1: string | null;
+    bankOfficer2: string | null;
+    federalTaxId: string | null;
+    stateTaxId: string | null;
+    ownerName: string | null;
+    managerName: string | null;
+    lastActivityDate: string | null;
+    dailyFeeIndicator: string | null;
+    mcRegId: string | null;
+    customerServiceNumber: string | null;
+    updateDateTime: string | null;
+    statusChangeDate: string | null;
+    discoverMapFlag: string | null;
+    amexOptblueFlag: string | null;
+    visaDescriptor: string | null;
+    mcDescriptor: string | null;
+    url: string | null;
+    closeDate: string | null;
+    dateOfLastAuth: string | null;
+    dunsNumber: string | null;
+    printStatementIndicator: string | null;
+    visaBin: string | null;
+    mcBin: string | null;
+    mcIca: string | null;
+    amexCapId: string | null;
+    discoverAiid: string | null;
+    ddaNumber: string | null;
+    transitRoutingNumber: string | null;
+    transDestination: string | null;
+    merchantEmailAddress: string | null;
+    chargebackEmailAddress: string | null;
   };
   transactions: {
     transactionId: string;
@@ -212,10 +254,50 @@ const fieldNameMapping: Record<string, string> = {
   'Bank': 'bankNumber',
   'Bank Number': 'bankNumber',
   'Association': 'association',
-  'Group (Level 1)': 'association',
+  'Group (Level 1)': 'groupLevel1',
+  'Association Number': 'associationNumber',
+  'Account Number': 'accountNumber',
+  'Association Name': 'associationName',
+  'Group Level 1 Name': 'groupLevel1Name',
   'MCC': 'mcc',
-  'CLASS': 'mcc',
+  'CLASS': 'class',
+  'SIC': 'sic',
   'Merchant Category Code': 'mcc',
+  'DBA Name': 'dbaName',
+  'Phone 1': 'phone1',
+  'Phone 2': 'phone2',
+  'Business License': 'businessLicense',
+  'Bank Officer 1': 'bankOfficer1',
+  'Bank Officer 2': 'bankOfficer2',
+  'Federal Tax ID': 'federalTaxId',
+  'State Tax ID': 'stateTaxId',
+  'Owner Name': 'ownerName',
+  'Manager Name': 'managerName',
+  'Last Activity Date': 'lastActivityDate',
+  'Daily Fee Indicator': 'dailyFeeIndicator',
+  'MC Reg ID': 'mcRegId',
+  'Customer Service Number': 'customerServiceNumber',
+  'Update Date Time': 'updateDateTime',
+  'Status Change Date': 'statusChangeDate',
+  'Discover MAP Flag': 'discoverMapFlag',
+  'Amex OptBlue Flag': 'amexOptblueFlag',
+  'Visa Descriptor': 'visaDescriptor',
+  'MC Descriptor': 'mcDescriptor',
+  'URL': 'url',
+  'Close Date': 'closeDate',
+  'Date of Last Auth': 'dateOfLastAuth',
+  'DUNS Number': 'dunsNumber',
+  'Print Statement Indicator': 'printStatementIndicator',
+  'Visa BIN': 'visaBin',
+  'MC BIN': 'mcBin',
+  'MC ICA': 'mcIca',
+  'Amex CAP ID': 'amexCapId',
+  'Discover AIID': 'discoverAiid',
+  'DDA Number': 'ddaNumber',
+  'Transit Routing Number': 'transitRoutingNumber',
+  'Trans Destination': 'transDestination',
+  'Merchant Email Address': 'merchantEmailAddress',
+  'Chargeback Email Address': 'chargebackEmailAddress',
   'Associate Merchant Number': 'associateMerchantNumber',
   'DBA Name CWOB': 'dbaNameCwob',
   'CWOB Debit Risk': 'cwobDebitRisk',
@@ -243,11 +325,7 @@ const fieldNameMapping: Record<string, string> = {
   'Threshold': 'threshold',
   'Date of First Deposit': 'dateOfFirstDeposit',
   'Date of Last Deposit': 'dateOfLastDeposit',
-  'As of Date': 'asOfDate',
-  'SIC': 'mcc',
-  'Trans Destination': 'merchantRecordSt',
-  'Merchant Email Address': 'address',
-  'Chargeback Email Address': 'address'
+  'As of Date': 'asOfDate'
 };
 
 // Helper function to get input type based on MCC schema format
