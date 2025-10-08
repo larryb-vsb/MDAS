@@ -47,6 +47,7 @@ export const merchants = pgTable(getTableName("merchants"), {
   otherClientNumber2: text("other_client_number2"),
   clientSinceDate: timestamp("client_since_date"),
   status: text("status").notNull().default("Pending"),
+  merchantStatus: text("merchant_status"), // TSYS merchant status code (I/F/S/Z/C/D/B or blank)
   merchantType: text("merchant_type"), // Can be blank, "0", "1", "2", "3", or custom text
   salesChannel: text("sales_channel"),
   association: text("association"), // Business association field
