@@ -231,6 +231,7 @@ function parseTabDelimitedLine(
   
   console.log(`[TAB-PARSER] Line has ${values.length} tab-delimited columns`);
   console.log(`[TAB-PARSER] First 10 columns:`, values.slice(0, 10));
+  console.log('[TAB-PARSER] ========== EXTRACTING LOCATION FIELDS ==========');
   
   // Process each schema field using tab_position as column index
   for (const field of schemaFields) {
@@ -249,6 +250,24 @@ function parseTabDelimitedLine(
       .split(' ')
       .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
+    
+    // DETAILED LOGGING FOR LOCATION FIELDS DURING EXTRACTION
+    const isLocationField = field.fieldName.toLowerCase().includes('address') || 
+                           field.fieldName.toLowerCase().includes('city') || 
+                           field.fieldName.toLowerCase().includes('state') || 
+                           field.fieldName.toLowerCase().includes('zip');
+    
+    if (isLocationField) {
+      console.log(`[TAB-LOCATION-EXTRACT] Field: "${field.fieldName}"`);
+      console.log(`[TAB-LOCATION-EXTRACT]   - Tab Position: ${field.tabPosition} (column index ${colIndex})`);
+      console.log(`[TAB-LOCATION-EXTRACT]   - Raw Value from file: "${rawValue}"`);
+      console.log(`[TAB-LOCATION-EXTRACT]   - Field Key (parsed object): "${fieldKey}"`);
+      console.log(`[TAB-LOCATION-EXTRACT]   - Converted Value: "${result.value}"`);
+      console.log(`[TAB-LOCATION-EXTRACT]   - Format: ${field.format}`);
+      if (result.error) {
+        console.log(`[TAB-LOCATION-EXTRACT]   - ERROR: ${result.error}`);
+      }
+    }
     
     parsed[fieldKey] = result.value;
     
@@ -409,6 +428,8 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     merchantType: '0', // DACQ files are always type 0
   };
   
+  console.log('[LOCATION-TRACE] ========== LOCATION FIELD MAPPING START ==========');
+  
   let mappedCount = 0;
   
   // Map each schema field using its 'key' field
@@ -426,16 +447,40 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     // Drizzle expects merchantData.bankNumber (not merchantData.bank_number)
     const propertyName = field.key || generatedFieldName;
     
+    // DETAILED LOGGING FOR LOCATION FIELDS
+    const isLocationField = field.fieldName.toLowerCase().includes('address') || 
+                           field.fieldName.toLowerCase().includes('city') || 
+                           field.fieldName.toLowerCase().includes('state') || 
+                           field.fieldName.toLowerCase().includes('zip');
+    
+    if (isLocationField) {
+      console.log(`[LOCATION-TRACE] Field: "${field.fieldName}"`);
+      console.log(`[LOCATION-TRACE]   - Tab Position: ${field.tabPosition}`);
+      console.log(`[LOCATION-TRACE]   - Generated Key: ${generatedFieldName}`);
+      console.log(`[LOCATION-TRACE]   - Database Key: ${propertyName}`);
+      console.log(`[LOCATION-TRACE]   - Raw Value: "${value}"`);
+      console.log(`[LOCATION-TRACE]   - Will Map: ${value !== null && value !== undefined ? 'YES' : 'NO (null/undefined)'}`);
+    }
+    
     if (value !== null && value !== undefined) {
       merchantData[propertyName] = value;
       mappedCount++;
-      if (mappedCount <= 10) {
+      if (mappedCount <= 10 || isLocationField) {
         console.log(`[MAPPER] ${field.fieldName} (${generatedFieldName}) -> ${propertyName} = ${value}`);
       }
     }
   }
   
   console.log(`[MAPPER] Mapped ${mappedCount} fields to database columns`);
+  console.log('[LOCATION-TRACE] ========== FINAL MERCHANT DATA LOCATION FIELDS ==========');
+  console.log(`[LOCATION-TRACE] merchantData.address = "${merchantData.address || 'NOT SET'}"`);
+  console.log(`[LOCATION-TRACE] merchantData.city = "${merchantData.city || 'NOT SET'}"`);
+  console.log(`[LOCATION-TRACE] merchantData.state = "${merchantData.state || 'NOT SET'}"`);
+  console.log(`[LOCATION-TRACE] merchantData.zipCode = "${merchantData.zipCode || 'NOT SET'}"`);
+  console.log(`[LOCATION-TRACE] merchantData.dbaAddressCity = "${merchantData.dbaAddressCity || 'NOT SET'}"`);
+  console.log(`[LOCATION-TRACE] merchantData.dbaAddressState = "${merchantData.dbaAddressState || 'NOT SET'}"`);
+  console.log(`[LOCATION-TRACE] merchantData.dbaZip = "${merchantData.dbaZip || 'NOT SET'}"`);
+  console.log('[LOCATION-TRACE] ========== END ==========');
   
   // Special handling for required fields
   // Ensure 'id' field is properly set (Account Number/Client MID)
@@ -461,6 +506,49 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
   if (!merchantData.bank) {
     merchantData.bank = 'Valley State Bank';
   }
+  
+  // CRITICAL: Copy DBA location fields to Core Information fields
+  // The Core Information section (address, city, state, zipCode) needs the same data
+  // as the TSYS Risk & Configuration Fields (dbaAddressCity, dbaAddressState, dbaZip)
+  console.log('[LOCATION-COPY] ========== COPYING DBA FIELDS TO CORE FIELDS ==========');
+  
+  if (merchantData.dbaAddressCity && !merchantData.city) {
+    merchantData.city = merchantData.dbaAddressCity;
+    console.log(`[LOCATION-COPY] Copied dbaAddressCity "${merchantData.dbaAddressCity}" → city`);
+  }
+  
+  if (merchantData.dbaAddressState && !merchantData.state) {
+    merchantData.state = merchantData.dbaAddressState;
+    console.log(`[LOCATION-COPY] Copied dbaAddressState "${merchantData.dbaAddressState}" → state`);
+  }
+  
+  if (merchantData.dbaZip && !merchantData.zipCode) {
+    merchantData.zipCode = merchantData.dbaZip;
+    console.log(`[LOCATION-COPY] Copied dbaZip "${merchantData.dbaZip}" → zipCode`);
+  }
+  
+  // Also check for Legal Address fields and use them if DBA fields are not available
+  if (merchantData.legalAddressCity && !merchantData.city) {
+    merchantData.city = merchantData.legalAddressCity;
+    console.log(`[LOCATION-COPY] Copied legalAddressCity "${merchantData.legalAddressCity}" → city`);
+  }
+  
+  if (merchantData.legalAddressState && !merchantData.state) {
+    merchantData.state = merchantData.legalAddressState;
+    console.log(`[LOCATION-COPY] Copied legalAddressState "${merchantData.legalAddressState}" → state`);
+  }
+  
+  if (merchantData.legalZip && !merchantData.zipCode) {
+    merchantData.zipCode = merchantData.legalZip;
+    console.log(`[LOCATION-COPY] Copied legalZip "${merchantData.legalZip}" → zipCode`);
+  }
+  
+  console.log('[LOCATION-COPY] ========== FINAL CORE LOCATION FIELDS ==========');
+  console.log(`[LOCATION-COPY] address: "${merchantData.address || 'NOT SET'}"`);
+  console.log(`[LOCATION-COPY] city: "${merchantData.city || 'NOT SET'}"`);
+  console.log(`[LOCATION-COPY] state: "${merchantData.state || 'NOT SET'}"`);
+  console.log(`[LOCATION-COPY] zipCode: "${merchantData.zipCode || 'NOT SET'}"`);
+  console.log('[LOCATION-COPY] ========== END ==========');
   
   return merchantData;
 }
@@ -521,6 +609,19 @@ export async function processMerchantDetailFile(
           continue;
         }
         
+        console.log('[DB-INSERT-LOCATION] ========== INSERTING MERCHANT WITH LOCATION DATA ==========');
+        console.log(`[DB-INSERT-LOCATION] Merchant ID: ${merchantData.id}`);
+        console.log(`[DB-INSERT-LOCATION] Merchant Name: ${merchantData.name}`);
+        console.log(`[DB-INSERT-LOCATION] address: "${merchantData.address || 'NULL'}"`);
+        console.log(`[DB-INSERT-LOCATION] city: "${merchantData.city || 'NULL'}"`);
+        console.log(`[DB-INSERT-LOCATION] state: "${merchantData.state || 'NULL'}"`);
+        console.log(`[DB-INSERT-LOCATION] zipCode: "${merchantData.zipCode || 'NULL'}"`);
+        console.log(`[DB-INSERT-LOCATION] dbaAddressCity: "${merchantData.dbaAddressCity || 'NULL'}"`);
+        console.log(`[DB-INSERT-LOCATION] dbaAddressState: "${merchantData.dbaAddressState || 'NULL'}"`);
+        console.log(`[DB-INSERT-LOCATION] dbaZip: "${merchantData.dbaZip || 'NULL'}"`);
+        console.log('[DB-INSERT-LOCATION] Full merchant data object keys:', Object.keys(merchantData));
+        console.log('[DB-INSERT-LOCATION] ========== END ==========');
+        
         // Insert or update merchant
         await db.insert(merchants)
           .values(merchantData)
@@ -528,6 +629,8 @@ export async function processMerchantDetailFile(
             target: merchants.id,
             set: merchantData
           });
+        
+        console.log(`[DB-INSERT-LOCATION] ✅ Successfully inserted/updated merchant ${merchantData.id}`);
         
         imported++;
       } catch (error) {
