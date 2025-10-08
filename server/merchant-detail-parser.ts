@@ -99,8 +99,13 @@ function parseDate(value: string): Date | null {
     const year = parts[2];
     const isoFormat = `${year}-${month}-${day}`;
     const date = new Date(isoFormat);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      logIfAllowed(`[DATE-PARSE] ✗ Invalid date: "${trimmed}" -> "${isoFormat}"`);
+      return null;
+    }
     logIfAllowed(
-      `[DATE-PARSE] ✓ Matched MM/DD/YYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`,
+      `[DATE-PARSE] ✓ Matched MM/DD/YYYY: "${trimmed}" -> ISO: "${isoFormat}"`,
     );
     return date;
   }
@@ -109,8 +114,12 @@ function parseDate(value: string): Date | null {
   if (/^\d{4}\/\d{2}\/\d{2}$/.test(trimmed)) {
     const dateStr = trimmed.replace(/\//g, "-");
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      logIfAllowed(`[DATE-PARSE] ✗ Invalid date: "${trimmed}" -> "${dateStr}"`);
+      return null;
+    }
     logIfAllowed(
-      `[DATE-PARSE] ✓ Matched YYYY/MM/DD: "${trimmed}" -> "${dateStr}" -> Date: ${date.toISOString()}`,
+      `[DATE-PARSE] ✓ Matched YYYY/MM/DD: "${trimmed}" -> "${dateStr}"`,
     );
     return date;
   }
@@ -118,8 +127,12 @@ function parseDate(value: string): Date | null {
   // YYYY-MM-DD format (already correct)
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     const date = new Date(trimmed);
+    if (isNaN(date.getTime())) {
+      logIfAllowed(`[DATE-PARSE] ✗ Invalid date: "${trimmed}"`);
+      return null;
+    }
     logIfAllowed(
-      `[DATE-PARSE] ✓ Matched YYYY-MM-DD: "${trimmed}" -> Date: ${date.toISOString()}`,
+      `[DATE-PARSE] ✓ Matched YYYY-MM-DD: "${trimmed}"`,
     );
     return date;
   }
@@ -145,8 +158,12 @@ function parseDate(value: string): Date | null {
     ) {
       const isoFormat = `${year}-${month}-${day}`;
       const date = new Date(isoFormat);
+      if (isNaN(date.getTime())) {
+        logIfAllowed(`[DATE-PARSE] ✗ Invalid date: "${trimmed}" -> "${isoFormat}"`);
+        return null;
+      }
       logIfAllowed(
-        `[DATE-PARSE] ✓ Matched MMDDYYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`,
+        `[DATE-PARSE] ✓ Matched MMDDYYYY: "${trimmed}" -> ISO: "${isoFormat}"`,
       );
       return date;
     } else {
@@ -161,8 +178,12 @@ function parseDate(value: string): Date | null {
     const [month, day, year] = trimmed.split("/");
     const isoFormat = `${year}-${month}-${day}`;
     const date = new Date(isoFormat);
+    if (isNaN(date.getTime())) {
+      logIfAllowed(`[DATE-PARSE] ✗ Invalid date: "${trimmed}" -> "${isoFormat}"`);
+      return null;
+    }
     logIfAllowed(
-      `[DATE-PARSE] ✓ Matched MM/DD/YYYY (strict): "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`,
+      `[DATE-PARSE] ✓ Matched MM/DD/YYYY (strict): "${trimmed}" -> ISO: "${isoFormat}"`,
     );
     return date;
   }
@@ -659,7 +680,9 @@ export function mapParsedToMerchantSchema(
     if (value !== null && value !== undefined) {
       // Parse value based on data type
       let parsedValue = value;
-      if (field.dataType === "D" && typeof value === "string") {
+      // Check if field is a date field (format starts with "D" or contains "Date")
+      const isDateField = field.format?.startsWith("D") || field.format?.toLowerCase().includes("date");
+      if (isDateField && typeof value === "string") {
         // Date field - parse string to Date object
         parsedValue = parseDate(value);
       }
