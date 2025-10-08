@@ -209,8 +209,8 @@ interface MccSchemaField {
 
 // Field mapping utility: maps MCC schema fieldName to merchant database field names (camelCase)
 const fieldNameMapping: Record<string, string> = {
-  'Bank': 'bank',
-  'Bank Number': 'bank',
+  'Bank': 'bankNumber',
+  'Bank Number': 'bankNumber',
   'Association': 'association',
   'Group (Level 1)': 'association',
   'MCC': 'mcc',
