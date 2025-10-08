@@ -543,10 +543,17 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
     }
     
     if (value !== null && value !== undefined) {
-      merchantData[propertyName] = value;
+      // Parse value based on data type
+      let parsedValue = value;
+      if (field.dataType === 'D' && typeof value === 'string') {
+        // Date field - parse string to Date object
+        parsedValue = parseDate(value);
+      }
+      
+      merchantData[propertyName] = parsedValue;
       mappedCount++;
       if (mappedCount <= 10 || isLocationField) {
-        console.log(`[MAPPER] ${field.fieldName} (${generatedFieldName}) -> ${propertyName} = ${value}`);
+        console.log(`[MAPPER] ${field.fieldName} (${generatedFieldName}) -> ${propertyName} = ${parsedValue instanceof Date ? parsedValue.toISOString() : parsedValue}`);
       }
     }
   }
