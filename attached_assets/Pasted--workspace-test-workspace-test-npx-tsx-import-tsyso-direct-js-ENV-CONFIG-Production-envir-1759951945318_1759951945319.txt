@@ -1,0 +1,90 @@
+~/workspace/test$ 
+~/workspace/test$ npx tsx import-tsyso-direct.js 
+[ENV CONFIG] Production environment detected via deployment indicators
+[ENV CONFIG] NODE_ENV from process.env: production
+[ENV CONFIG] Environment detection method: explicit
+[ENV CONFIG] Final NODE_ENV: production, isProd: true, isDev: false
+[DB CONFIG] production mode: Using table-level separation
+[DB CONFIG] Production tables: merchants, api_achtransactions, uploaded_files, etc.
+[DB CONFIG] NODE_ENV: production, isProd: true, isDev: false
+[DB CONFIG] Using NEON_PROD_DATABASE_URL (production database)
+[DB CONFIG]ℹ️  NEON_DEV_DATABASE_URL available for development
+[DB CONFIG] Using environment-specific database with table separation
+[DB CONFIG] production tables: production tables
+[DB CONFIG] NODE_ENV: production, isProd: true, isDev: false
+[DB CONFIG] Using NEON_PROD_DATABASE_URL (production database)
+[DB CONFIG] ℹ️  NEON_DEV_DATABASE_URL available for development
+[DB CONFIG] Using environment-specific database with table separation
+[DB CONFIG] production tables: production tables
+[DB] Database connection established for production environment
+✅ [DB] Connected to PRODUCTION database (ep-quiet-unit)
+Database name: neondb
+[CONNECTION POOLS] Initialized for production:
+  App Pool: max=40, min=8
+  Batch Pool: max=30, min=5
+  Session Pool: max=12, min=3
+[TABLE CONFIG] production mode - Table prefix: ""
+[TABLE CONFIG] Merchants table: merchants
+[TABLE CONFIG] Transactions table: transactions
+========================================
+TSYSO Direct Import to Merchant Database
+========================================
+File: test-VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO
+Path: /home/runner/workspace/test/test-VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO
+
+📂 Reading local file...
+✅ File loaded: 8088 bytes
+
+🔄 Processing merchant detail file...
+[MERCHANT-IMPORT] Starting merchant detail file processing...
+[MERCHANT-IMPORT] File format: tab_delimited
+[MCC-PARSER] ========== FILE STRUCTURE VALIDATION ==========
+[MCC-PARSER] File format: tab_delimited
+[MCC-PARSER] Error fetching schema fields: error: relation "dev_merchant_mcc_schema" does not exist
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getMccSchemaFields (/home/runner/workspace/server/merchant-detail-parser.ts:228:20)
+    at async parseMerchantDetailFile (/home/runner/workspace/server/merchant-detail-parser.ts:414:24)
+    at async processMerchantDetailFile (/home/runner/workspace/server/merchant-detail-parser.ts:673:25)
+    at async importTSYSOFile (file:///home/runner/workspace/test/import-tsyso-direct.js:33:20) {
+  length: 123,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '192',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+[MERCHANT-IMPORT] Error processing merchant detail file: Error: Failed to fetch MCC schema configuration
+    at getMccSchemaFields (/home/runner/workspace/server/merchant-detail-parser.ts:239:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async parseMerchantDetailFile (/home/runner/workspace/server/merchant-detail-parser.ts:414:24)
+    at async processMerchantDetailFile (/home/runner/workspace/server/merchant-detail-parser.ts:673:25)
+    at async importTSYSOFile (file:///home/runner/workspace/test/import-tsyso-direct.js:33:20)
+
+========================================
+Import Results:
+========================================
+✅ Success: false
+📊 Total Records: 0
+✅ Imported: 0
+⏭️  Skipped: 0
+⏱️  Processing Time: 289ms
+❌ Error: Failed to fetch MCC schema configuration
+========================================
+✅ Import completed successfully
+~/workspace/test$ ^C
+~/workspace/test$ ^C
+~/workspace/test$ ^C
+~/workspace/test$ ^C
+~/workspace/test$ 

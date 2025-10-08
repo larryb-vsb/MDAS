@@ -1,0 +1,113 @@
+-- SQL Script to Map MCC Schema Fields to Merchant Database Columns
+-- Run this to enable full merchant import functionality
+
+-- Core Identification Fields
+UPDATE dev_merchant_mcc_schema SET key = 'bankNumber' WHERE field_name = 'Bank Number';
+UPDATE dev_merchant_mcc_schema SET key = 'groupLevel1' WHERE field_name = 'Group (Level 1)';
+UPDATE dev_merchant_mcc_schema SET key = 'associationNumber' WHERE field_name = 'Association Number';
+UPDATE dev_merchant_mcc_schema SET key = 'id' WHERE field_name = 'Account Number';
+UPDATE dev_merchant_mcc_schema SET key = 'accountNumber' WHERE field_name = 'Account Number'; -- Also map to accountNumber
+UPDATE dev_merchant_mcc_schema SET key = 'associationName' WHERE field_name = 'Association Name';
+UPDATE dev_merchant_mcc_schema SET key = 'groupLevel1Name' WHERE field_name = 'Group Level 1 Name';
+
+-- Business Classification
+UPDATE dev_merchant_mcc_schema SET key = 'sic' WHERE field_name = 'SIC';
+UPDATE dev_merchant_mcc_schema SET key = 'class' WHERE field_name = 'CLASS';
+
+-- DBA Information (Already mapped, but included for completeness)
+UPDATE dev_merchant_mcc_schema SET key = 'dbaName' WHERE field_name = 'DBA Name';
+UPDATE dev_merchant_mcc_schema SET key = 'dbaAddressCity' WHERE field_name = 'DBA Address City';
+UPDATE dev_merchant_mcc_schema SET key = 'dbaAddressState' WHERE field_name = 'DBA Address State';
+UPDATE dev_merchant_mcc_schema SET key = 'dbaZip' WHERE field_name = 'DBA Zip';
+
+-- Contact Information
+UPDATE dev_merchant_mcc_schema SET key = 'phone1' WHERE field_name = 'Phone 1';
+UPDATE dev_merchant_mcc_schema SET key = 'phone2' WHERE field_name = 'Phone 2';
+UPDATE dev_merchant_mcc_schema SET key = 'businessLicense' WHERE field_name = 'Business License';
+
+-- Bank Officers
+UPDATE dev_merchant_mcc_schema SET key = 'bankOfficer1' WHERE field_name = 'Bank Officer 1';
+UPDATE dev_merchant_mcc_schema SET key = 'bankOfficer2' WHERE field_name = 'Bank Officer 2';
+
+-- Tax IDs
+UPDATE dev_merchant_mcc_schema SET key = 'federalTaxId' WHERE field_name = 'Federal Tax ID';
+UPDATE dev_merchant_mcc_schema SET key = 'stateTaxId' WHERE field_name = 'State Tax ID';
+
+-- Merchant Status & Configuration
+UPDATE dev_merchant_mcc_schema SET key = 'status' WHERE field_name = 'Merchant Status';
+UPDATE dev_merchant_mcc_schema SET key = 'merchantTypeField' WHERE field_name = 'Merchant Type';
+
+-- Owner/Manager
+UPDATE dev_merchant_mcc_schema SET key = 'ownerName' WHERE field_name = 'Owner Name';
+UPDATE dev_merchant_mcc_schema SET key = 'managerName' WHERE field_name = 'Manager Name';
+
+-- Additional likely mappings (verify field names match exactly)
+UPDATE dev_merchant_mcc_schema SET key = 'legalName' WHERE field_name LIKE '%Legal Name%';
+UPDATE dev_merchant_mcc_schema SET key = 'agentBankNumber' WHERE field_name = 'Agent Bank Number';
+UPDATE dev_merchant_mcc_schema SET key = 'merchantCategoryCode' WHERE field_name = 'MCC' OR field_name = 'Merchant Category Code';
+UPDATE dev_merchant_mcc_schema SET key = 'lastActivityDate' WHERE field_name = 'Last Activity Date';
+UPDATE dev_merchant_mcc_schema SET key = 'dailyFeeIndicator' WHERE field_name = 'Daily Fee Indicator';
+UPDATE dev_merchant_mcc_schema SET key = 'mcRegId' WHERE field_name = 'MC Reg ID';
+UPDATE dev_merchant_mcc_schema SET key = 'customerServiceNumber' WHERE field_name = 'Customer Service Number';
+UPDATE dev_merchant_mcc_schema SET key = 'updateDateTime' WHERE field_name = 'Update Date/Time';
+UPDATE dev_merchant_mcc_schema SET key = 'statusChangeDate' WHERE field_name = 'Status Change Date';
+UPDATE dev_merchant_mcc_schema SET key = 'discoverMapFlag' WHERE field_name = 'Discover Map Flag';
+UPDATE dev_merchant_mcc_schema SET key = 'amexOptblueFlag' WHERE field_name = 'Amex Optblue Flag';
+UPDATE dev_merchant_mcc_schema SET key = 'visaDescriptor' WHERE field_name = 'Visa Descriptor';
+UPDATE dev_merchant_mcc_schema SET key = 'mcDescriptor' WHERE field_name = 'MC Descriptor';
+UPDATE dev_merchant_mcc_schema SET key = 'url' WHERE field_name = 'URL' OR field_name = 'Website';
+UPDATE dev_merchant_mcc_schema SET key = 'closeDate' WHERE field_name = 'Close Date';
+UPDATE dev_merchant_mcc_schema SET key = 'dateOfLastAuth' WHERE field_name = 'Date of Last Auth';
+UPDATE dev_merchant_mcc_schema SET key = 'dunsNumber' WHERE field_name = 'DUNS Number';
+UPDATE dev_merchant_mcc_schema SET key = 'printStatementIndicator' WHERE field_name = 'Print Statement Indicator';
+
+-- Card Brand Configuration
+UPDATE dev_merchant_mcc_schema SET key = 'visaBin' WHERE field_name = 'Visa BIN';
+UPDATE dev_merchant_mcc_schema SET key = 'mcBin' WHERE field_name = 'MC BIN';
+UPDATE dev_merchant_mcc_schema SET key = 'mcIca' WHERE field_name = 'MC ICA';
+UPDATE dev_merchant_mcc_schema SET key = 'amexCapId' WHERE field_name = 'Amex CAP ID';
+UPDATE dev_merchant_mcc_schema SET key = 'discoverAiid' WHERE field_name = 'Discover AIID';
+
+-- Banking Information
+UPDATE dev_merchant_mcc_schema SET key = 'ddaNumber' WHERE field_name = 'DDA Number';
+UPDATE dev_merchant_mcc_schema SET key = 'transitRoutingNumber' WHERE field_name = 'Transit Routing Number';
+UPDATE dev_merchant_mcc_schema SET key = 'exposureAmount' WHERE field_name = 'Exposure Amount';
+
+-- Important Dates
+UPDATE dev_merchant_mcc_schema SET key = 'merchantActivationDate' WHERE field_name = 'Merchant Activation Date';
+UPDATE dev_merchant_mcc_schema SET key = 'dateOfFirstDeposit' WHERE field_name = 'Date of First Deposit';
+UPDATE dev_merchant_mcc_schema SET key = 'dateOfLastDeposit' WHERE field_name = 'Date of Last Deposit';
+UPDATE dev_merchant_mcc_schema SET key = 'boardDt' WHERE field_name = 'Board Date';
+
+-- Additional Configuration
+UPDATE dev_merchant_mcc_schema SET key = 'transDestination' WHERE field_name = 'Trans Destination';
+UPDATE dev_merchant_mcc_schema SET key = 'merchantEmailAddress' WHERE field_name = 'Merchant Email Address';
+UPDATE dev_merchant_mcc_schema SET key = 'chargebackEmailAddress' WHERE field_name = 'Chargeback Email Address';
+
+-- Bypass & Risk Fields
+UPDATE dev_merchant_mcc_schema SET key = 'bypassEa' WHERE field_name = 'Bypass EA';
+UPDATE dev_merchant_mcc_schema SET key = 'bypassCo' WHERE field_name = 'Bypass CO';
+UPDATE dev_merchant_mcc_schema SET key = 'bypassEx' WHERE field_name = 'Bypass EX';
+UPDATE dev_merchant_mcc_schema SET key = 'bypassForce' WHERE field_name = 'Bypass Force';
+UPDATE dev_merchant_mcc_schema SET key = 'merchantRecordSt' WHERE field_name = 'Merchant Record ST';
+UPDATE dev_merchant_mcc_schema SET key = 'negativeAmount' WHERE field_name = 'Negative Amount';
+UPDATE dev_merchant_mcc_schema SET key = 'excessiveDepositAmount' WHERE field_name = 'Excessive Deposit Amount';
+UPDATE dev_merchant_mcc_schema SET key = 'threshold' WHERE field_name = 'Threshold';
+UPDATE dev_merchant_mcc_schema SET key = 'dailyAuthLimit' WHERE field_name = 'Daily Auth Limit';
+UPDATE dev_merchant_mcc_schema SET key = 'feeVisa' WHERE field_name = 'Fee Visa';
+UPDATE dev_merchant_mcc_schema SET key = 'visaMcc' WHERE field_name = 'Visa MCC';
+
+-- Additional Fields
+UPDATE dev_merchant_mcc_schema SET key = 'dbaNameCwob' WHERE field_name = 'DBA Name CWOB';
+UPDATE dev_merchant_mcc_schema SET key = 'cwobDebitRisk' WHERE field_name = 'CWOB Debit Risk';
+UPDATE dev_merchant_mcc_schema SET key = 'vwobEbtReturn' WHERE field_name = 'VWOB EBT Return';
+UPDATE dev_merchant_mcc_schema SET key = 'masterMid' WHERE field_name = 'Master MID';
+UPDATE dev_merchant_mcc_schema SET key = 'associateMerchantNumber' WHERE field_name = 'Associate Merchant Number';
+UPDATE dev_merchant_mcc_schema SET key = 'chainNumber' WHERE field_name = 'Chain Number';
+UPDATE dev_merchant_mcc_schema SET key = 'storeNumber' WHERE field_name = 'Store Number';
+UPDATE dev_merchant_mcc_schema SET key = 'terminalNumber' WHERE field_name = 'Terminal Number';
+UPDATE dev_merchant_mcc_schema SET key = 'settlementAgent' WHERE field_name = 'Settlement Agent';
+UPDATE dev_merchant_mcc_schema SET key = 'agentChainNumber' WHERE field_name = 'Agent Chain Number';
+
+-- Verify the mapping worked
+SELECT COUNT(*) as mapped_fields FROM dev_merchant_mcc_schema WHERE key IS NOT NULL AND key != '';
