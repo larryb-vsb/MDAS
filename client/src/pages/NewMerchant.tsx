@@ -231,9 +231,15 @@ export default function NewMerchant() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Pending">Pending</SelectItem>
                               <SelectItem value="Active">Active</SelectItem>
+                              <SelectItem value="Pending">Pending</SelectItem>
                               <SelectItem value="Inactive">Inactive</SelectItem>
+                              <SelectItem value="Fraud">Fraud</SelectItem>
+                              <SelectItem value="Suspect">Suspect</SelectItem>
+                              <SelectItem value="No Auth">No Auth</SelectItem>
+                              <SelectItem value="Closed">Closed</SelectItem>
+                              <SelectItem value="Delete">Delete</SelectItem>
+                              <SelectItem value="No Deposits">No Deposits</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
