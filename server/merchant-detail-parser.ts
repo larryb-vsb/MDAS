@@ -6,6 +6,7 @@
 
 import { pool } from "./db";
 import { getTableName } from "./table-config";
+import { eq } from "drizzle-orm";
 
 interface MccSchemaField {
   position: string;
@@ -281,6 +282,7 @@ export async function getMccSchemaFields(): Promise<MccSchemaField[]> {
   const tableName = getTableName("merchant_mcc_schema");
 
   try {
+    console.log(`[MCC-PARSER] Fetching schema from table: ${tableName}`);
     const result = await pool.query(`
       SELECT position, field_name as "fieldName", key, tab_position as "tabPosition",
              field_length as "fieldLength", format, description, mms_enabled as "mmsEnabled"
@@ -289,10 +291,12 @@ export async function getMccSchemaFields(): Promise<MccSchemaField[]> {
       ORDER BY position
     `);
 
+    console.log(`[MCC-PARSER] ✅ Loaded ${result.rows.length} schema fields`);
     return result.rows;
   } catch (error) {
-    console.error("[MCC-PARSER] Error fetching schema fields:", error);
-    throw new Error("Failed to fetch MCC schema configuration");
+    console.error(`[MCC-PARSER] ❌ Error fetching schema from ${tableName}:`, error);
+    console.error(`[MCC-PARSER] Error details:`, error instanceof Error ? error.message : error);
+    throw new Error(`Failed to fetch MCC schema configuration from ${tableName}: ${error instanceof Error ? error.message : error}`);
   }
 }
 
@@ -858,6 +862,8 @@ export async function processMerchantDetailFile(
     const { merchants } = await import("@shared/schema.ts");
 
     let imported = 0;
+    let inserted = 0;
+    let updated = 0;
     let skipped = 0;
 
     // Error categorization tracking with sample records
@@ -1043,6 +1049,20 @@ export async function processMerchantDetailFile(
           );
         }
 
+        // Check if merchant exists before inserting (for tracking inserts vs updates)
+        let wasUpdate = false;
+        try {
+          const existingCheck = await db
+            .select({ id: merchants.id })
+            .from(merchants)
+            .where(eq(merchants.id, merchantData.id))
+            .limit(1);
+          
+          wasUpdate = existingCheck.length > 0;
+        } catch (checkError) {
+          console.warn(`[DB-OPERATION] Could not check existing merchant:`, checkError);
+        }
+
         // Insert or update merchant
         try {
           const result = await db
@@ -1055,13 +1075,18 @@ export async function processMerchantDetailFile(
 
           if (isDebugRecord) {
             console.log(
-              `[DB-OPERATION] ✅ SUCCESS - Merchant ${merchantData.id} inserted/updated`,
+              `[DB-OPERATION] ✅ SUCCESS - Merchant ${merchantData.id} ${wasUpdate ? 'updated' : 'inserted'}`,
             );
             console.log(`[DB-OPERATION] Result:`, result);
             console.log("[DB-OPERATION] ========== END ==========");
           }
 
           imported++;
+          if (wasUpdate) {
+            updated++;
+          } else {
+            inserted++;
+          }
         } catch (dbError) {
           console.error(
             `[DB-OPERATION] ❌ FAILED - Database error for merchant ${merchantData.id}`,
@@ -1223,6 +1248,8 @@ export async function processMerchantDetailFile(
       success: true,
       totalRecords: parseResult.records.length,
       imported,
+      inserted,
+      updated,
       skipped,
       processingTimeMs,
     };
@@ -1237,6 +1264,8 @@ export async function processMerchantDetailFile(
       success: false,
       totalRecords: 0,
       imported: 0,
+      inserted: 0,
+      updated: 0,
       skipped: 0,
       processingTimeMs,
       error: error instanceof Error ? error.message : "Unknown error",

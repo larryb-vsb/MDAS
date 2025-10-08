@@ -42,7 +42,9 @@ async function importTSYSOFile() {
     console.log('========================================');
     console.log(`✅ Success: ${result.success}`);
     console.log(`📊 Total Records: ${result.totalRecords}`);
-    console.log(`✅ Imported: ${result.imported}`);
+    console.log(`✅ Total Imported: ${result.imported}`);
+    console.log(`  ➕ Inserted (new): ${result.inserted || 0}`);
+    console.log(`  🔄 Updated (existing): ${result.updated || 0}`);
     console.log(`⏭️  Skipped: ${result.skipped}`);
     console.log(`⏱️  Processing Time: ${result.processingTimeMs}ms`);
     
