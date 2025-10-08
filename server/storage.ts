@@ -1661,6 +1661,7 @@ export class DatabaseStorage implements IStorage {
           transDestination: merchant.trans_destination || null,
           merchantEmailAddress: merchant.merchant_email_address || null,
           chargebackEmailAddress: merchant.chargeback_email_address || null,
+          merchantStatus: merchant.merchant_status || null,
           stats: {
             daily: stats.daily,
             monthly: stats.monthly
