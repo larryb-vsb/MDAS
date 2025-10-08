@@ -407,25 +407,8 @@ class MMSWatcher {
 
         // Single-step progression based on current phase
         if (upload.currentPhase === 'uploaded') {
-          // Manual identify: uploaded → identified
-          // Parse existing processing notes safely
-          let existingNotes = {};
-          try {
-            existingNotes = JSON.parse(upload.processingNotes || '{}');
-          } catch (e) {
-            // If existing notes aren't valid JSON, preserve as legacy_notes
-            existingNotes = { legacy_notes: upload.processingNotes };
-          }
-          
-          await this.storage.updateUploaderUpload(uploadId, {
-            currentPhase: 'identified',
-            identifiedAt: new Date().toISOString(),
-            processingNotes: JSON.stringify({
-              ...existingNotes,
-              manualIdentificationAt: new Date().toISOString(),
-              identificationMethod: 'manual_watcher_triggered'
-            })
-          });
+          // Manual identify: uploaded → identified (with proper file analysis)
+          await this.identifyFile(upload);
           const context = FileTaggedLogger.createContext(upload, 4, 'COMPLETE');
           FileTaggedLogger.success(context, 'uploaded → identified (manual)');
           this.manual45Queue.delete(uploadId);

@@ -9114,7 +9114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let encodingResult;
           
           // Route to appropriate processor based on file type
-          if (upload.finalFileType === 'merchant_detail') {
+          if (upload.finalFileType === 'merchant_detail' || upload.filename.toUpperCase().includes('DACQ_MER_DTL')) {
             // TSYSO DACQ_MER_DTL files - tab-delimited merchant detail
             console.log(`[MANUAL-ENCODE] Processing TSYSO merchant detail file: ${upload.filename}`);
             
