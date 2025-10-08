@@ -90,6 +90,7 @@ const merchantSchema = z.object({
   country: z.string().optional(),
   category: z.string().optional(),
   asOfDate: z.string().optional(),
+  closeDate: z.string().optional(),
   association: z.string().optional(),
   mcc: z.string().optional(),
   bank: z.string().optional(),
@@ -652,8 +653,9 @@ export default function MerchantDetail() {
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
       country: data?.merchant.country || '',
-      category: data?.merchant.category || '',
+      category: data?.merchant.category || data?.merchant.class || '',
       asOfDate: data?.merchant.asOfDate ? new Date(data.merchant.asOfDate).toISOString().split('T')[0] : '',
+      closeDate: data?.merchant.closeDate ? new Date(data.merchant.closeDate).toISOString().split('T')[0] : '',
       association: data?.merchant.association || '',
       mcc: data?.merchant.mcc || '',
       bank: data?.merchant.bank || '',
@@ -691,8 +693,9 @@ export default function MerchantDetail() {
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
       country: data?.merchant.country || '',
-      category: data?.merchant.category || '',
+      category: data?.merchant.category || data?.merchant.class || '',
       asOfDate: data?.merchant.asOfDate ? new Date(data.merchant.asOfDate).toISOString().split('T')[0] : '',
+      closeDate: data?.merchant.closeDate ? new Date(data.merchant.closeDate).toISOString().split('T')[0] : '',
       association: data?.merchant.association || '',
       mcc: data?.merchant.mcc || '',
       bank: data?.merchant.bank || '',
@@ -1225,8 +1228,8 @@ export default function MerchantDetail() {
                     </div>
 
                     {/* Key Dates Section - Grouped at Top */}
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3 border-b pb-6">
-                      <div className="md:col-span-3">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-4 border-b pb-6">
+                      <div className="md:col-span-4">
                         <h3 className="text-lg font-semibold mb-4">Key Dates</h3>
                       </div>
                       
@@ -1264,6 +1267,20 @@ export default function MerchantDetail() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Date of Last Deposit</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="closeDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Closed Date</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} value={field.value || ''} />
                             </FormControl>
