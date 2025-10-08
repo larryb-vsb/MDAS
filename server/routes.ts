@@ -9111,6 +9111,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get file content from storage
           const fileContent = await ReplitStorageService.getFileContent(storageKey);
           
+          // Import the TDDF encoder function
+          const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder');
+          
           // Perform TDDF1 file-based encoding
           const encodingResult = await encodeTddfToTddf1FileBased(fileContent, upload);
           
