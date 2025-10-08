@@ -441,7 +441,11 @@ export function mapParsedToMerchantSchema(parsed: ParsedMerchantDetail, schemaFi
       .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
     
-    const value = parsed[generatedFieldName];
+    // FIX: Look up value using the same key the parser used to store it
+    // Parser stores using: field.key || generatedFieldName
+    // So we must retrieve using the same logic
+    const lookupKey = field.key || generatedFieldName;
+    const value = parsed[lookupKey];
     
     // Use camelCase property name for Drizzle ORM
     // Drizzle expects merchantData.bankNumber (not merchantData.bank_number)
