@@ -257,7 +257,7 @@ function validateAndConvertField(
  * Get MCC schema fields from database
  */
 export async function getMccSchemaFields(): Promise<MccSchemaField[]> {
-  const tableName = getTableName("dev_merchant_mcc_schema");
+  const tableName = getTableName("merchant_mcc_schema");
 
   try {
     const result = await pool.query(`
