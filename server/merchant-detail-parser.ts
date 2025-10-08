@@ -70,8 +70,11 @@ function parsePosition(position: string): { start: number; end: number } | null 
 function parseDate(value: string): Date | null {
   const trimmed = value.trim();
   
+  console.log(`[DATE-PARSE] Attempting to parse: "${trimmed}"`);
+  
   // Empty values
   if (!trimmed || trimmed === '0' || trimmed === '00000000') {
+    console.log(`[DATE-PARSE] ✓ Empty/zero value, returning null`);
     return null;
   }
   
@@ -81,18 +84,25 @@ function parseDate(value: string): Date | null {
     const month = parts[0].padStart(2, '0');
     const day = parts[1].padStart(2, '0');
     const year = parts[2];
-    return new Date(`${year}-${month}-${day}`);
+    const isoFormat = `${year}-${month}-${day}`;
+    const date = new Date(isoFormat);
+    console.log(`[DATE-PARSE] ✓ Matched MM/DD/YYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
+    return date;
   }
   
   // YYYY/MM/DD format
   if (/^\d{4}\/\d{2}\/\d{2}$/.test(trimmed)) {
     const dateStr = trimmed.replace(/\//g, '-');
-    return new Date(dateStr);
+    const date = new Date(dateStr);
+    console.log(`[DATE-PARSE] ✓ Matched YYYY/MM/DD: "${trimmed}" -> "${dateStr}" -> Date: ${date.toISOString()}`);
+    return date;
   }
   
   // YYYY-MM-DD format (already correct)
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return new Date(trimmed);
+    const date = new Date(trimmed);
+    console.log(`[DATE-PARSE] ✓ Matched YYYY-MM-DD: "${trimmed}" -> Date: ${date.toISOString()}`);
+    return date;
   }
   
   // MMDDYYYY format (common in TSYS files)
@@ -107,16 +117,25 @@ function parseDate(value: string): Date | null {
     const yearNum = parseInt(year, 10);
     
     if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2100) {
-      return new Date(`${year}-${month}-${day}`);
+      const isoFormat = `${year}-${month}-${day}`;
+      const date = new Date(isoFormat);
+      console.log(`[DATE-PARSE] ✓ Matched MMDDYYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
+      return date;
+    } else {
+      console.log(`[DATE-PARSE] ✗ MMDDYYYY format invalid range: month=${monthNum}, day=${dayNum}, year=${yearNum}`);
     }
   }
   
   // MM/DD/YYYY format
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
     const [month, day, year] = trimmed.split('/');
-    return new Date(`${year}-${month}-${day}`);
+    const isoFormat = `${year}-${month}-${day}`;
+    const date = new Date(isoFormat);
+    console.log(`[DATE-PARSE] ✓ Matched MM/DD/YYYY (strict): "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
+    return date;
   }
   
+  console.log(`[DATE-PARSE] ✗ No format matched for: "${trimmed}"`);
   return null;
 }
 
@@ -260,21 +279,21 @@ function parseTabDelimitedLine(
       .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
     
-    // DETAILED LOGGING FOR LOCATION FIELDS DURING EXTRACTION
-    const isLocationField = field.fieldName.toLowerCase().includes('address') || 
-                           field.fieldName.toLowerCase().includes('city') || 
-                           field.fieldName.toLowerCase().includes('state') || 
-                           field.fieldName.toLowerCase().includes('zip');
+    // COMPREHENSIVE TAB POSITION EXTRACTION LOGGING FOR KEY FIELDS
+    const isKeyField = colIndex <= 15 || // Log first 15 fields 
+                      field.fieldName.toLowerCase().includes('address') || 
+                      field.fieldName.toLowerCase().includes('city') || 
+                      field.fieldName.toLowerCase().includes('state') || 
+                      field.fieldName.toLowerCase().includes('zip') ||
+                      field.fieldName.toLowerCase().includes('dba') ||
+                      field.fieldName.toLowerCase().includes('account');
     
-    if (isLocationField) {
-      console.log(`[TAB-LOCATION-EXTRACT] Field: "${field.fieldName}"`);
-      console.log(`[TAB-LOCATION-EXTRACT]   - Tab Position: ${field.tabPosition} (column index ${colIndex})`);
-      console.log(`[TAB-LOCATION-EXTRACT]   - Raw Value from file: "${rawValue}"`);
-      console.log(`[TAB-LOCATION-EXTRACT]   - Field Key (parsed object): "${fieldKey}"`);
-      console.log(`[TAB-LOCATION-EXTRACT]   - Converted Value: "${result.value}"`);
-      console.log(`[TAB-LOCATION-EXTRACT]   - Format: ${field.format}`);
+    if (isKeyField) {
+      console.log(`[TAB-EXTRACT] Position ${colIndex}: "${field.fieldName}"`);
+      console.log(`[TAB-EXTRACT]   Raw: "${rawValue}"`);
+      console.log(`[TAB-EXTRACT]   Key: "${fieldKey}"  Value: "${result.value}"  Format: ${field.format}`);
       if (result.error) {
-        console.log(`[TAB-LOCATION-EXTRACT]   - ERROR: ${result.error}`);
+        console.log(`[TAB-EXTRACT]   ERROR: ${result.error}`);
       }
     }
     
@@ -282,10 +301,6 @@ function parseTabDelimitedLine(
     
     if (result.error) {
       parsed._errors.push(result.error);
-    }
-    
-    if (rawValue && colIndex < 10) {
-      console.log(`[TAB-PARSER] Col ${colIndex} (${field.fieldName}): "${rawValue}" -> ${fieldKey} = ${result.value}`);
     }
   }
   
@@ -372,7 +387,7 @@ export async function parseMerchantDetailFile(
   errorLines: number;
   schemaFieldCount: number;
 }> {
-  console.log('[MCC-PARSER] Starting merchant detail file parsing...');
+  console.log('[MCC-PARSER] ========== FILE STRUCTURE VALIDATION ==========');
   console.log(`[MCC-PARSER] File format: ${fileFormat || 'auto-detect'}`);
   
   // Get schema fields once for all lines
@@ -380,6 +395,38 @@ export async function parseMerchantDetailFile(
   console.log(`[MCC-PARSER] Loaded ${schemaFields.length} schema fields for parsing`);
   
   const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+  console.log(`[MCC-PARSER] Total lines in file: ${lines.length}`);
+  
+  // Sample first and last lines for validation
+  if (lines.length > 0) {
+    const firstLine = lines[0];
+    const lastLine = lines[lines.length - 1];
+    
+    // Detect format from first line
+    const detectedFormat = detectFileFormat(firstLine);
+    console.log(`[MCC-PARSER] Detected format: ${detectedFormat}`);
+    
+    // Count tabs/columns
+    if (detectedFormat === 'tab-delimited') {
+      const tabCount = (firstLine.match(/\t/g) || []).length;
+      const columnCount = tabCount + 1;
+      console.log(`[MCC-PARSER] Tab count: ${tabCount}, Column count: ${columnCount}`);
+      console.log(`[MCC-PARSER] Expected max tab_position: ${Math.max(...schemaFields.map(f => parseInt(f.tabPosition || '0')))}`);
+      
+      if (columnCount < 137) {
+        console.warn(`[MCC-PARSER] WARNING: File has ${columnCount} columns but schema expects up to position 136`);
+      }
+    }
+    
+    // Log first line sample (truncated)
+    console.log(`[MCC-PARSER] First line (first 200 chars): ${firstLine.substring(0, 200)}...`);
+    
+    // Log last line sample (truncated) 
+    console.log(`[MCC-PARSER] Last line (first 200 chars): ${lastLine.substring(0, 200)}...`);
+  }
+  
+  console.log('[MCC-PARSER] ========== STARTING LINE-BY-LINE PARSING ==========');
+  
   const records: ParsedMerchantDetail[] = [];
   let successfulLines = 0;
   let errorLines = 0;
@@ -603,58 +650,189 @@ export async function processMerchantDetailFile(
     let imported = 0;
     let skipped = 0;
     
+    // Error categorization tracking
+    const errorCategories = {
+      parseErrors: [] as string[],
+      dateParsingErrors: [] as string[],
+      missingRequiredFields: [] as string[],
+      databaseErrors: [] as string[],
+      validationErrors: [] as string[]
+    };
+    
     for (const record of parseResult.records) {
       // Skip records with errors
       if (record._errors && record._errors.length > 0) {
         console.log(`[MERCHANT-IMPORT] Skipping record with errors:`, record._errors);
+        
+        // Categorize errors
+        for (const error of record._errors) {
+          if (error.toLowerCase().includes('date')) {
+            errorCategories.dateParsingErrors.push(error);
+          } else if (error.toLowerCase().includes('parse')) {
+            errorCategories.parseErrors.push(error);
+          } else {
+            errorCategories.validationErrors.push(error);
+          }
+        }
+        
         skipped++;
         continue;
       }
       
       try {
+        // Log parsed object BEFORE mapping
+        console.log('[FIELD-MAPPING] ========== BEFORE MAPPING ==========');
+        console.log('[FIELD-MAPPING] Parsed object keys:', Object.keys(record).filter(k => !k.startsWith('_')));
+        const locationFieldsBefore = {
+          dbaAddressCity: record.dbaAddressCity,
+          dbaAddressState: record.dbaAddressState,
+          dbaZip: record.dbaZip,
+          legalAddressCity: record.legalAddressCity,
+          legalAddressState: record.legalAddressState,
+          legalZip: record.legalZip,
+          city: record.city,
+          state: record.state,
+          zipCode: record.zipCode
+        };
+        console.log('[FIELD-MAPPING] Location fields before:', locationFieldsBefore);
+        
         // Map to merchant schema
         const merchantData = mapParsedToMerchantSchema(record, schemaFields);
         
+        // Log mapped object AFTER mapping
+        console.log('[FIELD-MAPPING] ========== AFTER MAPPING ==========');
+        console.log('[FIELD-MAPPING] Merchant data keys:', Object.keys(merchantData));
+        const locationFieldsAfter = {
+          dbaAddressCity: merchantData.dbaAddressCity,
+          dbaAddressState: merchantData.dbaAddressState,
+          dbaZip: merchantData.dbaZip,
+          legalAddressCity: merchantData.legalAddressCity,
+          legalAddressState: merchantData.legalAddressState,
+          legalZip: merchantData.legalZip,
+          city: merchantData.city,
+          state: merchantData.state,
+          zipCode: merchantData.zipCode,
+          address: merchantData.address
+        };
+        console.log('[FIELD-MAPPING] Location fields after:', locationFieldsAfter);
+        console.log('[FIELD-MAPPING] ========== END ==========');
+        
         // Validate required fields
         if (!merchantData.id || !merchantData.name) {
-          console.log(`[MERCHANT-IMPORT] Skipping record - missing required fields (id: ${merchantData.id}, name: ${merchantData.name})`);
+          const missingFields = [];
+          if (!merchantData.id) missingFields.push('id');
+          if (!merchantData.name) missingFields.push('name');
+          const errorMsg = `Missing required fields: ${missingFields.join(', ')}`;
+          console.log(`[MERCHANT-IMPORT] Skipping record - ${errorMsg}`);
+          errorCategories.missingRequiredFields.push(errorMsg);
           skipped++;
           continue;
         }
         
-        console.log('[DB-INSERT-LOCATION] ========== INSERTING MERCHANT WITH LOCATION DATA ==========');
-        console.log(`[DB-INSERT-LOCATION] Merchant ID: ${merchantData.id}`);
-        console.log(`[DB-INSERT-LOCATION] Merchant Name: ${merchantData.name}`);
-        console.log(`[DB-INSERT-LOCATION] address: "${merchantData.address || 'NULL'}"`);
-        console.log(`[DB-INSERT-LOCATION] city: "${merchantData.city || 'NULL'}"`);
-        console.log(`[DB-INSERT-LOCATION] state: "${merchantData.state || 'NULL'}"`);
-        console.log(`[DB-INSERT-LOCATION] zipCode: "${merchantData.zipCode || 'NULL'}"`);
-        console.log(`[DB-INSERT-LOCATION] dbaAddressCity: "${merchantData.dbaAddressCity || 'NULL'}"`);
-        console.log(`[DB-INSERT-LOCATION] dbaAddressState: "${merchantData.dbaAddressState || 'NULL'}"`);
-        console.log(`[DB-INSERT-LOCATION] dbaZip: "${merchantData.dbaZip || 'NULL'}"`);
-        console.log('[DB-INSERT-LOCATION] Full merchant data object keys:', Object.keys(merchantData));
-        console.log('[DB-INSERT-LOCATION] ========== END ==========');
+        console.log('[DB-OPERATION] ========== DATABASE INSERT/UPDATE ==========');
+        console.log(`[DB-OPERATION] Operation: INSERT with onConflictDoUpdate`);
+        console.log(`[DB-OPERATION] Target: merchants table`);
+        console.log(`[DB-OPERATION] Conflict key: id = "${merchantData.id}"`);
+        console.log(`[DB-OPERATION] Merchant ID: ${merchantData.id}`);
+        console.log(`[DB-OPERATION] Merchant Name: ${merchantData.name}`);
+        console.log(`[DB-OPERATION] Location fields being inserted:`);
+        console.log(`[DB-OPERATION]   - address: "${merchantData.address || 'NULL'}"`);
+        console.log(`[DB-OPERATION]   - city: "${merchantData.city || 'NULL'}"`);
+        console.log(`[DB-OPERATION]   - state: "${merchantData.state || 'NULL'}"`);
+        console.log(`[DB-OPERATION]   - zipCode: "${merchantData.zipCode || 'NULL'}"`);
+        console.log(`[DB-OPERATION] DBA fields being inserted:`);
+        console.log(`[DB-OPERATION]   - dbaAddressCity: "${merchantData.dbaAddressCity || 'NULL'}"`);
+        console.log(`[DB-OPERATION]   - dbaAddressState: "${merchantData.dbaAddressState || 'NULL'}"`);
+        console.log(`[DB-OPERATION]   - dbaZip: "${merchantData.dbaZip || 'NULL'}"`);
+        console.log(`[DB-OPERATION] Total fields: ${Object.keys(merchantData).length}`);
+        console.log(`[DB-OPERATION] Field keys:`, Object.keys(merchantData).join(', '));
         
         // Insert or update merchant
-        await db.insert(merchants)
-          .values(merchantData)
-          .onConflictDoUpdate({
-            target: merchants.id,
-            set: merchantData
-          });
-        
-        console.log(`[DB-INSERT-LOCATION] ✅ Successfully inserted/updated merchant ${merchantData.id}`);
-        
-        imported++;
+        try {
+          const result = await db.insert(merchants)
+            .values(merchantData)
+            .onConflictDoUpdate({
+              target: merchants.id,
+              set: merchantData
+            });
+          
+          console.log(`[DB-OPERATION] ✅ SUCCESS - Merchant ${merchantData.id} inserted/updated`);
+          console.log(`[DB-OPERATION] Result:`, result);
+          console.log('[DB-OPERATION] ========== END ==========');
+          
+          imported++;
+        } catch (dbError) {
+          console.error(`[DB-OPERATION] ❌ FAILED - Database error for merchant ${merchantData.id}`);
+          console.error(`[DB-OPERATION] Error type: ${dbError instanceof Error ? dbError.constructor.name : typeof dbError}`);
+          console.error(`[DB-OPERATION] Error message:`, dbError instanceof Error ? dbError.message : dbError);
+          console.error(`[DB-OPERATION] Stack trace:`, dbError instanceof Error ? dbError.stack : 'N/A');
+          console.error(`[DB-OPERATION] Failed merchant data:`, JSON.stringify(merchantData, null, 2));
+          console.log('[DB-OPERATION] ========== END ==========');
+          
+          // Track database error
+          const dbErrorMsg = `DB Error for merchant ${merchantData.id}: ${dbError instanceof Error ? dbError.message : String(dbError)}`;
+          errorCategories.databaseErrors.push(dbErrorMsg);
+          
+          throw dbError; // Re-throw to be caught by outer try-catch
+        }
       } catch (error) {
         console.error(`[MERCHANT-IMPORT] Error importing merchant:`, error);
+        
+        // Categorize general import errors
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (!errorCategories.databaseErrors.some(e => e.includes(errorMsg))) {
+          errorCategories.validationErrors.push(errorMsg);
+        }
+        
         skipped++;
       }
     }
     
     const processingTimeMs = Date.now() - startTime;
     
-    console.log(`[MERCHANT-IMPORT] ✅ Processing complete: ${imported} imported, ${skipped} skipped in ${processingTimeMs}ms`);
+    // COMPREHENSIVE IMPORT SUMMARY STATISTICS
+    console.log('[IMPORT-SUMMARY] ========================================');
+    console.log('[IMPORT-SUMMARY] MERCHANT IMPORT COMPLETE');
+    console.log('[IMPORT-SUMMARY] ========================================');
+    console.log(`[IMPORT-SUMMARY] Processing Time: ${processingTimeMs}ms (${(processingTimeMs / 1000).toFixed(2)}s)`);
+    console.log(`[IMPORT-SUMMARY] Total Records: ${parseResult.records.length}`);
+    console.log(`[IMPORT-SUMMARY] Successfully Imported: ${imported}`);
+    console.log(`[IMPORT-SUMMARY] Skipped: ${skipped}`);
+    console.log(`[IMPORT-SUMMARY] Success Rate: ${((imported / parseResult.records.length) * 100).toFixed(1)}%`);
+    
+    // ERROR CATEGORIZATION REPORT
+    console.log('[IMPORT-SUMMARY] ========================================');
+    console.log('[IMPORT-SUMMARY] ERROR BREAKDOWN BY CATEGORY');
+    console.log('[IMPORT-SUMMARY] ========================================');
+    
+    console.log(`[IMPORT-SUMMARY] Parse Errors: ${errorCategories.parseErrors.length}`);
+    if (errorCategories.parseErrors.length > 0) {
+      console.log('[IMPORT-SUMMARY] Sample parse errors:', errorCategories.parseErrors.slice(0, 3));
+    }
+    
+    console.log(`[IMPORT-SUMMARY] Date Parsing Errors: ${errorCategories.dateParsingErrors.length}`);
+    if (errorCategories.dateParsingErrors.length > 0) {
+      console.log('[IMPORT-SUMMARY] Sample date errors:', errorCategories.dateParsingErrors.slice(0, 3));
+    }
+    
+    console.log(`[IMPORT-SUMMARY] Missing Required Fields: ${errorCategories.missingRequiredFields.length}`);
+    if (errorCategories.missingRequiredFields.length > 0) {
+      console.log('[IMPORT-SUMMARY] Sample missing field errors:', errorCategories.missingRequiredFields.slice(0, 3));
+    }
+    
+    console.log(`[IMPORT-SUMMARY] Database Errors: ${errorCategories.databaseErrors.length}`);
+    if (errorCategories.databaseErrors.length > 0) {
+      console.log('[IMPORT-SUMMARY] Sample database errors:', errorCategories.databaseErrors.slice(0, 3));
+    }
+    
+    console.log(`[IMPORT-SUMMARY] Validation Errors: ${errorCategories.validationErrors.length}`);
+    if (errorCategories.validationErrors.length > 0) {
+      console.log('[IMPORT-SUMMARY] Sample validation errors:', errorCategories.validationErrors.slice(0, 3));
+    }
+    
+    console.log('[IMPORT-SUMMARY] ========================================');
+    console.log('[IMPORT-SUMMARY] END OF SUMMARY');
+    console.log('[IMPORT-SUMMARY] ========================================');
     
     return {
       success: true,
