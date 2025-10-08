@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { processMerchantDetailFile } from '../server/merchant-detail-parser.js';
+import { getEnvironment } from '../server/env-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,8 +15,26 @@ const LOCAL_FILE = 'test-VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO';
 const FILE_PATH = join(__dirname, LOCAL_FILE);
 
 async function importTSYSOFile() {
+  // Verify we're in development mode
+  const { NODE_ENV, isDev } = getEnvironment();
+  
+  if (!isDev) {
+    console.error('========================================');
+    console.error('❌ ENVIRONMENT ERROR');
+    console.error('========================================');
+    console.error(`Current environment: ${NODE_ENV}`);
+    console.error('This script MUST run in development mode!');
+    console.error('');
+    console.error('Use one of these commands:');
+    console.error('  ./test/import-tsyso-dev.sh');
+    console.error('  cd test && export NODE_ENV=development && npx tsx import-tsyso-direct.js');
+    console.error('========================================');
+    process.exit(1);
+  }
+  
   console.log('========================================');
   console.log('TSYSO Direct Import to Merchant Database');
+  console.log(`Environment: ${NODE_ENV} (dev_ tables)`);
   console.log('========================================');
   console.log(`File: ${LOCAL_FILE}`);
   console.log(`Path: ${FILE_PATH}`);
