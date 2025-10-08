@@ -67,14 +67,25 @@ function parsePosition(position: string): { start: number; end: number } | null 
 /**
  * Parse date string from various formats
  */
+let dateParseLogCount = 0;
+const MAX_DATE_PARSE_LOGS = 5;
+
 function parseDate(value: string): Date | null {
   const trimmed = value.trim();
   
-  console.log(`[DATE-PARSE] Attempting to parse: "${trimmed}"`);
+  // Log only if under limit and increment ONLY when actually logging
+  const logIfAllowed = (msg: string) => {
+    if (dateParseLogCount < MAX_DATE_PARSE_LOGS) {
+      console.log(msg);
+      dateParseLogCount++;
+    }
+  };
+  
+  logIfAllowed(`[DATE-PARSE] Attempting to parse: "${trimmed}"`);
   
   // Empty values
   if (!trimmed || trimmed === '0' || trimmed === '00000000') {
-    console.log(`[DATE-PARSE] ✓ Empty/zero value, returning null`);
+    logIfAllowed(`[DATE-PARSE] ✓ Empty/zero value, returning null`);
     return null;
   }
   
@@ -86,7 +97,7 @@ function parseDate(value: string): Date | null {
     const year = parts[2];
     const isoFormat = `${year}-${month}-${day}`;
     const date = new Date(isoFormat);
-    console.log(`[DATE-PARSE] ✓ Matched MM/DD/YYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
+    logIfAllowed(`[DATE-PARSE] ✓ Matched MM/DD/YYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
     return date;
   }
   
@@ -94,14 +105,14 @@ function parseDate(value: string): Date | null {
   if (/^\d{4}\/\d{2}\/\d{2}$/.test(trimmed)) {
     const dateStr = trimmed.replace(/\//g, '-');
     const date = new Date(dateStr);
-    console.log(`[DATE-PARSE] ✓ Matched YYYY/MM/DD: "${trimmed}" -> "${dateStr}" -> Date: ${date.toISOString()}`);
+    logIfAllowed(`[DATE-PARSE] ✓ Matched YYYY/MM/DD: "${trimmed}" -> "${dateStr}" -> Date: ${date.toISOString()}`);
     return date;
   }
   
   // YYYY-MM-DD format (already correct)
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     const date = new Date(trimmed);
-    console.log(`[DATE-PARSE] ✓ Matched YYYY-MM-DD: "${trimmed}" -> Date: ${date.toISOString()}`);
+    logIfAllowed(`[DATE-PARSE] ✓ Matched YYYY-MM-DD: "${trimmed}" -> Date: ${date.toISOString()}`);
     return date;
   }
   
@@ -119,10 +130,10 @@ function parseDate(value: string): Date | null {
     if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2100) {
       const isoFormat = `${year}-${month}-${day}`;
       const date = new Date(isoFormat);
-      console.log(`[DATE-PARSE] ✓ Matched MMDDYYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
+      logIfAllowed(`[DATE-PARSE] ✓ Matched MMDDYYYY: "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
       return date;
     } else {
-      console.log(`[DATE-PARSE] ✗ MMDDYYYY format invalid range: month=${monthNum}, day=${dayNum}, year=${yearNum}`);
+      logIfAllowed(`[DATE-PARSE] ✗ MMDDYYYY format invalid range: month=${monthNum}, day=${dayNum}, year=${yearNum}`);
     }
   }
   
@@ -131,11 +142,11 @@ function parseDate(value: string): Date | null {
     const [month, day, year] = trimmed.split('/');
     const isoFormat = `${year}-${month}-${day}`;
     const date = new Date(isoFormat);
-    console.log(`[DATE-PARSE] ✓ Matched MM/DD/YYYY (strict): "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
+    logIfAllowed(`[DATE-PARSE] ✓ Matched MM/DD/YYYY (strict): "${trimmed}" -> ISO: "${isoFormat}" -> Date: ${date.toISOString()}`);
     return date;
   }
   
-  console.log(`[DATE-PARSE] ✗ No format matched for: "${trimmed}"`);
+  logIfAllowed(`[DATE-PARSE] ✗ No format matched for: "${trimmed}"`);
   return null;
 }
 
@@ -193,7 +204,6 @@ function validateAndConvertField(
       case 'D': // Date format
         const parsedDate = parseDate(trimmed);
         if (parsedDate) {
-          console.log(`[DATE-DEBUG] Parsed ${trimmed} to Date: ${parsedDate instanceof Date}, value: ${parsedDate}`);
           return { value: parsedDate, error: null };
         }
         // If we can't parse but it's not empty, return warning
@@ -245,6 +255,11 @@ function detectFileFormat(line: string): 'tab-delimited' | 'fixed-width' {
  * Parse tab-delimited line using tab_position from schema
  * Splits ONLY by tabs (\t), uses tab_position as column index
  */
+let tabLineLogCount = 0;
+let tabExtractLogCount = 0;
+const MAX_TAB_LINE_LOGS = 2;
+const MAX_TAB_EXTRACT_LOGS = 20;
+
 function parseTabDelimitedLine(
   line: string,
   schemaFields: MccSchemaField[]
@@ -257,9 +272,13 @@ function parseTabDelimitedLine(
   // Split line by TABS ONLY - do not split by spaces
   const values = line.split('\t');
   
-  console.log(`[TAB-PARSER] Line has ${values.length} tab-delimited columns`);
-  console.log(`[TAB-PARSER] First 10 columns:`, values.slice(0, 10));
-  console.log('[TAB-PARSER] ========== EXTRACTING LOCATION FIELDS ==========');
+  // Log line info only if under limit
+  if (tabLineLogCount < MAX_TAB_LINE_LOGS) {
+    console.log(`[TAB-PARSER] Line ${tabLineLogCount + 1} has ${values.length} tab-delimited columns`);
+    console.log(`[TAB-PARSER] First 10 columns:`, values.slice(0, 10));
+    console.log('[TAB-PARSER] ========== EXTRACTING KEY FIELDS ==========');
+    tabLineLogCount++;
+  }
   
   // Process each schema field using tab_position as column index
   for (const field of schemaFields) {
@@ -279,7 +298,7 @@ function parseTabDelimitedLine(
       .map((word, idx) => idx === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
     
-    // COMPREHENSIVE TAB POSITION EXTRACTION LOGGING FOR KEY FIELDS
+    // COMPREHENSIVE TAB POSITION EXTRACTION LOGGING FOR KEY FIELDS (throttled per extraction)
     const isKeyField = colIndex <= 15 || // Log first 15 fields 
                       field.fieldName.toLowerCase().includes('address') || 
                       field.fieldName.toLowerCase().includes('city') || 
@@ -288,13 +307,14 @@ function parseTabDelimitedLine(
                       field.fieldName.toLowerCase().includes('dba') ||
                       field.fieldName.toLowerCase().includes('account');
     
-    if (isKeyField) {
+    if (isKeyField && tabExtractLogCount < MAX_TAB_EXTRACT_LOGS) {
       console.log(`[TAB-EXTRACT] Position ${colIndex}: "${field.fieldName}"`);
       console.log(`[TAB-EXTRACT]   Raw: "${rawValue}"`);
       console.log(`[TAB-EXTRACT]   Key: "${fieldKey}"  Value: "${result.value}"  Format: ${field.format}`);
       if (result.error) {
         console.log(`[TAB-EXTRACT]   ERROR: ${result.error}`);
       }
+      tabExtractLogCount++;
     }
     
     parsed[fieldKey] = result.value;
@@ -650,28 +670,56 @@ export async function processMerchantDetailFile(
     let imported = 0;
     let skipped = 0;
     
-    // Error categorization tracking
+    // Error categorization tracking with sample records
+    interface ErrorSample {
+      merchantId?: string;
+      error: string;
+      rawLineSnippet?: string;
+    }
+    
     const errorCategories = {
-      parseErrors: [] as string[],
-      dateParsingErrors: [] as string[],
-      missingRequiredFields: [] as string[],
-      databaseErrors: [] as string[],
-      validationErrors: [] as string[]
+      parseErrors: [] as ErrorSample[],
+      dateParsingErrors: [] as ErrorSample[],
+      missingRequiredFields: [] as ErrorSample[],
+      databaseErrors: [] as ErrorSample[],
+      validationErrors: [] as ErrorSample[]
     };
     
+    // Throttle verbose logging to first N records
+    const DEBUG_FIRST_N_RECORDS = 3;
+    let processedCount = 0;
+    
     for (const record of parseResult.records) {
+      processedCount++;
+      const isDebugRecord = processedCount <= DEBUG_FIRST_N_RECORDS;
+      
       // Skip records with errors
       if (record._errors && record._errors.length > 0) {
         console.log(`[MERCHANT-IMPORT] Skipping record with errors:`, record._errors);
         
-        // Categorize errors
+        const merchantId = record.id || record.accountNumber || 'UNKNOWN';
+        const rawSnippet = record._raw?.substring(0, 100) + '...';
+        
+        // Categorize errors with sample context
         for (const error of record._errors) {
+          const sample: ErrorSample = {
+            merchantId: String(merchantId),
+            error,
+            rawLineSnippet: rawSnippet
+          };
+          
           if (error.toLowerCase().includes('date')) {
-            errorCategories.dateParsingErrors.push(error);
+            if (errorCategories.dateParsingErrors.length < 5) {
+              errorCategories.dateParsingErrors.push(sample);
+            }
           } else if (error.toLowerCase().includes('parse')) {
-            errorCategories.parseErrors.push(error);
+            if (errorCategories.parseErrors.length < 5) {
+              errorCategories.parseErrors.push(sample);
+            }
           } else {
-            errorCategories.validationErrors.push(error);
+            if (errorCategories.validationErrors.length < 5) {
+              errorCategories.validationErrors.push(sample);
+            }
           }
         }
         
@@ -680,42 +728,46 @@ export async function processMerchantDetailFile(
       }
       
       try {
-        // Log parsed object BEFORE mapping
-        console.log('[FIELD-MAPPING] ========== BEFORE MAPPING ==========');
-        console.log('[FIELD-MAPPING] Parsed object keys:', Object.keys(record).filter(k => !k.startsWith('_')));
-        const locationFieldsBefore = {
-          dbaAddressCity: record.dbaAddressCity,
-          dbaAddressState: record.dbaAddressState,
-          dbaZip: record.dbaZip,
-          legalAddressCity: record.legalAddressCity,
-          legalAddressState: record.legalAddressState,
-          legalZip: record.legalZip,
-          city: record.city,
-          state: record.state,
-          zipCode: record.zipCode
-        };
-        console.log('[FIELD-MAPPING] Location fields before:', locationFieldsBefore);
+        // Log parsed object BEFORE mapping (only for first N records)
+        if (isDebugRecord) {
+          console.log(`[FIELD-MAPPING] ========== RECORD ${processedCount} BEFORE MAPPING ==========`);
+          console.log('[FIELD-MAPPING] Parsed object keys:', Object.keys(record).filter(k => !k.startsWith('_')));
+          const locationFieldsBefore = {
+            dbaAddressCity: record.dbaAddressCity,
+            dbaAddressState: record.dbaAddressState,
+            dbaZip: record.dbaZip,
+            legalAddressCity: record.legalAddressCity,
+            legalAddressState: record.legalAddressState,
+            legalZip: record.legalZip,
+            city: record.city,
+            state: record.state,
+            zipCode: record.zipCode
+          };
+          console.log('[FIELD-MAPPING] Location fields before:', locationFieldsBefore);
+        }
         
         // Map to merchant schema
         const merchantData = mapParsedToMerchantSchema(record, schemaFields);
         
-        // Log mapped object AFTER mapping
-        console.log('[FIELD-MAPPING] ========== AFTER MAPPING ==========');
-        console.log('[FIELD-MAPPING] Merchant data keys:', Object.keys(merchantData));
-        const locationFieldsAfter = {
-          dbaAddressCity: merchantData.dbaAddressCity,
-          dbaAddressState: merchantData.dbaAddressState,
-          dbaZip: merchantData.dbaZip,
-          legalAddressCity: merchantData.legalAddressCity,
-          legalAddressState: merchantData.legalAddressState,
-          legalZip: merchantData.legalZip,
-          city: merchantData.city,
-          state: merchantData.state,
-          zipCode: merchantData.zipCode,
-          address: merchantData.address
-        };
-        console.log('[FIELD-MAPPING] Location fields after:', locationFieldsAfter);
-        console.log('[FIELD-MAPPING] ========== END ==========');
+        // Log mapped object AFTER mapping (only for first N records)
+        if (isDebugRecord) {
+          console.log(`[FIELD-MAPPING] ========== RECORD ${processedCount} AFTER MAPPING ==========`);
+          console.log('[FIELD-MAPPING] Merchant data keys:', Object.keys(merchantData));
+          const locationFieldsAfter = {
+            dbaAddressCity: merchantData.dbaAddressCity,
+            dbaAddressState: merchantData.dbaAddressState,
+            dbaZip: merchantData.dbaZip,
+            legalAddressCity: merchantData.legalAddressCity,
+            legalAddressState: merchantData.legalAddressState,
+            legalZip: merchantData.legalZip,
+            city: merchantData.city,
+            state: merchantData.state,
+            zipCode: merchantData.zipCode,
+            address: merchantData.address
+          };
+          console.log('[FIELD-MAPPING] Location fields after:', locationFieldsAfter);
+          console.log('[FIELD-MAPPING] ========== END ==========');
+        }
         
         // Validate required fields
         if (!merchantData.id || !merchantData.name) {
@@ -724,28 +776,40 @@ export async function processMerchantDetailFile(
           if (!merchantData.name) missingFields.push('name');
           const errorMsg = `Missing required fields: ${missingFields.join(', ')}`;
           console.log(`[MERCHANT-IMPORT] Skipping record - ${errorMsg}`);
-          errorCategories.missingRequiredFields.push(errorMsg);
+          
+          // Add sample with context
+          if (errorCategories.missingRequiredFields.length < 5) {
+            errorCategories.missingRequiredFields.push({
+              merchantId: String(merchantData.id || 'NO_ID'),
+              error: errorMsg,
+              rawLineSnippet: record._raw?.substring(0, 100) + '...'
+            });
+          }
+          
           skipped++;
           continue;
         }
         
-        console.log('[DB-OPERATION] ========== DATABASE INSERT/UPDATE ==========');
-        console.log(`[DB-OPERATION] Operation: INSERT with onConflictDoUpdate`);
-        console.log(`[DB-OPERATION] Target: merchants table`);
-        console.log(`[DB-OPERATION] Conflict key: id = "${merchantData.id}"`);
-        console.log(`[DB-OPERATION] Merchant ID: ${merchantData.id}`);
-        console.log(`[DB-OPERATION] Merchant Name: ${merchantData.name}`);
-        console.log(`[DB-OPERATION] Location fields being inserted:`);
-        console.log(`[DB-OPERATION]   - address: "${merchantData.address || 'NULL'}"`);
-        console.log(`[DB-OPERATION]   - city: "${merchantData.city || 'NULL'}"`);
-        console.log(`[DB-OPERATION]   - state: "${merchantData.state || 'NULL'}"`);
-        console.log(`[DB-OPERATION]   - zipCode: "${merchantData.zipCode || 'NULL'}"`);
-        console.log(`[DB-OPERATION] DBA fields being inserted:`);
-        console.log(`[DB-OPERATION]   - dbaAddressCity: "${merchantData.dbaAddressCity || 'NULL'}"`);
-        console.log(`[DB-OPERATION]   - dbaAddressState: "${merchantData.dbaAddressState || 'NULL'}"`);
-        console.log(`[DB-OPERATION]   - dbaZip: "${merchantData.dbaZip || 'NULL'}"`);
-        console.log(`[DB-OPERATION] Total fields: ${Object.keys(merchantData).length}`);
-        console.log(`[DB-OPERATION] Field keys:`, Object.keys(merchantData).join(', '));
+        // Log database operation (only for first N records)
+        if (isDebugRecord) {
+          console.log(`[DB-OPERATION] ========== RECORD ${processedCount} DATABASE INSERT/UPDATE ==========`);
+          console.log(`[DB-OPERATION] Operation: INSERT with onConflictDoUpdate`);
+          console.log(`[DB-OPERATION] Target: merchants table`);
+          console.log(`[DB-OPERATION] Conflict key: id = "${merchantData.id}"`);
+          console.log(`[DB-OPERATION] Merchant ID: ${merchantData.id}`);
+          console.log(`[DB-OPERATION] Merchant Name: ${merchantData.name}`);
+          console.log(`[DB-OPERATION] Location fields being inserted:`);
+          console.log(`[DB-OPERATION]   - address: "${merchantData.address || 'NULL'}"`);
+          console.log(`[DB-OPERATION]   - city: "${merchantData.city || 'NULL'}"`);
+          console.log(`[DB-OPERATION]   - state: "${merchantData.state || 'NULL'}"`);
+          console.log(`[DB-OPERATION]   - zipCode: "${merchantData.zipCode || 'NULL'}"`);
+          console.log(`[DB-OPERATION] DBA fields being inserted:`);
+          console.log(`[DB-OPERATION]   - dbaAddressCity: "${merchantData.dbaAddressCity || 'NULL'}"`);
+          console.log(`[DB-OPERATION]   - dbaAddressState: "${merchantData.dbaAddressState || 'NULL'}"`);
+          console.log(`[DB-OPERATION]   - dbaZip: "${merchantData.dbaZip || 'NULL'}"`);
+          console.log(`[DB-OPERATION] Total fields: ${Object.keys(merchantData).length}`);
+          console.log(`[DB-OPERATION] Field keys:`, Object.keys(merchantData).join(', '));
+        }
         
         // Insert or update merchant
         try {
@@ -756,32 +820,49 @@ export async function processMerchantDetailFile(
               set: merchantData
             });
           
-          console.log(`[DB-OPERATION] ✅ SUCCESS - Merchant ${merchantData.id} inserted/updated`);
-          console.log(`[DB-OPERATION] Result:`, result);
-          console.log('[DB-OPERATION] ========== END ==========');
+          if (isDebugRecord) {
+            console.log(`[DB-OPERATION] ✅ SUCCESS - Merchant ${merchantData.id} inserted/updated`);
+            console.log(`[DB-OPERATION] Result:`, result);
+            console.log('[DB-OPERATION] ========== END ==========');
+          }
           
           imported++;
         } catch (dbError) {
           console.error(`[DB-OPERATION] ❌ FAILED - Database error for merchant ${merchantData.id}`);
           console.error(`[DB-OPERATION] Error type: ${dbError instanceof Error ? dbError.constructor.name : typeof dbError}`);
           console.error(`[DB-OPERATION] Error message:`, dbError instanceof Error ? dbError.message : dbError);
-          console.error(`[DB-OPERATION] Stack trace:`, dbError instanceof Error ? dbError.stack : 'N/A');
-          console.error(`[DB-OPERATION] Failed merchant data:`, JSON.stringify(merchantData, null, 2));
+          if (isDebugRecord) {
+            console.error(`[DB-OPERATION] Stack trace:`, dbError instanceof Error ? dbError.stack : 'N/A');
+            console.error(`[DB-OPERATION] Failed merchant data:`, JSON.stringify(merchantData, null, 2));
+          }
           console.log('[DB-OPERATION] ========== END ==========');
           
-          // Track database error
-          const dbErrorMsg = `DB Error for merchant ${merchantData.id}: ${dbError instanceof Error ? dbError.message : String(dbError)}`;
-          errorCategories.databaseErrors.push(dbErrorMsg);
+          // Track database error with context
+          if (errorCategories.databaseErrors.length < 5) {
+            errorCategories.databaseErrors.push({
+              merchantId: String(merchantData.id),
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+              rawLineSnippet: record._raw?.substring(0, 100) + '...'
+            });
+          }
           
           throw dbError; // Re-throw to be caught by outer try-catch
         }
       } catch (error) {
         console.error(`[MERCHANT-IMPORT] Error importing merchant:`, error);
         
-        // Categorize general import errors
+        // Categorize general import errors with context
         const errorMsg = error instanceof Error ? error.message : String(error);
-        if (!errorCategories.databaseErrors.some(e => e.includes(errorMsg))) {
-          errorCategories.validationErrors.push(errorMsg);
+        const merchantId = record.id || record.accountNumber || 'UNKNOWN';
+        
+        if (!errorCategories.databaseErrors.some(e => e.merchantId === String(merchantId))) {
+          if (errorCategories.validationErrors.length < 5) {
+            errorCategories.validationErrors.push({
+              merchantId: String(merchantId),
+              error: errorMsg,
+              rawLineSnippet: record._raw?.substring(0, 100) + '...'
+            });
+          }
         }
         
         skipped++;
@@ -807,27 +888,52 @@ export async function processMerchantDetailFile(
     
     console.log(`[IMPORT-SUMMARY] Parse Errors: ${errorCategories.parseErrors.length}`);
     if (errorCategories.parseErrors.length > 0) {
-      console.log('[IMPORT-SUMMARY] Sample parse errors:', errorCategories.parseErrors.slice(0, 3));
+      console.log('[IMPORT-SUMMARY] Sample parse errors:');
+      errorCategories.parseErrors.slice(0, 3).forEach((sample, i) => {
+        console.log(`[IMPORT-SUMMARY]   ${i + 1}. Merchant: ${sample.merchantId}`);
+        console.log(`[IMPORT-SUMMARY]      Error: ${sample.error}`);
+        console.log(`[IMPORT-SUMMARY]      Line: ${sample.rawLineSnippet}`);
+      });
     }
     
     console.log(`[IMPORT-SUMMARY] Date Parsing Errors: ${errorCategories.dateParsingErrors.length}`);
     if (errorCategories.dateParsingErrors.length > 0) {
-      console.log('[IMPORT-SUMMARY] Sample date errors:', errorCategories.dateParsingErrors.slice(0, 3));
+      console.log('[IMPORT-SUMMARY] Sample date errors:');
+      errorCategories.dateParsingErrors.slice(0, 3).forEach((sample, i) => {
+        console.log(`[IMPORT-SUMMARY]   ${i + 1}. Merchant: ${sample.merchantId}`);
+        console.log(`[IMPORT-SUMMARY]      Error: ${sample.error}`);
+        console.log(`[IMPORT-SUMMARY]      Line: ${sample.rawLineSnippet}`);
+      });
     }
     
     console.log(`[IMPORT-SUMMARY] Missing Required Fields: ${errorCategories.missingRequiredFields.length}`);
     if (errorCategories.missingRequiredFields.length > 0) {
-      console.log('[IMPORT-SUMMARY] Sample missing field errors:', errorCategories.missingRequiredFields.slice(0, 3));
+      console.log('[IMPORT-SUMMARY] Sample missing field errors:');
+      errorCategories.missingRequiredFields.slice(0, 3).forEach((sample, i) => {
+        console.log(`[IMPORT-SUMMARY]   ${i + 1}. Merchant: ${sample.merchantId}`);
+        console.log(`[IMPORT-SUMMARY]      Error: ${sample.error}`);
+        console.log(`[IMPORT-SUMMARY]      Line: ${sample.rawLineSnippet}`);
+      });
     }
     
     console.log(`[IMPORT-SUMMARY] Database Errors: ${errorCategories.databaseErrors.length}`);
     if (errorCategories.databaseErrors.length > 0) {
-      console.log('[IMPORT-SUMMARY] Sample database errors:', errorCategories.databaseErrors.slice(0, 3));
+      console.log('[IMPORT-SUMMARY] Sample database errors:');
+      errorCategories.databaseErrors.slice(0, 3).forEach((sample, i) => {
+        console.log(`[IMPORT-SUMMARY]   ${i + 1}. Merchant: ${sample.merchantId}`);
+        console.log(`[IMPORT-SUMMARY]      Error: ${sample.error}`);
+        console.log(`[IMPORT-SUMMARY]      Line: ${sample.rawLineSnippet}`);
+      });
     }
     
     console.log(`[IMPORT-SUMMARY] Validation Errors: ${errorCategories.validationErrors.length}`);
     if (errorCategories.validationErrors.length > 0) {
-      console.log('[IMPORT-SUMMARY] Sample validation errors:', errorCategories.validationErrors.slice(0, 3));
+      console.log('[IMPORT-SUMMARY] Sample validation errors:');
+      errorCategories.validationErrors.slice(0, 3).forEach((sample, i) => {
+        console.log(`[IMPORT-SUMMARY]   ${i + 1}. Merchant: ${sample.merchantId}`);
+        console.log(`[IMPORT-SUMMARY]      Error: ${sample.error}`);
+        console.log(`[IMPORT-SUMMARY]      Line: ${sample.rawLineSnippet}`);
+      });
     }
     
     console.log('[IMPORT-SUMMARY] ========================================');
