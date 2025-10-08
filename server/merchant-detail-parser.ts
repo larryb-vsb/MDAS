@@ -165,6 +165,7 @@ function validateAndConvertField(
       case 'D': // Date format
         const parsedDate = parseDate(trimmed);
         if (parsedDate) {
+          console.log(`[DATE-DEBUG] Parsed ${trimmed} to Date: ${parsedDate instanceof Date}, value: ${parsedDate}`);
           return { value: parsedDate, error: null };
         }
         // If we can't parse but it's not empty, return warning
