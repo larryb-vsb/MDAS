@@ -327,7 +327,12 @@ const fieldNameMapping: Record<string, string> = {
   'Threshold': 'threshold',
   'Date of First Deposit': 'dateOfFirstDeposit',
   'Date of Last Deposit': 'dateOfLastDeposit',
-  'As of Date': 'asOfDate'
+  'As of Date': 'asOfDate',
+  'Last Statement Date': 'lastStatementDate',
+  'Open Date': 'openDate',
+  'Last Credit Check Date': 'lastCreditCheckDate',
+  'Fin Statement Due Date': 'finStatementDueDate',
+  'Close Date': 'closeDate'
 };
 
 // Helper function to get input type based on MCC schema format
