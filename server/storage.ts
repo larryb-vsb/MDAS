@@ -1614,6 +1614,11 @@ export class DatabaseStorage implements IStorage {
           bypassEx: merchant.bypass_ex || null,
           excessiveDepositAmount: merchant.excessive_deposit_amount ? parseFloat(merchant.excessive_deposit_amount.toString()) : null,
           threshold: merchant.threshold ? parseFloat(merchant.threshold.toString()) : null,
+          bankNumber: merchant.bank_number || null,
+          exposureAmount: merchant.exposure_amount || null,
+          merchantActivationDate: merchant.merchant_activation_date ? new Date(merchant.merchant_activation_date).toISOString() : null,
+          dateOfFirstDeposit: merchant.date_of_first_deposit ? new Date(merchant.date_of_first_deposit).toISOString() : null,
+          dateOfLastDeposit: merchant.date_of_last_deposit ? new Date(merchant.date_of_last_deposit).toISOString() : null,
           stats: {
             daily: stats.daily,
             monthly: stats.monthly
