@@ -14900,6 +14900,10 @@ export class DatabaseStorage implements IStorage {
         sessionId: 'session_id',
         failedAt: 'failed_at',
         completedAt: 'completed_at',
+        // Legacy Step 6 columns (need to clear for merchant files)
+        fileType: 'file_type',
+        status: 'status',
+        processingStatus: 'processing_status',
         // Encoding phase fields
         encodingStartedAt: 'encoding_started_at',
         encodingCompletedAt: 'encoding_completed_at',

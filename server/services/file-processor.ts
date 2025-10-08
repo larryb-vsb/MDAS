@@ -483,7 +483,7 @@ class FileProcessorService {
           processing_server_id
         FROM ${sql.identifier(uploadsTableName)}
         WHERE current_phase IN ('uploaded', 'identified', 'encoded')
-          AND final_file_type IS NOT NULL
+          AND final_file_type = 'tddf'
         ORDER BY 
           CASE 
             WHEN file_type = 'tddf' THEN 1 
