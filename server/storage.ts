@@ -3899,32 +3899,11 @@ export class DatabaseStorage implements IStorage {
                   console.log(`Empty status field, setting to default: "Pending"`);
                 }
               }
-              // Special handling for MType with validation
+              // Special handling for MType - FORCE Type 3 for all CSV imports (ACH Merchants)
               else if (dbField === 'merchantType') {
-                const rawMTypeValue = row[csvField];
-                const normalizedMType = normalizeMerchantType(rawMTypeValue);
-                
-                if (normalizedMType) {
-                  merchantData[dbField as keyof InsertMerchant] = normalizedMType as any;
-                  console.log(`MType normalized: "${rawMTypeValue}" -> "${normalizedMType}" (${merchantTypeMapping[normalizedMType as keyof typeof merchantTypeMapping] || 'Custom'})`);
-                  
-                  // Track mType stats
-                  if (normalizedMType === '1') {
-                    stats.mtypeStats['1']++;
-                  } else if (normalizedMType === '2') {
-                    stats.mtypeStats['2']++;
-                  } else if (normalizedMType === '3') {
-                    stats.mtypeStats['3']++;
-                  } else if (merchantTypeMapping[normalizedMType as keyof typeof merchantTypeMapping]) {
-                    stats.mtypeStats.custom++;
-                  } else {
-                    stats.mtypeStats.custom++;
-                    console.log(`Custom MType found: ${normalizedMType}`);
-                  }
-                } else {
-                  stats.mtypeStats.none++;
-                  console.log(`Invalid MType value: "${rawMTypeValue}", skipping`);
-                }
+                merchantData[dbField as keyof InsertMerchant] = '3' as any;
+                stats.mtypeStats['3']++;
+                console.log(`CSV Import: Forcing merchantType = "3" (ACH Merchant) - CSV value ignored`);
               }
               else {
                 merchantData[dbField as keyof InsertMerchant] = row[csvField] as any;
