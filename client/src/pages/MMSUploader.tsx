@@ -1694,11 +1694,40 @@ export default function MMSUploader() {
                   </div>
                   
                   {!auto45Enabled && (
-                    <div className="text-xs text-gray-700 bg-gray-100 p-2 rounded border-l-4 border-gray-500">
-                      <strong>Manual Processing:</strong> Files will stop at "uploaded" phase and require manual triggering for identification and encoding steps.
-                      <br/>
-                      <span className="text-blue-600 font-medium">→ Go to Files tab and select uploaded files to see the green "Identify" button, then select identified files to see the blue "Encode" button.</span>
-                    </div>
+                    <>
+                      <div className="text-xs text-gray-700 bg-gray-100 p-2 rounded border-l-4 border-gray-500">
+                        <strong>Manual Processing:</strong> Files will stop at "uploaded" phase and require manual triggering for identification and encoding steps.
+                      </div>
+                      
+                      {/* Manual 4-5 Processing Button */}
+                      <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            // Navigate to Files tab
+                            setActiveTab('files');
+                            toast({
+                              title: 'Manual Processing',
+                              description: 'Go to Files tab - select uploaded files and click "Identify", then select identified files and click "Encode"'
+                            });
+                          }}
+                          className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
+                          data-testid="button-manual-45"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Manual 4-5 Processing
+                        </Button>
+                        <div className="flex-1 text-xs text-gray-600">
+                          <div className="font-medium">
+                            {uploads?.filter(u => u.currentPhase === 'uploaded').length || 0} files ready for identification
+                          </div>
+                          <div>
+                            {uploads?.filter(u => u.currentPhase === 'identified').length || 0} files ready for encoding
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
 
