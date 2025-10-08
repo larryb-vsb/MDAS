@@ -1934,16 +1934,15 @@ class MMSWatcher {
           const merchantResults = await processMerchantDetailFile(fileContent, upload.id, upload.fileFormat || upload.file_format);
           
           if (merchantResults.success) {
-            // Update to completed phase with merchant processing results
-            await this.storage.updateUploaderPhase(upload.id, 'completed', {
+            // Update to encoded phase with merchant processing results (merchant files stop at encoded, not completed)
+            await this.storage.updateUploaderPhase(upload.id, 'encoded', {
               processingCompletedAt: new Date(),
               processingStatus: 'completed',
               processingNotes: `Merchant detail processing completed: ${merchantResults.totalRecords} merchants imported in ${merchantResults.processingTimeMs}ms`,
               totalRecordsProcessed: merchantResults.totalRecords,
               merchantsImported: merchantResults.imported,
               merchantsSkipped: merchantResults.skipped,
-              merchantProcessingTimeMs: merchantResults.processingTimeMs,
-              completedAt: new Date()
+              merchantProcessingTimeMs: merchantResults.processingTimeMs
             });
 
             console.log(`[MMS-WATCHER] [MERCHANT-STEP6] ✅ Merchant detail processing completed for: ${upload.filename} -> ${merchantResults.imported} merchants imported in ${merchantResults.processingTimeMs}ms`);
