@@ -1,3 +1,5 @@
 #!/bin/bash
-# Force development mode for TSYSO import
-NODE_ENV=development npx tsx test/import-tsyso-direct.js
+# Import TSYSO file to development merchant database
+# Can be run multiple times - will update existing records
+cd "$(dirname "$0")"
+NODE_ENV=development npx tsx import-tsyso-direct.js
