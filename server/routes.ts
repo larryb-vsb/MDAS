@@ -9111,11 +9111,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get file content from storage
           const fileContent = await ReplitStorageService.getFileContent(storageKey);
           
-          // Import the TDDF encoder function
-          const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
+          let encodingResult;
           
-          // Perform TDDF1 file-based encoding
-          const encodingResult = await processAllRecordsToMasterTable(fileContent, upload);
+          // Route to appropriate processor based on file type
+          if (upload.finalFileType === 'merchant_detail') {
+            console.log(`[MANUAL-ENCODE] Processing merchant detail file: ${upload.filename}`);
+            
+            // Import and use merchant detail parser
+            const { processMerchantDetailFile } = await import('./merchant-detail-parser');
+            encodingResult = await processMerchantDetailFile(fileContent, uploadId, upload.fileFormat);
+            
+            console.log(`[MANUAL-ENCODE] Merchant import complete: ${encodingResult.imported} imported, ${encodingResult.skipped} skipped`);
+          } else {
+            console.log(`[MANUAL-ENCODE] Processing TDDF file: ${upload.filename}`);
+            
+            // Import and use TDDF encoder
+            const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
+            encodingResult = await processAllRecordsToMasterTable(fileContent, upload);
+            
+            console.log(`[MANUAL-ENCODE] TDDF encoding complete: ${encodingResult.totalRecords} records`);
+          }
           
           // Transition to encoded phase
           await storage.updateUploaderUpload(uploadId, {
@@ -9127,10 +9142,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             uploadId,
             filename: upload.filename,
             status: 'completed',
-            recordsCreated: encodingResult.totalRecords
+            recordsCreated: encodingResult.totalRecords || encodingResult.imported || 0
           });
           
-          console.log(`[MANUAL-ENCODE] Successfully encoded ${upload.filename}: ${encodingResult.totalRecords} records`);
+          console.log(`[MANUAL-ENCODE] Successfully processed ${upload.filename}`);
           
         } catch (error) {
           console.error(`[MANUAL-ENCODE] Error processing ${uploadId}:`, error);
