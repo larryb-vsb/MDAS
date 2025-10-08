@@ -2769,6 +2769,51 @@ export default function MMSUploader() {
                         </Button>
                       )}
 
+                      {/* Reset Error Button - show when error files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && upload.currentPhase === 'error';
+                      }) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const errorFiles = selectedUploads.filter(id => {
+                              const upload = uploads.find(u => u.id === id);
+                              return upload && upload.currentPhase === 'error';
+                            });
+                            if (errorFiles.length > 0) {
+                              // Reset error files to identified phase
+                              apiRequest('/api/uploader/reset-error', {
+                                method: 'POST',
+                                body: { uploadIds: errorFiles }
+                              }).then(() => {
+                                queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+                                setSelectedUploads([]);
+                                toast({
+                                  title: 'Files Reset',
+                                  description: `Reset ${errorFiles.length} file(s) from error to identified phase`
+                                });
+                              }).catch((error) => {
+                                toast({
+                                  title: 'Reset Failed',
+                                  description: error.message,
+                                  variant: 'destructive'
+                                });
+                              });
+                            }
+                          }}
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                          data-testid="button-reset-error"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Reset Error {selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && upload.currentPhase === 'error';
+                          }).length}
+                        </Button>
+                      )}
+
                       {/* Cancel Encoding Button - show when encoding files are selected */}
                       {selectedUploads.some(id => {
                         const upload = uploads.find(u => u.id === id);

@@ -9112,10 +9112,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const fileContent = await ReplitStorageService.getFileContent(storageKey);
           
           // Import the TDDF encoder function
-          const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder');
+          const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
           
           // Perform TDDF1 file-based encoding
-          const encodingResult = await encodeTddfToTddf1FileBased(fileContent, upload);
+          const encodingResult = await processAllRecordsToMasterTable(fileContent, upload);
           
           // Transition to encoded phase
           await storage.updateUploaderUpload(uploadId, {
@@ -9166,6 +9166,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error) {
       console.error("[MANUAL-ENCODE] Error in manual encoding:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
+  // Reset Error Files endpoint - resets files from error to identified phase
+  app.post("/api/uploader/reset-error", isAuthenticated, async (req, res) => {
+    console.log("[RESET-ERROR] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[RESET-ERROR] Resetting ${uploadIds.length} error files to identified phase`);
+      
+      const results = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          // Only reset files that are in error phase
+          if (upload.currentPhase !== 'error') {
+            errors.push({ uploadId, error: `File is in '${upload.currentPhase}' phase, can only reset files in 'error' phase` });
+            continue;
+          }
+          
+          // Reset to identified phase
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'identified',
+            lastUpdated: new Date()
+          });
+          
+          results.push({
+            uploadId,
+            filename: upload.filename,
+            previousPhase: 'error',
+            newPhase: 'identified'
+          });
+          
+          console.log(`[RESET-ERROR] Successfully reset ${upload.filename} from error to identified`);
+          
+        } catch (error) {
+          console.error(`[RESET-ERROR] Error processing ${uploadId}:`, error);
+          errors.push({ 
+            uploadId, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+      
+      console.log(`[RESET-ERROR] Completed: ${results.length} successful, ${errors.length} errors`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: results.length,
+        errorCount: errors.length,
+        results,
+        errors,
+        message: `Successfully reset ${results.length} file(s), ${errors.length} errors`
+      });
+      
+    } catch (error) {
+      console.error("[RESET-ERROR] Error in reset operation:", error);
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Internal server error"
