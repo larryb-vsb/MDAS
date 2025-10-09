@@ -1246,7 +1246,7 @@ export default function MerchantDetail() {
                       
                       <FormField
                         control={form.control}
-                        name="clientSinceDate"
+                        name="merchantActivationDate"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Merchant Activation Date (Opened Date)</FormLabel>
@@ -1260,7 +1260,7 @@ export default function MerchantDetail() {
 
                       <FormField
                         control={form.control}
-                        name="boardDt"
+                        name="dateOfFirstDeposit"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Date of First Deposit</FormLabel>
@@ -1274,7 +1274,7 @@ export default function MerchantDetail() {
 
                       <FormField
                         control={form.control}
-                        name="asOfDate"
+                        name="dateOfLastDeposit"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Date of Last Deposit</FormLabel>
