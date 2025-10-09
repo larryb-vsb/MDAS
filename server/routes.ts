@@ -14458,11 +14458,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const achMerchantsResult = await pool.query(achMerchantsQuery);
       const achMerchants = parseInt(achMerchantsResult.rows[0]?.total || '0');
       
-      // MCC Merchants data (filtered for merchant_type = '0' OR blank/null)
+      // MCC Merchants data (Type 0, Type 1, or blank/null - excludes Type 3 which is ACH)
       const mccMerchantsQuery = `
         SELECT COUNT(*) as total 
         FROM ${getTableName('merchants')} 
-        WHERE merchant_type = '0' OR merchant_type = '' OR merchant_type IS NULL
+        WHERE merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL
       `;
       const mccMerchantsResult = await pool.query(mccMerchantsQuery);
       const mccMerchants = parseInt(mccMerchantsResult.rows[0]?.total || '0');
