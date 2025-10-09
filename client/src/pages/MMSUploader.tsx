@@ -24,6 +24,7 @@ import OrphanFileUploader from '@/components/uploads/OrphanFileUploader';
 import OrphanFilesDetector from '@/components/uploads/OrphanFilesDetector';
 import CrossEnvironmentTransfer from '@/components/uploads/CrossEnvironmentTransfer';
 import ProcessingMonitor from '@/components/uploads/ProcessingMonitor';
+import MappingSettings from '@/components/uploads/MappingSettings';
 import { formatDistanceToNow } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -1494,7 +1495,7 @@ export default function MMSUploader() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="flex w-full overflow-x-auto">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="cross-env">Cross-Env Transfer</TabsTrigger>
@@ -1504,6 +1505,7 @@ export default function MMSUploader() {
           <TabsTrigger value="monitor">Processing Monitor</TabsTrigger>
           <TabsTrigger value="jsonb-query">JSONB Query</TabsTrigger>
           <TabsTrigger value="phases">Phase Details</TabsTrigger>
+          <TabsTrigger value="field-mappings">Field Mappings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
@@ -3393,6 +3395,10 @@ export default function MMSUploader() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="field-mappings" className="space-y-4">
+          <MappingSettings />
         </TabsContent>
       </Tabs>
       </div>
