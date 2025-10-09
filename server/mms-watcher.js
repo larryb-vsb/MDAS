@@ -460,7 +460,9 @@ class MMSWatcher {
 
       // Perform TDDF encoding (same as auto process)
       const { ReplitStorageService } = await import('./replit-storage-service.js');
-      const fileContent = await ReplitStorageService.getFileContent(upload.storageKey);
+      const storagePath = upload.storagePath || upload.filename;
+      console.log(`[MMS-WATCHER] [MANUAL-ENCODE] Reading file from storage path: ${storagePath}`);
+      const fileContent = await ReplitStorageService.getFileContent(storagePath);
       
       if (!fileContent) {
         throw new Error('File content not accessible');

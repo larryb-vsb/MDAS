@@ -279,6 +279,7 @@ export default function MMSUploader() {
   // Encoding results and progress tracking
   const [encodingResults, setEncodingResults] = useState<Record<string, any>>({});
   const [encodingProgress, setEncodingProgress] = useState<Record<string, number>>({});
+  const [bulkEncodingInProgress, setBulkEncodingInProgress] = useState(false);
 
   // Storage status bulb tooltip text (moved inside component)
   const getBulbTooltip = (upload: UploaderUpload, storageStatus?: any): string => {
@@ -1052,10 +1053,34 @@ export default function MMSUploader() {
     }
   };
 
-  // Stage 5: Bulk encoding handler
+  // Stage 5: Bulk encoding handler with progress tracking
   const handleBulkEncoding = async () => {
+    let progressInterval: NodeJS.Timeout | null = null;
+    
     try {
       console.log(`[STAGE-5] Starting bulk encoding for ${selectedUploads.length} files`);
+      setBulkEncodingInProgress(true);
+      
+      // Initialize progress for all selected files
+      const initialProgress: Record<string, number> = {};
+      selectedUploads.forEach(id => {
+        initialProgress[id] = 0;
+      });
+      setEncodingProgress(prev => ({ ...prev, ...initialProgress }));
+      
+      // Start simulated progress for visual feedback
+      progressInterval = setInterval(() => {
+        setEncodingProgress(prev => {
+          const updated = { ...prev };
+          selectedUploads.forEach(id => {
+            const current = updated[id] || 0;
+            if (current < 90) {
+              updated[id] = current + 5;
+            }
+          });
+          return updated;
+        });
+      }, 300);
       
       const response = await apiRequest('/api/uploader/bulk-encode', {
         method: 'POST',
@@ -1065,16 +1090,61 @@ export default function MMSUploader() {
         }
       });
       
+      // Clear progress interval
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      
       console.log('[STAGE-5] Bulk encoding response:', response);
+      
+      // Set final progress to 100% for all files
+      const finalProgress: Record<string, number> = {};
+      selectedUploads.forEach(id => {
+        finalProgress[id] = 100;
+      });
+      setEncodingProgress(prev => ({ ...prev, ...finalProgress }));
       
       // Refresh upload list to show updated status
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       
-      // Clear selection after bulk operation
-      setSelectedUploads([]);
+      // Clear selection and progress after a short delay
+      setTimeout(() => {
+        setSelectedUploads([]);
+        setBulkEncodingInProgress(false);
+        // Clear progress indicators
+        const clearProgress: Record<string, number> = {};
+        selectedUploads.forEach(id => {
+          clearProgress[id] = 0;
+        });
+        setEncodingProgress(prev => {
+          const updated = { ...prev };
+          Object.keys(clearProgress).forEach(id => delete updated[id]);
+          return updated;
+        });
+      }, 1500);
       
     } catch (error) {
       console.error('Bulk encoding error:', error);
+      
+      // CRITICAL: Clear progress interval on error to prevent runaway state updates
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      
+      setBulkEncodingInProgress(false);
+      
+      // Clear progress on error
+      const clearProgress: Record<string, number> = {};
+      selectedUploads.forEach(id => {
+        clearProgress[id] = 0;
+      });
+      setEncodingProgress(prev => {
+        const updated = { ...prev };
+        Object.keys(clearProgress).forEach(id => delete updated[id]);
+        return updated;
+      });
     }
   };
 
@@ -2407,15 +2477,42 @@ export default function MMSUploader() {
                         <div className="text-xs text-gray-600">
                           Strategy: TDDF JSON with field separation and validation
                         </div>
+                        
+                        {/* Bulk Encoding Progress Display */}
+                        {bulkEncodingInProgress && (
+                          <div className="mt-3 space-y-2">
+                            <div className="text-xs font-medium text-blue-600">Encoding in progress...</div>
+                            <div className="grid grid-cols-1 gap-2">
+                              {selectedUploads.slice(0, 5).map(uploadId => {
+                                const upload = uploads.find(u => u.id === uploadId);
+                                const progress = encodingProgress[uploadId] || 0;
+                                return (
+                                  <div key={uploadId} className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-600 truncate flex-1 max-w-[200px]">
+                                      {upload?.filename || 'File'}
+                                    </span>
+                                    <Progress value={progress} className="w-24" />
+                                    <span className="text-xs text-gray-500 w-10 text-right">{Math.round(progress)}%</span>
+                                  </div>
+                                );
+                              })}
+                              {selectedUploads.length > 5 && (
+                                <div className="text-xs text-gray-500 text-center">
+                                  +{selectedUploads.length - 5} more files encoding...
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <Button
                         variant="default"
                         onClick={() => handleBulkEncoding()}
-                        disabled={selectedUploads.length === 0}
+                        disabled={selectedUploads.length === 0 || bulkEncodingInProgress}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         <Database className="h-4 w-4 mr-2" />
-                        Start Bulk Encoding Setup
+                        {bulkEncodingInProgress ? 'Encoding...' : 'Start Bulk Encoding Setup'}
                       </Button>
                     </div>
                   </div>
