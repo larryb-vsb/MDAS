@@ -227,7 +227,7 @@ function ClickableMetricCard({
                   )}
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{achTooltip || 'from csv files'}</p>
+                  <p>{achTooltip || 'ACH data'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -252,7 +252,7 @@ function ClickableMetricCard({
                   )}
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{mmcTooltip || 'from TDDF and csv update'}</p>
+                  <p>{mmcTooltip || 'MCC data'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -736,28 +736,32 @@ export default function HomeDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Merchants Total - Clickable to respective pages */}
-              <ClickableMetricCard
-                title="Merchants Total"
-                total={metrics.merchants.total}
-                ach={metrics.merchants.ach}
-                mmc={480} // Fixed MCC count as requested
-                icon={<Users className="h-4 w-4" />}
-                achTooltip="from csv files"
-                mmcTooltip="from TDDF and csv update"
-                achLink="/merchants"
-                mmcLink="/merchants?tab=tddf"
-              />
+              <Link href="/merchants">
+                <ClickableMetricCard
+                  title="Merchants Total"
+                  total={metrics.merchants.total}
+                  ach={metrics.merchants.ach}
+                  mmc={metrics.merchants.mmc}
+                  icon={<Users className="h-4 w-4" />}
+                  achTooltip="ACH merchants from merchant table"
+                  mmcTooltip="MCC merchants from merchant table"
+                  isClickable={true}
+                />
+              </Link>
 
               {/* New Merchants (30 day) */}
-              <ClickableMetricCard
-                title="New Merchant (30day)"
-                total={metrics.newMerchants30Day.total}
-                ach={metrics.newMerchants30Day.ach}
-                mmc={metrics.newMerchants30Day.mmc}
-                icon={<Calendar className="h-4 w-4" />}
-                achTooltip="from csv files"
-                mmcTooltip="from TDDF and csv update"
-              />
+              <Link href="/merchants">
+                <ClickableMetricCard
+                  title="New Merchant (30day)"
+                  total={metrics.newMerchants30Day.total}
+                  ach={metrics.newMerchants30Day.ach}
+                  mmc={metrics.newMerchants30Day.mmc}
+                  icon={<Calendar className="h-4 w-4" />}
+                  achTooltip="New ACH merchants (last 30 days)"
+                  mmcTooltip="New MCC merchants (last 30 days)"
+                  isClickable={true}
+                />
+              </Link>
 
               {/* Monthly Processing Amount - Links to Transactions */}
               <ClickableMetricCard
@@ -765,8 +769,8 @@ export default function HomeDashboard() {
                 ach={metrics.monthlyProcessingAmount.ach}
                 mmc={metrics.monthlyProcessingAmount.mmc}
                 icon={<DollarSign className="h-4 w-4" />}
-                achTooltip="from csv files"
-                mmcTooltip="from TDDF and csv update"
+                achTooltip="ACH transaction processing"
+                mmcTooltip="MCC transaction processing"
                 format="currency"
                 achLink="/transactions"
                 mmcLink="/tddf-json"
@@ -779,8 +783,8 @@ export default function HomeDashboard() {
                 ach={metrics.todayTransactions.ach}
                 mmc={metrics.todayTransactions.mmc}
                 icon={<Activity className="h-4 w-4" />}
-                achTooltip="from csv files"
-                mmcTooltip="from TDDF and csv update"
+                achTooltip="ACH transactions today"
+                mmcTooltip="MCC transactions today"
               />
             </div>
           )}
@@ -797,8 +801,8 @@ export default function HomeDashboard() {
               ach={metrics.avgTransValue.ach}
               mmc={metrics.avgTransValue.mmc}
               icon={<BarChart3 className="h-4 w-4" />}
-              achTooltip="from csv files"
-              mmcTooltip="from TDDF and csv update"
+              achTooltip="ACH average transaction value"
+              mmcTooltip="MCC average transaction value"
             />
 
             {/* Daily Processing Amount */}
@@ -807,8 +811,8 @@ export default function HomeDashboard() {
               ach={metrics.dailyProcessingAmount.ach}
               mmc={metrics.dailyProcessingAmount.mmc}
               icon={<DollarSign className="h-4 w-4" />}
-              achTooltip="from csv files"
-              mmcTooltip="from TDDF and csv update"
+              achTooltip="ACH daily processing amount"
+              mmcTooltip="MCC daily processing amount"
               format="currency"
             />
 
@@ -818,8 +822,8 @@ export default function HomeDashboard() {
               ach={metrics.todayTotalTransaction.ach}
               mmc={metrics.todayTotalTransaction.mmc}
               icon={<CreditCard className="h-4 w-4" />}
-              achTooltip="from csv files"
-              mmcTooltip="from TDDF and csv update"
+              achTooltip="ACH transactions total today"
+              mmcTooltip="MCC transactions total today"
               format="currency"
             />
 
@@ -829,8 +833,8 @@ export default function HomeDashboard() {
               ach={metrics.totalRecords.ach}
               mmc={metrics.totalRecords.mmc}
               icon={<Building2 className="h-4 w-4" />}
-              achTooltip="from csv files"
-              mmcTooltip="from TDDF and csv update"
+              achTooltip="Total ACH records"
+              mmcTooltip="Total MCC records"
             />
 
             {/* Total Terminals - Clickable to Terminals page */}
@@ -840,8 +844,8 @@ export default function HomeDashboard() {
               ach={metrics.totalTerminals.ach}
               mmc={metrics.totalTerminals.mmc}
               icon={<Terminal className="h-4 w-4" />}
-              achTooltip="from csv files"
-              mmcTooltip="from TDDF and csv update"
+              achTooltip="ACH terminals"
+              mmcTooltip="MCC terminals"
               isClickable={true}
               terminalLink="/terminals"
             />
