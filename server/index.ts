@@ -7,7 +7,6 @@ import { initializeBackupScheduler } from "./backup/backup_scheduler";
 import { ensureAppDirectories } from "./utils/fs-utils";
 import { config, NODE_ENV } from "./env-config";
 import { pool, db } from "./db";
-import { fileProcessorService } from "./services/file-processor";
 import { tddfApiProcessor } from "./services/tddf-api-processor";
 import { migrateDatabase } from "./database-migrate";
 import { systemLogger } from './system-logger';
@@ -279,17 +278,8 @@ app.use((req, res, next) => {
         console.log("Warning: Could not initialize backup scheduler:", err.message);
       });
       
-      // Start the file processor service to process uploaded files
-      fileProcessorService.initialize();
-      
       // Start the TDDF API processor service
       await tddfApiProcessor.initialize();
-      
-      // Log file processor initialization
-      await systemLogger.info('Application', 'File processor service initialized', {
-        environment: NODE_ENV,
-        serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
-      });
 
       // Start processing watcher service - TEMPORARILY DISABLED FOR TDDF TESTING
       // The ScanlyWatcher is causing database connection errors due to missing column mappings
@@ -397,9 +387,6 @@ app.use((req, res, next) => {
     // Setup graceful shutdown
     const shutdownHandler = () => {
       console.log('Server shutting down...');
-      
-      // Stop the file processor service
-      fileProcessorService.stop();
       
       // Close database connection
       pool.end(() => {
