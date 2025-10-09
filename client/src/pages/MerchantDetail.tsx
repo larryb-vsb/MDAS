@@ -331,7 +331,8 @@ const fieldNameMapping: Record<string, string> = {
   'Last Statement Date': 'lastStatementDate',
   'Open Date': 'openDate',
   'Last Credit Check Date': 'lastCreditCheckDate',
-  'Fin Statement Due Date': 'finStatementDueDate'
+  'Fin Statement Due Date': 'finStatementDueDate',
+  'Merchant Status': 'merchantStatus'
 };
 
 // Helper function to get input type based on MCC schema format
@@ -343,18 +344,18 @@ const getInputType = (format: string): 'text' | 'number' | 'date' => {
 
 // Convert TSYS merchant status code to display text
 const convertTsysStatus = (tsysStatusCode: string | null | undefined): string => {
-  if (!tsysStatusCode || tsysStatusCode.trim() === '') return 'Open';
+  if (!tsysStatusCode || tsysStatusCode.trim() === '') return 'Active/Open';
   
   const code = tsysStatusCode.trim().toUpperCase();
   switch (code) {
-    case 'I': return 'Inactive';
-    case 'F': return 'Fraud';
-    case 'S': return 'Suspect';
-    case 'Z': return 'Merchant do not auth';
-    case 'C': return 'Closed (nothing goes through)';
-    case 'D': return 'Delete (Only Chargebacks and Adjustments)';
-    case 'B': return 'Do not post deposits; drop next reorg';
-    default: return 'Open';
+    case 'I': return 'I - Inactive';
+    case 'F': return 'F - Fraud';
+    case 'S': return 'S - Suspect';
+    case 'Z': return 'Z - Merchant do not auth';
+    case 'C': return 'C - Closed (nothing goes through)';
+    case 'D': return 'D - Delete (Only Chargebacks and Adjustments)';
+    case 'B': return 'B - Do not post';
+    default: return 'Active/Open';
   }
 };
 
@@ -998,15 +999,15 @@ export default function MerchantDetail() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Open">Open</SelectItem>
-                                <SelectItem value="Inactive">Inactive</SelectItem>
-                                <SelectItem value="Fraud">Fraud</SelectItem>
-                                <SelectItem value="Suspect">Suspect</SelectItem>
-                                <SelectItem value="Merchant do not auth">Merchant do not auth</SelectItem>
-                                <SelectItem value="Closed (nothing goes through)">Closed (nothing goes through)</SelectItem>
-                                <SelectItem value="Delete (Only Chargebacks and Adjustments)">Delete (Only Chargebacks and Adjustments)</SelectItem>
-                                <SelectItem value="Do not post deposits; drop next reorg">Do not post deposits; drop next reorg</SelectItem>
-                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Active/Open">Active/Open</SelectItem>
+                                <SelectItem value="I - Inactive">I - Inactive</SelectItem>
+                                <SelectItem value="F - Fraud">F - Fraud</SelectItem>
+                                <SelectItem value="S - Suspect">S - Suspect</SelectItem>
+                                <SelectItem value="Z - Merchant do not auth">Z - Merchant do not auth</SelectItem>
+                                <SelectItem value="C - Closed (nothing goes through)">C - Closed (nothing goes through)</SelectItem>
+                                <SelectItem value="D - Delete (Only Chargebacks and Adjustments)">D - Delete (Only Chargebacks and Adjustments)</SelectItem>
+                                <SelectItem value="B - Do not post">B - Do not post</SelectItem>
+                                <SelectItem value="Closed">Closed</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -1336,7 +1337,10 @@ export default function MerchantDetail() {
                               const value = data?.merchant[fieldKey as keyof typeof data.merchant];
                               let displayValue = '—';
                               if (value !== null && value !== undefined) {
-                                if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                // Special handling for Merchant Status - convert TSYS code to display text
+                                if (schemaField.fieldName === 'Merchant Status') {
+                                  displayValue = convertTsysStatus(String(value));
+                                } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
                                   // ISO date string
                                   displayValue = new Date(value).toLocaleDateString();
                                 } else {
