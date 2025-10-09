@@ -1017,15 +1017,21 @@ class MMSWatcher {
         console.log(`[MMS-WATCHER] [DEBUG] Identified file: ${file.filename}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
       });
 
-      // Filter for files that need encoding (TDDF files, merchant files, transaction CSV files, and terminal CSV files)
-      const encodableFiles = identifiedFiles.filter(upload => 
-        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf' ||
-        upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv' ||
-        upload.finalFileType === 'merchant_detail' || upload.detectedFileType === 'merchant_detail' || upload.fileType === 'merchant_detail' ||
-        upload.finalFileType === 'transaction_csv' || upload.detectedFileType === 'transaction_csv' || upload.fileType === 'transaction_csv' ||
-        upload.finalFileType === 'terminal' || upload.detectedFileType === 'terminal' || upload.fileType === 'terminal' ||
-        upload.finalFileType === 'sub_merchant_terminals' || upload.detectedFileType === 'sub_merchant_terminals' || upload.fileType === 'sub_merchant_terminals'
-      );
+      // Filter for files that need encoding (support both camelCase and snake_case field names)
+      const encodableFiles = identifiedFiles.filter(upload => {
+        const finalType = upload.finalFileType || upload.final_file_type;
+        const detectedType = upload.detectedFileType || upload.detected_file_type;
+        const fileType = upload.fileType || upload.file_type;
+        
+        return (
+          finalType === 'tddf' || detectedType === 'tddf' || fileType === 'tddf' ||
+          finalType === 'merchant_csv' || detectedType === 'merchant_csv' || fileType === 'merchant_csv' ||
+          finalType === 'merchant_detail' || detectedType === 'merchant_detail' || fileType === 'merchant_detail' ||
+          finalType === 'transaction_csv' || detectedType === 'transaction_csv' || fileType === 'transaction_csv' ||
+          finalType === 'terminal' || detectedType === 'terminal' || fileType === 'terminal' ||
+          finalType === 'sub_merchant_terminals' || detectedType === 'sub_merchant_terminals' || fileType === 'sub_merchant_terminals'
+        );
+      });
 
       if (encodableFiles.length === 0) {
         return; // No files to encode
@@ -1062,12 +1068,13 @@ class MMSWatcher {
         processingNotes: `Auto-encoding started by MMS Watcher at ${new Date().toISOString()}`
       });
 
-      // Get file content from Replit Object Storage
+      // Get file content from Replit Object Storage (support both camelCase and snake_case)
       const { ReplitStorageService } = await import('./replit-storage-service.js');
-      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+      const storageKey = upload.storageKey || upload.storage_key || upload.s3Key || upload.s3_key;
+      const fileContent = await ReplitStorageService.getFileContent(storageKey);
       
-      // Determine file type and process accordingly
-      const fileType = upload.finalFileType || upload.detectedFileType;
+      // Determine file type and process accordingly (support both camelCase and snake_case)
+      const fileType = upload.finalFileType || upload.final_file_type || upload.detectedFileType || upload.detected_file_type || upload.fileType || upload.file_type;
       let encodingResults;
       
       if (fileType === 'tddf') {
@@ -1254,9 +1261,10 @@ class MMSWatcher {
         console.log(`[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Processing merchant detail file with MCC schema: ${upload.filename}`);
         
         try {
-          // Get file content from Replit Object Storage
+          // Get file content from Replit Object Storage (support both camelCase and snake_case)
           const { ReplitStorageService } = await import('./replit-storage-service.js');
-          const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+          const storageKey = upload.storageKey || upload.storage_key || upload.s3Key || upload.s3_key;
+          const fileContent = await ReplitStorageService.getFileContent(storageKey);
           
           if (!fileContent) {
             throw new Error('File content not accessible');
