@@ -467,13 +467,17 @@ class MMSWatcher {
       }
 
       // Count lines for validation (Step 6 will handle actual TDDF processing via API table)
+      console.log(`[MANUAL-ENCODING] File ${upload.id}: Counting lines...`);
       const lines = fileContent.trim().split('\n');
       const lineCount = lines.length;
+      console.log(`[MANUAL-ENCODING] File ${upload.id}: Found ${lineCount} lines`);
       const encodingResult = {
         totalRecords: lineCount,
         strategy: 'line_count_for_step6',
         note: 'File validated and ready for Step 6 TDDF API processing'
       };
+      console.log(`[MANUAL-ENCODING] File ${upload.id}: Encoding result prepared`);
+
 
       // Re-parse existing processing notes safely (they may have been updated during encoding)
       try {
