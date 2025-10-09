@@ -466,9 +466,14 @@ class MMSWatcher {
         throw new Error('File content not accessible');
       }
 
-      // Encode TDDF to TDDF1 file-based tables
-      const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder.js');
-      const encodingResult = await encodeTddfToTddf1FileBased(fileContent, upload);
+      // Count lines for validation (Step 6 will handle actual TDDF processing via API table)
+      const lines = fileContent.trim().split('\n');
+      const lineCount = lines.length;
+      const encodingResult = {
+        totalRecords: lineCount,
+        strategy: 'line_count_for_step6',
+        note: 'File validated and ready for Step 6 TDDF API processing'
+      };
 
       // Re-parse existing processing notes safely (they may have been updated during encoding)
       try {
