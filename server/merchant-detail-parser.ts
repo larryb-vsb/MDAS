@@ -630,7 +630,7 @@ export function mapParsedToMerchantSchema(
   const merchantData: any = {
     // Required fields
     name: null,
-    status: "Active",
+    status: "Active", // Will be updated based on TSYS merchantStatus if present
     merchantType: "1", // TSYSO DACQ_MER_DTL files are always Type 1 (MCC Merchants)
   };
 
@@ -708,6 +708,34 @@ export function mapParsedToMerchantSchema(
   if (!Object.hasOwnProperty.call(merchantData, 'merchantStatus')) {
     merchantData.merchantStatus = parsed.merchantStatus || null;
     console.log(`[MAPPER] merchantStatus explicitly set: ${merchantData.merchantStatus || 'null (blank/Active)'}`);
+  }
+  
+  // CRITICAL: Sync status field with TSYS merchantStatus
+  // Convert TSYS code to general status for consistency across UI
+  if (merchantData.merchantStatus) {
+    const tsysCode = (merchantData.merchantStatus || '').trim().toUpperCase();
+    switch (tsysCode) {
+      case 'D': // Delete
+      case 'I': // Inactive
+        merchantData.status = 'Inactive';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Inactive"`);
+        break;
+      case 'F': // Fraud - map to Inactive for general status
+      case 'S': // Suspect - map to Inactive for general status
+      case 'Z': // No Auth - map to Inactive for general status
+      case 'C': // Closed - map to Inactive for general status
+      case 'B': // No Deposits - map to Inactive for general status
+        merchantData.status = 'Inactive';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Inactive"`);
+        break;
+      default:
+        merchantData.status = 'Active';
+        console.log(`[MAPPER] TSYS status "${tsysCode}" → status "Active" (default)`);
+    }
+  } else {
+    // Blank/null TSYS status = Active
+    merchantData.status = 'Active';
+    console.log(`[MAPPER] No TSYS status (blank) → status "Active"`);
   }
   
   console.log(
