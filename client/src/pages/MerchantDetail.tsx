@@ -998,9 +998,15 @@ export default function MerchantDetail() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Open">Open</SelectItem>
                                 <SelectItem value="Inactive">Inactive</SelectItem>
+                                <SelectItem value="Fraud">Fraud</SelectItem>
+                                <SelectItem value="Suspect">Suspect</SelectItem>
+                                <SelectItem value="Merchant do not auth">Merchant do not auth</SelectItem>
+                                <SelectItem value="Closed (nothing goes through)">Closed (nothing goes through)</SelectItem>
+                                <SelectItem value="Delete (Only Chargebacks and Adjustments)">Delete (Only Chargebacks and Adjustments)</SelectItem>
+                                <SelectItem value="Do not post deposits; drop next reorg">Do not post deposits; drop next reorg</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />

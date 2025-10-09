@@ -711,31 +711,46 @@ export function mapParsedToMerchantSchema(
   }
   
   // CRITICAL: Sync status field with TSYS merchantStatus
-  // Convert TSYS code to general status for consistency across UI
+  // Map TSYS code to full descriptive status text
   if (merchantData.merchantStatus) {
     const tsysCode = (merchantData.merchantStatus || '').trim().toUpperCase();
     switch (tsysCode) {
-      case 'D': // Delete
-      case 'I': // Inactive
+      case 'I':
         merchantData.status = 'Inactive';
         console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Inactive"`);
         break;
-      case 'F': // Fraud - map to Inactive for general status
-      case 'S': // Suspect - map to Inactive for general status
-      case 'Z': // No Auth - map to Inactive for general status
-      case 'C': // Closed - map to Inactive for general status
-      case 'B': // No Deposits - map to Inactive for general status
-        merchantData.status = 'Inactive';
-        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Inactive"`);
+      case 'F':
+        merchantData.status = 'Fraud';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Fraud"`);
+        break;
+      case 'S':
+        merchantData.status = 'Suspect';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Suspect"`);
+        break;
+      case 'Z':
+        merchantData.status = 'Merchant do not auth';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Merchant do not auth"`);
+        break;
+      case 'C':
+        merchantData.status = 'Closed (nothing goes through)';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Closed (nothing goes through)"`);
+        break;
+      case 'D':
+        merchantData.status = 'Delete (Only Chargebacks and Adjustments)';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Delete (Only Chargebacks and Adjustments)"`);
+        break;
+      case 'B':
+        merchantData.status = 'Do not post deposits; drop next reorg';
+        console.log(`[MAPPER] Converted TSYS status "${tsysCode}" → status "Do not post deposits; drop next reorg"`);
         break;
       default:
-        merchantData.status = 'Active';
-        console.log(`[MAPPER] TSYS status "${tsysCode}" → status "Active" (default)`);
+        merchantData.status = 'Open';
+        console.log(`[MAPPER] TSYS status "${tsysCode}" → status "Open" (unknown code, defaulting to Open)`);
     }
   } else {
-    // Blank/null TSYS status = Active
-    merchantData.status = 'Active';
-    console.log(`[MAPPER] No TSYS status (blank) → status "Active"`);
+    // Blank/null TSYS status = Open
+    merchantData.status = 'Open';
+    console.log(`[MAPPER] No TSYS status (blank) → status "Open"`);
   }
   
   console.log(
