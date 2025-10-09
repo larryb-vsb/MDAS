@@ -468,6 +468,7 @@ class FileProcessorService {
       
       // Database-level concurrency control: only fetch files that are NOT currently being processed
       // This prevents multiple nodes from picking up the same files
+      // CRITICAL: Exclude TDDF files - they are handled separately by processAutoStep6()
       const result = await db.execute(sql`
         SELECT 
           id,
@@ -482,13 +483,9 @@ class FileProcessorService {
           started_at as processing_started_at,
           processing_server_id
         FROM ${sql.identifier(uploadsTableName)}
-        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
-          AND final_file_type = 'tddf'
+        WHERE current_phase IN ('uploaded', 'identified', 'encoding')
+          AND (final_file_type IS NULL OR final_file_type != 'tddf')
         ORDER BY 
-          CASE 
-            WHEN file_type = 'tddf' THEN 1 
-            ELSE 2 
-          END,
           uploaded_at ASC
         LIMIT 10
       `);
