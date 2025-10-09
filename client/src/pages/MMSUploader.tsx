@@ -786,7 +786,8 @@ export default function MMSUploader() {
       const statusMatch = statusFilter === 'all' || 
         upload.currentPhase === statusFilter ||
         (statusFilter === 'cross_env_transfer' && upload.sessionId === 'cross_env_transfer');
-      const typeMatch = fileTypeFilter === 'all' || upload.finalFileType === fileTypeFilter;
+      const typeMatch = fileTypeFilter === 'all' || 
+        (fileTypeFilter === 'unknown' ? (!upload.finalFileType && !upload.detectedFileType && !upload.userClassifiedType) : upload.finalFileType === fileTypeFilter);
       const filenameMatch = filenameFilter === '' || upload.filename.toLowerCase().includes(filenameFilter.toLowerCase());
       return statusMatch && typeMatch && filenameMatch;
     })
@@ -2538,6 +2539,7 @@ export default function MMSUploader() {
                         <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
                         <SelectItem value="terminals">Terminals</SelectItem>
                         <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                        <SelectItem value="unknown">Unknown</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
