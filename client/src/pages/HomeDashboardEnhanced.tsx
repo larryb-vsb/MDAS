@@ -246,7 +246,7 @@ function ClickableMetricCard({
                     </Link>
                   ) : (
                     <div className="flex justify-between items-center text-sm cursor-help">
-                      <span className="text-green-600 font-medium">MCC (TDDF-DT)</span>
+                      <span className="text-green-600 font-medium">MCC</span>
                       <span className="font-medium">{formatValue(mmc)}</span>
                     </div>
                   )}

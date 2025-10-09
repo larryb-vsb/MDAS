@@ -14473,7 +14473,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalMerchants = parseInt(totalMerchantsResult.rows[0]?.total || '0');
       
       // Debug logging for merchant counts
-      console.log(`[DASHBOARD-BUILD] Merchant counts - Total: ${totalMerchants}, ACH (type=3): ${achMerchants}, MCC (type=0/blank): ${mccMerchants}`);
+      console.log(`[DASHBOARD-BUILD] Merchant counts - Total: ${totalMerchants}, ACH (type=3): ${achMerchants}, MCC (type=0/1/blank): ${mccMerchants}`);
+      
+      // New merchants in last 30 days - ACH (Type 3)
+      const newAchMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE merchant_type = '3'
+        AND merchant_activation_date >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+      const newAchMerchantsResult = await pool.query(newAchMerchantsQuery);
+      const newAchMerchants = parseInt(newAchMerchantsResult.rows[0]?.total || '0');
+      
+      // New merchants in last 30 days - MCC (Type 0, 1, or blank/null)
+      const newMccMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE (merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL)
+        AND merchant_activation_date >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+      const newMccMerchantsResult = await pool.query(newMccMerchantsQuery);
+      const newMccMerchants = parseInt(newMccMerchantsResult.rows[0]?.total || '0');
+      
+      console.log(`[DASHBOARD-BUILD] New merchants (30 days) - ACH: ${newAchMerchants}, MCC: ${newMccMerchants}`);
       
       // Terminals data - all terminals are MCC
       const terminalsQuery = `SELECT COUNT(*) as total_count FROM ${getTableName('api_terminals')}`;
@@ -14520,9 +14542,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mmc: mccMerchants
         },
         newMerchants30Day: {
-          total: Math.round(totalMerchants * 0.05), // 5% new in 30 days (estimated)
-          ach: Math.round(achMerchants * 0.05),
-          mmc: Math.round(mccMerchants * 0.05)
+          total: newAchMerchants + newMccMerchants,
+          ach: newAchMerchants,
+          mmc: newMccMerchants
         },
         monthlyProcessingAmount: {
           ach: `$${achTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
