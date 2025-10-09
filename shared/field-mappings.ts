@@ -214,7 +214,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
 
 // Customizable default values for fields not found in CSV
 export const defaultMerchantValues = {
-  status: "Active", // Default status is Active unless specified otherwise in CSV
+  status: "Active/Open", // Default status matches dashboard filter
   category: "Retail",
   country: "US",
   address: "123 Business St" // Default if not provided
