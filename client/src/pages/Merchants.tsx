@@ -39,6 +39,20 @@ export default function Merchants() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   
+  // Handle URL parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const status = params.get('status');
+    
+    if (tab) {
+      setActiveTab(tab);
+    }
+    if (status) {
+      setStatusFilter(status);
+    }
+  }, []);
+  
   // Reset page to 1 when search query, status filter, upload filter, or itemsPerPage changes
   useEffect(() => {
     setCurrentPage(1);

@@ -15,7 +15,7 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
   const statCards = [
     // Primary Stats Row
     {
-      title: "Total Merchants",
+      title: "Merchants Total",
       value: stats?.totalMerchants || 0,
       secondaryValue: stats ? `${stats.activeRate.toFixed(1)}% Active` : null,
       icon: (
@@ -24,9 +24,9 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
         </svg>
       ),
       bgColor: "bg-blue-600",
-      link: "/merchants",
-      linkText: "View all",
-      onClick: () => setLocation("/merchants")
+      link: "/merchants?tab=mcc&status=Active/Open",
+      linkText: "View MCC Merchants",
+      onClick: () => setLocation("/merchants?tab=mcc&status=Active/Open")
     },
     {
       title: "New Merchants (30d)",
