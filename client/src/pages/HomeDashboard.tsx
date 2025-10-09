@@ -115,9 +115,11 @@ interface MetricCardProps {
   achTooltip?: string;
   mmcTooltip?: string;
   format?: 'number' | 'currency';
+  mmcLink?: string;
+  achLink?: string;
 }
 
-function MetricCard({ title, total, ach, mmc, icon, achTooltip, mmcTooltip, format = 'number' }: MetricCardProps) {
+function MetricCard({ title, total, ach, mmc, icon, achTooltip, mmcTooltip, format = 'number', mmcLink, achLink }: MetricCardProps) {
   const formatValue = (value: number | string | undefined) => {
     if (value === undefined) return '0';
     if (format === 'currency') {
@@ -150,10 +152,17 @@ function MetricCard({ title, total, ach, mmc, icon, achTooltip, mmcTooltip, form
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex justify-between items-center text-sm cursor-help">
-                    <span className="text-blue-600 font-medium">ACH</span>
-                    <span className="font-medium">{formatValue(ach)}</span>
-                  </div>
+                  {achLink ? (
+                    <Link href={achLink} className="flex justify-between items-center text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded p-1 -m-1">
+                      <span className="text-blue-600 font-medium">ACH</span>
+                      <span className="font-medium">{formatValue(ach)}</span>
+                    </Link>
+                  ) : (
+                    <div className="flex justify-between items-center text-sm cursor-help">
+                      <span className="text-blue-600 font-medium">ACH</span>
+                      <span className="font-medium">{formatValue(ach)}</span>
+                    </div>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{achTooltip || 'from csv files'}</p>
@@ -166,10 +175,17 @@ function MetricCard({ title, total, ach, mmc, icon, achTooltip, mmcTooltip, form
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex justify-between items-center text-sm cursor-help">
-                    <span className="text-green-600 font-medium">MMC (TDDF)</span>
-                    <span className="font-medium">{formatValue(mmc)}</span>
-                  </div>
+                  {mmcLink ? (
+                    <Link href={mmcLink} className="flex justify-between items-center text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded p-1 -m-1">
+                      <span className="text-green-600 font-medium">MCC</span>
+                      <span className="font-medium">{formatValue(mmc)}</span>
+                    </Link>
+                  ) : (
+                    <div className="flex justify-between items-center text-sm cursor-help">
+                      <span className="text-green-600 font-medium">MCC</span>
+                      <span className="font-medium">{formatValue(mmc)}</span>
+                    </div>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{mmcTooltip || 'from TDDF and csv update'}</p>
@@ -365,6 +381,7 @@ export default function HomeDashboard() {
               icon={<Users className="h-4 w-4" />}
               achTooltip="from csv files"
               mmcTooltip="from TDDF and csv update"
+              mmcLink="/merchants?tab=mcc&status=Active/Open"
             />
 
             {/* New Merchants (30 day) */}
