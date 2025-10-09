@@ -736,32 +736,32 @@ export default function HomeDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Merchants Total - Clickable to respective pages */}
-              <Link href="/merchants">
-                <ClickableMetricCard
-                  title="Merchants Total"
-                  total={metrics.merchants.total}
-                  ach={metrics.merchants.ach}
-                  mmc={metrics.merchants.mmc}
-                  icon={<Users className="h-4 w-4" />}
-                  achTooltip="ACH merchants from merchant table"
-                  mmcTooltip="MCC merchants from merchant table"
-                  isClickable={true}
-                />
-              </Link>
+              <ClickableMetricCard
+                title="Merchants Total"
+                total={metrics.merchants.total}
+                ach={metrics.merchants.ach}
+                mmc={metrics.merchants.mmc}
+                icon={<Users className="h-4 w-4" />}
+                achTooltip="ACH merchants from merchant table"
+                mmcTooltip="MCC merchants from merchant table"
+                achLink="/merchants?tab=ach&status=Active/Open"
+                mmcLink="/merchants?tab=mcc&status=Active/Open"
+                isClickable={true}
+              />
 
               {/* New Merchants (30 day) */}
-              <Link href="/merchants">
-                <ClickableMetricCard
-                  title="New Merchant (30day)"
-                  total={metrics.newMerchants30Day.total}
-                  ach={metrics.newMerchants30Day.ach}
-                  mmc={metrics.newMerchants30Day.mmc}
-                  icon={<Calendar className="h-4 w-4" />}
-                  achTooltip="New ACH merchants (last 30 days)"
-                  mmcTooltip="New MCC merchants (last 30 days)"
-                  isClickable={true}
-                />
-              </Link>
+              <ClickableMetricCard
+                title="New Merchant (30day)"
+                total={metrics.newMerchants30Day.total}
+                ach={metrics.newMerchants30Day.ach}
+                mmc={metrics.newMerchants30Day.mmc}
+                icon={<Calendar className="h-4 w-4" />}
+                achTooltip="New ACH merchants (last 30 days)"
+                mmcTooltip="New MCC merchants (last 30 days)"
+                achLink="/merchants?tab=ach"
+                mmcLink="/merchants?tab=mcc"
+                isClickable={true}
+              />
 
               {/* Monthly Processing Amount - Links to Transactions */}
               <ClickableMetricCard
