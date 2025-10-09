@@ -14977,7 +14977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stage 5: Encoding API endpoints
   
   // Import the TDDF encoders
-  const { encodeTddfToJsonbDirect, encodeTddfToTddf1FileBased } = await import("./tddf-json-encoder");
+  const { encodeTddfToJsonbDirect, processAllRecordsToMasterTable } = await import("./tddf-json-encoder");
   
 
 
@@ -18359,12 +18359,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Encode to TDDF1 file-based table using the upload object with filename
       const startTime = Date.now();
-      const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder');
+      const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
       const uploadObject = { 
         id: storageObject.upload_id,
         filename: filename
       };
-      const result = await encodeTddfToTddf1FileBased(fileContent, uploadObject);
+      const result = await processAllRecordsToMasterTable(fileContent, uploadObject);
       const processingTime = Date.now() - startTime;
       
       // Update storage object status
@@ -18480,7 +18480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Step 5: Encode to TDDF1 file-based table
       const step5StartTime = Date.now();
-      const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder');
+      const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
       
       // Extract filename from object key for proper TDDF1 encoding
       const objectKeyParts = storageObject.object_key.split('/');
@@ -18490,7 +18490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filename: filename
       };
       
-      const jsonbResult = await encodeTddfToTddf1FileBased(fileContent, uploadObjectWithFilename);
+      const jsonbResult = await processAllRecordsToMasterTable(fileContent, uploadObjectWithFilename);
       const step5Time = Date.now() - step5StartTime;
       
       const totalTime = Date.now() - totalStartTime;
@@ -26585,30 +26585,4 @@ async function buildChartsCache(requestedBy: string = 'system') {
       parseInt(summary.total_records || 0),
       JSON.stringify({ startDate: startDateStr, endDate: endDateStr }),
       parseFloat(summary.total_transaction_amount || 0),
-      parseFloat(summary.total_auth_amount || 0),
-      parseInt(summary.unique_merchants || 0),
-      processingTime,
-      new Date(),
-      true, // never_expires
-      requestedBy,
-      new Date(),
-      new Date()
-    ]);
-    
-    console.log(`[CHARTS-CACHE-BUILDER] Successfully built 60-day trends cache in ${processingTime}ms`);
-    
-    return {
-      success: true,
-      cacheKey,
-      totalRecords: parseInt(summary.total_records || 0),
-      processingTime,
-      dailyDataPoints: dailyData.length,
-      merchantTrendsCount: merchantTrends.length,
-      authAmountTrendsCount: authAmountTrends.length,
-      cardTypeTrendsCount: cardTypeTrends.length
-    };
-  } catch (error) {
-    console.error('[CHARTS-CACHE-BUILDER] Error building charts cache:', error);
-    throw error;
-  }
-}
+      pars
