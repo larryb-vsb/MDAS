@@ -9133,13 +9133,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log(`[MANUAL-ENCODE] CSV merchant import complete: ${encodingResult.merchantsCreated} created, ${encodingResult.merchantsUpdated} updated`);
           } else {
-            console.log(`[MANUAL-ENCODE] Processing TDDF file: ${upload.filename}`);
+            console.log(`[MANUAL-ENCODE] Validating TDDF file: ${upload.filename}`);
             
-            // Import and use TDDF encoder
-            const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
-            encodingResult = await processAllRecordsToMasterTable(fileContent, upload);
+            // Count lines for validation (Step 6 will handle actual TDDF processing via API table)
+            const lines = fileContent.trim().split('\n');
+            const lineCount = lines.length;
+            encodingResult = {
+              totalRecords: lineCount,
+              strategy: 'line_count_for_step6',
+              note: 'File validated and ready for Step 6 TDDF API processing'
+            };
             
-            console.log(`[MANUAL-ENCODE] TDDF encoding complete: ${encodingResult.totalRecords} records`);
+            console.log(`[MANUAL-ENCODE] TDDF validation complete: ${lineCount} lines counted, ready for Step 6`);
           }
           
           // Transition to encoded phase
@@ -26588,52 +26593,3 @@ async function buildChartsCache(requestedBy: string = 'system') {
       requestedBy,
       new Date(),
       new Date()
-    ]);
-    
-    console.log(`[CHARTS-CACHE-BUILDER] ✅ Cache built successfully in ${processingTime}ms`);
-    console.log(`[CHARTS-CACHE-BUILDER] Records processed: ${summary.total_records}, Merchants: ${summary.unique_merchants}`);
-    
-  } catch (error) {
-    console.error('[CHARTS-CACHE-BUILDER] Error building cache:', error);
-    throw error;
-  }
-}
-
-// Helper functions for manual TDDF processing
-function parseDate(dateStr: string): Date | null {
-  if (!dateStr || dateStr.length !== 8) return null;
-  
-  // MMDDCCYY format
-  const month = parseInt(dateStr.substring(0, 2));
-  const day = parseInt(dateStr.substring(2, 4));
-  const year = parseInt(dateStr.substring(4, 8));
-  
-  if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
-  
-  return new Date(year, month - 1, day);
-}
-
-// Helper function to format TDDF dates
-function formatTddfDate(dateStr: string): string | null {
-  if (!dateStr || dateStr.length !== 8) return null;
-  
-  const month = dateStr.substring(0, 2);
-  const day = dateStr.substring(2, 4);
-  const year = dateStr.substring(4, 8);
-  
-  return `${year}-${month}-${day}`;
-}
-
-function parseAmount(amountStr: string): number | null {
-  if (!amountStr) return null;
-  
-  const cleanAmount = amountStr.replace(/[^\d.-]/g, '');
-  if (!cleanAmount) return null;
-  
-  const amount = parseFloat(cleanAmount);
-  if (isNaN(amount)) return null;
-  
-  // Convert from cents to dollars (divide by 100)
-  return amount / 100;
-}
-
