@@ -1337,10 +1337,7 @@ export default function MerchantDetail() {
                               const value = data?.merchant[fieldKey as keyof typeof data.merchant];
                               let displayValue = '—';
                               if (value !== null && value !== undefined) {
-                                // Special handling for Merchant Status - convert TSYS code to display text
-                                if (schemaField.fieldName === 'Merchant Status') {
-                                  displayValue = convertTsysStatus(String(value));
-                                } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
                                   // ISO date string
                                   displayValue = new Date(value).toLocaleDateString();
                                 } else {
