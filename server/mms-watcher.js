@@ -1088,8 +1088,8 @@ class MMSWatcher {
       
       if (fileType === 'tddf') {
         // Import and use the TDDF1 file-based encoder
-        const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder.ts');
-        encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
+        const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
+        encodingResults = await processAllRecordsToMasterTable(fileContent, upload);
         
         // Update to encoded phase with TDDF results
         await this.storage.updateUploaderPhase(upload.id, 'encoded', {
