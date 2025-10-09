@@ -15,7 +15,6 @@ import Exports from "@/pages/Exports";
 import MerchantDetail from "@/pages/MerchantDetail";
 import NewMerchant from "@/pages/NewMerchant";
 import Merchants from "@/pages/Merchants";
-import Uploads from "@/pages/Uploads";
 import Transactions from "@/pages/Transactions";
 import TerminalsPage from "@/pages/TerminalsPage";
 import TerminalViewPage from "@/pages/TerminalViewPage";
@@ -77,7 +76,6 @@ function Router() {
       <ProtectedRoute path="/processing-dashboard-v2" component={ProcessingDashboardV2} />
       <ProtectedRoute path="/processing" component={ProcessingPage} />
       <ProtectedRoute path="/exports" component={Exports} />
-      <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/uploader" component={MMSUploader} />
       <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
       <ProtectedRoute path="/subterminals" component={SubTerminals} />
