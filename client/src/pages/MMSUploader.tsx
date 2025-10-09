@@ -3111,8 +3111,8 @@ export default function MMSUploader() {
                             </div>
                           )}
                           
-                          {/* Stage 5: Show JSON Sample for encoded files */}
-                          {upload.currentPhase === 'encoded' && upload.finalFileType === 'tddf' && (
+                          {/* Stage 5: Show JSON Sample for encoded and completed files */}
+                          {(upload.currentPhase === 'encoded' || upload.currentPhase === 'completed') && upload.finalFileType === 'tddf' && (
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="ghost"
@@ -3130,7 +3130,7 @@ export default function MMSUploader() {
                           )}
 
                           {/* No JSONB available - show grey closed eye for alignment */}
-                          {!(upload.currentPhase === 'encoded' && upload.finalFileType === 'tddf') && (
+                          {!((upload.currentPhase === 'encoded' || upload.currentPhase === 'completed') && upload.finalFileType === 'tddf') && (
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="ghost"
