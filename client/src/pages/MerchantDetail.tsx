@@ -1899,6 +1899,47 @@ export default function MerchantDetail() {
 
             <Card className="md:col-span-2">
               <CardHeader>
+                <CardTitle>Key Dates</CardTitle>
+                <CardDescription>
+                  Important merchant milestone dates.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="w-full h-24" />
+                ) : (
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Merchant Activation Date</h3>
+                      <p className="mt-1 text-lg font-semibold">
+                        {data?.merchant.merchantActivationDate ? new Date(data.merchant.merchantActivationDate).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date of First Deposit</h3>
+                      <p className="mt-1 text-lg font-semibold">
+                        {data?.merchant.dateOfFirstDeposit ? new Date(data.merchant.dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date of Last Deposit</h3>
+                      <p className="mt-1 text-lg font-semibold">
+                        {data?.merchant.dateOfLastDeposit ? new Date(data.merchant.dateOfLastDeposit).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Closed Date</h3>
+                      <p className="mt-1 text-lg font-semibold">
+                        {data?.merchant.closeDate ? new Date(data.merchant.closeDate).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
                 <CardTitle>Revenue Trend</CardTitle>
                 <CardDescription>
                   Monthly revenue performance over 12 months.
