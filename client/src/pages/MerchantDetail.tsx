@@ -1244,61 +1244,33 @@ export default function MerchantDetail() {
                         <h3 className="text-lg font-semibold mb-4">Key Dates</h3>
                       </div>
                       
-                      <FormField
-                        control={form.control}
-                        name="merchantActivationDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Merchant Activation Date (Opened Date)</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div>
+                        <FormLabel>Merchant Activation Date (Opened Date)</FormLabel>
+                        <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
+                          {data?.merchant.merchantActivationDate ? new Date(data.merchant.merchantActivationDate).toLocaleDateString() : 'Not available'}
+                        </div>
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="dateOfFirstDeposit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Date of First Deposit</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div>
+                        <FormLabel>Date of First Deposit</FormLabel>
+                        <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
+                          {data?.merchant.dateOfFirstDeposit ? new Date(data.merchant.dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
+                        </div>
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="dateOfLastDeposit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Date of Last Deposit</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div>
+                        <FormLabel>Date of Last Deposit</FormLabel>
+                        <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
+                          {data?.merchant.dateOfLastDeposit ? new Date(data.merchant.dateOfLastDeposit).toLocaleDateString() : 'Not available'}
+                        </div>
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="closeDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Closed Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div>
+                        <FormLabel>Closed Date</FormLabel>
+                        <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
+                          {data?.merchant.closeDate ? new Date(data.merchant.closeDate).toLocaleDateString() : 'Not available'}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Dynamic MCC Schema Fields - Name/Value List Display */}
