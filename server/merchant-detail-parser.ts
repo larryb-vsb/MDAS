@@ -702,6 +702,14 @@ export function mapParsedToMerchantSchema(
   }
 
   console.log(`[MAPPER] Mapped ${mappedCount} fields to database columns`);
+  
+  // CRITICAL: Always include merchantStatus field, even if null/blank
+  // The UI needs this field to display TSYS status (blank → Active)
+  if (!Object.hasOwnProperty.call(merchantData, 'merchantStatus')) {
+    merchantData.merchantStatus = parsed.merchantStatus || null;
+    console.log(`[MAPPER] merchantStatus explicitly set: ${merchantData.merchantStatus || 'null (blank/Active)'}`);
+  }
+  
   console.log(
     "[LOCATION-TRACE] ========== FINAL MERCHANT DATA LOCATION FIELDS ==========",
   );
