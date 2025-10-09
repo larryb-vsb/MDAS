@@ -958,7 +958,7 @@ export default function MMSUploader() {
     // Filter selected uploads to only include those that can be moved back
     const eligibleUploads = selectedUploads.filter(id => {
       const upload = uploads.find(u => u.id === id);
-      const isEligible = upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing');
+      const isEligible = upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing' || upload.currentPhase === 'completed');
       console.log(`[SET-PREVIOUS-LEVEL] File ${upload?.filename} (${upload?.currentPhase}) eligible: ${isEligible}`);
       return isEligible;
     });
