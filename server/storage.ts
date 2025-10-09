@@ -5654,6 +5654,7 @@ export class DatabaseStorage implements IStorage {
         try {
           // Process transactions
           let insertedCount = 0;
+          let skippedDuplicates = 0; // Track skipped duplicate transactions
           let updatedMerchants = 0;
           let createdMerchants = 0;
           
@@ -5962,7 +5963,54 @@ export class DatabaseStorage implements IStorage {
               await pool.query(updateMerchantQuery, [new Date(), transaction.merchantId]);
             }
             
-            // Insert transaction with auto-increment for duplicates
+            // Check for duplicates BEFORE attempting insert (merchant_id + date + amount)
+            // @ENVIRONMENT-CRITICAL - Transaction duplicate detection
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming for ACH transactions
+            const transactionsTableName = getTableName('api_achtransactions');
+            
+            // Parse and normalize the transaction date for comparison
+            const transactionDate = new Date(transaction.date);
+            const transactionDateStr = transactionDate.toISOString().split('T')[0];
+            
+            // Query for existing transactions with same merchant_id, date, and amount
+            const duplicateCheckQuery = `
+              SELECT id, merchant_id, transaction_date, amount 
+              FROM ${transactionsTableName} 
+              WHERE merchant_id = $1 
+                AND DATE(transaction_date) = DATE($2::timestamp)
+                AND amount::numeric = $3::numeric
+              LIMIT 1
+            `;
+            
+            let existingDuplicateResult;
+            try {
+              existingDuplicateResult = await pool.query(duplicateCheckQuery, [
+                transaction.merchantId,
+                transactionDateStr,
+                transaction.amount
+              ]);
+            } catch (dupCheckError) {
+              console.error(`[DUPLICATE CHECK ERROR] Failed to check for duplicates:`, dupCheckError);
+              existingDuplicateResult = { rows: [] }; // Continue with insert if check fails
+            }
+            
+            if (existingDuplicateResult.rows.length > 0) {
+              // Duplicate found - skip insertion
+              const existingTrans = existingDuplicateResult.rows[0];
+              console.log(`[DUPLICATE SKIP] Transaction already exists: merchant=${transaction.merchantId}, date=${transactionDateStr}, amount=${transaction.amount} (existing ID: ${existingTrans.id}). Skipping...`);
+              
+              // Increment skipped duplicates counter
+              skippedDuplicates++;
+              
+              // Track skipped duplicate in statistics
+              const duplicateInfo = { increments: 0, wasSkipped: true };
+              const { fileProcessorService } = await import("./services/file-processor");
+              fileProcessorService.updateProcessingStats(transaction.id, duplicateInfo);
+              
+              continue; // Skip to next transaction
+            }
+            
+            // No duplicate found - proceed with insertion
             console.log(`[TRANSACTION] Inserting: ${transaction.id} for merchant ${transaction.merchantId}, amount: ${transaction.amount}`);
             
             // The transaction already contains rawData from CSV parsing - use it directly
@@ -5970,10 +6018,6 @@ export class DatabaseStorage implements IStorage {
             let insertAttempts = 0;
             let originalId = transaction.id;
             let duplicateInfo: { increments: number; wasSkipped: boolean } | undefined;
-            
-            // @ENVIRONMENT-CRITICAL - Transaction insertion with duplicate handling
-            // @DEPLOYMENT-CHECK - Uses environment-aware table naming for ACH transactions
-            const transactionsTableName = getTableName('api_achtransactions');
             
             while (insertAttempts < 100) { // Prevent infinite loop
               try {
@@ -6199,6 +6243,7 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`\n================ TRANSACTION PROCESSING SUMMARY ================`);
           console.log(`Transactions inserted: ${insertedCount}`);
+          console.log(`Duplicates skipped: ${skippedDuplicates}`);
           console.log(`Merchants created: ${createdMerchants}`);
           console.log(`Merchants updated: ${updatedMerchants}`);
           
