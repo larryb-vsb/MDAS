@@ -61,9 +61,15 @@ export default function MerchantFilters({
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Active/Open">Active/Open</SelectItem>
+                  <SelectItem value="I - Inactive">I - Inactive</SelectItem>
+                  <SelectItem value="F - Fraud">F - Fraud</SelectItem>
+                  <SelectItem value="S - Suspect">S - Suspect</SelectItem>
+                  <SelectItem value="Z - Merchant do not auth">Z - Merchant do not auth</SelectItem>
+                  <SelectItem value="C - Closed (nothing goes through)">C - Closed (nothing goes through)</SelectItem>
+                  <SelectItem value="D - Delete (Only Chargebacks and Adjustments)">D - Delete (Only Chargebacks and Adjustments)</SelectItem>
+                  <SelectItem value="B - Do not post">B - Do not post</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

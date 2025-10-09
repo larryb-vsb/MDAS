@@ -32,7 +32,7 @@ export default function Merchants() {
   const [activeTab, setActiveTab] = useState("all");
   
   // State for filters and pagination
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("Active/Open");
   const [uploadFilter, setUploadFilter] = useState("Any time");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
