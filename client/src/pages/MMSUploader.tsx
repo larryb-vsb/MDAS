@@ -1766,7 +1766,7 @@ export default function MMSUploader() {
                         <div className="flex-1">
                           <div className="font-medium text-sm">{upload.filename}</div>
                           <div className="text-xs text-muted-foreground">
-                            {formatFileSize(upload.fileSize || 0)} • {upload.finalFileType || 'TDDF'}
+                            {formatFileSize(upload.fileSize || 0)} • {upload.finalFileType || 'Unknown'}
                             {upload.sessionId && (
                               <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
                                 upload.sessionId === sessionId 
@@ -2931,7 +2931,7 @@ export default function MMSUploader() {
                               )}
                             </div>
                             <div className="text-sm text-muted-foreground flex items-center gap-4">
-                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || upload.detectedFileType || upload.userClassifiedType || 'TDDF'}</span>
+                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || upload.detectedFileType || upload.userClassifiedType || 'Unknown'}</span>
                               <span>Started {upload.uploadStartedAt ? new Date(upload.uploadStartedAt).toLocaleDateString() + ' ' + new Date(upload.uploadStartedAt).toLocaleTimeString() : 'recently'}</span>
                               <span>Duration: {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || new Date()) : '0s'}</span>
                               {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
