@@ -468,27 +468,10 @@ class FileProcessorService {
       
       // Database-level concurrency control: only fetch files that are NOT currently being processed
       // This prevents multiple nodes from picking up the same files
-      // CRITICAL: Exclude TDDF files - they are handled separately by processAutoStep6()
-      const result = await db.execute(sql`
-        SELECT 
-          id,
-          filename as original_filename,
-          storage_path,
-          file_type,
-          uploaded_at,
-          CASE WHEN current_phase IN ('encoded', 'completed') THEN true ELSE false END as processed,
-          processing_errors,
-          false as deleted,
-          current_phase as processing_status,
-          started_at as processing_started_at,
-          processing_server_id
-        FROM ${sql.identifier(uploadsTableName)}
-        WHERE current_phase IN ('uploaded', 'identified', 'encoding')
-          AND (final_file_type IS NULL OR final_file_type != 'tddf')
-        ORDER BY 
-          uploaded_at ASC
-        LIMIT 10
-      `);
+      // CRITICAL: This legacy processor is DISABLED - all file processing now handled by MMS Watcher
+      // Returning empty array to prevent any files from being processed by this old system
+      console.log(`[FILE PROCESSOR] Legacy file processor disabled - all processing handled by MMS Watcher`);
+      return [];
       
       const unprocessedFiles = result.rows.map(row => ({
         id: row.id,
