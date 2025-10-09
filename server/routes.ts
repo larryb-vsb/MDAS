@@ -14449,53 +14449,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[DASHBOARD-BUILD] Building comprehensive dashboard cache...');
     
     try {
-      // ACH Merchants data (filtered for merchant_type = '3')
+      // ACH Merchants data (filtered for merchant_type = '3' AND Active/Open status)
       const achMerchantsQuery = `
         SELECT COUNT(*) as total 
         FROM ${getTableName('merchants')} 
         WHERE merchant_type = '3'
+        AND status = 'Active/Open'
       `;
       const achMerchantsResult = await pool.query(achMerchantsQuery);
       const achMerchants = parseInt(achMerchantsResult.rows[0]?.total || '0');
       
-      // MCC Merchants data (Type 0, Type 1, or blank/null - excludes Type 3 which is ACH)
+      // MCC Merchants data (Type 0, Type 1, or blank/null - excludes Type 3 which is ACH, Active/Open only)
       const mccMerchantsQuery = `
         SELECT COUNT(*) as total 
         FROM ${getTableName('merchants')} 
-        WHERE merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL
+        WHERE (merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL)
+        AND status = 'Active/Open'
       `;
       const mccMerchantsResult = await pool.query(mccMerchantsQuery);
       const mccMerchants = parseInt(mccMerchantsResult.rows[0]?.total || '0');
       
-      // Total merchants (all types)
-      const totalMerchantsQuery = `SELECT COUNT(*) as total FROM ${getTableName('merchants')}`;
+      // Total merchants (Active/Open status only - matches merchants page default filter)
+      const totalMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')}
+        WHERE status = 'Active/Open'
+      `;
       const totalMerchantsResult = await pool.query(totalMerchantsQuery);
       const totalMerchants = parseInt(totalMerchantsResult.rows[0]?.total || '0');
       
       // Debug logging for merchant counts
-      console.log(`[DASHBOARD-BUILD] Merchant counts - Total: ${totalMerchants}, ACH (type=3): ${achMerchants}, MCC (type=0/1/blank): ${mccMerchants}`);
+      console.log(`[DASHBOARD-BUILD] Active/Open Merchant counts - Total: ${totalMerchants}, ACH (type=3): ${achMerchants}, MCC (type=0/1/blank): ${mccMerchants}`);
       
-      // New merchants in last 30 days - ACH (Type 3)
+      // New merchants in last 30 days - ACH (Type 3, Active/Open only)
       const newAchMerchantsQuery = `
         SELECT COUNT(*) as total 
         FROM ${getTableName('merchants')} 
         WHERE merchant_type = '3'
+        AND status = 'Active/Open'
         AND merchant_activation_date >= CURRENT_DATE - INTERVAL '30 days'
       `;
       const newAchMerchantsResult = await pool.query(newAchMerchantsQuery);
       const newAchMerchants = parseInt(newAchMerchantsResult.rows[0]?.total || '0');
       
-      // New merchants in last 30 days - MCC (Type 0, 1, or blank/null)
+      // New merchants in last 30 days - MCC (Type 0, 1, or blank/null, Active/Open only)
       const newMccMerchantsQuery = `
         SELECT COUNT(*) as total 
         FROM ${getTableName('merchants')} 
         WHERE (merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL)
+        AND status = 'Active/Open'
         AND merchant_activation_date >= CURRENT_DATE - INTERVAL '30 days'
       `;
       const newMccMerchantsResult = await pool.query(newMccMerchantsQuery);
       const newMccMerchants = parseInt(newMccMerchantsResult.rows[0]?.total || '0');
       
-      console.log(`[DASHBOARD-BUILD] New merchants (30 days) - ACH: ${newAchMerchants}, MCC: ${newMccMerchants}`);
+      console.log(`[DASHBOARD-BUILD] New Active/Open merchants (30 days) - ACH: ${newAchMerchants}, MCC: ${newMccMerchants}`);
       
       // Terminals data - all terminals are MCC
       const terminalsQuery = `SELECT COUNT(*) as total_count FROM ${getTableName('api_terminals')}`;
