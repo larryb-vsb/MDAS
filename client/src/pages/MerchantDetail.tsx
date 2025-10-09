@@ -884,9 +884,9 @@ export default function MerchantDetail() {
           <Button 
             className="mt-4" 
             variant="outline"
-            onClick={() => setLocation('/')}
+            onClick={() => setLocation('/merchants')}
           >
-            Back to Dashboard
+            Back to Merchant List
           </Button>
         </div>
       </MainLayout>
@@ -915,9 +915,9 @@ export default function MerchantDetail() {
           </div>
           <Button 
             variant="outline"
-            onClick={() => setLocation('/')}
+            onClick={() => setLocation('/merchants')}
           >
-            Back to Dashboard
+            Back to Merchant List
           </Button>
         </div>
 
