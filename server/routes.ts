@@ -26593,3 +26593,22 @@ async function buildChartsCache(requestedBy: string = 'system') {
       requestedBy,
       new Date(),
       new Date()
+    ]);
+    
+    console.log(`[CHARTS-CACHE-BUILDER] Successfully built 60-day trends cache in ${processingTime}ms`);
+    
+    return {
+      success: true,
+      cacheKey,
+      totalRecords: parseInt(summary.total_records || 0),
+      processingTime,
+      dailyDataPoints: dailyData.length,
+      merchantTrendsCount: merchantTrends.length,
+      authAmountTrendsCount: authAmountTrends.length,
+      cardTypeTrendsCount: cardTypeTrends.length
+    };
+  } catch (error) {
+    console.error('[CHARTS-CACHE-BUILDER] Error building charts cache:', error);
+    throw error;
+  }
+}
