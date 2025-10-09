@@ -15224,10 +15224,7 @@ export class DatabaseStorage implements IStorage {
       const errors: string[] = [];
       let updatedCount = 0;
       
-      console.log(`[UPLOADER] Setting previous level for ${uploadIds.length} files`);
-      
-      // Define phase progression order
-      const phaseOrder = ['started', 'uploading', 'uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'];
+      console.log(`[UPLOADER] Setting files back to uploaded phase for ${uploadIds.length} files`);
       
       // Get current phase of all files
       const placeholders = uploadIds.map((_, index) => `$${index + 1}`).join(', ');
@@ -15238,32 +15235,30 @@ export class DatabaseStorage implements IStorage {
       
       for (const row of checkResult.rows) {
         const currentPhase = row.current_phase;
-        const currentIndex = phaseOrder.indexOf(currentPhase);
         
-        if (currentIndex <= 0) {
-          errors.push(`${row.filename}: Cannot go back from phase '${currentPhase}'`);
+        // Don't allow going back if already at uploaded or earlier phases
+        if (['started', 'uploading', 'uploaded'].includes(currentPhase)) {
+          errors.push(`${row.filename}: Already at '${currentPhase}' phase - cannot reset to uploaded`);
           continue;
         }
         
-        const previousPhase = phaseOrder[currentIndex - 1];
-        
-        // Update the file to previous phase
+        // Reset to uploaded phase
         const updateResult = await pool.query(`
           UPDATE ${uploaderTableName}
           SET
-            current_phase = $1,
-            processing_notes = COALESCE(processing_notes, '') || ' | Moved back to ' || $1 || ' phase by user',
+            current_phase = 'uploaded',
+            processing_notes = COALESCE(processing_notes, '') || ' | Reset to uploaded phase by user from ' || $1,
             last_updated = NOW()
           WHERE id = $2
-        `, [previousPhase, row.id]);
+        `, [currentPhase, row.id]);
         
         if (updateResult.rowCount) {
           updatedCount++;
-          console.log(`[UPLOADER] ${row.filename}: ${currentPhase} → ${previousPhase}`);
+          console.log(`[UPLOADER] ${row.filename}: ${currentPhase} → uploaded`);
         }
       }
       
-      console.log(`[UPLOADER] Successfully moved ${updatedCount} files to previous level`);
+      console.log(`[UPLOADER] Successfully reset ${updatedCount} files to uploaded phase`);
       
       return { 
         success: true, 

@@ -2693,10 +2693,10 @@ export default function MMSUploader() {
                         </Button>
                       )}
 
-                      {/* Step 6 Processing Button - show when encoded or completed files are selected */}
+                      {/* Step 6 Processing Button - show ONLY for TDDF files when encoded or completed */}
                       {selectedUploads.some(id => {
                         const upload = uploads.find(u => u.id === id);
-                        return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                        return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed') && upload.finalFileType === 'tddf';
                       }) && (
                         <Button
                           variant="default"
@@ -2708,7 +2708,7 @@ export default function MMSUploader() {
                           <Zap className="h-4 w-4 mr-2" />
                           {step6ProcessingMutation.isPending ? 'Processing...' : `Step 6 Process ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
-                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed') && upload.finalFileType === 'tddf';
                           }).length}`}
                         </Button>
                       )}
@@ -2766,6 +2766,51 @@ export default function MMSUploader() {
                             const upload = uploads.find(u => u.id === id);
                             return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold' || upload.currentPhase === 'processing');
                           }).length}`}
+                        </Button>
+                      )}
+
+                      {/* Reset Warning Button - show when warning files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && upload.currentPhase === 'warning';
+                      }) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const warningFiles = selectedUploads.filter(id => {
+                              const upload = uploads.find(u => u.id === id);
+                              return upload && upload.currentPhase === 'warning';
+                            });
+                            if (warningFiles.length > 0) {
+                              // Reset warning files to identified phase
+                              apiRequest('/api/uploader/reset-warning', {
+                                method: 'POST',
+                                body: { uploadIds: warningFiles }
+                              }).then(() => {
+                                queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+                                setSelectedUploads([]);
+                                toast({
+                                  title: 'Files Reset',
+                                  description: `Reset ${warningFiles.length} file(s) from warning to identified phase`
+                                });
+                              }).catch((error) => {
+                                toast({
+                                  title: 'Reset Failed',
+                                  description: error.message,
+                                  variant: 'destructive'
+                                });
+                              });
+                            }
+                          }}
+                          className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                          data-testid="button-reset-warning"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Reset Warning {selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && upload.currentPhase === 'warning';
+                          }).length}
                         </Button>
                       )}
 
