@@ -630,7 +630,7 @@ export function mapParsedToMerchantSchema(
   const merchantData: any = {
     // Required fields
     name: null,
-    status: "Active", // Will be updated based on TSYS merchantStatus if present
+    status: "Open", // Will be updated based on TSYS merchantStatus if present
     merchantType: "1", // TSYSO DACQ_MER_DTL files are always Type 1 (MCC Merchants)
   };
 

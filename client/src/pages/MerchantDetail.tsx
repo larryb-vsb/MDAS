@@ -343,18 +343,18 @@ const getInputType = (format: string): 'text' | 'number' | 'date' => {
 
 // Convert TSYS merchant status code to display text
 const convertTsysStatus = (tsysStatusCode: string | null | undefined): string => {
-  if (!tsysStatusCode || tsysStatusCode.trim() === '') return 'Active';
+  if (!tsysStatusCode || tsysStatusCode.trim() === '') return 'Open';
   
   const code = tsysStatusCode.trim().toUpperCase();
   switch (code) {
     case 'I': return 'Inactive';
     case 'F': return 'Fraud';
     case 'S': return 'Suspect';
-    case 'Z': return 'No Auth';
-    case 'C': return 'Closed';
-    case 'D': return 'Inactive'; // Delete = Inactive
-    case 'B': return 'No Deposits';
-    default: return 'Active';
+    case 'Z': return 'Merchant do not auth';
+    case 'C': return 'Closed (nothing goes through)';
+    case 'D': return 'Delete (Only Chargebacks and Adjustments)';
+    case 'B': return 'Do not post deposits; drop next reorg';
+    default: return 'Open';
   }
 };
 
