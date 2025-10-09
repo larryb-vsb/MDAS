@@ -26585,4 +26585,29 @@ async function buildChartsCache(requestedBy: string = 'system') {
       parseInt(summary.total_records || 0),
       JSON.stringify({ startDate: startDateStr, endDate: endDateStr }),
       parseFloat(summary.total_transaction_amount || 0),
-      pars
+      parseFloat(summary.total_auth_amount || 0),
+      parseInt(summary.unique_merchants || 0),
+      processingTime,
+      new Date(),
+      true,
+      requestedBy,
+      new Date(),
+      new Date()
+    ]);
+    
+    console.log(`[CHARTS-CACHE-BUILDER] Successfully built 60-day trends cache in ${processingTime}ms`);
+    console.log(`[CHARTS-CACHE-BUILDER] Total records: ${summary.total_records || 0}`);
+    
+    return {
+      success: true,
+      cacheKey,
+      totalRecords: parseInt(summary.total_records || 0),
+      processingTime,
+      dailyDataPoints: dailyData.length
+    };
+    
+  } catch (error: any) {
+    console.error('[CHARTS-CACHE-BUILDER] Error building charts cache:', error);
+    throw error;
+  }
+}
