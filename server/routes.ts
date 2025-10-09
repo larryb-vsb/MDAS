@@ -9109,7 +9109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log(`[MANUAL-ENCODE-DEBUG] Using storage key: ${storageKey}`);
           // Get file content from storage
-          const fileContent = await ReplitStorageService.getFileContent(storageKey);
+          const fileBuffer = await ReplitStorageService.getFileContent(storageKey);
+          const fileContent = fileBuffer.toString('utf8');
           
           let encodingResult;
           
