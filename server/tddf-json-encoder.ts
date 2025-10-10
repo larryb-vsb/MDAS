@@ -172,7 +172,7 @@ const DT_FIELD_SPECS = {
   terminalId: { start: 203, end: 211, type: 'string' },
   retrievalReferenceNumber: { start: 211, end: 223, type: 'string' },
   marketSpecificData: { start: 223, end: 225, type: 'string' },
-  transactionTypeIdentifier: { start: 225, end: 227, type: 'string' },
+  transactionTypeIdentifier: { start: 335, end: 338, type: 'string' },
   cardholderIdMethod: { start: 227, end: 229, type: 'string' },
   posEntryMode: { start: 229, end: 231, type: 'string' },
   networkIdentifier: { start: 231, end: 233, type: 'string' },
