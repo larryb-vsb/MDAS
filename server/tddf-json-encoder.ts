@@ -142,45 +142,45 @@ function calculateUniversalTimestamp(
 
 // TDDF Field Position Specifications
 // DT Record (Detail Transaction) - Fixed-width format
+// Positions updated to match TDDF specification (converting 1-based TDDF positions to 0-based array indices)
 const DT_FIELD_SPECS = {
-  sequenceNumber: { start: 0, end: 7, type: 'string' },
-  entryRunNumber: { start: 7, end: 13, type: 'string' },
-  sequenceWithinRun: { start: 13, end: 17, type: 'string' },
-  recordIdentifier: { start: 17, end: 19, type: 'string' },
-  bankNumber: { start: 19, end: 23, type: 'string' },
-  merchantAccountNumber: { start: 23, end: 39, type: 'string' },
-  associationNumber1: { start: 39, end: 45, type: 'string' },
-  groupNumber: { start: 45, end: 51, type: 'string' },
-  transactionCode: { start: 51, end: 55, type: 'string' },
-  associationNumber2: { start: 55, end: 61, type: 'string' },
-  referenceNumber: { start: 61, end: 84, type: 'string' },
-  transactionDate: { start: 84, end: 92, type: 'date' },
-  transactionAmount: { start: 92, end: 103, type: 'amount' },
-  batchJulianDate: { start: 103, end: 108, type: 'string' },
-  netDeposit: { start: 108, end: 123, type: 'amount' },
-  cardNumber: { start: 123, end: 142, type: 'string' },
-  authorizationCode: { start: 142, end: 148, type: 'string' },
-  messageType: { start: 148, end: 152, type: 'string' },
-  processingCode: { start: 152, end: 158, type: 'string' },
-  merchantName: { start: 158, end: 180, type: 'string' },
-  merchantCity: { start: 180, end: 193, type: 'string' },
-  merchantState: { start: 193, end: 195, type: 'string' },
-  authSourceCode: { start: 195, end: 196, type: 'string' },
-  authResponseCode: { start: 196, end: 198, type: 'string' },
-  validationCode: { start: 198, end: 202, type: 'string' },
-  catIndicator: { start: 202, end: 203, type: 'string' },
-  terminalId: { start: 203, end: 211, type: 'string' },
-  retrievalReferenceNumber: { start: 211, end: 223, type: 'string' },
-  marketSpecificData: { start: 223, end: 225, type: 'string' },
-  transactionTypeIdentifier: { start: 335, end: 338, type: 'string' },
-  cardholderIdMethod: { start: 227, end: 229, type: 'string' },
-  posEntryMode: { start: 229, end: 231, type: 'string' },
-  networkIdentifier: { start: 231, end: 233, type: 'string' },
-  amexMerchantSellerName: { start: 233, end: 253, type: 'string' },
-  amexPurchaseIdentifier: { start: 253, end: 278, type: 'string' },
-  mccCode: { start: 278, end: 282, type: 'string' },
-  posDataCode: { start: 282, end: 294, type: 'string' },
-  networkIdentifierDebit: { start: 294, end: 307, type: 'string' }
+  sequenceNumber: { start: 0, end: 7, type: 'string' },           // TDDF 1-7
+  entryRunNumber: { start: 7, end: 13, type: 'string' },          // TDDF 8-13
+  sequenceWithinRun: { start: 13, end: 17, type: 'string' },      // TDDF 14-17
+  recordIdentifier: { start: 17, end: 19, type: 'string' },       // TDDF 18-19
+  bankNumber: { start: 19, end: 23, type: 'string' },             // TDDF 20-23
+  merchantAccountNumber: { start: 23, end: 39, type: 'string' },  // TDDF 24-39
+  associationNumber1: { start: 39, end: 45, type: 'string' },     // TDDF 40-45
+  groupNumber: { start: 45, end: 51, type: 'string' },            // TDDF 46-51
+  transactionCode: { start: 51, end: 55, type: 'string' },        // TDDF 52-55
+  associationNumber2: { start: 55, end: 61, type: 'string' },     // TDDF 56-61
+  referenceNumber: { start: 61, end: 84, type: 'string' },        // TDDF 62-84
+  transactionDate: { start: 84, end: 92, type: 'date' },          // TDDF 85-92
+  transactionAmount: { start: 92, end: 103, type: 'amount' },     // TDDF 93-103
+  batchJulianDate: { start: 103, end: 108, type: 'string' },      // TDDF 104-108
+  netDeposit: { start: 108, end: 123, type: 'amount' },           // TDDF 109-123
+  cardNumber: { start: 123, end: 142, type: 'string' },           // TDDF 124-142
+  authorizationCode: { start: 142, end: 148, type: 'string' },    // TDDF 143-148
+  messageType: { start: 148, end: 152, type: 'string' },          // TDDF 149-152
+  processingCode: { start: 152, end: 158, type: 'string' },       // TDDF 153-158
+  merchantName: { start: 217, end: 242, type: 'string' },         // TDDF 218-242 [FIXED]
+  merchantCity: { start: 242, end: 255, type: 'string' },         // TDDF 243-255 [FIXED]
+  authSourceCode: { start: 195, end: 196, type: 'string' },       // TDDF 196
+  authResponseCode: { start: 196, end: 198, type: 'string' },     // TDDF 197-198
+  validationCode: { start: 199, end: 202, type: 'string' },       // TDDF 200-202
+  catIndicator: { start: 196, end: 197, type: 'string' },         // TDDF 197
+  terminalId: { start: 202, end: 211, type: 'string' },           // TDDF 203-211
+  retrievalReferenceNumber: { start: 211, end: 223, type: 'string' }, // TDDF 212-223
+  marketSpecificData: { start: 223, end: 225, type: 'string' },   // TDDF 224-225
+  transactionTypeIdentifier: { start: 335, end: 338, type: 'string' }, // TDDF 336-338
+  cardholderIdMethod: { start: 227, end: 229, type: 'string' },   // TDDF 228-229
+  posEntryMode: { start: 229, end: 231, type: 'string' },         // TDDF 230-231
+  networkIdentifier: { start: 226, end: 231, type: 'string' },    // TDDF 227-231
+  amexMerchantSellerName: { start: 233, end: 253, type: 'string' }, // TDDF 234-253
+  amexPurchaseIdentifier: { start: 253, end: 278, type: 'string' }, // TDDF 254-278
+  mccCode: { start: 272, end: 276, type: 'string' },              // TDDF 273-276 [FIXED]
+  posDataCode: { start: 276, end: 289, type: 'string' },          // TDDF 277-289 [FIXED]
+  networkIdentifierDebit: { start: 289, end: 302, type: 'string' } // TDDF 290-302 [FIXED]
 };
 
 // BH Record (Batch Header) - Fixed-width format
