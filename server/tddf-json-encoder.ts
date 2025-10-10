@@ -380,6 +380,7 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
         recordType: recordType,
         rawLine: line,
         extractedFields: JSON.stringify(extractedFields),
+        recordIdentifier: extractedFields.recordIdentifier || null,
         tddfProcessingDatetime: processingDatetime,
         tddfProcessingDate: processingDate,
         parsedDatetime: timestampData.parsedDatetime,
