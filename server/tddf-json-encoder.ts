@@ -164,7 +164,6 @@ const DT_FIELD_SPECS = {
   messageType: { start: 148, end: 152, type: 'string' },          // TDDF 149-152
   processingCode: { start: 152, end: 158, type: 'string' },       // TDDF 153-158
   merchantName: { start: 217, end: 242, type: 'string' },         // TDDF 218-242 [FIXED]
-  merchantCity: { start: 242, end: 255, type: 'string' },         // TDDF 243-255 [FIXED]
   authSourceCode: { start: 195, end: 196, type: 'string' },       // TDDF 196
   authResponseCode: { start: 196, end: 198, type: 'string' },     // TDDF 197-198
   validationCode: { start: 199, end: 202, type: 'string' },       // TDDF 200-202
