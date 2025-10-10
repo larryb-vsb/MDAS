@@ -169,18 +169,20 @@ const DT_FIELD_SPECS = {
   authResponseCode: { start: 196, end: 198, type: 'string' },     // TDDF 197-198
   validationCode: { start: 199, end: 202, type: 'string' },       // TDDF 200-202
   catIndicator: { start: 196, end: 197, type: 'string' },         // TDDF 197
-  terminalId: { start: 202, end: 211, type: 'string' },           // TDDF 203-211
   retrievalReferenceNumber: { start: 211, end: 223, type: 'string' }, // TDDF 212-223
   marketSpecificData: { start: 223, end: 225, type: 'string' },   // TDDF 224-225
-  transactionTypeIdentifier: { start: 335, end: 338, type: 'string' }, // TDDF 336-338
+  cardType: { start: 252, end: 254, type: 'string' },             // TDDF 253-254 [CORRECTED]
   cardholderIdMethod: { start: 227, end: 229, type: 'string' },   // TDDF 228-229
   posEntryMode: { start: 229, end: 231, type: 'string' },         // TDDF 230-231
   networkIdentifier: { start: 226, end: 231, type: 'string' },    // TDDF 227-231
-  amexMerchantSellerName: { start: 233, end: 253, type: 'string' }, // TDDF 234-253
-  amexPurchaseIdentifier: { start: 253, end: 278, type: 'string' }, // TDDF 254-278
   mccCode: { start: 272, end: 276, type: 'string' },              // TDDF 273-276 [FIXED]
-  posDataCode: { start: 276, end: 289, type: 'string' },          // TDDF 277-289 [FIXED]
-  networkIdentifierDebit: { start: 289, end: 302, type: 'string' } // TDDF 290-302 [FIXED]
+  terminalId: { start: 276, end: 284, type: 'string' },           // TDDF 277-284 [CORRECTED]
+  purchaseId: { start: 287, end: 312, type: 'string' },           // TDDF 288-312 [CORRECTED]
+  posDataCode: { start: 322, end: 335, type: 'string' },          // TDDF 323-335 [CORRECTED]
+  transactionTypeIdentifier: { start: 335, end: 338, type: 'string' }, // TDDF 336-338
+  cardType3: { start: 338, end: 341, type: 'string' },            // TDDF 339-341 [CORRECTED]
+  networkIdentifierDebit: { start: 289, end: 302, type: 'string' }, // TDDF 290-302 [FIXED]
+  amexMerchantSellerName: { start: 512, end: 537, type: 'string' } // TDDF 513-537 [CORRECTED]
 };
 
 // BH Record (Batch Header) - Fixed-width format
