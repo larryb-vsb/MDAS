@@ -620,9 +620,9 @@ export default function StorageManagement() {
                     <Database className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{storageStats.masterKeys.totalObjects.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{storageStats?.masterKeys?.totalObjects?.toLocaleString() ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      {storageStats.masterKeys.linkedToUploads} linked to uploads
+                      {storageStats?.masterKeys?.linkedToUploads ?? 0} linked to uploads
                     </p>
                   </CardContent>
                 </Card>
@@ -633,9 +633,9 @@ export default function StorageManagement() {
                     <HardDrive className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{storageStats.masterKeys.totalStorageMB.toFixed(1)} MB</div>
+                    <div className="text-2xl font-bold">{storageStats?.masterKeys?.totalStorageMB?.toFixed(1) ?? '0.0'} MB</div>
                     <p className="text-xs text-muted-foreground">
-                      {storageStats.masterKeys.totalLines.toLocaleString()} total lines
+                      {storageStats?.masterKeys?.totalLines?.toLocaleString() ?? 0} total lines
                     </p>
                   </CardContent>
                 </Card>
@@ -646,9 +646,9 @@ export default function StorageManagement() {
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{storageStats.masterKeys.orphanedObjects}</div>
+                    <div className="text-2xl font-bold text-orange-600">{storageStats?.masterKeys?.orphanedObjects ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      {storageStats.masterKeys.markedForPurge} marked for purge
+                      {storageStats?.masterKeys?.markedForPurge ?? 0} marked for purge
                     </p>
                   </CardContent>
                 </Card>
@@ -659,7 +659,7 @@ export default function StorageManagement() {
                     <Activity className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{storageStats.masterKeys.processingComplete}</div>
+                    <div className="text-2xl font-bold text-green-600">{storageStats?.masterKeys?.processingComplete ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
                       Complete processing
                     </p>
@@ -678,15 +678,15 @@ export default function StorageManagement() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-orange-600">{storageStats.purgeQueue.totalQueued}</div>
+                      <div className="text-2xl font-bold text-orange-600">{storageStats?.purgeQueue?.totalQueued ?? 0}</div>
                       <p className="text-sm text-muted-foreground">Objects queued</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold">{storageStats.purgeQueue.totalSizeMB?.toFixed(1) || '0.0'} MB</div>
+                      <div className="text-2xl font-bold">{storageStats?.purgeQueue?.totalSizeMB?.toFixed(1) ?? '0.0'} MB</div>
                       <p className="text-sm text-muted-foreground">Total size</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold">{storageStats.purgeQueue.avgSizeMB?.toFixed(1) || '0.0'} MB</div>
+                      <div className="text-2xl font-bold">{storageStats?.purgeQueue?.avgSizeMB?.toFixed(1) ?? '0.0'} MB</div>
                       <p className="text-sm text-muted-foreground">Average size</p>
                     </div>
                   </div>
@@ -702,7 +702,7 @@ export default function StorageManagement() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {storageStats.recentActivity.length === 0 ? (
+                  {!storageStats?.recentActivity || storageStats.recentActivity.length === 0 ? (
                     <p className="text-muted-foreground text-center py-4">No recent activity</p>
                   ) : (
                     <div className="space-y-2">
@@ -808,7 +808,7 @@ export default function StorageManagement() {
           ) : (
             <>
               <div className="space-y-4">
-                {objectsList.objects.map((obj) => (
+                {objectsList?.objects?.map((obj) => (
                   <Card key={obj.id} className={selectedObjects.has(obj.id) ? 'ring-2 ring-blue-500' : ''}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
