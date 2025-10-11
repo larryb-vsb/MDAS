@@ -2359,6 +2359,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get merchant lookup map for TDDF viewer (account_number -> dba_name)
+  app.get("/api/merchants/lookup-map", async (req, res) => {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      const result = await pool.query(`
+        SELECT account_number, dba_name 
+        FROM ${merchantsTableName}
+        WHERE account_number IS NOT NULL 
+          AND account_number != ''
+      `);
+      
+      // Create lookup map: account_number -> dba_name
+      const lookupMap: Record<string, string> = {};
+      result.rows.forEach(row => {
+        lookupMap[row.account_number] = row.dba_name || 'Unknown';
+      });
+      
+      res.json(lookupMap);
+    } catch (error) {
+      console.error("Error fetching merchant lookup map:", error);
+      res.status(500).json({ error: "Failed to fetch merchant lookup map" });
+    }
+  });
+
 
   // Create placeholder upload entries before upload starts
   app.post("/api/uploads/initialize", isAuthenticated, async (req, res) => {
@@ -26600,4 +26625,3 @@ async function buildChartsCache(requestedBy: string = 'system') {
     throw error;
   }
 }
-

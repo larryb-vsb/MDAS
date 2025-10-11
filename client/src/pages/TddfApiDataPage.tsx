@@ -801,6 +801,23 @@ export default function TddfApiDataPage() {
     refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 
+  // Fetch merchant lookup map for displaying merchant names
+  const { data: merchantLookupMap = {}, isLoading: merchantLookupLoading } = useQuery<Record<string, string>>({
+    queryKey: ["/api/merchants/lookup-map"],
+    enabled: true, // Always fetch merchant lookup
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Helper function to get merchant name from lookup map
+  const getMerchantName = (merchantAccountNumber: string | null): string | null => {
+    if (!merchantAccountNumber || !merchantLookupMap) return null;
+    
+    // TDDF uses 16-digit format with leading zero, merchant table uses 15-digit
+    // Strip leading zero to match merchant table format
+    const normalizedAccount = merchantAccountNumber.replace(/^0+/, '');
+    return merchantLookupMap[normalizedAccount] || null;
+  };
+
   // Create schema mutation
   const createSchemaMutation = useMutation({
     mutationFn: (schemaData: any) => apiRequest("/api/tddf-api/schemas", {
@@ -3762,16 +3779,24 @@ function TreeViewDisplay({
                     <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
                     <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
                     
-                    {/* Merchant Account Number for BH records in blue bold text */}
+                    {/* Merchant Account Number and Name for BH records */}
                     {(() => {
                       const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
+                      const merchantName = getMerchantName(merchantAccountNumber);
                       return merchantAccountNumber ? (
-                        <span 
-                          className="text-sm font-bold text-blue-600"
-                          data-testid="bh-merchant-account-number"
-                        >
-                          • {merchantAccountNumber}
-                        </span>
+                        <div className="flex flex-col">
+                          <span 
+                            className="text-sm font-bold text-blue-600"
+                            data-testid="bh-merchant-account-number"
+                          >
+                            • {merchantAccountNumber}
+                          </span>
+                          {merchantName && (
+                            <span className="text-xs font-semibold text-green-600 ml-3">
+                              {merchantName}
+                            </span>
+                          )}
+                        </div>
                       ) : null;
                     })()}
                   </>
@@ -3840,16 +3865,24 @@ function TreeViewDisplay({
                             <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
                             <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
                             
-                            {/* Merchant Account Number for DT records in blue bold text */}
+                            {/* Merchant Account Number and Name for DT records */}
                             {(() => {
                               const merchantAccountNumber = extractMerchantAccountNumber(transaction.dtRecord);
+                              const merchantName = getMerchantName(merchantAccountNumber);
                               return merchantAccountNumber ? (
-                                <span 
-                                  className="text-sm font-bold text-blue-600"
-                                  data-testid="dt-merchant-account-number"
-                                >
-                                  • {merchantAccountNumber}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span 
+                                    className="text-sm font-bold text-blue-600"
+                                    data-testid="dt-merchant-account-number"
+                                  >
+                                    • {merchantAccountNumber}
+                                  </span>
+                                  {merchantName && (
+                                    <span className="text-xs font-semibold text-green-600 ml-3">
+                                      {merchantName}
+                                    </span>
+                                  )}
+                                </div>
                               ) : null;
                             })()}
                             
@@ -4089,13 +4122,21 @@ function FileViewDisplay({
                                 <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
                                 <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
                                 
-                                {/* Merchant Account Number for BH records */}
+                                {/* Merchant Account Number and Name for BH records */}
                                 {(() => {
                                   const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
+                                  const merchantName = getMerchantName(merchantAccountNumber);
                                   return merchantAccountNumber ? (
-                                    <span className="text-sm font-bold text-blue-600">
-                                      • {merchantAccountNumber}
-                                    </span>
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-blue-600">
+                                        • {merchantAccountNumber}
+                                      </span>
+                                      {merchantName && (
+                                        <span className="text-xs font-semibold text-green-600 ml-3">
+                                          {merchantName}
+                                        </span>
+                                      )}
+                                    </div>
                                   ) : null;
                                 })()}
                               </>

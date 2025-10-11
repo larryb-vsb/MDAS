@@ -301,6 +301,22 @@ function BatchRelationshipsView() {
   const [batchPage, setBatchPage] = useState(1);
   const [batchLimit] = useState(10);
 
+  // Merchant lookup map for displaying merchant names
+  const { data: merchantLookupMap } = useQuery<Record<string, string>>({
+    queryKey: ['/api/merchants/lookup-map'],
+    queryFn: () => fetch('/api/merchants/lookup-map', { credentials: 'include' }).then(res => res.json()),
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // Get merchant name from TDDF account number
+  const getMerchantName = (tddfMerchantAccountNumber: string | undefined) => {
+    if (!tddfMerchantAccountNumber || !merchantLookupMap) return null;
+    const merchantAccountNumber = tddfMerchantAccountNumber.startsWith('0') 
+      ? tddfMerchantAccountNumber.substring(1)
+      : tddfMerchantAccountNumber;
+    return merchantLookupMap[merchantAccountNumber] || null;
+  };
+
   // Format amount utility function
   const formatAmount = (amount: string | number | undefined): string => {
     if (!amount) return '-';
@@ -389,6 +405,11 @@ function BatchRelationshipsView() {
                     <div>
                       <span className="font-medium text-green-800">Merchant Account:</span>
                       <div className="font-mono text-xs">{batch.batch_fields?.merchantAccountNumber || '-'}</div>
+                      {getMerchantName(batch.batch_fields?.merchantAccountNumber) && (
+                        <div className="text-xs text-green-700 font-medium mt-1">
+                          {getMerchantName(batch.batch_fields?.merchantAccountNumber)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1037,6 +1058,15 @@ export default function TddfJsonPage() {
     enabled: recordsLoading, // Only fetch when records are loading
   });
 
+  // Merchant lookup map for TDDF viewer (progressive loading after records)
+  const { data: merchantLookupMap } = useQuery<Record<string, string>>({
+    queryKey: ['/api/merchants/lookup-map'],
+    queryFn: () => fetch('/api/merchants/lookup-map', { credentials: 'include' }).then(res => res.json()),
+    staleTime: 30 * 60 * 1000, // Cache for 30 minutes - merchant names don't change often
+    gcTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    enabled: !recordsLoading, // Only fetch after records have loaded (progressive loading)
+  });
+
   const handleRecordClick = async (record: TddfJsonRecord) => {
     setSelectedRecord(record);
     setAssociatedP1Record(null);
@@ -1152,11 +1182,29 @@ export default function TddfJsonPage() {
     }
   };
 
-  // Function to get merchant name from DT records based on merchant account number
+  // Function to get merchant name from lookup map (TDDF format -> merchant table)
+  const getMerchantName = (tddfMerchantAccountNumber: string) => {
+    if (!tddfMerchantAccountNumber || !merchantLookupMap) return null;
+    
+    // TDDF format: 16 digits with leading zero (e.g., "0675900000138461")
+    // Merchant table: 15 digits (e.g., "675900000138461")
+    // Convert by stripping leading zero
+    const merchantAccountNumber = tddfMerchantAccountNumber.startsWith('0') 
+      ? tddfMerchantAccountNumber.substring(1)
+      : tddfMerchantAccountNumber;
+    
+    return merchantLookupMap[merchantAccountNumber] || null;
+  };
+
+  // Legacy function - keep for backwards compatibility with DT merchant names
   const getMerchantNameFromDT = (merchantAccountNumber: string) => {
+    // First try the new lookup map
+    const merchantName = getMerchantName(merchantAccountNumber);
+    if (merchantName) return merchantName;
+    
+    // Fallback to searching DT records
     if (!merchantAccountNumber || !recordsData?.records) return null;
     
-    // Find a DT record with matching merchant account number that has merchant name
     const dtRecord = recordsData.records.find(r => 
       r.record_type === 'DT' && 
       r.extracted_fields?.merchantAccountNumber === merchantAccountNumber &&
@@ -1740,13 +1788,14 @@ export default function TddfJsonPage() {
                     <div className="border rounded-lg overflow-hidden">
                       {/* BH Records - Show authentic TDDF header fields */}
                       {selectedTab === 'BH' ? (
-                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-6 gap-4 text-sm font-medium">
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-7 gap-4 text-sm font-medium">
                           {[
                             { key: 'sequence_number_area', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
                             { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
                             { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
                             { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): BH for Batch Header' },
-                            { key: 'net_deposit', label: 'Net Deposit', tooltip: 'Net Deposit (69-83): Batch total amount' }
+                            { key: 'net_deposit', label: 'Net Deposit', tooltip: 'Net Deposit (69-83): Batch total amount' },
+                            { key: 'merchant_account_number', label: 'Merchant', tooltip: 'Merchant Account Number (24-39) and Business Name' }
                           ].map(({ key, label, tooltip }) => (
                             <TooltipProvider key={key}>
                               <Tooltip>
@@ -1947,8 +1996,8 @@ export default function TddfJsonPage() {
                       )}
                       {recordsData?.records?.map((record: TddfJsonRecord) => (
                         selectedTab === 'BH' ? (
-                          /* BH Records - Show authentic TDDF header fields plus Net Deposit */
-                          <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
+                          /* BH Records - Show authentic TDDF header fields plus Net Deposit and Merchant */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-7 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
                               {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || '-'}
                             </div>
@@ -1966,6 +2015,16 @@ export default function TddfJsonPage() {
                             <div className="font-medium text-green-600">
                               {record.extracted_fields?.netDeposit ? 
                                 formatAmount(record.extracted_fields.netDeposit) : <span className="text-gray-400 text-xs">-</span>}
+                            </div>
+                            <div>
+                              <div className="font-mono text-xs text-gray-600">
+                                {record.extracted_fields?.merchantAccountNumber || '-'}
+                              </div>
+                              {record.extracted_fields?.merchantAccountNumber && getMerchantName(record.extracted_fields.merchantAccountNumber) && (
+                                <div className="text-xs text-green-700 font-medium mt-0.5">
+                                  {getMerchantName(record.extracted_fields.merchantAccountNumber)}
+                                </div>
+                              )}
                             </div>
                             <div>
                               <Button
