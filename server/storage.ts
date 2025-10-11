@@ -575,9 +575,13 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   private lastMerchantId: number;
   sessionStore: session.Store;
+  pool: typeof pool;
+  getTableName: typeof getTableName;
   
   constructor() {
     this.lastMerchantId = 1000;
+    this.pool = pool;
+    this.getTableName = getTableName;
     // Initialize PostgreSQL session store with environment-aware table naming
     const PostgresStore = connectPgSimple(session);
     const sessionTableName = getTableName('session');
