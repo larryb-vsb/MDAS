@@ -240,6 +240,9 @@ export interface IStorage {
   deleteMccSchemaFields(ids: number[]): Promise<void>;
   bulkUpsertMccSchemaFields(fields: InsertMerchantMccSchema[]): Promise<{ inserted: number; updated: number }>;
 
+  // System Settings operations
+  isAutoStep6Enabled(): Promise<boolean>;
+
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string, merchantType?: string): Promise<{
     merchants: any[];
