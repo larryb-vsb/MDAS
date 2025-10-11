@@ -33,8 +33,11 @@ export class ReplitStorageService {
       this.getClient();
       console.log('[REPLIT-STORAGE] Configuration check passed');
       return true;
-    } catch (error) {
-      console.error('[REPLIT-STORAGE] Configuration check failed:', error);
+    } catch (error: any) {
+      console.error('[REPLIT-STORAGE] ❌ Configuration check failed - Error:', error);
+      console.error('[REPLIT-STORAGE] ❌ Error message:', error?.message);
+      console.error('[REPLIT-STORAGE] ❌ Error stack:', error?.stack);
+      console.error('[REPLIT-STORAGE] ❌ Bucket ID env var:', process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID ? 'SET' : 'NOT SET');
       return false;
     }
   }
