@@ -177,7 +177,7 @@ export default function TddfJsonRecordCounts() {
               <div className="flex items-center gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {recordCounts.totalRecords.toLocaleString()}
+                    {(recordCounts.totalRecords || 0).toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-600">Total Records</div>
                 </div>
@@ -205,11 +205,11 @@ export default function TddfJsonRecordCounts() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(recordCounts.recordTypes)
+                {Object.entries(recordCounts.recordTypes || {})
                   .filter(([_, count]) => count > 0)
                   .sort(([_, a], [__, b]) => b - a)
                   .map(([recordType, count]) => {
-                    const percentage = ((count / recordCounts.totalRecords) * 100).toFixed(1);
+                    const percentage = ((count / (recordCounts.totalRecords || 1)) * 100).toFixed(1);
                     const description = {
                       DT: "Detail Transaction Records",
                       BH: "Batch Header Records", 
