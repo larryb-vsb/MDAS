@@ -2714,6 +2714,26 @@ export default function MMSUploader() {
                     </Button>
                   </div>
 
+                  {/* Manual Refresh Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/uploader/storage-config'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/mms-watcher/auto45-status'] });
+                      toast({
+                        title: "Refreshing data",
+                        description: "Loading latest uploads from database..."
+                      });
+                    }}
+                    className="gap-2"
+                    data-testid="button-refresh-uploads"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh
+                  </Button>
+
                   <div className="flex items-center gap-2">
                     <Label>Per Page:</Label>
                     <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
