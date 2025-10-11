@@ -473,13 +473,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const upload = await storage.createUploaderUpload({
         id: uploadId,
         filename,
-        file_size: fileSize,
-        storage_path: storageKey,
-        s3_bucket: 'mms-uploader-files',
-        s3_key: storageKey,
-        created_by: (req.user as any)?.username || 'unknown',
-        session_id: sessionId,
-        server_id: process.env.HOSTNAME || 'unknown',
+        fileSize: fileSize,
+        storagePath: storageKey,
+        s3Bucket: 'mms-uploader-files',
+        s3Key: storageKey,
+        createdBy: (req.user as any)?.username || 'unknown',
+        sessionId: sessionId,
+        serverId: process.env.HOSTNAME || 'unknown',
         keepForReview: keep
       });
       
@@ -577,6 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Replit storage upload error:', error);
       
       // Update upload record with error
+      const { id } = req.params;
       await storage.updateUploaderUpload(id, {
         currentPhase: 'warning',
         processingNotes: `Upload failed: ${error.message}`
@@ -865,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Get storage key
-          let storageKey = upload.s3_key;
+          let storageKey = upload.s3Key;
           if (!storageKey) {
             // Generate storage key for older uploads
             const timestampMatch = upload.id.match(/uploader_(\d+)_/);
@@ -875,13 +876,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const timestamp = parseInt(timestampMatch[1]);
               uploadDate = new Date(timestamp).toISOString().split('T')[0];
             } else {
-              uploadDate = new Date(upload.created_at).toISOString().split('T')[0];
+              uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
             }
             
             storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
             
             await storage.updateUploaderUpload(uploadId, {
-              s3_key: storageKey
+              s3Key: storageKey
             });
           }
           
