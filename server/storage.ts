@@ -14513,6 +14513,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // System Settings operations
+  async isAutoStep6Enabled(): Promise<boolean> {
+    try {
+      const tableName = getTableName('system_settings');
+      const result = await pool.query(`
+        SELECT setting_value FROM ${tableName}
+        WHERE setting_key = 'auto_step6_enabled'
+      `);
+      
+      return result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error checking Auto Step 6 setting:', error);
+      return false;
+    }
+  }
+
   // @ENVIRONMENT-CRITICAL - Dev Upload operations for compressed storage testing
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async createDevUpload(insertDevUpload: InsertDevUpload): Promise<DevUpload> {
