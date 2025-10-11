@@ -432,9 +432,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk delete uploader files
   app.delete("/api/uploader/bulk-delete", isAuthenticated, async (req, res) => {
     try {
+      console.log('[BULK-DELETE-DEBUG] Endpoint hit, body:', req.body);
       const { uploadIds } = req.body;
+      console.log('[BULK-DELETE-DEBUG] Extracted uploadIds:', uploadIds);
       
       if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        console.log('[BULK-DELETE-DEBUG] Validation failed - uploadIds is invalid');
         return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
       }
       
