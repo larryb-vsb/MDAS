@@ -397,24 +397,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         logger.uploader('Found uploads:', allUploads.length, 'Total count:', totalCount);
         
-        // Transform snake_case DB columns to camelCase for frontend
-        const transformedUploads = allUploads.map(upload => ({
-          ...upload,
-          currentPhase: upload.current_phase,
-          finalFileType: upload.final_file_type,
-          detectedFileType: upload.detected_file_type,
-          userClassifiedType: upload.user_classified_type,
-          fileSize: upload.file_size,
-          uploadStartedAt: upload.created_at,
-          uploadedAt: upload.uploaded_at,
-          sessionId: upload.session_id,
-          s3Key: upload.s3_key,
-          processingNotes: upload.processing_notes,
-          storagePath: upload.storage_path
+        // Convert snake_case database fields to camelCase for frontend compatibility
+        const uploads = allUploads.map(row => ({
+          ...row,
+          currentPhase: row.current_phase,
+          lastUpdated: row.last_updated,
+          uploadStartedAt: row.upload_started_at,
+          uploadStatus: row.upload_status,
+          uploadProgress: row.upload_progress,
+          chunkedUpload: row.chunked_upload,
+          chunkCount: row.chunk_count,
+          chunksUploaded: row.chunks_uploaded,
+          uploadedAt: row.uploaded_at,
+          storagePath: row.storage_path,
+          s3Bucket: row.s3_bucket,
+          s3Key: row.s3_key,
+          s3Url: row.s3_url,
+          s3Etag: row.s3_etag,
+          fileSize: row.file_size,
+          identifiedAt: row.identified_at,
+          detectedFileType: row.detected_file_type,
+          userClassifiedType: row.user_classified_type,
+          finalFileType: row.final_file_type,
+          lineCount: row.line_count,
+          dataSize: row.data_size,
+          keepForReview: row.keep_for_review,
+          hasHeaders: row.has_headers,
+          fileFormat: row.file_format,
+          compressionUsed: row.compression_used,
+          encodingDetected: row.encoding_detected,
+          validationErrors: row.validation_errors,
+          processingNotes: row.processing_notes,
+          processingErrors: row.processing_errors,
+          createdBy: row.created_by,
+          serverId: row.server_id,
+          sessionId: row.session_id,
+          failedAt: row.failed_at,
+          completedAt: row.completed_at,
+          startTime: row.start_time,
+          // Mark cross-environment transferred files
+          isCrossEnvTransfer: row.session_id === 'cross_env_transfer',
+          sourceEnvironment: row.source_env || 'current',
+          // Map business data fields for frontend compatibility
+          business_day: (() => {
+            // First try parsed database fields
+            const dbDate = row.parsed_scheduled_datetime || row.parsed_actual_datetime;
+            if (dbDate) return dbDate;
+            
+            // Fallback: extract date from filename (e.g., VERMNTSB.6759_TDDF_2400_08042025_001357.TSYSO -> 08042025)
+            const filename = row.filename || '';
+            const dateMatch = filename.match(/_(\d{8})_/); // Pattern: _MMDDYYYY_
+            if (dateMatch) {
+              const dateStr = dateMatch[1]; // e.g., "08042025"
+              const month = dateStr.substring(0, 2);
+              const day = dateStr.substring(2, 4); 
+              const year = dateStr.substring(4, 8);
+              // Return as YYYY-MM-DD format
+              return `${year}-${month}-${day} 00:00:00`;
+            }
+            
+            return null;
+          })(),
+          record_count: row.line_count || row.tddf_records_created || 0
         }));
         
         res.json({
-          uploads: transformedUploads,
+          uploads,
           totalCount: totalCount,
           limit: limit ? parseInt(limit as string) : undefined,
           offset: offset ? parseInt(offset as string) : 0
