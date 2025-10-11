@@ -26583,4 +26583,21 @@ async function buildChartsCache(requestedBy: string = 'system') {
       parseInt(summary.total_records || 0),
       JSON.stringify({ startDate: startDateStr, endDate: endDateStr }),
       parseFloat(summary.total_transaction_amount || 0),
-  
+      parseFloat(summary.total_auth_amount || 0),
+      parseInt(summary.unique_merchants || 0),
+      processingTime,
+      new Date().toISOString(), // last_refresh_datetime
+      true, // never_expires
+      requestedBy, // refresh_requested_by
+      new Date(), // created_at
+      new Date() // updated_at
+    ]);
+
+    console.log('[CHARTS-CACHE-BUILDER] Cache built successfully');
+
+  } catch (error) {
+    console.error('[CHARTS-CACHE-BUILDER] Error building charts cache:', error);
+    throw error;
+  }
+}
+
