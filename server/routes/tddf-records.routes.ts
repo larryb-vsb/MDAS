@@ -2164,7 +2164,7 @@ export function registerTddfRecordsRoutes(app: Express) {
     try {
       console.log('[TDDF-JSON-DUPLICATES] Getting duplicate statistics...');
       
-      const { JsonbDuplicateCleanup } = await import("./jsonb-duplicate-cleanup.js");
+      const { JsonbDuplicateCleanup } = await import("../jsonb-duplicate-cleanup.js");
       const duplicateCleanup = new JsonbDuplicateCleanup();
       
       // Get current duplicate statistics
@@ -2220,7 +2220,7 @@ export function registerTddfRecordsRoutes(app: Express) {
     try {
       console.log('[TDDF-JSON-DUPLICATES] Starting manual duplicate cleanup...');
       
-      const { JsonbDuplicateCleanup } = await import("./jsonb-duplicate-cleanup.js");
+      const { JsonbDuplicateCleanup } = await import("../jsonb-duplicate-cleanup.js");
       const duplicateCleanup = new JsonbDuplicateCleanup();
       
       // Run comprehensive cleanup scan
