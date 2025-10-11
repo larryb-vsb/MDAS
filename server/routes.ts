@@ -831,6 +831,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto 4-5 Toggle Control API endpoints
+  app.get("/api/mms-watcher/auto45-status", isAuthenticated, async (req, res) => {
+    try {
+      console.log("[AUTO45-API] Getting Auto 4-5 processing status...");
+      
+      const mmsWatcher = getMmsWatcherInstance();
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          success: false,
+          error: "MMS Watcher service not available"
+        });
+      }
+      
+      const status = mmsWatcher.getAuto45Status();
+      
+      res.json({
+        success: true,
+        enabled: status.enabled,
+        status: status.status,
+        message: `Auto 4-5 processing is currently ${status.status}`
+      });
+    } catch (error) {
+      console.error("[AUTO45-API] Error getting Auto 4-5 status:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get Auto 4-5 status" 
+      });
+    }
+  });
+
+  app.post("/api/mms-watcher/auto45-toggle", isAuthenticated, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid enabled parameter - must be boolean"
+        });
+      }
+      
+      console.log(`[AUTO45-API] Setting Auto 4-5 processing to: ${enabled}`);
+      
+      const mmsWatcher = getMmsWatcherInstance();
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          success: false,
+          error: "MMS Watcher service not available"
+        });
+      }
+      
+      mmsWatcher.setAuto45Enabled(enabled);
+      const status = mmsWatcher.getAuto45Status();
+      
+      res.json({
+        success: true,
+        enabled: status.enabled,
+        status: status.status,
+        message: `Auto 4-5 processing ${enabled ? 'enabled' : 'disabled'} successfully`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[AUTO45-API] Error toggling Auto 4-5:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to toggle Auto 4-5" 
+      });
+    }
+  });
+
+  // Auto Step 6 Setting endpoints
+  app.get("/api/uploader/auto-step6-setting", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[AUTO-STEP6] Fetching Auto Step 6 setting');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_step6_enabled'
+      `);
+      
+      const enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+      
+      console.log(`[AUTO-STEP6] Current Auto Step 6 setting: ${enabled}`);
+      
+      res.json({
+        autoStep6Enabled: enabled
+      });
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error fetching Auto Step 6 setting:', error);
+      res.status(500).json({ error: 'Failed to fetch Auto Step 6 setting' });
+    }
+  });
+
+  app.post("/api/uploader/auto-step6-setting", isAuthenticated, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      const username = (req as any).user?.username || 'unknown';
+      
+      console.log(`[AUTO-STEP6] Updating Auto Step 6 setting to: ${enabled} (by: ${username})`);
+      
+      // Upsert the setting
+      await db.execute(sql`
+        INSERT INTO ${sql.identifier(getTableName('system_settings'))} (setting_key, setting_value, setting_type, description, last_updated_by)
+        VALUES ('auto_step6_enabled', ${enabled ? 'true' : 'false'}, 'boolean', 'Enable automatic Step 6 JSON encoding for uploaded TDDF files', ${username})
+        ON CONFLICT (setting_key)
+        DO UPDATE SET 
+          setting_value = ${enabled ? 'true' : 'false'},
+          last_updated_by = ${username},
+          updated_at = NOW()
+      `);
+      
+      console.log(`[AUTO-STEP6] Successfully updated Auto Step 6 setting to: ${enabled}`);
+      
+      res.json({
+        success: true,
+        autoStep6Enabled: enabled,
+        message: `Auto Step 6 processing ${enabled ? 'enabled' : 'disabled'}`
+      });
+    } catch (error) {
+      console.error('[AUTO-STEP6] Error saving Auto Step 6 setting:', error);
+      res.status(500).json({ error: 'Failed to save Auto Step 6 setting' });
+    }
+  });
+
   // Step 6 Processing endpoint - processes ALL records to master tddfJsonb table
   app.post("/api/uploader/step6-processing", isAuthenticated, async (req, res) => {
     console.log("[STEP-6-PROCESSING] API endpoint reached with body:", req.body);

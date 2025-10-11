@@ -1894,8 +1894,17 @@ class MMSWatcher {
   // Stage 6: Step 6 Processing Service - Process encoded files to completion
   async processEncodedFiles() {
     try {
-      // Check if Auto Step 6 is enabled using storage helper
-      const autoStep6Enabled = await this.storage.isAutoStep6Enabled();
+      // Check if Auto Step 6 is enabled by querying system settings directly
+      const { db } = await import('./db.js');
+      const { sql } = await import('drizzle-orm');
+      const { getTableName } = await import('./table-config.js');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_step6_enabled'
+      `);
+      
+      const autoStep6Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
       
       if (!autoStep6Enabled) {
         console.log(`[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 is disabled, skipping encoded file processing`);
