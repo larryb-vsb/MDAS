@@ -617,7 +617,7 @@ class MMSWatcher {
       hasHeaders: identification.hasHeaders,
       fileFormat: identification.format,
       validationErrors: identification.validationErrors && identification.validationErrors.length > 0 
-        ? identification.validationErrors 
+        ? JSON.stringify(identification.validationErrors)
         : null,
       processingNotes: JSON.stringify({
         identified: true,
@@ -1006,7 +1006,7 @@ class MMSWatcher {
         error: errorMessage,
         failedAt: new Date().toISOString()
       }),
-      validationErrors: [errorMessage]
+      validationErrors: JSON.stringify([errorMessage])
     });
     
     console.log(`[MMS-WATCHER] ❌ Failed to identify: ${upload.filename} - ${errorMessage}`);
