@@ -241,6 +241,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerTddfFilesRoutes(app);
   registerTddfRecordsRoutes(app);
   registerTddfCacheRoutes(app);
+  
+  // Get Replit Object Storage configuration status with optional prefix override
+  app.get("/api/uploader/storage-config", isAuthenticated, async (req, res) => {
+    try {
+      const requestedPrefix = req.query.prefix as string; // Allow override via query param
+      
+      const config = ReplitStorageService.getConfigStatus();
+      
+      console.log(`[STORAGE-CONFIG] Environment: ${config.environment}, Default Prefix: ${config.folderPrefix}, Requested: ${requestedPrefix || 'default'}`);
+      
+      // Add file count for requested prefix or default environment-specific prefix
+      try {
+        let searchPrefix: string | undefined;
+        let actualPrefix: string;
+        
+        if (requestedPrefix) {
+          // Use requested prefix (dev-uploader or prod-uploader)
+          searchPrefix = requestedPrefix.endsWith('/') ? requestedPrefix : `${requestedPrefix}/`;
+          actualPrefix = requestedPrefix;
+        } else {
+          // Use environment-aware default
+          searchPrefix = undefined; // Let the service decide
+          actualPrefix = config.folderPrefix;
+        }
+        
+        const files = await ReplitStorageService.listFiles(searchPrefix);
+        config.fileCount = files.length;
+        (config as any).actualPrefix = actualPrefix;
+        
+        console.log(`[STORAGE-CONFIG] Successfully counted ${files.length} files for prefix: ${actualPrefix}, searchPrefix: ${searchPrefix}`);
+      } catch (error: any) {
+        console.error(`[STORAGE-CONFIG] File count error:`, error);
+        (config as any).fileCount = 0;
+        (config as any).fileCountError = error.message;
+        (config as any).actualPrefix = config.folderPrefix;
+      }
+      
+      // Make sure actualPrefix is set
+      if (!(config as any).actualPrefix) {
+        (config as any).actualPrefix = config.folderPrefix;
+      }
+      
+      res.json(config);
+    } catch (error: any) {
+      console.error('Storage config error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   app.get("/api/stats", async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
