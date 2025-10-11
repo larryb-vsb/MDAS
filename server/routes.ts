@@ -432,23 +432,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk delete uploader files
   app.delete("/api/uploader/bulk-delete", isAuthenticated, async (req, res) => {
     try {
-      console.log('[BULK-DELETE-DEBUG] Endpoint hit, body:', req.body);
+      // Write debug to file
+      const fs = require('fs');
+      fs.appendFileSync('/tmp/bulk-delete-debug.log', `[${new Date().toISOString()}] Endpoint hit\nBody: ${JSON.stringify(req.body)}\n`);
+      
       const { uploadIds } = req.body;
-      console.log('[BULK-DELETE-DEBUG] Extracted uploadIds:', uploadIds);
+      fs.appendFileSync('/tmp/bulk-delete-debug.log', `UploadIds: ${JSON.stringify(uploadIds)}\n`);
       
       if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
-        console.log('[BULK-DELETE-DEBUG] Validation failed - uploadIds is invalid');
+        fs.appendFileSync('/tmp/bulk-delete-debug.log', `Validation failed\n\n`);
         return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
       }
       
-      console.log(`[UPLOADER API] Bulk delete request for ${uploadIds.length} uploads:`, uploadIds);
-      
+      fs.appendFileSync('/tmp/bulk-delete-debug.log', `Calling storage.deleteUploaderUploads with ${uploadIds.length} IDs\n`);
       await storage.deleteUploaderUploads(uploadIds);
+      fs.appendFileSync('/tmp/bulk-delete-debug.log', `Successfully deleted ${uploadIds.length} uploads\n\n`);
       
-      console.log(`[UPLOADER API] Successfully deleted ${uploadIds.length} uploads`);
       res.json({ success: true, message: `Successfully deleted ${uploadIds.length} files` });
     } catch (error: any) {
-      console.error('Bulk delete uploader error:', error);
+      const fs = require('fs');
+      fs.appendFileSync('/tmp/bulk-delete-debug.log', `ERROR: ${error.message}\n${error.stack}\n\n`);
       res.status(500).json({ error: error.message });
     }
   });
