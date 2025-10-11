@@ -429,6 +429,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Bulk delete uploader files
+  app.delete("/api/uploader/bulk-delete", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER API] Bulk delete request for ${uploadIds.length} uploads:`, uploadIds);
+      
+      await storage.deleteUploaderUploads(uploadIds);
+      
+      console.log(`[UPLOADER API] Successfully deleted ${uploadIds.length} uploads`);
+      res.json({ success: true, message: `Successfully deleted ${uploadIds.length} files` });
+    } catch (error: any) {
+      console.error('Bulk delete uploader error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   app.get("/api/stats", async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
