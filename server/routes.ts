@@ -988,6 +988,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Detect orphan files in object storage (files not registered in database)
+  app.get("/api/uploader/orphan-files", isAuthenticated, async (req, res) => {
+    try {
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const config = ReplitStorageService.getConfigStatus();
+      
+      if (!config.available) {
+        return res.json({ orphans: [], count: 0, error: 'Object storage not configured' });
+      }
+
+      console.log('[ORPHAN-DETECTION] Scanning for orphan files...');
+      
+      // Get all files from object storage
+      const allStorageFiles = await ReplitStorageService.listFiles();
+      console.log(`[ORPHAN-DETECTION] Found ${allStorageFiles.length} files in object storage`);
+      
+      // Get all registered filenames from database
+      const uploaderTableName = getTableName('uploader_uploads');
+      const registeredResult = await pool.query(`
+        SELECT DISTINCT filename, storage_path 
+        FROM ${uploaderTableName}
+        WHERE filename IS NOT NULL
+      `);
+      
+      const registeredFiles = new Set();
+      registeredResult.rows.forEach((row: any) => {
+        registeredFiles.add(row.filename);
+        if (row.storage_path) {
+          registeredFiles.add(row.storage_path); // Also add storage path
+        }
+      });
+      
+      console.log(`[ORPHAN-DETECTION] Found ${registeredFiles.size} registered files in database`);
+      
+      // Find orphan files (in storage but not in database)
+      const orphanFiles = allStorageFiles.filter((storageKey: string) => {
+        const fileName = storageKey.split('/').pop() || '';
+        return !registeredFiles.has(fileName) && !registeredFiles.has(storageKey);
+      });
+      
+      // Convert to detailed objects
+      const orphans = orphanFiles.map((key: string) => {
+        const fileName = key.split('/').pop() || key;
+        const isOrphanUpload = key.includes('/orphans/');
+        return {
+          key,
+          name: fileName,
+          isOrphanUpload, // Distinguish files uploaded via orphan uploader
+          type: fileName.toLowerCase().endsWith('.tsyso') ? 'tddf' : 
+                fileName.toLowerCase().endsWith('.csv') ? 'csv' :
+                fileName.toLowerCase().endsWith('.json') ? 'json' : 'unknown',
+          canIdentify: true // All orphans can be identified
+        };
+      });
+      
+      console.log(`[ORPHAN-DETECTION] Found ${orphans.length} orphan files`);
+      
+      res.json({
+        orphans,
+        count: orphans.length,
+        totalStorage: allStorageFiles.length,
+        registered: registeredFiles.size
+      });
+      
+    } catch (error: any) {
+      console.error('Orphan detection error:', error);
+      res.status(500).json({ 
+        orphans: [],
+        count: 0,
+        error: error.message 
+      });
+    }
+  });
   
   app.get("/api/stats", async (req, res) => {
     try {

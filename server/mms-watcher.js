@@ -603,8 +603,20 @@ class MMSWatcher {
       lineCount: identification.lineCount,
       hasHeaders: identification.hasHeaders,
       fileFormat: identification.format,
-      validationErrors: identification.validationErrors,
-      processingNotes: `File identified: ${identification.detectedType} format, ${identification.lineCount} lines, headers: ${identification.hasHeaders}`
+      validationErrors: identification.validationErrors && identification.validationErrors.length > 0 
+        ? identification.validationErrors 
+        : null,
+      processingNotes: JSON.stringify({
+        identified: true,
+        detectedType: identification.detectedType,
+        lineCount: identification.lineCount,
+        hasHeaders: identification.hasHeaders,
+        format: identification.format,
+        validationErrors: identification.validationErrors && identification.validationErrors.length > 0 
+          ? identification.validationErrors 
+          : null,
+        identifiedAt: new Date().toISOString()
+      })
     });
 
     const successContext = FileTaggedLogger.createContext(upload, 4, 'COMPLETE');
@@ -976,7 +988,11 @@ class MMSWatcher {
   async markIdentificationFailed(upload, errorMessage) {
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'failed',
-      processingNotes: `Identification failed: ${errorMessage}`,
+      processingNotes: JSON.stringify({
+        identified: false,
+        error: errorMessage,
+        failedAt: new Date().toISOString()
+      }),
       validationErrors: [errorMessage]
     });
     
