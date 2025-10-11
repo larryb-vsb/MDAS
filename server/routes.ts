@@ -241,6 +241,371 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerTddfFilesRoutes(app);
   registerTddfRecordsRoutes(app);
   registerTddfCacheRoutes(app);
+
+  // Uploader Routes
+  // Get Replit Object Storage configuration status with optional prefix override
+  app.get("/api/uploader/storage-config", isAuthenticated, async (req, res) => {
+    try {
+      const requestedPrefix = req.query.prefix as string; // Allow override via query param
+      
+      const config = ReplitStorageService.getConfigStatus();
+      
+      console.log(`[STORAGE-CONFIG] Environment: ${config.environment}, Default Prefix: ${config.folderPrefix}, Requested: ${requestedPrefix || 'default'}`);
+      
+      // Add file count for requested prefix or default environment-specific prefix
+      try {
+        let searchPrefix: string | undefined;
+        let actualPrefix: string;
+        
+        if (requestedPrefix) {
+          // Use requested prefix (dev-uploader or prod-uploader)
+          searchPrefix = requestedPrefix.endsWith('/') ? requestedPrefix : `${requestedPrefix}/`;
+          actualPrefix = requestedPrefix;
+        } else {
+          // Use environment-aware default
+          searchPrefix = undefined; // Let the service decide
+          actualPrefix = config.folderPrefix;
+        }
+        
+        const files = await ReplitStorageService.listFiles(searchPrefix);
+        config.fileCount = files.length;
+        (config as any).actualPrefix = actualPrefix;
+        
+        console.log(`[STORAGE-CONFIG] Successfully counted ${files.length} files for prefix: ${actualPrefix}, searchPrefix: ${searchPrefix}`);
+      } catch (error: any) {
+        console.error(`[STORAGE-CONFIG] File count error:`, error);
+        (config as any).fileCount = 0;
+        (config as any).fileCountError = error.message;
+        (config as any).actualPrefix = config.folderPrefix;
+      }
+      
+      // Make sure actualPrefix is set
+      if (!(config as any).actualPrefix) {
+        (config as any).actualPrefix = config.folderPrefix;
+      }
+      
+      res.json(config);
+    } catch (error: any) {
+      console.error('Storage config error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Main uploader files list with pagination support
+  app.get("/api/uploader", isAuthenticated, async (req, res) => {
+    logger.uploader('GET /api/uploader endpoint reached');
+    logger.uploader('Query parameters:', req.query);
+    try {
+      const { phase, sessionId, limit, offset, environment } = req.query;
+      logger.uploader('Parsed parameters:', { phase, sessionId, limit, offset, environment });
+      
+      // Support cross-environment viewing: use specific table if environment is specified
+      let tableName = getTableName('uploader_uploads'); // Default to current environment
+      if (environment === 'production') {
+        tableName = 'uploader_uploads'; // Production table
+      } else if (environment === 'development') {
+        tableName = 'dev_uploader_uploads'; // Development table
+      }
+      
+      logger.uploader('Using table:', tableName, 'for environment:', environment || 'current');
+      
+      // Get total count first for pagination
+      let totalCount = 0;
+      let allUploads: any[] = [];
+      
+      try {
+        // First, get total count for pagination
+        let countQuery = `SELECT COUNT(*) as count FROM ${tableName}`;
+        const countParams: any[] = [];
+        const countConditions: string[] = [];
+        
+        if (phase) {
+          countConditions.push(`current_phase = $${countParams.length + 1}`);
+          countParams.push(phase);
+        }
+        
+        if (sessionId) {
+          countConditions.push(`session_id = $${countParams.length + 1}`);
+          countParams.push(sessionId);
+        }
+        
+        if (countConditions.length > 0) {
+          countQuery += ` WHERE ${countConditions.join(' AND ')}`;
+        }
+        
+        const countResult = await pool.query(countQuery, countParams);
+        totalCount = parseInt(countResult.rows[0]?.count || '0');
+        
+        // Also count cross-environment transferred files if we're in development
+        if (tableName.includes('dev_')) {
+          try {
+            const prodCountQuery = `SELECT COUNT(*) as count FROM uploader_uploads WHERE session_id = 'cross_env_transfer'`;
+            const prodCountResult = await pool.query(prodCountQuery);
+            const prodCount = parseInt(prodCountResult.rows[0]?.count || '0');
+            totalCount += prodCount;
+          } catch (prodError) {
+            console.log('[CROSS-ENV] Production table not accessible for count, skipping cross-env count');
+          }
+        }
+        
+        // Then query current environment table with proper pagination
+        let query = `SELECT *, 'current' as source_env FROM ${tableName}`;
+        const params: any[] = [];
+        const conditions: string[] = [];
+        
+        if (phase) {
+          conditions.push(`current_phase = $${params.length + 1}`);
+          params.push(phase);
+        }
+        
+        if (sessionId) {
+          conditions.push(`session_id = $${params.length + 1}`);
+          params.push(sessionId);
+        }
+        
+        if (conditions.length > 0) {
+          query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+        
+        query += ` ORDER BY created_at DESC`;
+        
+        // Apply SQL-level pagination
+        if (limit) {
+          query += ` LIMIT $${params.length + 1}`;
+          params.push(parseInt(limit as string));
+        }
+        
+        if (offset) {
+          query += ` OFFSET $${params.length + 1}`;
+          params.push(parseInt(offset as string));
+        }
+        
+        const currentResult = await pool.query(query, params);
+        allUploads = currentResult.rows;
+        
+        // Also query for cross-environment transferred files if we're in development
+        if (tableName.includes('dev_')) {
+          try {
+            const prodQuery = `SELECT *, 'production' as source_env FROM uploader_uploads WHERE session_id = 'cross_env_transfer'`;
+            const prodResult = await pool.query(prodQuery);
+            // Add production cross-env transfers to the list
+            allUploads = [...allUploads, ...prodResult.rows];
+          } catch (prodError) {
+            console.log('[CROSS-ENV] Production table not accessible, skipping cross-env files');
+          }
+        }
+        
+        logger.uploader('Found uploads:', allUploads.length, 'Total count:', totalCount);
+        
+        res.json({
+          uploads: allUploads,
+          totalCount: totalCount,
+          limit: limit ? parseInt(limit as string) : undefined,
+          offset: offset ? parseInt(offset as string) : 0
+        });
+      } catch (error: any) {
+        logger.uploader('Database error:', error);
+        res.status(500).json({ 
+          error: "Database error",
+          details: error.message,
+          uploads: [],
+          totalCount: 0
+        });
+      }
+    } catch (error: any) {
+      logger.uploader('Unexpected error:', error);
+      res.status(500).json({ 
+        error: "Unexpected error",
+        details: error.message,
+        uploads: [],
+        totalCount: 0
+      });
+    }
+  });
+
+  // Uploader dashboard metrics
+  app.get("/api/uploader/dashboard-metrics", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Try to get cached metrics from uploader dashboard cache first
+      const cacheResult = await pool.query(`
+        SELECT cache_data, refresh_state, last_manual_refresh, created_at, build_time_ms
+        FROM ${getTableName('uploader_dashboard_cache')}
+        WHERE cache_key = 'uploader_stats' 
+        AND expires_at > NOW()
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `);
+
+      if (cacheResult.rows.length > 0) {
+        const cached = cacheResult.rows[0];
+        return res.json({
+          ...cached.cache_data,
+          refreshState: cached.refresh_state,
+          lastRefreshTime: cached.last_manual_refresh || cached.created_at,
+          cacheMetadata: {
+            lastRefreshed: cached.created_at,
+            buildTime: cached.build_time_ms,
+            fromCache: true
+          }
+        });
+      }
+
+      // Generate fresh metrics from uploader tables
+      const [totalFiles, completedFiles, failedFiles, processingFiles, lastUploadResult, recentFilesResult] = await Promise.all([
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName}`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE current_phase IN ('uploaded', 'identified', 'encoded')`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE current_phase = 'failed'`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE current_phase IN ('started', 'uploading', 'processing')`),
+        pool.query(`
+          SELECT MAX(created_at) as last_upload_date,
+                 MAX(CASE WHEN current_phase IN ('uploaded', 'identified', 'encoded') THEN created_at END) as last_completed_upload
+          FROM ${uploaderTableName}
+        `),
+        pool.query(`
+          SELECT COUNT(*) as count 
+          FROM ${uploaderTableName} 
+          WHERE created_at > NOW() - INTERVAL '24 hours'
+        `)
+      ]);
+
+      const totalCount = parseInt(totalFiles.rows[0]?.count || 0);
+      const completedCount = parseInt(completedFiles.rows[0]?.count || 0);
+      const failedCount = parseInt(failedFiles.rows[0]?.count || 0);
+      const processingCount = parseInt(processingFiles.rows[0]?.count || 0);
+      const last24hCount = parseInt(recentFilesResult.rows[0]?.count || 0);
+
+      res.json({
+        totalFiles: totalCount,
+        completedFiles: completedCount,
+        failedFiles: failedCount,
+        processingFiles: processingCount,
+        lastUploadDate: lastUploadResult.rows[0]?.last_upload_date || null,
+        lastCompletedUpload: lastUploadResult.rows[0]?.last_completed_upload || null,
+        last24Hours: last24hCount,
+        cacheMetadata: {
+          fromCache: false
+        }
+      });
+    } catch (error) {
+      console.error('Error getting uploader dashboard metrics:', error);
+      res.status(500).json({ error: 'Failed to get uploader dashboard metrics' });
+    }
+  });
+
+  // Get last new data date from uploader uploads
+  app.get("/api/uploader/last-new-data-date", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Get last new data date (most recent upload that completed)
+      const lastDataResult = await pool.query(`
+        SELECT MAX(created_at) as last_new_data_date
+        FROM ${uploaderTableName}
+        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
+        AND created_at IS NOT NULL
+      `);
+      
+      const lastNewDataDate = lastDataResult.rows[0]?.last_new_data_date || null;
+      
+      res.json({
+        lastNewDataDate: lastNewDataDate,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error getting last new data date:', error);
+      res.status(500).json({ error: 'Failed to get last new data date' });
+    }
+  });
+
+  // Scan for orphan files in Object Storage vs Database
+  app.post("/api/uploader/scan-orphans", isAuthenticated, async (req, res) => {
+    try {
+      const config = ReplitStorageService.getConfigStatus();
+      
+      if (!config.available) {
+        return res.status(400).json({
+          error: 'Object storage not configured'
+        });
+      }
+
+      // Get storage location from request body (or use current environment as default)
+      const storageLocation = req.body.storageLocation || 'auto';
+      let actualPrefix = config.folderPrefix; // Default to current environment
+      
+      // Override prefix based on selection
+      if (storageLocation === 'dev-uploader') {
+        actualPrefix = 'dev-uploader';
+      } else if (storageLocation === 'prod-uploader') {
+        actualPrefix = 'prod-uploader';
+      }
+      
+      console.log(`[ORPHAN-SCAN] Starting orphan file scan for ${actualPrefix}/...`);
+      
+      // Get files from the specified storage location
+      const searchPrefix = actualPrefix.endsWith('/') ? actualPrefix : `${actualPrefix}/`;
+      const storageFiles = await ReplitStorageService.listFiles(searchPrefix);
+      console.log(`[ORPHAN-SCAN] Found ${storageFiles.length} files in ${actualPrefix}/ storage location`);
+      
+      // Get all upload records from database  
+      const uploaderUploadsTableName = getTableName('uploader_uploads');
+      const databaseRecordsResult = await db.execute(sql`
+        SELECT id, filename, s3_key
+        FROM ${sql.identifier(uploaderUploadsTableName)}
+        ORDER BY uploaded_at DESC
+      `);
+      
+      const databaseFiles = databaseRecordsResult.rows;
+      console.log(`[ORPHAN-SCAN] Found ${databaseFiles.length} upload records in database`);
+      
+      // Find orphan files (in storage but not in database)
+      const orphanFiles: string[] = [];
+      
+      for (const storageFile of storageFiles) {
+        // Check if this storage file matches any database record
+        const matchingDbRecord = databaseFiles.find(dbFile => {
+          // Check multiple potential matches:
+          // 1. Direct s3_key match
+          if (dbFile.s3_key && dbFile.s3_key === storageFile) {
+            return true;
+          }
+          
+          // 2. Check if storage path contains the upload ID and filename
+          const fileName = storageFile.split('/').pop();
+          if (fileName && storageFile.includes(dbFile.id) && fileName === dbFile.filename) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        if (!matchingDbRecord) {
+          orphanFiles.push(storageFile);
+        }
+      }
+      
+      console.log(`[ORPHAN-SCAN] Found ${orphanFiles.length} orphan files`);
+      
+      const result = {
+        success: true,
+        totalStorageFiles: storageFiles.length,
+        databaseFiles: databaseFiles.length,
+        orphanCount: orphanFiles.length,
+        orphanFiles: orphanFiles.slice(0, 50), // Return first 50 for preview
+        scannedAt: new Date().toISOString(),
+        environment: config.environment,
+        actualPrefix: actualPrefix,
+        storageLocation: storageLocation
+      };
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('Orphan scan error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/stats", async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
