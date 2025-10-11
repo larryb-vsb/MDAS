@@ -19,6 +19,10 @@ import { registerMerchantRoutes } from "./routes/merchants.routes";
 import { registerUserRoutes } from "./routes/users.routes";
 import { registerApiUserRoutes } from "./routes/api-users.routes";
 import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
+import { registerSystemRoutes } from "./routes/system.routes";
+import { registerAuthRoutes } from "./routes/auth.routes";
+import { registerSettingsRoutes } from "./routes/settings.routes";
+import { registerSchemaRoutes } from "./routes/schema.routes";
 import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
 import logTestRoutes from "./routes/log_test_routes";
@@ -223,8 +227,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerMerchantRoutes(app);
   registerUserRoutes(app);
   registerApiUserRoutes(app);
+  registerSystemRoutes(app);
+  registerAuthRoutes(app);
+  registerSettingsRoutes(app);
+  registerSchemaRoutes(app);
 
-  // DATABASE CLEANUP: Drop users table and fix session table naming
+  // DATABASE CLEANUP: Drop users table and fix session table naming (NOW IN system.routes.ts)
+  // Keeping this comment as a marker - actual route moved to system.routes.ts
+  /*
   app.post("/api/system/cleanup-tables", async (req, res) => {
     try {
       const { secret } = req.body;
@@ -683,8 +693,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       status: processingPaused ? "paused" : "running"
     });
   });
+  */
   
-  // Upload and restore backup endpoint that works even in fallback mode
+  // Upload and restore backup endpoint that works even in fallback mode (NOW IN settings.routes.ts)
+  // Keeping this comment as a marker - actual route moved to settings.routes.ts
+  /*
   app.post("/api/settings/backup/restore-upload", upload.single('backupFile'), async (req, res) => {
     try {
       if (!req.file) {
@@ -792,8 +805,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   
-  // Endpoint to generate a sample backup file
+  // Endpoint to generate a sample backup file (NOW IN settings.routes.ts)
+  /*
   app.get("/api/settings/backup/generate-sample", async (req, res) => {
     try {
       // Import the sample backup generator
@@ -817,8 +832,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   
-  // Endpoint to convert in-memory data to database
+  // Endpoint to convert in-memory data to database (NOW IN settings.routes.ts)
+  /*
   app.post("/api/settings/convert-memory-to-database", isAuthenticated, async (req, res) => {
     try {
       // Enhanced fallback detection
@@ -874,13 +891,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/settings", isAuthenticated);
   registerBackupScheduleRoutes(app);
   
+  */
+  
   // User management endpoints
 
   // API User management endpoints
 
   // Get database statistics and info for settings page
   // Get schema version information
-  // Import current schema content into database
+  // Import current schema content into database (NOW IN schema.routes.ts)
+  /*
   app.post("/api/schema/import", async (req, res) => {
     try {
       const fs = await import('fs');
@@ -1062,6 +1082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
 
   // Real-time database processing statistics endpoint with TDDF operations
   app.get("/api/processing/real-time-stats", async (req, res) => {
@@ -1325,7 +1346,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
 
+  // GET /api/settings/database (NOW IN settings.routes.ts)
+  /*
   app.get("/api/settings/database", async (req, res) => {
     try {
       // Get PostgreSQL version
@@ -1428,8 +1452,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   
-  // System information endpoint with fallback storage status
+  // System information endpoint with fallback storage status (NOW IN system.routes.ts)
+  /*
   app.get("/api/system/info", async (req, res) => {
     try {
       // Get environment information from env-config
@@ -1475,8 +1501,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   
-  // Create database backup using direct SQL queries
+  // Create database backup using direct SQL queries (NOW IN settings.routes.ts)
+  /*
   app.post("/api/settings/backup", isAuthenticated, async (req, res) => {
     try {
       // Import the BackupManager and S3 config dynamically
@@ -1743,6 +1771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   
   // Get dashboard stats
   app.get("/api/stats", async (req, res) => {
