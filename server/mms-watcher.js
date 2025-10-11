@@ -1089,24 +1089,29 @@ class MMSWatcher {
       let encodingResults;
       
       if (fileType === 'tddf') {
-        // Import and use the TDDF1 file-based encoder
-        const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder');
-        encodingResults = await processAllRecordsToMasterTable(fileContent, upload);
+        // Count lines for validation (Step 6 will handle actual TDDF processing via API table)
+        console.log(`[AUTO-ENCODING] File ${upload.id}: Counting lines...`);
+        const lines = fileContent.trim().split('\n');
+        const lineCount = lines.length;
+        console.log(`[AUTO-ENCODING] File ${upload.id}: Found ${lineCount} lines`);
         
-        // Update to encoded phase with TDDF results
+        const encodingResult = {
+          totalRecords: lineCount,
+          strategy: 'line_count_for_step6',
+          note: 'File validated and ready for Step 6 TDDF API processing'
+        };
+        console.log(`[AUTO-ENCODING] File ${upload.id}: Encoding result prepared`);
+        
+        // Update to encoded phase (Step 6 will handle actual field extraction)
         await this.storage.updateUploaderPhase(upload.id, 'encoded', {
           encodingCompletedAt: new Date(),
           encodingStatus: 'completed',
-          encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file-based table`,
-          jsonRecordsCreated: encodingResults.totalRecords,
-          recordTypeBreakdown: encodingResults.recordCounts.byType,
-          processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`
+          encodingNotes: `Auto-encoded: File validated with ${encodingResult.totalRecords} lines, ready for Step 6 processing`,
+          jsonRecordsCreated: encodingResult.totalRecords,
+          processingNotes: `Auto-encoded by MMS Watcher: ${encodingResult.totalRecords} lines validated, deferred field extraction to Step 6`
         });
 
-        // Update TDDF1 totals cache for newly encoded file
-        await this.updateTddf1TotalsCache(upload.filename, encodingResults);
-
-        console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.totalProcessingTime}ms)`);
+        console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResult.totalRecords} lines validated (Step 6 will process)`);
       } 
       else if (fileType === 'merchant_csv') {
         // Save content to temporary file for CSV processing

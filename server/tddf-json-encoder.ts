@@ -251,11 +251,31 @@ function parseFieldValue(rawValue: string, type: string): any {
   
   switch (type) {
     case 'date':
-      // MMDDCCYY format -> YYYY-MM-DD
+      // MMDDCCYY format -> YYYY-MM-DD with validation
       if (trimmed.length === 8) {
         const month = trimmed.substring(0, 2);
         const day = trimmed.substring(2, 4);
         const year = trimmed.substring(4, 8);
+        
+        // Validate date components
+        const monthNum = parseInt(month, 10);
+        const dayNum = parseInt(day, 10);
+        const yearNum = parseInt(year, 10);
+        
+        // Check for valid ranges
+        if (monthNum < 1 || monthNum > 12) {
+          console.warn(`[TDDF-DATE-PARSE] Invalid month in date: ${trimmed} (month: ${month})`);
+          return null;
+        }
+        if (dayNum < 1 || dayNum > 31) {
+          console.warn(`[TDDF-DATE-PARSE] Invalid day in date: ${trimmed} (day: ${day})`);
+          return null;
+        }
+        if (yearNum < 1900 || yearNum > 2100) {
+          console.warn(`[TDDF-DATE-PARSE] Invalid year in date: ${trimmed} (year: ${year})`);
+          return null;
+        }
+        
         return `${year}-${month}-${day}`;
       }
       return trimmed;
