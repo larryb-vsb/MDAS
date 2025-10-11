@@ -1848,12 +1848,20 @@ class MMSWatcher {
   // Stage 6: Step 6 Processing Service - Process encoded files to completion
   async processEncodedFiles() {
     try {
+      // Check if Auto Step 6 is enabled using storage helper
+      const autoStep6Enabled = await this.storage.isAutoStep6Enabled();
+      
+      if (!autoStep6Enabled) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 is disabled, skipping encoded file processing`);
+        return; // Auto Step 6 is disabled, skip processing
+      }
+      
       // Find files in "encoded" phase that need Step 6 processing
       const encodedFiles = await this.storage.getUploaderUploads({
         phase: 'encoded'
       });
 
-      console.log(`[MMS-WATCHER] [AUTO-STEP6] Found ${encodedFiles.length} files in 'encoded' phase`);
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 enabled - Found ${encodedFiles.length} files in 'encoded' phase`);
       
       if (encodedFiles.length === 0) {
         return; // No files to process
