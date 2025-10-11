@@ -23,8 +23,6 @@ import { registerSystemRoutes } from "./routes/system.routes";
 import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerSettingsRoutes } from "./routes/settings.routes";
 import { registerSchemaRoutes } from "./routes/schema.routes";
-import { registerUploadsRoutes } from "./routes/uploads.routes";
-import { registerFileProcessorRoutes } from "./routes/file-processor.routes";
 import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
 import logTestRoutes from "./routes/log_test_routes";
@@ -233,9 +231,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAuthRoutes(app);
   registerSettingsRoutes(app);
   registerSchemaRoutes(app);
-  registerUploadsRoutes(app);
-  registerFileProcessorRoutes(app);
-  
   app.get("/api/stats", async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
