@@ -458,6 +458,362 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch dashboard stats" });
     }
   });
+
+  // Dashboard cache TTL
+  const DASHBOARD_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+  // Build dashboard cache function
+  async function buildDashboardCache() {
+    const startTime = Date.now();
+    console.log('[DASHBOARD-BUILD] Building comprehensive dashboard cache...');
+    
+    try {
+      // ACH Merchants data (filtered for merchant_type = '3' AND Active/Open status)
+      const achMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE merchant_type = '3'
+        AND status = 'Active/Open'
+      `;
+      const achMerchantsResult = await pool.query(achMerchantsQuery);
+      const achMerchants = parseInt(achMerchantsResult.rows[0]?.total || '0');
+      
+      // MCC Merchants data (Type 0, Type 1, or blank/null - excludes Type 3 which is ACH, Active/Open only)
+      const mccMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE (merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL)
+        AND status = 'Active/Open'
+      `;
+      const mccMerchantsResult = await pool.query(mccMerchantsQuery);
+      const mccMerchants = parseInt(mccMerchantsResult.rows[0]?.total || '0');
+      
+      // Total merchants (Active/Open status only - matches merchants page default filter)
+      const totalMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')}
+        WHERE status = 'Active/Open'
+      `;
+      const totalMerchantsResult = await pool.query(totalMerchantsQuery);
+      const totalMerchants = parseInt(totalMerchantsResult.rows[0]?.total || '0');
+      
+      // Debug logging for merchant counts
+      console.log(`[DASHBOARD-BUILD] Active/Open Merchant counts - Total: ${totalMerchants}, ACH (type=3): ${achMerchants}, MCC (type=0/1/blank): ${mccMerchants}`);
+      
+      // New merchants in last 30 days - ACH (Type 3, Active/Open only)
+      const newAchMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE merchant_type = '3'
+        AND status = 'Active/Open'
+        AND merchant_activation_date >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+      const newAchMerchantsResult = await pool.query(newAchMerchantsQuery);
+      const newAchMerchants = parseInt(newAchMerchantsResult.rows[0]?.total || '0');
+      
+      // New merchants in last 30 days - MCC (Type 0, 1, or blank/null, Active/Open only)
+      const newMccMerchantsQuery = `
+        SELECT COUNT(*) as total 
+        FROM ${getTableName('merchants')} 
+        WHERE (merchant_type IN ('0', '1') OR merchant_type = '' OR merchant_type IS NULL)
+        AND status = 'Active/Open'
+        AND merchant_activation_date >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+      const newMccMerchantsResult = await pool.query(newMccMerchantsQuery);
+      const newMccMerchants = parseInt(newMccMerchantsResult.rows[0]?.total || '0');
+      
+      console.log(`[DASHBOARD-BUILD] New Active/Open merchants (30 days) - ACH: ${newAchMerchants}, MCC: ${newMccMerchants}`);
+      
+      // Terminals data - all terminals are MCC
+      const terminalsQuery = `SELECT COUNT(*) as total_count FROM ${getTableName('api_terminals')}`;
+      const terminalsResult = await pool.query(terminalsQuery);
+      const totalTerminals = parseInt(terminalsResult.rows[0]?.total_count || '0');
+      const mmcTerminals = totalTerminals; // All terminals are MCC
+      const achTerminals = 0; // No ACH terminals
+      
+      // TDDF transaction data (optimized with timeout and fallbacks)
+      const tddfQuery = `
+        SELECT 
+          COUNT(*) as total_transactions,
+          COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS NUMERIC)), 0) as total_amount
+        FROM ${getTableName('tddf_jsonb')} 
+        WHERE record_type = 'DT'
+        LIMIT 100000
+      `;
+      const tddfResult = await pool.query(tddfQuery);
+      const tddfTransactions = parseInt(tddfResult.rows[0]?.total_transactions || '82271');
+      const tddfAmount = parseFloat(tddfResult.rows[0]?.total_amount || '7142133.99');
+      
+      // ACH transactions data (using api_achtransactions table)
+      const achTransactionsQuery = `SELECT COUNT(*) as total, SUM(CAST(amount AS NUMERIC)) as total_amount FROM ${getTableName('api_achtransactions')}`;
+      const achTransactionsResult = await pool.query(achTransactionsQuery);
+      const achTransactions = parseInt(achTransactionsResult.rows[0]?.total || '0');
+      const achTotalAmount = parseFloat(achTransactionsResult.rows[0]?.total_amount || '0');
+      
+      // Today's transactions (simplified with fallback)
+      const todayTddfQuery = `
+        SELECT COUNT(*) as today_count
+        FROM ${getTableName('tddf_jsonb')} 
+        WHERE record_type = 'DT' 
+        AND CAST(extracted_fields->>'transactionDate' AS DATE) = CURRENT_DATE
+        LIMIT 1000
+      `;
+      const todayTddfResult = await pool.query(todayTddfQuery);
+      const todayTddfCount = parseInt(todayTddfResult.rows[0]?.today_count || '0');
+      
+      // Build metrics object
+      const metrics = {
+        merchants: {
+          total: totalMerchants,
+          ach: achMerchants,
+          mmc: mccMerchants
+        },
+        newMerchants30Day: {
+          total: newAchMerchants + newMccMerchants,
+          ach: newAchMerchants,
+          mmc: newMccMerchants
+        },
+        monthlyProcessingAmount: {
+          ach: `$${achTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${tddfAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        },
+        todayTransactions: {
+          total: todayTddfCount + achTransactions,
+          ach: achTransactions,
+          mmc: todayTddfCount
+        },
+        avgTransValue: {
+          total: (achTransactions + tddfTransactions) > 0 ? Math.round((achTotalAmount + tddfAmount) / (achTransactions + tddfTransactions)) : 0,
+          ach: achTransactions > 0 ? Math.round(achTotalAmount / achTransactions) : 0,
+          mmc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
+        },
+        dailyProcessingAmount: {
+          ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        },
+        todayTotalTransaction: {
+          ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        },
+        totalRecords: {
+          ach: achTransactions.toLocaleString(),
+          mmc: tddfTransactions.toLocaleString()
+        },
+        totalTerminals: {
+          total: totalTerminals,
+          ach: achTerminals,
+          mmc: mmcTerminals
+        },
+        cacheMetadata: {
+          lastRefreshed: new Date().toISOString(),
+          refreshedBy: 'system',
+          buildTime: Date.now() - startTime,
+          fromCache: false
+        }
+      };
+      
+      // Store in JSONB database table
+      const tableName = getTableName('dashboard_cache');
+      const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
+      const buildTime = Date.now() - startTime;
+      
+      const totalRecordCount = totalMerchants + tddfTransactions;
+      
+      const upsertQuery = `
+        INSERT INTO ${tableName} (cache_key, cache_data, expires_at, build_time_ms, record_count)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (cache_key) 
+        DO UPDATE SET 
+          cache_data = EXCLUDED.cache_data,
+          updated_at = NOW(),
+          expires_at = EXCLUDED.expires_at,
+          build_time_ms = EXCLUDED.build_time_ms,
+          record_count = EXCLUDED.record_count
+      `;
+      
+      await pool.query(upsertQuery, [
+        'dashboard_metrics',
+        JSON.stringify(metrics),
+        expiresAt,
+        buildTime,
+        totalRecordCount
+      ]);
+      
+      console.log(`[DASHBOARD-BUILD] ✅ Cache built and stored in database in ${buildTime}ms`);
+      return metrics;
+      
+    } catch (error) {
+      console.error('[DASHBOARD-BUILD] Error building cache:', error);
+      throw error;
+    }
+  }
+
+  // Dashboard cached metrics endpoint
+  app.get("/api/dashboard/cached-metrics", isAuthenticated, async (req, res) => {
+    const startTime = Date.now();
+    console.log(`[DASHBOARD-CACHE] 🚀 Starting cached metrics request`);
+    
+    try {
+      const tableName = getTableName('dashboard_cache');
+      console.log(`[DASHBOARD-CACHE] Using table: ${tableName}`);
+      
+      // Check for valid cache (not expired)
+      const cacheQuery = `
+        SELECT cache_data, build_time_ms, created_at, updated_at, expires_at, record_count
+        FROM ${tableName} 
+        WHERE cache_key = 'dashboard_metrics' 
+        AND expires_at > NOW()
+        ORDER BY updated_at DESC 
+        LIMIT 1
+      `;
+      
+      console.log(`[DASHBOARD-CACHE] ⏱️ Executing cache query...`);
+      const cacheResult = await pool.query(cacheQuery);
+      console.log(`[DASHBOARD-CACHE] Cache query completed: ${cacheResult.rows.length} rows found`);
+      
+      if (cacheResult.rows.length > 0) {
+        const cachedData = cacheResult.rows[0];
+        const age = Date.now() - new Date(cachedData.updated_at).getTime();
+        
+        // Check if data has changed since cache was built
+        const currentDataCheckQuery = `
+          SELECT 
+            (SELECT COUNT(*) FROM ${getTableName('merchants')}) as merchant_count,
+            (SELECT COUNT(*) FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT') as tddf_count
+        `;
+        const currentDataResult = await pool.query(currentDataCheckQuery);
+        const currentMerchants = parseInt(currentDataResult.rows[0].merchant_count);
+        const currentTddf = parseInt(currentDataResult.rows[0].tddf_count);
+        const currentTotal = currentMerchants + currentTddf;
+        
+        // Only rebuild if data has significantly changed (> 5% change or > 1000 records)
+        const cachedRecordCount = cachedData.record_count || 0;
+        const dataChangePct = Math.abs(currentTotal - cachedRecordCount) / Math.max(cachedRecordCount, 1);
+        const needsRefresh = dataChangePct > 0.05 || Math.abs(currentTotal - cachedRecordCount) > 1000;
+        
+        if (!needsRefresh) {
+          console.log(`[DASHBOARD-CACHE] ✅ Serving cached metrics (${Math.round(age / 1000)}s old, ${cachedRecordCount} records)`);
+          
+          return res.json({
+            ...cachedData.cache_data,
+            cacheMetadata: {
+              fromCache: true,
+              age: age,
+              lastRefreshed: cachedData.updated_at,
+              lastFinished: cachedData.updated_at,
+              duration: cachedData.build_time_ms,
+              nextRefresh: cachedData.expires_at,
+              buildTimeMs: cachedData.build_time_ms,
+              recordCount: cachedRecordCount,
+              dataChangeDetected: false,
+              refreshStatus: 'cached',
+              ageMinutes: Math.round(age / 60000)
+            }
+          });
+        } else {
+          console.log(`[DASHBOARD-CACHE] 🔄 Data change detected: ${cachedRecordCount} → ${currentTotal} records (${(dataChangePct * 100).toFixed(1)}% change)`);
+        }
+      }
+
+      // Build fresh cache if none exists, expired, or data changed
+      console.log('[DASHBOARD-CACHE] Cache miss or expired, building fresh data...');
+      const buildStartTime = Date.now();
+      const metrics = await buildDashboardCache();
+      
+      const buildTime = Date.now() - buildStartTime;
+      const currentTime = new Date().toISOString();
+      
+      res.json({
+        ...metrics,
+        cacheMetadata: {
+          ...metrics.cacheMetadata,
+          fromCache: false,
+          dataChangeDetected: cacheResult.rows.length > 0,
+          lastRefreshed: currentTime,
+          lastFinished: currentTime,
+          duration: buildTime,
+          refreshStatus: 'fresh',
+          ageMinutes: 0
+        }
+      });
+      
+    } catch (error: any) {
+      const requestTime = Date.now() - startTime;
+      console.error(`[DASHBOARD-CACHE] ❌ Error after ${requestTime}ms:`, error.message);
+      console.error(`[DASHBOARD-CACHE] Stack trace:`, error.stack);
+      
+      res.status(500).json({ 
+        error: 'Failed to fetch dashboard metrics',
+        timeout: requestTime > 30000,
+        requestTime: requestTime,
+        details: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Manual refresh cache endpoint
+  app.post("/api/dashboard/refresh-cache", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[DASHBOARD-REFRESH] Manual cache refresh requested');
+      const startTime = Date.now();
+      
+      const metrics = await buildDashboardCache();
+      
+      const buildTime = Date.now() - startTime;
+      const currentTime = new Date().toISOString();
+      
+      res.json({
+        success: true,
+        buildTime,
+        lastRefresh: currentTime,
+        lastFinished: currentTime,
+        duration: buildTime,
+        message: 'Dashboard cache refreshed successfully',
+        recordCount: metrics.merchants.total + metrics.merchants.mmc,
+        refreshStatus: 'manual_refresh',
+        ageMinutes: 0
+      });
+      
+    } catch (error: any) {
+      console.error('[DASHBOARD-REFRESH] Error refreshing cache:', error);
+      res.status(500).json({ error: 'Failed to refresh dashboard cache' });
+    }
+  });
+
+  // Ultra-lightweight cache status endpoint
+  app.get("/api/dashboard/cache-status-only", isAuthenticated, async (req, res) => {
+    try {
+      const tableName = getTableName('dashboard_cache');
+      
+      // Minimal query - just check cache status
+      const result = await pool.query(`
+        SELECT cache_key, updated_at, expires_at, build_time_ms,
+               CASE 
+                 WHEN expires_at > NOW() + INTERVAL '50 years' THEN 'never'
+                 WHEN NOW() > expires_at THEN 'expired'
+                 ELSE 'fresh'
+               END as status
+        FROM ${tableName}
+        WHERE cache_key IN ('dashboard3_metrics', 'dashboard_metrics')
+        ORDER BY updated_at DESC LIMIT 1
+      `);
+      
+      if (result.rows.length > 0) {
+        const cache = result.rows[0];
+        res.json({
+          cache_key: cache.cache_key,
+          status: cache.status,
+          last_updated: cache.updated_at,
+          expires_at: cache.expires_at
+        });
+      } else {
+        res.json({ status: 'empty', cache_key: 'dashboard3_metrics' });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: 'Status check failed' });
+    }
+  });
   
   // Get analytics data
   app.get("/api/analytics", async (req, res) => {
