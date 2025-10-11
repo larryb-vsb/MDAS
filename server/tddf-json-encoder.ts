@@ -161,8 +161,6 @@ const DT_FIELD_SPECS = {
   netDeposit: { start: 108, end: 123, type: 'amount' },           // TDDF 109-123
   cardNumber: { start: 123, end: 142, type: 'string' },           // TDDF 124-142
   authorizationCode: { start: 142, end: 148, type: 'string' },    // TDDF 143-148
-  messageType: { start: 148, end: 152, type: 'string' },          // TDDF 149-152
-  processingCode: { start: 152, end: 158, type: 'string' },       // TDDF 153-158
   merchantName: { start: 217, end: 242, type: 'string' },         // TDDF 218-242 [FIXED]
   authSourceCode: { start: 195, end: 196, type: 'string' },       // TDDF 196
   authResponseCode: { start: 196, end: 198, type: 'string' },     // TDDF 197-198
