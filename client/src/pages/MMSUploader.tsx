@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, AlertTriangle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink, Link2, Plus, Edit, Users, Building } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink, Link2, Plus, Edit, Users, Building } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -30,31 +30,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
-// API Response Type Definitions
-interface TimingResponse {
-  success: boolean;
-  hasTiming: boolean;
-  duration?: string;
-}
-
-interface GlobalSearchResponse {
-  data: any[];
-  total: number;
-}
-
-interface Step6ProcessingResponse {
-  results?: Array<{ uploadId: string; [key: string]: any }>;
-  processedCount?: number;
-}
-
 // Timing Display Component
 function TimingDisplay({ uploadId }: { uploadId: string }) {
-  const { data: timing, isLoading } = useQuery<TimingResponse>({
+  const { data: timing, isLoading } = useQuery({
     queryKey: ['/api/uploader', uploadId, 'timing'],
     queryFn: () => apiRequest(`/api/uploader/${uploadId}/timing`),
     enabled: !!uploadId,
-    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
-    refetchOnWindowFocus: false,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch timing updates
+    staleTime: 0, // Consider data stale immediately so it refetches more often
     retry: 1 // Retry once if it fails
   });
 
@@ -248,7 +231,7 @@ export default function MMSUploader() {
         offset: '0'
       });
 
-      const response = await apiRequest(`/api/uploader/global-merchant-search?${params}`) as GlobalSearchResponse;
+      const response = await apiRequest(`/api/uploader/global-merchant-search?${params}`);
       
       setJsonbQueryResults(response.data || []);
       setJsonbTotalResults(response.total || 0);
@@ -347,8 +330,7 @@ export default function MMSUploader() {
       }
       return data;
     },
-    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
-    refetchOnWindowFocus: false
+    refetchInterval: 1000 // Refresh every 1 second for real-time upload feedback
   });
 
   const uploads = uploadsResponse?.uploads || [];
@@ -376,8 +358,7 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch storage config');
       return response.json();
     },
-    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
-    refetchOnWindowFocus: false
+    refetchInterval: 5000 // Check storage status every 5 seconds
   });
 
 
@@ -390,7 +371,7 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch last new data date');
       return response.json();
     },
-    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
+    staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
 
@@ -409,8 +390,7 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch Auto 4-5 status');
       return response.json();
     },
-    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
-    refetchOnWindowFocus: false
+    refetchInterval: 5000 // Check status every 5 seconds
   });
 
   // Sync auto45 enabled state when query data changes
@@ -767,13 +747,13 @@ export default function MMSUploader() {
   });
 
   // Step 6 Processing mutation for progressing encoded files to full JSON processing in master table
-  const step6ProcessingMutation = useMutation<Step6ProcessingResponse, Error, string[]>({
+  const step6ProcessingMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
       console.log('[STEP-6-PROCESSING] Calling API with uploadIds:', uploadIds);
       const response = await apiRequest('/api/uploader/step6-processing', {
         method: 'POST',
         body: { uploadIds }
-      }) as Step6ProcessingResponse;
+      });
       console.log('[STEP-6-PROCESSING] API response:', response);
       return response;
     },
@@ -2714,26 +2694,6 @@ export default function MMSUploader() {
                     </Button>
                   </div>
 
-                  {/* Manual Refresh Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
-                      queryClient.invalidateQueries({ queryKey: ['/api/uploader/storage-config'] });
-                      queryClient.invalidateQueries({ queryKey: ['/api/mms-watcher/auto45-status'] });
-                      toast({
-                        title: "Refreshing data",
-                        description: "Loading latest uploads from database..."
-                      });
-                    }}
-                    className="gap-2"
-                    data-testid="button-refresh-uploads"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh
-                  </Button>
-
                   <div className="flex items-center gap-2">
                     <Label>Per Page:</Label>
                     <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
@@ -3272,10 +3232,10 @@ export default function MMSUploader() {
                     Merchant Account Number Search
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Search across all {uploads.filter(upload => upload.finalFileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
-                    {uploads.filter(upload => upload.finalFileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
-                     uploads.filter(upload => upload.finalFileType === 'tddf').length > 0 && (
-                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.finalFileType === 'tddf').length} TDDF files in {uploads.filter(upload => upload.finalFileType === 'tddf')[0]?.currentPhase || 'unknown'} phase, need "encoded" phase)</span>
+                    Search across all {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
+                    {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
+                     uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
+                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files in {uploads.filter(upload => upload.fileType === 'tddf')[0]?.currentPhase || 'unknown'} phase, need "encoded" phase)</span>
                     )}
                   </p>
                   <div className="flex gap-2">
@@ -3450,15 +3410,15 @@ export default function MMSUploader() {
               )}
 
               {/* File Status Help */}
-              {uploads.filter(upload => upload.finalFileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
-               uploads.filter(upload => upload.finalFileType === 'tddf').length > 0 && (
+              {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
+               uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
                 <Alert className="bg-amber-50 border-amber-200">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
                   <AlertDescription className="text-amber-800">
-                    <strong>Files Need Processing:</strong> Found {uploads.filter(upload => upload.finalFileType === 'tddf').length} TDDF files but they need to reach "encoded" phase first.
+                    <strong>Files Need Processing:</strong> Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files but they need to reach "encoded" phase first.
                     <br />
                     <div className="mt-2 space-y-1">
-                      {uploads.filter(upload => upload.finalFileType === 'tddf').slice(0, 3).map(file => (
+                      {uploads.filter(upload => upload.fileType === 'tddf').slice(0, 3).map(file => (
                         <div key={file.id} className="text-xs font-mono flex items-center justify-between">
                           <span>{file.filename}: <span className="font-medium">{file.currentPhase}</span></span>
                           {file.currentPhase === 'encoding' && (
@@ -3486,8 +3446,8 @@ export default function MMSUploader() {
                           )}
                         </div>
                       ))}
-                      {uploads.filter(upload => upload.finalFileType === 'tddf').length > 3 && (
-                        <div className="text-xs text-amber-600">...and {uploads.filter(upload => upload.finalFileType === 'tddf').length - 3} more files</div>
+                      {uploads.filter(upload => upload.fileType === 'tddf').length > 3 && (
+                        <div className="text-xs text-amber-600">...and {uploads.filter(upload => upload.fileType === 'tddf').length - 3} more files</div>
                       )}
                     </div>
                   </AlertDescription>

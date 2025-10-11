@@ -240,9 +240,6 @@ export interface IStorage {
   deleteMccSchemaFields(ids: number[]): Promise<void>;
   bulkUpsertMccSchemaFields(fields: InsertMerchantMccSchema[]): Promise<{ inserted: number; updated: number }>;
 
-  // System Settings operations
-  isAutoStep6Enabled(): Promise<boolean>;
-
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string, merchantType?: string): Promise<{
     merchants: any[];
@@ -14510,29 +14507,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('[MCC SCHEMA] Error bulk upserting fields:', error);
       throw error;
-    }
-  }
-
-  // System Settings operations
-  async isAutoStep6Enabled(): Promise<boolean> {
-    try {
-      const tableName = getTableName('system_settings');
-      const result = await pool.query(`
-        SELECT setting_value FROM ${tableName}
-        WHERE setting_key = 'auto_step6_enabled'
-      `);
-      
-      // Return false if no row found or value is not 'true'
-      if (result.rows.length === 0) {
-        return false;
-      }
-      
-      const value = result.rows[0].setting_value;
-      return value === 'true';
-    } catch (error) {
-      console.error('[AUTO-STEP6] Error checking Auto Step 6 setting:', error);
-      // Return false on any error - don't crash MMS Watcher
-      return false;
     }
   }
 

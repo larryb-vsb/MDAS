@@ -808,7 +808,7 @@ export default function StorageManagement() {
           ) : (
             <>
               <div className="space-y-4">
-                {(objectsList?.objects || []).map((obj) => (
+                {objectsList.objects.map((obj) => (
                   <Card key={obj.id} className={selectedObjects.has(obj.id) ? 'ring-2 ring-blue-500' : ''}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
