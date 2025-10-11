@@ -561,7 +561,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasHeaders: hasHeaders,
         fileFormat: fileFormat,
         encodingDetected: 'utf-8',
-        processingNotes: `Uploaded to Replit Object Storage: ${uploadResult.key}`
+        processingNotes: JSON.stringify({
+          uploaded: true,
+          storageKey: uploadResult.key,
+          storageBucket: uploadResult.bucket,
+          uploadedAt: new Date().toISOString()
+        })
       });
       
       console.log(`[UPLOADER-REPLIT] Successfully uploaded: ${id} to ${uploadResult.key}`);
@@ -580,7 +585,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.updateUploaderUpload(id, {
         currentPhase: 'warning',
-        processingNotes: `Upload failed: ${error.message}`
+        processingNotes: JSON.stringify({
+          error: true,
+          message: error.message,
+          failedAt: new Date().toISOString()
+        })
       });
       
       res.status(500).json({ error: error.message });
@@ -990,6 +999,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Detect orphan files in object storage (files not registered in database)
+  // Migration endpoint: Convert plain string processingNotes to JSON format
+  app.post("/api/uploader/migrate-processing-notes", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Get all uploads with non-JSON processingNotes
+      const result = await pool.query(`
+        SELECT id, processing_notes 
+        FROM ${uploaderTableName}
+        WHERE processing_notes IS NOT NULL 
+          AND processing_notes NOT LIKE '{%'
+      `);
+      
+      console.log(`[MIGRATION] Found ${result.rows.length} uploads with plain string processingNotes`);
+      
+      let migratedCount = 0;
+      for (const row of result.rows) {
+        try {
+          // Convert plain string to JSON object
+          const newNotes = JSON.stringify({
+            legacyNote: row.processing_notes,
+            migratedAt: new Date().toISOString(),
+            migrated: true
+          });
+          
+          await pool.query(`
+            UPDATE ${uploaderTableName}
+            SET processing_notes = $1
+            WHERE id = $2
+          `, [newNotes, row.id]);
+          
+          migratedCount++;
+        } catch (err) {
+          console.error(`[MIGRATION] Failed to migrate ${row.id}:`, err);
+        }
+      }
+      
+      console.log(`[MIGRATION] Successfully migrated ${migratedCount}/${result.rows.length} records`);
+      
+      res.json({
+        success: true,
+        total: result.rows.length,
+        migrated: migratedCount,
+        message: `Migrated ${migratedCount} processingNotes fields to JSON format`
+      });
+    } catch (error: any) {
+      console.error('[MIGRATION] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/uploader/orphan-files", isAuthenticated, async (req, res) => {
     try {
       const { ReplitStorageService } = await import('./replit-storage-service');
@@ -2469,7 +2529,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         encodingCompletedAt: new Date(),
         encodingStatus: 'completed',
         encodingNotes: `Manual re-processing successful: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,
-        processingNotes: `Manual re-processing by ${req.user?.username || 'user'}: ${processingResult.rowsProcessed} rows processed`,
+        processingNotes: JSON.stringify({
+          manualReprocessing: true,
+          processedBy: req.user?.username || 'user',
+          rowsProcessed: processingResult.rowsProcessed,
+          terminalsCreated: processingResult.terminalsCreated,
+          terminalsUpdated: processingResult.terminalsUpdated,
+          reprocessedAt: new Date().toISOString()
+        }),
         recordsProcessed: processingResult.rowsProcessed,
         recordsCreated: processingResult.terminalsCreated,
         recordsUpdated: processingResult.terminalsUpdated,

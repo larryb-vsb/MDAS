@@ -161,7 +161,11 @@ class MMSWatcher {
         for (const upload of stalledCount) {
           await this.storage.updateUploaderUpload(upload.id, {
             currentPhase: 'failed',
-            processingNotes: 'Session cleanup: upload stalled for >10 minutes',
+            processingNotes: JSON.stringify({
+              error: true,
+              reason: 'Session cleanup: upload stalled for >10 minutes',
+              failedAt: new Date().toISOString()
+            }),
             failedAt: new Date()
           });
           console.log(`[MMS-WATCHER] ✅ Cleaned stalled upload: ${upload.filename} (${upload.id})`);
@@ -190,7 +194,11 @@ class MMSWatcher {
         for (const upload of brokenSessions) {
           await this.storage.updateUploaderUpload(upload.id, {
             currentPhase: 'failed',
-            processingNotes: 'Session cleanup: broken session data detected',
+            processingNotes: JSON.stringify({
+              error: true,
+              reason: 'Session cleanup: broken session data detected',
+              failedAt: new Date().toISOString()
+            }),
             failedAt: new Date()
           });
           console.log(`[MMS-WATCHER] ✅ Cleaned broken session: ${upload.id}`);
@@ -227,7 +235,12 @@ class MMSWatcher {
             // File not found or corrupted - mark as failed
             await this.storage.updateUploaderUpload(upload.id, {
               currentPhase: 'failed',
-              processingNotes: `Session cleanup: file validation failed - ${validationError.message}`,
+              processingNotes: JSON.stringify({
+                error: true,
+                reason: 'Session cleanup: file validation failed',
+                details: validationError.message,
+                failedAt: new Date().toISOString()
+              }),
               failedAt: new Date()
             });
             console.log(`[MMS-WATCHER] ❌ Failed validation for: ${upload.filename} - marked as failed`);
@@ -1092,7 +1105,11 @@ class MMSWatcher {
       // Update to encoding phase first
       await this.storage.updateUploaderPhase(upload.id, 'encoding', {
         encodingStartedAt: new Date(),
-        processingNotes: `Auto-encoding started by MMS Watcher at ${new Date().toISOString()}`
+        processingNotes: JSON.stringify({
+          autoEncoding: true,
+          startedBy: 'MMS Watcher',
+          startedAt: new Date().toISOString()
+        })
       });
 
       // Get file content from Replit Object Storage (support both camelCase and snake_case)
@@ -1124,7 +1141,13 @@ class MMSWatcher {
           encodingStatus: 'completed',
           encodingNotes: `Auto-encoded: File validated with ${encodingResult.totalRecords} lines, ready for Step 6 processing`,
           jsonRecordsCreated: encodingResult.totalRecords,
-          processingNotes: `Auto-encoded by MMS Watcher: ${encodingResult.totalRecords} lines validated, deferred field extraction to Step 6`
+          processingNotes: JSON.stringify({
+            autoEncoded: true,
+            encodedBy: 'MMS Watcher',
+            linesValidated: encodingResult.totalRecords,
+            step6Ready: true,
+            encodedAt: new Date().toISOString()
+          })
         });
 
         console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResult.totalRecords} lines validated (Step 6 will process)`);
@@ -1149,7 +1172,14 @@ class MMSWatcher {
             encodingNotes: `Successfully processed ${processingResults.merchantsCreated || 0} merchant records from CSV`,
             merchantsProcessed: processingResults.merchantsCreated || 0,
             merchantsUpdated: processingResults.merchantsUpdated || 0,
-            processingNotes: `Auto-processed by MMS Watcher: ${processingResults.rowsProcessed || 0} rows processed, ${processingResults.merchantsCreated || 0} merchants created`
+            processingNotes: JSON.stringify({
+              autoProcessed: true,
+              processedBy: 'MMS Watcher',
+              rowsProcessed: processingResults.rowsProcessed || 0,
+              merchantsCreated: processingResults.merchantsCreated || 0,
+              merchantsUpdated: processingResults.merchantsUpdated || 0,
+              processedAt: new Date().toISOString()
+            })
           });
 
           console.log(`[MMS-WATCHER] ✅ Merchant CSV processed: ${upload.filename} -> ${processingResults.merchantsCreated || 0} merchants created, ${processingResults.merchantsUpdated || 0} updated`);
