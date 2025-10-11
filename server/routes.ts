@@ -6653,7 +6653,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // Merchant information
               merchant_name: txnFields.merchantName || '',
-              merchant_city: txnFields.merchantCity || '',
               merchant_state: txnFields.merchantState || '',
               merchant_zip: txnFields.merchantZip || '',
               merchant_dba_name: txnFields.merchantDbaName || '',
@@ -6672,7 +6671,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // Transaction processing
               transaction_type: txnFields.transactionTypeIndicator || txnFields.transactionType || '',
-              processing_code: txnFields.processingCode || '',
               function_code: txnFields.functionCode || '',
               
               // Terminal information
@@ -26585,29 +26583,4 @@ async function buildChartsCache(requestedBy: string = 'system') {
       parseInt(summary.total_records || 0),
       JSON.stringify({ startDate: startDateStr, endDate: endDateStr }),
       parseFloat(summary.total_transaction_amount || 0),
-      parseFloat(summary.total_auth_amount || 0),
-      parseInt(summary.unique_merchants || 0),
-      processingTime,
-      new Date(),
-      true,
-      requestedBy,
-      new Date(),
-      new Date()
-    ]);
-    
-    console.log(`[CHARTS-CACHE-BUILDER] Successfully built 60-day trends cache in ${processingTime}ms`);
-    console.log(`[CHARTS-CACHE-BUILDER] Total records: ${summary.total_records || 0}`);
-    
-    return {
-      success: true,
-      cacheKey,
-      totalRecords: parseInt(summary.total_records || 0),
-      processingTime,
-      dailyDataPoints: dailyData.length
-    };
-    
-  } catch (error: any) {
-    console.error('[CHARTS-CACHE-BUILDER] Error building charts cache:', error);
-    throw error;
-  }
-}
+  
