@@ -449,6 +449,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Start upload - Create database record and generate storage key
+  app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
+    try {
+      const { filename, fileSize, sessionId, keep = false } = req.body;
+      const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      
+      // Check Replit Object Storage configuration
+      if (!ReplitStorageService.isConfigured()) {
+        return res.status(500).json({ 
+          error: 'Replit Object Storage not available.',
+          configStatus: ReplitStorageService.getConfigStatus()
+        });
+      }
+      
+      // Generate storage key for upload
+      const storageKey = ReplitStorageService.generateUploadKey(filename, uploadId);
+      
+      const upload = await storage.createUploaderUpload({
+        id: uploadId,
+        filename,
+        file_size: fileSize,
+        storage_path: storageKey,
+        s3_bucket: 'mms-uploader-files',
+        s3_key: storageKey,
+        created_by: (req.user as any)?.username || 'unknown',
+        session_id: sessionId,
+        server_id: process.env.HOSTNAME || 'unknown',
+        keepForReview: keep
+      });
+      
+      console.log(`[UPLOADER-REPLIT] Started upload: ${upload.id} for ${filename} with key: ${storageKey}`);
+      
+      res.json({
+        ...upload,
+        storageKey: storageKey
+      });
+    } catch (error: any) {
+      console.error('Start Replit upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload file content to Replit Object Storage
+  app.post("/api/uploader/:id/upload", isAuthenticated, upload.single('file'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const uploadRecord = await storage.getUploaderUploadById(id);
+      if (!uploadRecord) {
+        return res.status(404).json({ error: "Upload record not found" });
+      }
+      
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      
+      // Use file buffer from memory storage
+      const fileBuffer = req.file.buffer;
+      console.log(`[UPLOADER-REPLIT] Uploading file: ${req.file.originalname} (${fileBuffer.length} bytes)`);
+      
+      // Update to uploading phase
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'uploading',
+        uploadStartedAt: new Date(),
+        uploadProgress: 0
+      });
+      
+      // Upload to Replit Object Storage
+      const uploadResult = await ReplitStorageService.uploadFile(
+        fileBuffer,
+        uploadRecord.filename,
+        id,
+        req.file.mimetype
+      );
+      
+      // Extract comprehensive file metadata
+      const fileContent = fileBuffer.toString('utf-8');
+      const lines = fileContent.split('\n');
+      const lineCount = lines.length;
+      const actualFileSize = fileBuffer.length;
+      const hasHeaders = lines.length > 0 && lines[0].includes(',') || lines[0].includes('\t');
+      
+      // Detect file format
+      let fileFormat = 'text';
+      if (uploadRecord.filename.toLowerCase().endsWith('.csv')) fileFormat = 'csv';
+      else if (uploadRecord.filename.toLowerCase().endsWith('.tsv')) fileFormat = 'tsv';
+      else if (uploadRecord.filename.toLowerCase().endsWith('.json')) fileFormat = 'json';
+      else if (uploadRecord.filename.toLowerCase().endsWith('.tsyso')) fileFormat = 'tddf';
+      
+      // Update database with comprehensive metadata
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'uploaded',
+        uploadProgress: 100,
+        uploadedAt: new Date(),
+        storagePath: uploadResult.key,
+        s3Bucket: uploadResult.bucket,
+        s3Key: uploadResult.key,
+        s3Url: uploadResult.url,
+        s3Etag: uploadResult.etag,
+        fileSize: actualFileSize,
+        lineCount: lineCount,
+        dataSize: actualFileSize,
+        hasHeaders: hasHeaders,
+        fileFormat: fileFormat,
+        encodingDetected: 'utf-8',
+        processingNotes: `Uploaded to Replit Object Storage: ${uploadResult.key}`
+      });
+      
+      console.log(`[UPLOADER-REPLIT] Successfully uploaded: ${id} to ${uploadResult.key}`);
+      
+      res.json({ 
+        success: true,
+        message: "File uploaded to Replit Object Storage successfully",
+        uploadResult,
+        lineCount,
+        fileSize: uploadResult.size
+      });
+    } catch (error: any) {
+      console.error('Replit storage upload error:', error);
+      
+      // Update upload record with error
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'warning',
+        processingNotes: `Upload failed: ${error.message}`
+      });
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
   
   app.get("/api/stats", async (req, res) => {
     try {
