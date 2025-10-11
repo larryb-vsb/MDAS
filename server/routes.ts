@@ -585,6 +585,408 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Manual identification endpoint for progressing uploaded files (Step 4)
+  app.post("/api/uploader/manual-identify", isAuthenticated, async (req, res) => {
+    console.log("[MANUAL-IDENTIFY-DEBUG] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[MANUAL-IDENTIFY] Adding ${uploadIds.length} files to manual processing queue`);
+      
+      // Get MMS Watcher instance to add files to manual queue
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          success: false,
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      // Validate files are in correct phase before adding to queue
+      const validFiles = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          if (upload.currentPhase !== 'uploaded') {
+            errors.push({ 
+              uploadId, 
+              error: `File is in '${upload.currentPhase}' phase, only 'uploaded' files can be identified` 
+            });
+            continue;
+          }
+          
+          validFiles.push({ uploadId, filename: upload.filename });
+          
+        } catch (error) {
+          console.error(`[MANUAL-IDENTIFY] Error validating ${uploadId}:`, error);
+          errors.push({ 
+            uploadId, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+
+      // Add valid files to manual processing queue
+      if (validFiles.length > 0) {
+        const validUploadIds = validFiles.map(f => f.uploadId);
+        mmsWatcher.addToManualQueue(validUploadIds);
+      }
+      
+      console.log(`[MANUAL-IDENTIFY] Added ${validFiles.length} files to manual queue, ${errors.length} validation errors`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: validFiles.length,
+        errorCount: errors.length,
+        validFiles,
+        errors,
+        queueStatus: mmsWatcher.getManualQueueStatus(),
+        message: `Added ${validFiles.length} file(s) to manual processing queue, ${errors.length} errors`,
+        note: 'Files will be processed by MMS Watcher within 15 seconds'
+      });
+      
+    } catch (error) {
+      console.error("[MANUAL-IDENTIFY] Error in manual identification:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
+  // Manual encoding endpoint for identified files (Step 5)
+  app.post("/api/uploader/manual-encode", isAuthenticated, async (req, res) => {
+    console.log("[MANUAL-ENCODE-DEBUG] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[MANUAL-ENCODE] Processing ${uploadIds.length} files`);
+
+      // Get MMS Watcher instance
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          success: false,
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      // Validate files are ready for encoding
+      const validFiles = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          if (upload.currentPhase !== 'identified') {
+            errors.push({ 
+              uploadId, 
+              error: `File is in '${upload.currentPhase}' phase, only 'identified' files can be encoded` 
+            });
+            continue;
+          }
+
+          validFiles.push({ uploadId, filename: upload.filename });
+          
+        } catch (error) {
+          console.error(`[MANUAL-ENCODE] Error validating ${uploadId}:`, error);
+          errors.push({ 
+            uploadId, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+
+      // Add valid files to manual encode queue
+      if (validFiles.length > 0) {
+        const validUploadIds = validFiles.map(f => f.uploadId);
+        mmsWatcher.addToManualQueue(validUploadIds);
+      }
+      
+      console.log(`[MANUAL-ENCODE] Added ${validFiles.length} files to encode queue, ${errors.length} validation errors`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: validFiles.length,
+        errorCount: errors.length,
+        validFiles,
+        errors,
+        queueStatus: mmsWatcher.getManualQueueStatus(),
+        message: `Added ${validFiles.length} file(s) to manual encoding queue, ${errors.length} errors`
+      });
+      
+    } catch (error) {
+      console.error("[MANUAL-ENCODE] Error in manual encoding:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
+  // Import TDDF encoders
+  const { processAllRecordsToMasterTable } = await import("./tddf-json-encoder");
+  const { ReplitStorageService } = await import('./replit-storage-service');
+
+  // Individual file encoding endpoint (Step 5)
+  app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { strategy = 'tddf1' } = req.body;
+      
+      const upload = await storage.getUploaderUploadById(id);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+      
+      if (upload.currentPhase !== 'identified') {
+        return res.status(400).json({ 
+          error: `File must be in 'identified' phase for encoding. Current phase: ${upload.currentPhase}` 
+        });
+      }
+      
+      if (upload.finalFileType !== 'tddf') {
+        return res.status(400).json({ 
+          error: `Only TDDF files supported for encoding. File type: ${upload.finalFileType}` 
+        });
+      }
+      
+      console.log(`[INDIVIDUAL-ENCODE] Adding file ${id} to manual queue for TDDF1 processing`);
+      
+      // Get MMS Watcher instance
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      // Add file to manual queue
+      mmsWatcher.addToManualQueue([id]);
+      
+      // Update processing notes
+      await storage.updateUploaderUpload(id, {
+        processingNotes: JSON.stringify({
+          manualEncodingTriggered: new Date().toISOString(),
+          triggerMethod: 'individual_encode_button',
+          strategy: strategy,
+          addedToManualQueue: true
+        })
+      });
+      
+      res.json({
+        uploadId: id,
+        filename: upload.filename,
+        strategy: strategy,
+        status: 'queued',
+        progress: 0,
+        message: `File added to TDDF1 manual processing queue. Processing will complete within 15 seconds.`,
+        queueStatus: mmsWatcher.getManualQueueStatus()
+      });
+    } catch (error: any) {
+      console.error('Single file encoding error:', error);
+      res.status(500).json({ 
+        error: error.message || 'Unknown encoding error',
+        uploadId: req.params.id
+      });
+    }
+  });
+
+  // Step 6 Processing endpoint - processes ALL records to master tddfJsonb table
+  app.post("/api/uploader/step6-processing", isAuthenticated, async (req, res) => {
+    console.log("[STEP-6-PROCESSING] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[STEP-6-PROCESSING] Processing ${uploadIds.length} files for full JSON encoding to master table`);
+
+      const results = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          // Accept both 'encoded' and 'completed' phases for Step 6 processing
+          if (upload.currentPhase !== 'encoded' && upload.currentPhase !== 'completed') {
+            errors.push({ 
+              uploadId, 
+              error: `File is in '${upload.currentPhase}' phase, only 'encoded' or 'completed' files can undergo Step 6 processing` 
+            });
+            continue;
+          }
+
+          console.log(`[STEP-6-PROCESSING] Processing file: ${upload.filename} - ALL records to master table`);
+          
+          // Update phase to processing for Step 6
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'processing',
+            lastUpdated: new Date()
+          });
+
+          // Get storage key
+          let storageKey = upload.s3_key;
+          if (!storageKey) {
+            // Generate storage key for older uploads
+            const timestampMatch = upload.id.match(/uploader_(\d+)_/);
+            let uploadDate;
+            
+            if (timestampMatch) {
+              const timestamp = parseInt(timestampMatch[1]);
+              uploadDate = new Date(timestamp).toISOString().split('T')[0];
+            } else {
+              uploadDate = new Date(upload.created_at).toISOString().split('T')[0];
+            }
+            
+            storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
+            
+            await storage.updateUploaderUpload(uploadId, {
+              s3_key: storageKey
+            });
+          }
+          
+          console.log(`[STEP-6-PROCESSING] Using storage key: ${storageKey}`);
+          
+          // Get file content from storage
+          const fileContent = await ReplitStorageService.getFileContent(storageKey);
+          
+          // Process ALL records to master tddfJsonb table (Step 6 processing)
+          const step6Result = await processAllRecordsToMasterTable(fileContent, upload);
+          
+          // CRITICAL: Only TDDF files reach 'completed' phase
+          const finalPhase = upload.finalFileType === 'merchant_detail' ? 'encoded' : 'completed';
+          
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: finalPhase,
+            lastUpdated: new Date()
+          });
+          
+          console.log(`[STEP-6-PROCESSING] File ${upload.filename} final phase: ${finalPhase} (type: ${upload.finalFileType})`);
+
+          results.push({
+            uploadId,
+            filename: upload.filename,
+            status: 'completed',
+            totalRecordsProcessed: step6Result.totalRecords,
+            masterTableRecords: step6Result.masterRecords,
+            apiRecordsProcessed: step6Result.apiRecords
+          });
+          
+          console.log(`[STEP-6-PROCESSING] Successfully processed ${upload.filename}: ${step6Result.totalRecords} total records to master table`);
+          
+        } catch (error) {
+          console.error(`[STEP-6-PROCESSING] Error processing ${uploadId}:`, error);
+          errors.push({
+            uploadId,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: results.length,
+        errorCount: errors.length,
+        results,
+        errors,
+        message: `Step 6 processing completed: ${results.length} file(s) processed to master table, ${errors.length} errors`
+      });
+      
+    } catch (error) {
+      console.error("[STEP-6-PROCESSING] Error in Step 6 processing:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
+  // Get file content from Replit Object Storage (for preview)
+  app.get("/api/uploader/:id/content", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const upload = await storage.getUploaderUploadById(id);
+      
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+
+      // Only allow content viewing for uploaded files and beyond
+      if (!['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed', 'error'].includes(upload.currentPhase || '')) {
+        return res.status(400).json({ error: "File content not available at this stage" });
+      }
+
+      // Get content from Replit Object Storage
+      if (!upload.s3Key || !upload.s3Bucket) {
+        return res.status(404).json({ error: "Storage file location not found" });
+      }
+
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      
+      // Retrieve file content from Replit Object Storage
+      const fileBuffer = await ReplitStorageService.getFileContent(upload.s3Key);
+      const fileContent = fileBuffer.toString('utf-8');
+      const lines = fileContent.split('\n');
+      
+      // Create preview (first 50 lines)
+      const preview = lines.slice(0, 50).join('\n');
+      
+      console.log(`[UPLOADER-REPLIT] Retrieved content for upload ${id}: ${lines.length} lines from Replit Storage`);
+      
+      res.json({
+        content: fileContent,
+        preview: preview,
+        lineCount: lines.length,
+        fileSize: fileBuffer.length,
+        storageKey: upload.s3Key,
+        storageUrl: upload.s3Url
+      });
+    } catch (error: any) {
+      console.error('Get Replit storage file content error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
   
   app.get("/api/stats", async (req, res) => {
     try {
