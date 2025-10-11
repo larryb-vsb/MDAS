@@ -231,6 +231,1549 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAuthRoutes(app);
   registerSettingsRoutes(app);
   registerSchemaRoutes(app);
+
+  // DATABASE CLEANUP: Drop users table and fix session table naming (NOW IN system.routes.ts)
+  // Keeping this comment as a marker - actual route moved to system.routes.ts
+  /*
+  app.post("/api/system/cleanup-tables", async (req, res) => {
+    try {
+      const { secret } = req.body;
+      
+      if (secret !== "emergency-admin-init-2025") {
+        return res.status(403).json({ error: "Invalid secret" });
+      }
+      
+      console.log("[DB-CLEANUP] Starting database table cleanup...");
+      const results = [];
+      
+      // Step 1: Check dependencies on users table
+      console.log("[DB-CLEANUP] Checking dependencies on users table...");
+      const userDependencies = await db.execute(sql`
+        SELECT 
+          tc.constraint_name,
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND ccu.table_name = 'users';
+      `);
+      
+      results.push({
+        step: "check_dependencies",
+        dependencies: userDependencies.rows
+      });
+      
+      // Step 2: Drop users table with CASCADE
+      console.log("[DB-CLEANUP] Dropping users table with CASCADE...");
+      try {
+        await db.execute(sql`DROP TABLE IF EXISTS users CASCADE;`);
+        console.log("[DB-CLEANUP] ✅ users table dropped successfully");
+        results.push({
+          step: "drop_users_table",
+          success: true,
+          message: "users table dropped successfully"
+        });
+      } catch (dropError) {
+        console.log("[DB-CLEANUP] ❌ Failed to drop users table:", dropError);
+        results.push({
+          step: "drop_users_table", 
+          success: false,
+          error: dropError instanceof Error ? dropError.message : String(dropError)
+        });
+      }
+      
+      // Step 3: Check if session table exists
+      console.log("[DB-CLEANUP] Checking session table...");
+      const sessionExists = await db.execute(sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'session'
+        );
+      `);
+      
+      if (sessionExists.rows[0]?.exists) {
+        // Step 4: Rename session to dev_session
+        console.log("[DB-CLEANUP] Renaming session table to dev_session...");
+        try {
+          await db.execute(sql`ALTER TABLE session RENAME TO dev_session;`);
+          console.log("[DB-CLEANUP] ✅ session table renamed to dev_session");
+          results.push({
+            step: "rename_session_table",
+            success: true,
+            message: "session table renamed to dev_session"
+          });
+        } catch (renameError) {
+          console.log("[DB-CLEANUP] ❌ Failed to rename session table:", renameError);
+          results.push({
+            step: "rename_session_table",
+            success: false,
+            error: renameError instanceof Error ? renameError.message : String(renameError)
+          });
+        }
+      } else {
+        results.push({
+          step: "rename_session_table",
+          success: false,
+          message: "session table does not exist"
+        });
+      }
+      
+      console.log("[DB-CLEANUP] Database cleanup completed");
+      res.json({
+        success: true,
+        message: "Database cleanup completed",
+        results
+      });
+      
+    } catch (error) {
+      console.error("[DB-CLEANUP] Error:", error);
+      res.status(500).json({
+        error: "Database cleanup failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // DATABASE ANALYSIS: Check table dependencies and constraints
+  app.get("/api/system/analyze-tables", async (req, res) => {
+    try {
+      console.log("[TABLE-ANALYSIS] Starting table dependency analysis...");
+      
+      // Check foreign key constraints that reference the users table
+      const userConstraints = await db.execute(sql`
+        SELECT 
+          tc.constraint_name,
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND (ccu.table_name = 'users' OR tc.table_name = 'users')
+        ORDER BY tc.table_name;
+      `);
+      
+      // Get all tables and their prefixes
+      const allTables = await db.execute(sql`
+        SELECT 
+          table_name,
+          CASE 
+            WHEN table_name LIKE 'dev_%' THEN 'dev_prefixed'
+            ELSE 'no_prefix'
+          END as prefix_type
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_type = 'BASE TABLE'
+        ORDER BY prefix_type, table_name;
+      `);
+      
+      // Check session table dependencies specifically  
+      const sessionConstraints = await db.execute(sql`
+        SELECT 
+          tc.constraint_name,
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND (ccu.table_name = 'session' OR tc.table_name = 'session');
+      `);
+      
+      const analysis = {
+        userTableConstraints: userConstraints.rows,
+        sessionTableConstraints: sessionConstraints.rows,
+        tablesByPrefix: {
+          dev_prefixed: allTables.rows.filter(r => r.prefix_type === 'dev_prefixed'),
+          no_prefix: allTables.rows.filter(r => r.prefix_type === 'no_prefix')
+        },
+        summary: {
+          total_tables: allTables.rows.length,
+          dev_prefixed_count: allTables.rows.filter(r => r.prefix_type === 'dev_prefixed').length,
+          no_prefix_count: allTables.rows.filter(r => r.prefix_type === 'no_prefix').length
+        }
+      };
+      
+      console.log("[TABLE-ANALYSIS] Analysis complete:", JSON.stringify(analysis, null, 2));
+      res.json(analysis);
+      
+    } catch (error) {
+      console.error("[TABLE-ANALYSIS] Error:", error);
+      res.status(500).json({
+        error: "Table analysis failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // LOGIN VERIFICATION: Test actual login flow with detailed logging
+  app.post("/api/auth/test-login", async (req, res) => {
+    try {
+      console.log("[LOGIN-TEST] Starting comprehensive login test...");
+      const { username = "admin", password = "admin123" } = req.body;
+      
+      console.log(`[LOGIN-TEST] Testing credentials: ${username} / ${password.length}-char password`);
+      
+      // Test getUserByUsername directly
+      console.log("[LOGIN-TEST] Testing getUserByUsername directly...");
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        console.log("[LOGIN-TEST] ❌ getUserByUsername returned null/undefined");
+        return res.json({
+          success: false,
+          stage: "user_lookup_failed",
+          message: "User not found in database"
+        });
+      }
+      
+      console.log(`[LOGIN-TEST] ✅ Found user: ${user.username}, role: ${user.role}`);
+      console.log(`[LOGIN-TEST] Password hash: ${user.password.substring(0, 10)}...`);
+      
+      // Test password comparison
+      const bcrypt = await import('bcrypt');
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      console.log(`[LOGIN-TEST] Password match result: ${passwordMatch}`);
+      
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        },
+        passwordMatch,
+        stage: "complete"
+      });
+      
+    } catch (error) {
+      console.error("[LOGIN-TEST] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        stage: "error"
+      });
+    }
+  });
+
+  // AUTHENTICATION DIAGNOSTICS: Comprehensive login debugging endpoint
+  app.get("/api/auth/diagnostics", async (req, res) => {
+    try {
+      console.log("[AUTH-DIAGNOSTICS] Starting authentication diagnostic check...");
+      
+      // Get environment configuration
+      const { getEnvironment } = await import('./env-config');
+      const { NODE_ENV, isProd, isDev } = getEnvironment();
+      
+      // Get table configuration  
+      const { getTableName } = await import('./table-config');
+      const usersTable = getTableName('users');
+      const sessionTable = getTableName('session');
+      
+      // Check database connection info (redact sensitive data) - use proper environment config
+      const { getDatabaseUrl } = await import('./env-config');
+      const dbUrl = getDatabaseUrl();
+      const dbHost = dbUrl ? new URL(dbUrl).hostname : 'unknown';
+      const dbName = dbUrl ? new URL(dbUrl).pathname.slice(1) : 'unknown';
+      
+      console.log(`[AUTH-DIAGNOSTICS] Environment: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
+      console.log(`[AUTH-DIAGNOSTICS] Database host: ${dbHost}, database: ${dbName}`);
+      console.log(`[AUTH-DIAGNOSTICS] Target users table: ${usersTable}`);
+      console.log(`[AUTH-DIAGNOSTICS] Target session table: ${sessionTable}`);
+      
+      // Check table existence
+      const [usersExists, devUsersExists, sessionExists, devSessionExists] = await Promise.all([
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')`)
+          .then(r => r.rows[0]?.exists || false)
+          .catch(() => false),
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_users')`)
+          .then(r => r.rows[0]?.exists || false)  
+          .catch(() => false),
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'session')`)
+          .then(r => r.rows[0]?.exists || false)
+          .catch(() => false),
+        db.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_session')`)
+          .then(r => r.rows[0]?.exists || false)
+          .catch(() => false)
+      ]);
+      
+      // Check admin user existence (no sensitive data)
+      const [adminInUsers, adminInDevUsers] = await Promise.all([
+        usersExists ? 
+          db.execute(sql`SELECT COUNT(*) as count FROM users WHERE username = 'admin'`)
+            .then(r => r.rows[0]?.count > 0)
+            .catch(() => false) : false,
+        devUsersExists ?
+          db.execute(sql`SELECT COUNT(*) as count FROM dev_users WHERE username = 'admin'`) 
+            .then(r => r.rows[0]?.count > 0)
+            .catch(() => false) : false
+      ]);
+      
+      const diagnostics = {
+        environment: {
+          NODE_ENV,
+          isProd, 
+          isDev,
+          dbHost,
+          dbName: dbName === 'neondb' ? 'neondb' : 'other'
+        },
+        tables: {
+          targetUsersTable: usersTable,
+          targetSessionTable: sessionTable,
+          exists: {
+            users: usersExists,
+            dev_users: devUsersExists, 
+            session: sessionExists,
+            dev_session: devSessionExists
+          }
+        },
+        admin: {
+          existsInUsers: adminInUsers,
+          existsInDevUsers: adminInDevUsers,
+          targetTableHasAdmin: usersTable === 'users' ? adminInUsers : adminInDevUsers
+        }
+      };
+      
+      console.log(`[AUTH-DIAGNOSTICS] Results:`, JSON.stringify(diagnostics, null, 2));
+      
+      // Create session table if missing and needed
+      if (!diagnostics.tables.exists.session && !diagnostics.tables.exists.dev_session) {
+        try {
+          await db.execute(sql`
+            CREATE TABLE IF NOT EXISTS session (
+              sid varchar PRIMARY KEY,
+              sess json NOT NULL,
+              expire timestamp(6) NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IDX_session_expire ON session(expire);
+          `);
+          console.log("[AUTH-DIAGNOSTICS] ✅ Created missing session table");
+          diagnostics.tables.exists.session = true;
+        } catch (sessionError) {
+          console.log("[AUTH-DIAGNOSTICS] ⚠️ Failed to create session table:", sessionError);
+        }
+      }
+      
+      res.json(diagnostics);
+      
+    } catch (error) {
+      console.error("[AUTH-DIAGNOSTICS] Error:", error);
+      res.status(500).json({
+        error: "Diagnostics failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // DATABASE REPAIR: Copy admin from dev_users to users table for production
+  app.post("/api/system/fix-admin-tables", async (req, res) => {
+    try {
+      const { secret } = req.body;
+      
+      if (secret !== "emergency-admin-init-2025") {
+        return res.status(403).json({ error: "Invalid secret" });
+      }
+      
+      console.log("[DATABASE REPAIR] Starting admin table repair...");
+      
+      // Check if admin exists in both tables
+      const devAdminResult = await db.execute(sql`
+        SELECT * FROM dev_users WHERE username = 'admin' LIMIT 1
+      `);
+      
+      const prodAdminResult = await db.execute(sql`
+        SELECT * FROM users WHERE username = 'admin' LIMIT 1
+      `);
+      
+      console.log(`[DATABASE REPAIR] Dev admin found: ${devAdminResult.rows.length > 0}`);
+      console.log(`[DATABASE REPAIR] Prod admin found: ${prodAdminResult.rows.length > 0}`);
+      
+      if (devAdminResult.rows.length > 0 && prodAdminResult.rows.length === 0) {
+        // Copy admin from dev_users to users
+        const devAdmin = devAdminResult.rows[0];
+        console.log("[DATABASE REPAIR] Copying admin from dev_users to users...");
+        
+        await db.execute(sql`
+          INSERT INTO users (username, password, email, first_name, last_name, role, developer_flag, default_dashboard, theme_preference, created_at, last_login)
+          VALUES (${devAdmin.username}, ${devAdmin.password}, ${devAdmin.email}, ${devAdmin.first_name}, ${devAdmin.last_name}, ${devAdmin.role}, ${devAdmin.developer_flag}, ${devAdmin.default_dashboard}, ${devAdmin.theme_preference}, ${devAdmin.created_at}, ${devAdmin.last_login})
+          ON CONFLICT (username) DO UPDATE SET 
+            password = EXCLUDED.password,
+            role = EXCLUDED.role,
+            developer_flag = EXCLUDED.developer_flag
+        `);
+        
+        console.log("[DATABASE REPAIR] ✅ Admin copied successfully");
+        res.json({ 
+          success: true, 
+          message: "Admin user copied from dev_users to users table",
+          credentials: "admin/admin123"
+        });
+      } else {
+        res.json({ 
+          success: false, 
+          message: "Admin already exists in production table or missing from dev table",
+          devAdmin: devAdminResult.rows.length > 0,
+          prodAdmin: prodAdminResult.rows.length > 0
+        });
+      }
+      
+    } catch (error) {
+      console.error("[DATABASE REPAIR] Error:", error);
+      res.status(500).json({ 
+        error: "Database repair failed", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // EMERGENCY: Admin user initialization endpoint for production database fixes
+  app.post("/api/system/init-admin", async (req, res) => {
+    try {
+      const { secret } = req.body;
+      
+      // Security check - require a secret to prevent abuse
+      if (secret !== "emergency-admin-init-2025") {
+        return res.status(403).json({ error: "Invalid secret" });
+      }
+      
+      console.log("[EMERGENCY ADMIN INIT] Starting admin user initialization...");
+      
+      // Force admin user creation using the ensureAdminUser function
+      const { ensureAdminUser } = await import('./database-helpers');
+      await ensureAdminUser();
+      
+      console.log("[EMERGENCY ADMIN INIT] Admin user created/updated successfully");
+      res.json({ 
+        success: true, 
+        message: "Admin user initialized successfully",
+        credentials: "admin/admin123"
+      });
+      
+    } catch (error) {
+      console.error("[EMERGENCY ADMIN INIT] Error:", error);
+      res.status(500).json({ 
+        error: "Failed to initialize admin user", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Global pause/resume controls for processing
+  app.post("/api/system/pause-processing", isAuthenticated, (req, res) => {
+    processingPaused = true;
+    console.log("[SYSTEM] 🛑 PROCESSING PAUSED by user request");
+    res.json({ status: "paused", message: "All processing activities have been paused" });
+  });
+
+  app.post("/api/system/resume-processing", isAuthenticated, (req, res) => {
+    processingPaused = false;
+    console.log("[SYSTEM] ▶️ PROCESSING RESUMED by user request");
+    res.json({ status: "resumed", message: "Processing activities have been resumed" });
+  });
+
+  app.get("/api/system/processing-status", isAuthenticated, (req, res) => {
+    res.json({ 
+      paused: processingPaused,
+      status: processingPaused ? "paused" : "running"
+    });
+  });
+  */
+  
+  // Upload and restore backup endpoint that works even in fallback mode (NOW IN settings.routes.ts)
+  // Keeping this comment as a marker - actual route moved to settings.routes.ts
+  /*
+  app.post("/api/settings/backup/restore-upload", upload.single('backupFile'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No file uploaded" });
+      }
+      
+      console.log(`Processing uploaded backup file: ${req.file.originalname}`);
+      
+      // Check file size
+      const fileStat = fs.statSync(req.file.path);
+      console.log(`Backup file size: ${fileStat.size} bytes`);
+      
+      if (fileStat.size === 0) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({
+          success: false,
+          error: "Backup file is empty"
+        });
+      }
+      
+      // Check if file is valid JSON
+      let fileData;
+      let jsonData;
+      
+      try {
+        fileData = fs.readFileSync(req.file.path, 'utf8');
+        
+        // Log first part of the file content for diagnostic purposes
+        console.log("File content preview:", fileData.substring(0, 200) + "...");
+        
+        // Attempt to parse JSON
+        jsonData = JSON.parse(fileData);
+        
+        // Basic structure validation
+        if (!jsonData) {
+          throw new Error("Empty JSON object");
+        }
+        
+        // Check if it has tables property
+        if (!jsonData.tables) {
+          console.log("JSON structure:", Object.keys(jsonData));
+          throw new Error("Missing 'tables' property");
+        }
+      } catch (e: any) {
+        fs.unlinkSync(req.file.path); // Delete invalid file
+        return res.status(400).json({ 
+          success: false, 
+          error: `Invalid backup file: ${e.message || "The file is not a valid JSON file"}` 
+        });
+      }
+      
+      // Use the restore utility function to restore the database from the uploaded file
+      // This works for both regular DB mode and fallback mode
+      console.log("File validation passed, attempting to restore...");
+      const success = await restoreBackupToEnvironment(req.file.path);
+      
+      // If we're in fallback mode and restored successfully, we need to restart the server
+      // to switch back to DB mode. Client will need to handle this by showing a message
+      // that server is restarting.
+      if (success && isFallbackStorage) {
+        res.status(200).json({ 
+          success: true, 
+          message: "Backup restored successfully. System is restarting to apply changes.",
+          needsRestart: true
+        });
+        
+        // Give the response time to send before restarting
+        setTimeout(() => {
+          console.log("Restarting server to switch from fallback mode to database mode...");
+          process.exit(0); // Process manager will restart the server
+        }, 2000);
+      } else if (success) {
+        res.status(200).json({ 
+          success: true, 
+          message: "Backup restored successfully" 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: "Failed to restore backup" 
+        });
+      }
+      
+      // Clean up the temporary uploaded file
+      fs.unlinkSync(req.file.path);
+    } catch (error) {
+      console.error("Error restoring backup from upload:", error);
+      
+      // Clean up the temporary uploaded file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      // Enhanced error handling for more specific error messages
+      let errorMessage = "Failed to restore backup from upload";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error("Restore error details:", error.stack);
+      }
+      
+      res.status(500).json({ 
+        success: false, 
+        error: errorMessage 
+      });
+    }
+  });
+  */
+  
+  // Endpoint to generate a sample backup file (NOW IN settings.routes.ts)
+  /*
+  app.get("/api/settings/backup/generate-sample", async (req, res) => {
+    try {
+      // Import the sample backup generator
+      const { generateSampleBackup } = await import('./utils/sample-backup');
+      
+      // Generate a sample backup file
+      const backupFilePath = generateSampleBackup();
+      
+      // Return the path to the sample backup file
+      res.json({
+        success: true,
+        message: "Sample backup file generated successfully",
+        filePath: backupFilePath
+      });
+    } catch (error) {
+      console.error("Error generating sample backup:", error);
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate sample backup file"
+      });
+    }
+  });
+  */
+  
+  // Endpoint to convert in-memory data to database (NOW IN settings.routes.ts)
+  /*
+  app.post("/api/settings/convert-memory-to-database", isAuthenticated, async (req, res) => {
+    try {
+      // Enhanced fallback detection
+      const storageType = storage.constructor.name;
+      const isFallbackDetected = 
+        isFallbackStorage === true || 
+        storageType === 'MemStorageFallback';
+      
+      console.log('Memory-to-database conversion request:', {
+        storageType,
+        isFallbackStorage,
+        isFallbackDetected
+      });
+      
+      // Force fallback mode for testing if needed
+      if (req.body.forceFallbackMode === true) {
+        console.log('Forcing fallback mode for testing');
+        
+        // Import the fallback converter
+        const { convertFallbackToDatabase } = await import('./utils/fallback-converter');
+        
+        // Convert the in-memory data to database even if we don't think we're in fallback mode
+        const result = await convertFallbackToDatabase();
+        return res.json(result);
+      }
+      
+      if (!isFallbackDetected) {
+        return res.json({
+          success: false,
+          message: "Not running in fallback mode - no conversion necessary."
+        });
+      }
+      
+      // Import the fallback converter
+      const { convertFallbackToDatabase } = await import('./utils/fallback-converter');
+      
+      // Convert the in-memory data to database
+      const result = await convertFallbackToDatabase();
+      
+      // Return the result
+      res.json(result);
+    } catch (error) {
+      console.error("Error converting memory to database:", error);
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to convert memory data to database"
+      });
+    }
+  });
+  
+  // Register backup schedule routes
+  app.use("/api/settings", isAuthenticated);
+  registerBackupScheduleRoutes(app);
+  
+  */
+  
+  // User management endpoints
+
+  // API User management endpoints
+
+  // Get database statistics and info for settings page
+  // Get schema version information
+  // Import current schema content into database (NOW IN schema.routes.ts)
+  /*
+  app.post("/api/schema/import", async (req, res) => {
+    try {
+      const fs = await import('fs');
+      const crypto = await import('crypto');
+      const path = await import('path');
+      
+      // Read current schema file
+      const schemaPath = path.join(process.cwd(), 'shared', 'schema.ts');
+      const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+      const contentHash = crypto.createHash('sha256').update(schemaContent).digest('hex');
+      
+      // Check if this content already exists
+      const existing = await pool.query(`
+        SELECT id, version FROM schema_content 
+        WHERE content_hash = $1
+      `, [contentHash]);
+      
+      if (existing.rows.length > 0) {
+        return res.json({ 
+          message: 'Schema content already exists in database',
+          version: existing.rows[0].version,
+          existing: true
+        });
+      }
+      
+      // Extract version from file header
+      const versionMatch = schemaContent.match(/Version: ([\d.]+)/);
+      const version = versionMatch ? versionMatch[1] : '1.3.0';
+      
+      // Insert schema content
+      const result = await pool.query(`
+        INSERT INTO schema_content (
+          version, content, file_name, stored_by, content_hash, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, version, stored_at
+      `, [
+        version,
+        schemaContent,
+        'schema.ts',
+        req.user?.username || 'Alex-ReplitAgent',
+        contentHash,
+        `MMS-Master-Schema import: Complete schema file content for version ${version}`
+      ]);
+      
+      const record = result.rows[0];
+      console.log(`📦 Schema imported: Version ${version} (${schemaContent.length} chars)`);
+      
+      res.status(201).json({
+        message: 'Schema content imported successfully',
+        version: version,
+        id: record.id,
+        contentLength: schemaContent.length,
+        storedAt: record.stored_at
+      });
+      
+    } catch (error: any) {
+      console.error('Schema import error:', error);
+      res.status(500).json({ 
+        error: 'Failed to import schema content', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Get schema content from database (replaces file system access)
+  app.get("/api/schema/raw", async (req, res) => {
+    try {
+      const { version } = req.query;
+      
+      let query = `
+        SELECT content, version, stored_at 
+        FROM schema_content`;
+      let params: any[] = [];
+      
+      if (version && version !== 'current') {
+        query += ` WHERE version = $1`;
+        params.push(version);
+      }
+      
+      query += ` ORDER BY stored_at DESC LIMIT 1`;
+      
+      const result = await pool.query(query, params);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          error: 'No schema content found', 
+          suggestion: 'Import schema content first using POST /api/schema/import' 
+        });
+      }
+      
+      const schemaRecord = result.rows[0];
+      console.log(`📖 Serving schema content: Version ${schemaRecord.version} (${schemaRecord.content.length} chars)`);
+      
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(schemaRecord.content);
+      
+    } catch (error: any) {
+      console.error('Schema retrieval error:', error);
+      res.status(500).json({ error: 'Failed to retrieve schema content', details: error.message });
+    }
+  });
+
+  // Get available schema versions for selector
+  app.get("/api/schema/versions-list", async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT version, stored_at, stored_by, file_name, 
+               LENGTH(content) as content_size, notes
+        FROM schema_content 
+        ORDER BY stored_at DESC
+      `);
+      
+      const versions = result.rows.map(row => ({
+        version: row.version,
+        storedAt: row.stored_at,
+        storedBy: row.stored_by,
+        fileName: row.file_name,
+        contentSize: row.content_size,
+        notes: row.notes
+      }));
+      
+      // Get current file version dynamically
+      const currentFileVersion = getCurrentFileVersion();
+      
+      res.json({ 
+        versions,
+        currentFileVersion: currentFileVersion
+      });
+      
+    } catch (error: any) {
+      console.error('Schema versions list error:', error);
+      res.status(500).json({ error: 'Failed to retrieve schema versions', details: error.message });
+    }
+  });
+
+  app.get("/api/schema/versions", async (req, res) => {
+    try {
+      const versions = await SchemaVersionManager.getAllVersions();
+      const currentVersion = await SchemaVersionManager.getCurrentVersion();
+      
+      res.json({
+        versions,
+        currentVersion,
+        expectedVersion: CURRENT_SCHEMA_VERSION
+      });
+    } catch (error) {
+      console.error("Error getting schema versions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve schema versions" 
+      });
+    }
+  });
+  
+  // Update schema version to the latest version
+  app.post("/api/schema/update", isAuthenticated, async (req, res) => {
+    try {
+      const currentFileVersion = getCurrentFileVersion();
+      
+      if (!currentFileVersion) {
+        return res.status(404).json({ error: "Current file version could not be determined" });
+      }
+      
+      const newVersion = await SchemaVersionManager.addVersion({
+        version: currentFileVersion,
+        description: `Updated to schema version ${currentFileVersion}`,
+        changes: [`Updated database schema to match file version ${currentFileVersion}`],
+        appliedBy: req.user ? req.user.username : 'Alex-ReplitAgent',
+      });
+      
+      res.json({
+        success: true,
+        version: newVersion,
+        updatedTo: currentFileVersion
+      });
+    } catch (error) {
+      console.error("Error updating schema version:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update schema version" 
+      });
+    }
+  });
+  */
+
+  // Real-time database processing statistics endpoint with TDDF operations
+  app.get("/api/processing/real-time-stats", async (req, res) => {
+    try {
+      // Use environment-specific table names
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfRawImportTableName = getTableName('tddf_raw_import');
+      
+      console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${achTransactionsTableName}, ${tddfRecordsTableName}`);
+      
+      // Get real-time file processing statistics using new processing_status field
+      const result = await pool.query(`
+        SELECT 
+          COUNT(*) as total_files,
+          COUNT(CASE WHEN processing_status = 'queued' AND deleted = false THEN 1 END) as queued_files,
+          COUNT(CASE WHEN processing_status = 'completed' AND deleted = false THEN 1 END) as processed_files,
+          COUNT(CASE WHEN processing_status = 'processing' AND deleted = false THEN 1 END) as currently_processing,
+          COUNT(CASE WHEN processing_status = 'failed' AND deleted = false THEN 1 END) as files_with_errors,
+          COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND deleted = false THEN 1 END) as tddf_files_processed,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND deleted = false THEN 1 END) as tddf_files_queued
+        FROM ${uploadedFilesTableName}
+      `);
+
+      // Calculate transaction processing speed based on recent transaction completion timestamps
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
+      
+      const transactionSpeedResult = await pool.query(`
+        SELECT COUNT(*) as recent_transactions
+        FROM ${achTransactionsTableName} 
+        WHERE created_at >= $1
+      `, [tenMinutesAgo]);
+
+      // Calculate TDDF records per second from recent TDDF processing (last 10 minutes)
+      const tddfSpeedResult = await pool.query(`
+        SELECT COUNT(*) as recent_tddf_records
+        FROM ${tddfRecordsTableName}
+        WHERE recorded_at >= $1
+      `, [tenMinutesAgo]);
+      
+      // Get TDDF-specific statistics
+      const tddfStatsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_tddf_records,
+          COALESCE(SUM(transaction_amount::numeric), 0) as total_tddf_amount,
+          COUNT(CASE WHEN recorded_at > NOW() - INTERVAL '24 hours' THEN 1 END) as tddf_records_today,
+          COUNT(CASE WHEN recorded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as tddf_records_last_hour
+        FROM ${tddfRecordsTableName}
+      `);
+      
+      // Get TDDF raw import statistics with hierarchical record type breakdown using environment-specific table names
+      const tddfRawStatsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_raw_lines,
+          COUNT(CASE WHEN target_table = '${tddfRecordsTableName}' THEN 1 END) as dt_records_processed,
+          COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
+          COUNT(CASE WHEN skip_reason IS NOT NULL 
+                  AND skip_reason != 'non_dt_record' 
+                  AND skip_reason NOT LIKE 'duplicate_%' 
+                  AND processing_status = 'skipped' THEN 1 END) as other_skipped
+        FROM ${tddfRawImportTableName}
+      `);
+      
+      // Get hierarchical record counts using separate simple queries to avoid subquery issues
+      // Use try-catch for each table query to handle missing tables gracefully
+      let bhCount = 0, p1TableCount = 0, p2TableCount = 0, p1RawCount = 0, p2RawCount = 0, otherCount = 0;
+      
+      try {
+        const bhCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_batch_headers')}`);
+        bhCount = parseInt(bhCountResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] BH table not accessible: ${(e as Error).message}`); }
+      
+      try {
+        const p1TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions')}`);
+        p1TableCount = parseInt(p1TableResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P1 table not accessible: ${(e as Error).message}`); }
+      
+      try {
+        const p2TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions_2')}`);
+        p2TableCount = parseInt(p2TableResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P2 table not accessible: ${(e as Error).message}`); }
+      
+      try {
+        const p1RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P1' AND processing_status = 'processed'`);
+        p1RawCount = parseInt(p1RawResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P1 raw import not accessible: ${(e as Error).message}`); }
+      
+      try {
+        const p2RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P2' AND processing_status = 'processed'`);
+        p2RawCount = parseInt(p2RawResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P2 raw import not accessible: ${(e as Error).message}`); }
+      
+      try {
+        const otherCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_other_records')}`);
+        otherCount = parseInt(otherCountResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] Other records table not accessible: ${(e as Error).message}`); }
+      
+      // Combine the results
+      const hierarchicalStats = {
+        bh_records_processed: bhCount,
+        p1_total_processed: p1TableCount + p1RawCount,
+        p2_total_processed: p2TableCount + p2RawCount,
+        other_records_processed: otherCount
+      };
+
+      const stats = result.rows[0];
+      const recentTransactions = parseInt(transactionSpeedResult.rows[0]?.recent_transactions || '0');
+      const recentTddfRecords = parseInt(tddfSpeedResult.rows[0]?.recent_tddf_records || '0');
+      
+      // Calculate actual processing speeds (10 minutes = 600 seconds)
+      const transactionsPerSecond = recentTransactions > 0 ? recentTransactions / 600 : 0;
+      const tddfRecordsPerSecond = recentTddfRecords > 0 ? recentTddfRecords / 600 : 0;
+      
+      const tddfStats = tddfStatsResult.rows[0];
+      const tddfRawStats = tddfRawStatsResult.rows[0];
+      // hierarchicalStats is already constructed above
+      
+      // Store metrics in database for persistent tracking
+      const metricsTableName = getTableName('processing_metrics');
+      const currentStats = {
+        totalFiles: parseInt(stats.total_files),
+        queuedFiles: parseInt(stats.queued_files),
+        processedFiles: parseInt(stats.processed_files),
+        currentlyProcessing: parseInt(stats.currently_processing),
+        filesWithErrors: parseInt(stats.files_with_errors),
+        recentFiles: parseInt(stats.recent_files),
+        tddfFilesProcessed: parseInt(stats.tddf_files_processed),
+        tddfFilesQueued: parseInt(stats.tddf_files_queued),
+        transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1)),
+        tddfRecordsPerSecond: parseFloat(tddfRecordsPerSecond.toFixed(1)),
+        tddfOperations: {
+          totalTddfRecords: parseInt(tddfStats.total_tddf_records) || 0,
+          totalTddfAmount: parseFloat(tddfStats.total_tddf_amount) || 0,
+          tddfRecordsToday: parseInt(tddfStats.tddf_records_today) || 0,
+          tddfRecordsLastHour: parseInt(tddfStats.tddf_records_last_hour) || 0,
+          totalRawLines: parseInt(tddfRawStats.total_raw_lines) || 0,
+          dtRecordsProcessed: parseInt(tddfRawStats.dt_records_processed) || 0,
+          bhRecordsProcessed: hierarchicalStats.bh_records_processed || 0,
+          p1RecordsProcessed: hierarchicalStats.p1_total_processed || 0,
+          p2RecordsProcessed: hierarchicalStats.p2_total_processed || 0,
+          otherRecordsProcessed: hierarchicalStats.other_records_processed || 0,
+          nonDtRecordsSkipped: parseInt(tddfRawStats.non_dt_records_skipped) || 0,
+          otherSkipped: parseInt(tddfRawStats.other_skipped) || 0
+        }
+      };
+
+      // Get current peaks from latest database record
+      const latestPeakResult = await pool.query(`
+        SELECT peak_transactions_per_second, peak_records_per_minute 
+        FROM ${metricsTableName} 
+        ORDER BY timestamp DESC 
+        LIMIT 1
+      `);
+      
+      const currentTxnPeak = latestPeakResult.rows[0]?.peak_transactions_per_second || 0;
+      const currentRecordsPeak = latestPeakResult.rows[0]?.peak_records_per_minute || 0;
+      const newTxnPeak = Math.max(parseFloat(currentTxnPeak), currentStats.transactionsPerSecond);
+      // Calculate records per minute using both transaction and TDDF records
+      const totalRecordsPerSecond = currentStats.transactionsPerSecond + currentStats.tddfRecordsPerSecond;
+      const recordsPerMinute = totalRecordsPerSecond * 60;
+      const newRecordsPeak = Math.max(parseFloat(currentRecordsPeak), recordsPerMinute);
+      
+      // Save metrics snapshot to database with raw line processing data
+      try {
+        await pool.query(`
+          INSERT INTO ${metricsTableName} (
+            transactions_per_second, 
+            peak_transactions_per_second,
+            records_per_minute,
+            peak_records_per_minute,
+            total_files,
+            queued_files, 
+            processed_files,
+            files_with_errors,
+            currently_processing,
+            system_status,
+            metric_type,
+            raw_lines_processed,
+            raw_lines_skipped,
+            raw_lines_total
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `, [
+          currentStats.transactionsPerSecond,
+          newTxnPeak,
+          recordsPerMinute,
+          newRecordsPeak,
+          currentStats.totalFiles,
+          currentStats.queuedFiles,
+          currentStats.processedFiles,
+          currentStats.filesWithErrors,
+          currentStats.currentlyProcessing,
+          currentStats.currentlyProcessing > 0 ? 'processing' : 'idle',
+          'snapshot',
+          currentStats.tddfOperations.dtRecordsProcessed || 0,
+          (currentStats.tddfOperations.nonDtRecordsSkipped || 0) + (currentStats.tddfOperations.otherSkipped || 0),
+          currentStats.tddfOperations.totalRawLines || 0
+        ]);
+      } catch (dbError) {
+        console.error('Error saving processing metrics to database:', dbError);
+        // Continue without failing the API response
+      }
+      
+      res.json({
+        ...currentStats,
+        peakTransactionsPerSecond: newTxnPeak,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching real-time processing stats:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch processing statistics" 
+      });
+    }
+  });
+
+  // Get gauge metrics for persistent peak tracking
+  app.get("/api/processing/gauge-metrics", async (req, res) => {
+    try {
+      const metricsTableName = getTableName('processing_metrics');
+      
+      // Get latest peak value and current speed
+      const result = await pool.query(`
+        SELECT 
+          transactions_per_second,
+          peak_transactions_per_second,
+          records_per_minute,
+          peak_records_per_minute,
+          timestamp,
+          system_status
+        FROM ${metricsTableName} 
+        ORDER BY timestamp DESC 
+        LIMIT 1
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.json({
+          currentSpeed: 0.0,
+          peakSpeed: 0.0,
+          currentRecordsPerMinute: 0.0,
+          peakRecordsPerMinute: 0.0,
+          systemStatus: 'idle',
+          lastUpdated: new Date().toISOString()
+        });
+      }
+      
+      const metrics = result.rows[0];
+      res.json({
+        currentSpeed: parseFloat(metrics.transactions_per_second),
+        peakSpeed: parseFloat(metrics.peak_transactions_per_second),
+        currentRecordsPerMinute: parseFloat(metrics.records_per_minute || 0),
+        peakRecordsPerMinute: parseFloat(metrics.peak_records_per_minute || 0),
+        systemStatus: metrics.system_status,
+        lastUpdated: metrics.timestamp
+      });
+    } catch (error) {
+      console.error("Error getting gauge metrics:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get gauge metrics" 
+      });
+    }
+  });
+  */
+
+  // GET /api/settings/database (NOW IN settings.routes.ts)
+  /*
+  app.get("/api/settings/database", async (req, res) => {
+    try {
+      // Get PostgreSQL version
+      const versionResult = await pool.query("SELECT version()");
+      const version = versionResult.rows[0].version.split(" ")[1];
+      
+      // Get environment-specific table names for data tables, use shared tables for system tables
+      const envMerchants = getTableName('merchants');
+      const envAchTransactions = getTableName('api_achtransactions');
+      const envUploadedFiles = getTableName('uploaded_files');
+      
+      // System tables are shared across environments (no prefixes)
+      const systemBackupHistory = 'backup_history';
+      const systemSchemaVersions = 'schema_versions';
+      
+      // Get table information using environment-specific table names for data, shared for system
+      const tables = [
+        { name: 'merchants', tableName: envMerchants, tableObj: merchantsTable },
+        { name: 'ach_transactions', tableName: envAchTransactions, tableObj: null },
+        { name: 'uploaded_files', tableName: envUploadedFiles, tableObj: uploadedFilesTable },
+        { name: 'backup_history', tableName: systemBackupHistory, tableObj: backupHistory },
+        { name: 'schema_versions', tableName: systemSchemaVersions, tableObj: schemaVersions }
+      ];
+      
+      const tableStats = [];
+      let totalRows = 0;
+      let totalSizeBytes = 0;
+      
+      for (const { name, tableName, tableObj } of tables) {
+        try {
+          console.log(`[SETTINGS DATABASE] Processing table: ${name} (${tableName})`);
+          
+          const rowCountResult = await db.select({ count: count() }).from(tableObj);
+          console.log(`[SETTINGS DATABASE] Row count result for ${name}:`, rowCountResult);
+          
+          const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
+          
+          // Get table size in bytes using environment-specific table name
+          const sizeResult = await pool.query(`
+            SELECT pg_total_relation_size('${tableName}') as size
+          `);
+          console.log(`[SETTINGS DATABASE] Size result for ${name}:`, sizeResult.rows);
+          
+          const sizeBytes = parseInt(sizeResult.rows[0].size, 10);
+          
+          tableStats.push({
+            name: name,  // Use display name, not actual table name
+            rowCount,
+            sizeBytes
+          });
+          console.log(`[SETTINGS DATABASE] Added ${name} (${tableName}) to tableStats`);
+          
+          totalRows += rowCount;
+          totalSizeBytes += sizeBytes;
+        } catch (error) {
+          console.error(`[SETTINGS DATABASE] Error processing table ${name}:`, error);
+          // If we can't get stats for this table, still add a placeholder
+          tableStats.push({
+            name: name,
+            rowCount: 0,
+            sizeBytes: 0
+          });
+        }
+      }
+      
+      // Get last backup info from database
+      let lastBackup = null;
+      try {
+        const [latestBackup] = await db
+          .select({ timestamp: backupHistory.timestamp })
+          .from(backupHistory)
+          .orderBy(desc(backupHistory.timestamp))
+          .limit(1);
+        
+        if (latestBackup) {
+          lastBackup = latestBackup.timestamp.toISOString();
+        }
+      } catch (e) {
+        console.error('Error getting latest backup info:', e);
+      }
+      
+      res.json({
+        connectionStatus: "connected",
+        version,
+        tables: tableStats,
+        totalRows,
+        totalSizeBytes,
+        lastBackup
+      });
+    } catch (error) {
+      console.error("Error getting database information:", error);
+      res.status(500).json({ 
+        connectionStatus: "error",
+        version: "Unknown",
+        tables: [],
+        totalRows: 0,
+        totalSizeBytes: 0,
+        lastBackup: null,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  */
+  
+  // System information endpoint with fallback storage status (NOW IN system.routes.ts)
+  /*
+  app.get("/api/system/info", async (req, res) => {
+    try {
+      // Get environment information from env-config
+      const { NODE_ENV, isProd, isDev, isTest } = await import('./env-config');
+      // Get version information
+      const { APP_VERSION, BUILD_DATE } = await import('@shared/version');
+      
+      // Enhanced fallback detection
+      const storageType = storage.constructor.name;
+      const isFallbackDetected = 
+        isFallbackStorage === true || 
+        storageType === 'MemStorageFallback';
+      
+      console.log('Storage status check:', {
+        storageType,
+        isFallbackStorage,
+        isFallbackDetected
+      });
+      
+      // Return system information including fallback storage status
+      res.json({
+        environment: {
+          name: NODE_ENV,
+          isProd,
+          isDev,
+          isTest
+        },
+        storage: {
+          fallbackMode: isFallbackDetected,
+          storageType: storageType,
+          type: isFallbackDetected ? 'memory' : 'database'
+        },
+        version: {
+          appVersion: APP_VERSION,
+          buildDate: BUILD_DATE
+        },
+        uptime: process.uptime()
+      });
+    } catch (error) {
+      console.error("Error getting system information:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve system information"
+      });
+    }
+  });
+  */
+  
+  // Create database backup using direct SQL queries (NOW IN settings.routes.ts)
+  /*
+  app.post("/api/settings/backup", isAuthenticated, async (req, res) => {
+    try {
+      // Import the BackupManager and S3 config dynamically
+      const { backupManager } = await import('./backup/backup_manager');
+      const { loadS3Config, saveS3Config } = await import('./backup/s3_config');
+      
+      // Get the current S3 config
+      const s3Config = loadS3Config();
+      
+      // Update config with useS3 option if provided
+      if (req.body.useS3 === true) {
+        s3Config.enabled = true;
+        // Save the updated config
+        saveS3Config(s3Config);
+      }
+      
+      // Create the backup using the manager
+      const backupId = await backupManager.createBackup({
+        notes: req.body.notes || "Created via API",
+        useS3: req.body.useS3,
+        userId: req.user?.id
+      });
+      
+      // Get the backup record with details
+      const [backup] = await db.select().from(backupHistory).where(eq(backupHistory.id, backupId));
+      
+      // Success response
+      res.json({
+        success: true,
+        message: "Database backup created successfully",
+        timestamp: new Date().toISOString(),
+        backup,
+        storageType: backup?.storageType || "local"
+      });
+    } catch (error) {
+      console.error("Error creating database backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to create database backup" 
+      });
+    }
+  });
+  
+  // Get backup history
+  app.get("/api/settings/backup/history", isAuthenticated, async (req, res) => {
+    try {
+      // Check if we should include deleted backups
+      const includeDeleted = req.query.includeDeleted === 'true';
+      
+      let backupRecords;
+      
+      // Use Drizzle's SQL template literal to safely execute raw SQL
+      const query = includeDeleted 
+        ? sql`SELECT * FROM backup_history ORDER BY timestamp DESC LIMIT 20` 
+        : sql`SELECT * FROM backup_history WHERE deleted = false ORDER BY timestamp DESC LIMIT 20`;
+        
+      const result = await db.execute(query);
+      backupRecords = result.rows;
+      
+      console.log("Backup history raw records:", JSON.stringify(backupRecords, null, 2));
+      
+      // Transform the data to match client expectations
+      const transformedRecords = backupRecords.map((record: any) => ({
+        id: record.id,
+        timestamp: record.timestamp,
+        fileName: record.file_name,
+        size: parseInt(record.size),
+        tables: typeof record.tables === 'string' ? JSON.parse(record.tables) : record.tables,
+        downloaded: record.downloaded,
+        deleted: record.deleted,
+        storageType: record.storage_type,
+        s3Bucket: record.s3_bucket,
+        s3Key: record.s3_key,
+        notes: record.notes
+      }));
+      
+      console.log("Transformed backup history:", JSON.stringify(transformedRecords, null, 2));
+      
+      res.json(transformedRecords);
+    } catch (error) {
+      console.error("Error retrieving backup history:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to retrieve backup history" 
+      });
+    }
+  });
+  
+  // Download a specific backup by ID
+  app.get("/api/settings/backup/download/:id", async (req, res) => {
+    try {
+      const backupId = req.params.id;
+      
+      // Find the backup record in the database
+      const [backup] = await db
+        .select()
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
+      
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
+      }
+      
+      if (!backup.filePath || !fs.existsSync(backup.filePath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file not found. The temporary file may have been deleted." 
+        });
+      }
+      
+      // Set download headers
+      res.setHeader('Content-Disposition', `attachment; filename=${backup.fileName}`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Update the downloaded status
+      await db
+        .update(backupHistory)
+        .set({ downloaded: true })
+        .where(eq(backupHistory.id, backupId));
+      
+      // Stream the file to client
+      if (!backup.filePath) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file path is missing." 
+        });
+      }
+      const fileStream = fs.createReadStream(backup.filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to download backup file" 
+      });
+    }
+  });
+  
+  // Soft delete a backup
+  app.delete("/api/settings/backup/:id", async (req, res) => {
+    try {
+      const backupId = req.params.id;
+      
+      // Find the backup record
+      const [backup] = await db
+        .select()
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
+      
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
+      }
+      
+      // Mark the backup as deleted (soft delete)
+      await db
+        .update(backupHistory)
+        .set({ deleted: true })
+        .where(eq(backupHistory.id, backupId));
+      
+      res.json({ 
+        success: true, 
+        message: "Backup moved to trash successfully" 
+      });
+    } catch (error) {
+      console.error("Error deleting backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to delete backup" 
+      });
+    }
+  });
+  
+  // Restore a backup from trash
+  app.post("/api/settings/backup/:id/restore", async (req, res) => {
+    try {
+      const backupId = req.params.id;
+      
+      // Find the backup record
+      const [backup] = await db
+        .select()
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
+      
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
+      }
+      
+      // Mark the backup as not deleted (restore)
+      await db
+        .update(backupHistory)
+        .set({ deleted: false })
+        .where(eq(backupHistory.id, backupId));
+      
+      res.json({ 
+        success: true, 
+        message: "Backup restored successfully" 
+      });
+    } catch (error) {
+      console.error("Error restoring backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to restore backup" 
+      });
+    }
+  });
+  
+  // Download the latest database backup
+  app.get("/api/settings/backup/download", async (req, res) => {
+    try {
+      // Get the most recent backup from the database
+      const [latestBackup] = await db
+        .select()
+        .from(backupHistory)
+        .orderBy(desc(backupHistory.timestamp))
+        .limit(1);
+      
+      if (!latestBackup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "No backup found. Please create a backup first." 
+        });
+      }
+      
+      if (!latestBackup.filePath || !fs.existsSync(latestBackup.filePath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file not found. The temporary file may have been deleted." 
+        });
+      }
+      
+      // Set download headers
+      res.setHeader('Content-Disposition', `attachment; filename=${latestBackup.fileName}`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Update the downloaded status
+      await db
+        .update(backupHistory)
+        .set({ downloaded: true })
+        .where(eq(backupHistory.id, latestBackup.id));
+      
+      // Stream the file to client
+      if (!latestBackup.filePath) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file path is missing." 
+        });
+      }
+      const fileStream = fs.createReadStream(latestBackup.filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to download backup file" 
+      });
+    }
+  });
+  */
+  
+  // Get dashboard stats
   app.get("/api/stats", async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();

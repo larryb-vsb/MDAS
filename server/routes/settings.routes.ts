@@ -1,5 +1,6 @@
 import { Express } from "express";
-import { db, pool, sql } from "../db";
+import { db, pool } from "../db";
+import { sql } from "drizzle-orm";
 import { storage, isFallbackStorage } from "../storage";
 import { isAuthenticated } from "./middleware";
 import { backupHistory } from "@shared/schema";

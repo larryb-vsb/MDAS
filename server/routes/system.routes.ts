@@ -1,5 +1,6 @@
 import { Express } from "express";
-import { db, sql } from "../db";
+import { db } from "../db";
+import { sql } from "drizzle-orm";
 import { storage, isFallbackStorage } from "../storage";
 import { isAuthenticated, setProcessingPaused } from "./middleware";
 

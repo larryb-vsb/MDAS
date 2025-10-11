@@ -1,5 +1,6 @@
 import type { Express } from "express";
-import { pool, db, sql } from "../db";
+import { pool, db } from "../db";
+import { sql } from "drizzle-orm";
 import { storage } from "../storage";
 import { getTableName } from "../table-config";
 import { isAuthenticated } from "./middleware";
