@@ -207,6 +207,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize authentication system
   setupAuth(app);
   
+  // BULK DELETE - MOVED TO TOP TO PREVENT INTERCEPTION
+  app.delete("/api/uploader/bulk-delete", async (req, res) => {
+    const fs = require('fs');
+    fs.writeFileSync('/tmp/bulk-delete-MOVED-TO-TOP.txt', `MOVED TO TOP - ENDPOINT HIT AT ${new Date().toISOString()}\nBody: ${JSON.stringify(req.body)}\n`);
+    
+    try {
+      const { uploadIds } = req.body;
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      await storage.deleteUploaderUploads(uploadIds);
+      res.json({ success: true, message: `Successfully deleted ${uploadIds.length} files` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   // Register S3 configuration routes
   registerS3Routes(app);
   
@@ -429,7 +447,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Bulk delete uploader files
+  // Bulk delete uploader files - TEST VERSION  
+  app.delete("/api/uploader/bulk-delete-test", async (req, res) => {
+    const fs = require('fs');
+    fs.writeFileSync('/tmp/bulk-delete-test-hit.txt', `TEST ENDPOINT HIT AT ${new Date().toISOString()}\nBody: ${JSON.stringify(req.body)}\n`);
+    return res.json({ test: "TEST endpoint hit", body: req.body });
+  });
+  
   app.delete("/api/uploader/bulk-delete", async (req, res) => {
     const fs = require('fs');
     fs.writeFileSync('/tmp/bulk-delete-hit.txt', `ENDPOINT WAS HIT AT ${new Date().toISOString()}\nBody: ${JSON.stringify(req.body)}\n`);
