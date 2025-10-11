@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink, Link2, Plus, Edit, Users, Building } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, AlertTriangle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink, Link2, Plus, Edit, Users, Building } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -3249,10 +3249,10 @@ export default function MMSUploader() {
                     Merchant Account Number Search
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Search across all {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
-                    {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
-                     uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
-                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files in {uploads.filter(upload => upload.fileType === 'tddf')[0]?.currentPhase || 'unknown'} phase, need "encoded" phase)</span>
+                    Search across all {uploads.filter(upload => upload.finalFileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
+                    {uploads.filter(upload => upload.finalFileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
+                     uploads.filter(upload => upload.finalFileType === 'tddf').length > 0 && (
+                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.finalFileType === 'tddf').length} TDDF files in {uploads.filter(upload => upload.finalFileType === 'tddf')[0]?.currentPhase || 'unknown'} phase, need "encoded" phase)</span>
                     )}
                   </p>
                   <div className="flex gap-2">
@@ -3427,15 +3427,15 @@ export default function MMSUploader() {
               )}
 
               {/* File Status Help */}
-              {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
-               uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
+              {uploads.filter(upload => upload.finalFileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
+               uploads.filter(upload => upload.finalFileType === 'tddf').length > 0 && (
                 <Alert className="bg-amber-50 border-amber-200">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
                   <AlertDescription className="text-amber-800">
-                    <strong>Files Need Processing:</strong> Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files but they need to reach "encoded" phase first.
+                    <strong>Files Need Processing:</strong> Found {uploads.filter(upload => upload.finalFileType === 'tddf').length} TDDF files but they need to reach "encoded" phase first.
                     <br />
                     <div className="mt-2 space-y-1">
-                      {uploads.filter(upload => upload.fileType === 'tddf').slice(0, 3).map(file => (
+                      {uploads.filter(upload => upload.finalFileType === 'tddf').slice(0, 3).map(file => (
                         <div key={file.id} className="text-xs font-mono flex items-center justify-between">
                           <span>{file.filename}: <span className="font-medium">{file.currentPhase}</span></span>
                           {file.currentPhase === 'encoding' && (
@@ -3463,8 +3463,8 @@ export default function MMSUploader() {
                           )}
                         </div>
                       ))}
-                      {uploads.filter(upload => upload.fileType === 'tddf').length > 3 && (
-                        <div className="text-xs text-amber-600">...and {uploads.filter(upload => upload.fileType === 'tddf').length - 3} more files</div>
+                      {uploads.filter(upload => upload.finalFileType === 'tddf').length > 3 && (
+                        <div className="text-xs text-amber-600">...and {uploads.filter(upload => upload.finalFileType === 'tddf').length - 3} more files</div>
                       )}
                     </div>
                   </AlertDescription>
