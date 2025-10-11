@@ -262,13 +262,13 @@ class MMSWatcher {
       // Check for recently encoded TDDF files that need cache updates  
       const pool = this.storage.pool;
       const recentlyEncoded = await pool.query(`
-        SELECT id, filename, encoded_at, processing_notes
+        SELECT id, filename, encoding_at, processing_notes
         FROM ${this.storage.getTableName('uploader_uploads')}
         WHERE current_phase = 'encoded' 
           AND final_file_type = 'tddf'
-          AND encoded_at > NOW() - INTERVAL '10 minutes'
+          AND encoding_at > NOW() - INTERVAL '10 minutes'
           AND (processing_notes NOT LIKE '%cache_updated%' OR processing_notes IS NULL)
-        ORDER BY encoded_at DESC
+        ORDER BY encoding_at DESC
         LIMIT 5
       `);
 
@@ -1697,11 +1697,11 @@ class MMSWatcher {
       
       // Get all encoded TDDF files that should have individual cache entries
       const allEncodedFiles = await pool.query(`
-        SELECT id, filename, encoded_at, processing_notes
+        SELECT id, filename, encoding_at, processing_notes
         FROM ${this.storage.getTableName('uploader_uploads')}
         WHERE current_phase = 'encoded' 
           AND final_file_type = 'tddf'
-        ORDER BY encoded_at
+        ORDER BY encoding_at
       `);
       
       console.log(`[MMS-WATCHER] [CACHE-FIX] Found ${allEncodedFiles.rows.length} total encoded TDDF files`);
