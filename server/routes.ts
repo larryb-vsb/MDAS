@@ -35,7 +35,7 @@ import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
 import { NODE_ENV } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
-import { encodeTddfToJsonbDirect, processAllRecordsToMasterTable } from "./tddf-json-encoder";
+import { processAllRecordsToMasterTable } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
 import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 import { heatMapCacheProcessingStats } from "@shared/schema";
@@ -1506,7 +1506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
           
           // Check if terminal exists
-          const existing = beforeTerminals.find(t => t.v_number === vNumber);
+          const existing = beforeTerminals.find(t => t.vNumber === vNumber);
           
           if (existing) {
             // Update existing
