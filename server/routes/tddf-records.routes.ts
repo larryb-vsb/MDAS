@@ -1947,7 +1947,7 @@ export function registerTddfRecordsRoutes(app: Express) {
       });
       
       res.json({
-        records: processedRecords,
+        data: processedRecords,
         summary: {
           totalRecords: parseInt(summary.total_records),
           bhRecords: parseInt(summary.bh_records),
