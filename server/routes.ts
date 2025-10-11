@@ -290,6 +290,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Main uploader files list with pagination support
+  app.get("/api/uploader", isAuthenticated, async (req, res) => {
+    try {
+      const { phase, sessionId, limit, offset, environment } = req.query;
+      
+      // Support cross-environment viewing: use specific table if environment is specified
+      let tableName = getTableName('uploader_uploads'); // Default to current environment
+      if (environment === 'production') {
+        tableName = 'uploader_uploads'; // Production table
+      } else if (environment === 'development') {
+        tableName = 'dev_uploader_uploads'; // Development table
+      }
+      
+      // Get total count first for pagination
+      let totalCount = 0;
+      let allUploads: any[] = [];
+      
+      try {
+        // First, get total count for pagination
+        let countQuery = `SELECT COUNT(*) as count FROM ${tableName}`;
+        const countParams: any[] = [];
+        const countConditions: string[] = [];
+        
+        if (phase) {
+          countConditions.push(`current_phase = $${countParams.length + 1}`);
+          countParams.push(phase);
+        }
+        
+        if (sessionId) {
+          countConditions.push(`session_id = $${countParams.length + 1}`);
+          countParams.push(sessionId);
+        }
+        
+        if (countConditions.length > 0) {
+          countQuery += ` WHERE ${countConditions.join(' AND ')}`;
+        }
+        
+        const countResult = await pool.query(countQuery, countParams);
+        totalCount = parseInt(countResult.rows[0]?.count || '0');
+        
+        // Then query current environment table with proper pagination
+        let query = `SELECT * FROM ${tableName}`;
+        const params: any[] = [];
+        const conditions: string[] = [];
+        
+        if (phase) {
+          conditions.push(`current_phase = $${params.length + 1}`);
+          params.push(phase);
+        }
+        
+        if (sessionId) {
+          conditions.push(`session_id = $${params.length + 1}`);
+          params.push(sessionId);
+        }
+        
+        if (conditions.length > 0) {
+          query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+        
+        query += ` ORDER BY created_at DESC`;
+        
+        // Apply SQL-level pagination
+        if (limit) {
+          query += ` LIMIT $${params.length + 1}`;
+          params.push(parseInt(limit as string));
+        }
+        
+        if (offset) {
+          query += ` OFFSET $${params.length + 1}`;
+          params.push(parseInt(offset as string));
+        }
+        
+        const currentResult = await pool.query(query, params);
+        allUploads = currentResult.rows;
+        
+      } catch (error) {
+        console.error('[UPLOADER-DEBUG] Error querying uploads:', error);
+        // Return empty array on error
+        allUploads = [];
+      }
+      
+      // Convert snake_case database fields to camelCase for frontend compatibility
+      const uploads = allUploads.map(row => ({
+        ...row,
+        currentPhase: row.current_phase,
+        lastUpdated: row.last_updated,
+        uploadStartedAt: row.upload_started_at,
+        uploadStatus: row.upload_status,
+        uploadProgress: row.upload_progress,
+        chunkedUpload: row.chunked_upload,
+        chunkCount: row.chunk_count,
+        chunksUploaded: row.chunks_uploaded,
+        uploadedAt: row.uploaded_at,
+        storagePath: row.storage_path,
+        s3Bucket: row.s3_bucket,
+        s3Key: row.s3_key,
+        s3Url: row.s3_url,
+        s3Etag: row.s3_etag,
+        fileSize: row.file_size,
+        identifiedAt: row.identified_at,
+        detectedFileType: row.detected_file_type,
+        userClassifiedType: row.user_classified_type,
+        finalFileType: row.final_file_type,
+        lineCount: row.line_count,
+        dataSize: row.data_size,
+        keepForReview: row.keep_for_review,
+        hasHeaders: row.has_headers,
+        fileFormat: row.file_format,
+        compressionUsed: row.compression_used,
+        encodingDetected: row.encoding_detected,
+        validationErrors: row.validation_errors,
+        processingNotes: row.processing_notes,
+        processingErrors: row.processing_errors,
+        createdBy: row.created_by,
+        serverId: row.server_id,
+        sessionId: row.session_id,
+        failedAt: row.failed_at,
+        completedAt: row.completed_at,
+        startTime: row.start_time
+      }));
+      
+      // Return paginated response format when limit/offset is used
+      if (limit || offset) {
+        res.json({
+          uploads,
+          totalCount,
+          limit: limit ? parseInt(limit as string) : undefined,
+          offset: offset ? parseInt(offset as string) : 0
+        });
+      } else {
+        // Return simple array for backward compatibility
+        res.json(uploads);
+      }
+    } catch (error: any) {
+      console.error('Get uploader uploads error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   app.get("/api/stats", async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
