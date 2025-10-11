@@ -18,6 +18,7 @@ import { registerS3Routes } from "./routes/s3_routes";
 import { registerMerchantRoutes } from "./routes/merchants.routes";
 import { registerUserRoutes } from "./routes/users.routes";
 import { registerApiUserRoutes } from "./routes/api-users.routes";
+import { registerTddfCacheRoutes } from "./routes/tddf-cache.routes";
 import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 import { registerSystemRoutes } from "./routes/system.routes";
 import { registerAuthRoutes } from "./routes/auth.routes";
@@ -227,6 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerMerchantRoutes(app);
   registerUserRoutes(app);
   registerApiUserRoutes(app);
+  registerTddfCacheRoutes(app);
   registerSystemRoutes(app);
   registerAuthRoutes(app);
   registerSettingsRoutes(app);
