@@ -3106,6 +3106,7 @@ export default function TddfApiDataPage() {
             setGlobalFilenameFilter={setGlobalFilenameFilter}
             viewMode={viewMode}
             setViewMode={setViewMode}
+            getMerchantName={getMerchantName}
           />
         </TabsContent>
 
@@ -3736,6 +3737,7 @@ interface TreeViewDisplayProps {
   getRecordTypeName: (type: string) => string;
   formatFieldValue: (key: string, value: any) => string;
   groupRecordsHierarchically: (records: any[]) => any[];
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
 }
 
 function TreeViewDisplay({ 
@@ -3747,7 +3749,8 @@ function TreeViewDisplay({
   getRecordTypeBadgeColor, 
   getRecordTypeName, 
   formatFieldValue, 
-  groupRecordsHierarchically 
+  groupRecordsHierarchically,
+  getMerchantName
 }: TreeViewDisplayProps) {
   const hierarchicalData = groupRecordsHierarchically(records);
 
@@ -4039,6 +4042,7 @@ interface FileViewDisplayProps {
   getRecordTypeName: (type: string) => string;
   formatFieldValue: (key: string, value: any) => string;
   groupRecordsByFiles: (records: any[]) => any[];
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
 }
 
 function FileViewDisplay({ 
@@ -4052,7 +4056,8 @@ function FileViewDisplay({
   getRecordTypeBadgeColor, 
   getRecordTypeName, 
   formatFieldValue, 
-  groupRecordsByFiles 
+  groupRecordsByFiles,
+  getMerchantName
 }: FileViewDisplayProps) {
   const fileGroups = groupRecordsByFiles(records);
 
@@ -4284,12 +4289,14 @@ function RawDataTab({
   globalFilenameFilter, 
   setGlobalFilenameFilter,
   viewMode,
-  setViewMode
+  setViewMode,
+  getMerchantName
 }: { 
   globalFilenameFilter: string; 
   setGlobalFilenameFilter: (filename: string) => void; 
   viewMode: 'tree' | 'flat' | 'file';
   setViewMode: (mode: 'tree' | 'flat' | 'file') => void;
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
 }) {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(0);
@@ -5079,6 +5086,7 @@ function RawDataTab({
                     getRecordTypeName={getRecordTypeName}
                     formatFieldValue={formatFieldValue}
                     groupRecordsHierarchically={groupRecordsHierarchically}
+                    getMerchantName={getMerchantName}
                   />
                 )}
 
@@ -5096,6 +5104,7 @@ function RawDataTab({
                     getRecordTypeName={getRecordTypeName}
                     formatFieldValue={formatFieldValue}
                     groupRecordsByFiles={groupRecordsByFiles}
+                    getMerchantName={getMerchantName}
                   />
                 )}
               </div>
