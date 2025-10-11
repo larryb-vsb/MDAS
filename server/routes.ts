@@ -397,8 +397,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         logger.uploader('Found uploads:', allUploads.length, 'Total count:', totalCount);
         
+        // Transform snake_case DB columns to camelCase for frontend
+        const transformedUploads = allUploads.map(upload => ({
+          ...upload,
+          currentPhase: upload.current_phase,
+          finalFileType: upload.final_file_type,
+          detectedFileType: upload.detected_file_type,
+          userClassifiedType: upload.user_classified_type,
+          fileSize: upload.file_size,
+          uploadStartedAt: upload.created_at,
+          uploadedAt: upload.uploaded_at,
+          sessionId: upload.session_id,
+          s3Key: upload.s3_key,
+          processingNotes: upload.processing_notes,
+          storagePath: upload.storage_path
+        }));
+        
         res.json({
-          uploads: allUploads,
+          uploads: transformedUploads,
           totalCount: totalCount,
           limit: limit ? parseInt(limit as string) : undefined,
           offset: offset ? parseInt(offset as string) : 0
