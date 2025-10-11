@@ -422,11 +422,11 @@ function DuplicateFinderWidget() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Duplicates:</span>
-                <span className="font-medium">{duplicateMetrics.duplicateCount}</span>
+                <span className="font-medium">{duplicateMetrics.duplicateCount ?? 0}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Scanned:</span>
-                <span className="font-medium">{duplicateMetrics.totalScanned.toLocaleString()}</span>
+                <span className="font-medium">{duplicateMetrics.totalScanned?.toLocaleString() ?? 0}</span>
               </div>
             </div>
           )}
@@ -738,9 +738,9 @@ export default function HomeDashboard() {
               {/* Merchants Total - Clickable to respective pages */}
               <ClickableMetricCard
                 title="Merchants Total"
-                total={metrics.merchants.total}
-                ach={metrics.merchants.ach}
-                mmc={metrics.merchants.mmc}
+                total={metrics?.merchants?.total ?? 0}
+                ach={metrics?.merchants?.ach ?? 0}
+                mmc={metrics?.merchants?.mmc ?? 0}
                 icon={<Users className="h-4 w-4" />}
                 achTooltip="ACH merchants from merchant table"
                 mmcTooltip="MCC merchants from merchant table"
@@ -752,9 +752,9 @@ export default function HomeDashboard() {
               {/* New Merchants (30 day) */}
               <ClickableMetricCard
                 title="New Merchant (30day)"
-                total={metrics.newMerchants30Day.total}
-                ach={metrics.newMerchants30Day.ach}
-                mmc={metrics.newMerchants30Day.mmc}
+                total={metrics?.newMerchants30Day?.total ?? 0}
+                ach={metrics?.newMerchants30Day?.ach ?? 0}
+                mmc={metrics?.newMerchants30Day?.mmc ?? 0}
                 icon={<Calendar className="h-4 w-4" />}
                 achTooltip="New ACH merchants (last 30 days)"
                 mmcTooltip="New MCC merchants (last 30 days)"
@@ -766,8 +766,8 @@ export default function HomeDashboard() {
               {/* Monthly Processing Amount - Links to Transactions */}
               <ClickableMetricCard
                 title="Monthly Processing Amount"
-                ach={metrics.monthlyProcessingAmount.ach}
-                mmc={metrics.monthlyProcessingAmount.mmc}
+                ach={metrics?.monthlyProcessingAmount?.ach ?? '$0.00'}
+                mmc={metrics?.monthlyProcessingAmount?.mmc ?? '$0.00'}
                 icon={<DollarSign className="h-4 w-4" />}
                 achTooltip="ACH transaction processing"
                 mmcTooltip="MCC transaction processing"
@@ -779,9 +779,9 @@ export default function HomeDashboard() {
               {/* Today's Transactions Processed */}
               <ClickableMetricCard
                 title="Today's Transaction Processed"
-                total={metrics.todayTransactions.total}
-                ach={metrics.todayTransactions.ach}
-                mmc={metrics.todayTransactions.mmc}
+                total={metrics?.todayTransactions?.total ?? 0}
+                ach={metrics?.todayTransactions?.ach ?? 0}
+                mmc={metrics?.todayTransactions?.mmc ?? 0}
                 icon={<Activity className="h-4 w-4" />}
                 achTooltip="ACH transactions today"
                 mmcTooltip="MCC transactions today"
@@ -797,9 +797,9 @@ export default function HomeDashboard() {
             {/* Average Transaction Value */}
             <ClickableMetricCard
               title="Avg Trans Value"
-              total={metrics.avgTransValue.total}
-              ach={metrics.avgTransValue.ach}
-              mmc={metrics.avgTransValue.mmc}
+              total={metrics?.avgTransValue?.total ?? 0}
+              ach={metrics?.avgTransValue?.ach ?? 0}
+              mmc={metrics?.avgTransValue?.mmc ?? 0}
               icon={<BarChart3 className="h-4 w-4" />}
               achTooltip="ACH average transaction value"
               mmcTooltip="MCC average transaction value"
@@ -808,8 +808,8 @@ export default function HomeDashboard() {
             {/* Daily Processing Amount */}
             <ClickableMetricCard
               title="Daily Processing Amount"
-              ach={metrics.dailyProcessingAmount.ach}
-              mmc={metrics.dailyProcessingAmount.mmc}
+              ach={metrics?.dailyProcessingAmount?.ach ?? '$0.00'}
+              mmc={metrics?.dailyProcessingAmount?.mmc ?? '$0.00'}
               icon={<DollarSign className="h-4 w-4" />}
               achTooltip="ACH daily processing amount"
               mmcTooltip="MCC daily processing amount"
@@ -819,8 +819,8 @@ export default function HomeDashboard() {
             {/* Today's Total Transaction */}
             <ClickableMetricCard
               title="Todays Total Transaction"
-              ach={metrics.todayTotalTransaction.ach}
-              mmc={metrics.todayTotalTransaction.mmc}
+              ach={metrics?.todayTotalTransaction?.ach ?? '$0.00'}
+              mmc={metrics?.todayTotalTransaction?.mmc ?? '$0.00'}
               icon={<CreditCard className="h-4 w-4" />}
               achTooltip="ACH transactions total today"
               mmcTooltip="MCC transactions total today"
@@ -830,8 +830,8 @@ export default function HomeDashboard() {
             {/* Total Records */}
             <ClickableMetricCard
               title="Total Records"
-              ach={metrics.totalRecords.ach}
-              mmc={metrics.totalRecords.mmc}
+              ach={metrics?.totalRecords?.ach ?? '0'}
+              mmc={metrics?.totalRecords?.mmc ?? '0'}
               icon={<Building2 className="h-4 w-4" />}
               achTooltip="Total ACH records"
               mmcTooltip="Total MCC records"
@@ -840,9 +840,9 @@ export default function HomeDashboard() {
             {/* Total Terminals - Clickable to Terminals page */}
             <ClickableMetricCard
               title="Total Terminals"
-              total={metrics.totalTerminals.total}
-              ach={metrics.totalTerminals.ach}
-              mmc={metrics.totalTerminals.mmc}
+              total={metrics?.totalTerminals?.total ?? 0}
+              ach={metrics?.totalTerminals?.ach ?? 0}
+              mmc={metrics?.totalTerminals?.mmc ?? 0}
               icon={<Terminal className="h-4 w-4" />}
               achTooltip="ACH terminals"
               mmcTooltip="MCC terminals"
