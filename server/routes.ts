@@ -26583,30 +26583,4 @@ async function buildChartsCache(requestedBy: string = 'system') {
       parseInt(summary.total_records || 0),
       JSON.stringify({ startDate: startDateStr, endDate: endDateStr }),
       parseFloat(summary.total_transaction_amount || 0),
-      parseFloat(summary.total_auth_amount || 0),
-      parseInt(summary.unique_merchants || 0),
-      processingTime,
-      new Date(),
-      true, // never_expires
-      'system',
-      new Date(),
-      new Date()
-    ]);
-    
-    return res.json({
-      success: true,
-      new Date(),
-      true, // never_expires
-      'system',
-      new Date(),
-      new Date()
-    ]);
-    
-    console.log('[CHARTS-CACHE-BUILDER] Cache built successfully in', Date.now() - startTime, 'ms');
-  } catch (error) {
-    console.error('[CHARTS-CACHE-BUILDER] Error building cache:', error);
-    throw error;
-  }
-}
-
-export default router;
+  
