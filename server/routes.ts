@@ -87,7 +87,7 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
   logger.auth(`Checking authentication for ${req.method} ${req.path}`);
   
   // For TDDF API routes, bypass auth only in development environment
-  if ((req.path.startsWith('/api/tddf-api/') || req.path.includes('/jsonb-data') || req.path.includes('/re-encode') || req.path.includes('/uploader/uploader_') || req.path.includes('/global-merchant-search')) && process.env.NODE_ENV === 'development') {
+  if ((req.path.startsWith('/api/tddf-api/') || req.path.includes('/re-encode') || req.path.includes('/global-merchant-search')) && process.env.NODE_ENV === 'development') {
     logger.auth(`TDDF API route - bypassing auth for development testing`);
     // Set a mock user for the request
     (req as any).user = { username: 'test-user' };
@@ -994,6 +994,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('Get Replit storage file content error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get JSONB data for a specific upload (backward compatibility)
+  app.get("/api/uploader/:id/jsonb-data", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { limit = '50', offset = '0', recordType, merchantName, merchantAccountNumber } = req.query;
+      
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Build the main query
+      let query = `
+        SELECT 
+          id, upload_id, record_type, line_number, raw_line,
+          record_data, record_identifier, field_count, created_at
+        FROM ${tableName} 
+        WHERE upload_id = $1
+      `;
+      
+      const params = [id];
+      let paramIndex = 2;
+      
+      if (recordType && recordType !== 'all') {
+        query += ` AND record_type = $${paramIndex}`;
+        params.push(recordType as string);
+        paramIndex++;
+      }
+      
+      // Add merchant name search (search in JSON fields)
+      if (merchantName) {
+        query += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${paramIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${paramIndex + 1}
+          OR record_data->'extractedFields'->>'merchantName' ILIKE $${paramIndex + 2}
+          OR raw_line ILIKE $${paramIndex + 3}
+        )`;
+        const searchPattern = `%${merchantName}%`;
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        paramIndex += 4;
+      }
+      
+      // Add merchant account number search  
+      if (merchantAccountNumber) {
+        query += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${paramIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${paramIndex + 1}
+        )`;
+        const accountPattern = `%${merchantAccountNumber}%`;
+        params.push(accountPattern, accountPattern);
+        paramIndex += 2;
+      }
+      
+      // Add count query for pagination
+      let countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${tableName} 
+        WHERE upload_id = $1
+      `;
+      const countParams = [id];
+      let countParamIndex = 2;
+      
+      if (recordType && recordType !== 'all') {
+        countQuery += ` AND record_type = $${countParamIndex}`;
+        countParams.push(recordType as string);
+        countParamIndex++;
+      }
+      
+      if (merchantName) {
+        countQuery += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${countParamIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${countParamIndex + 1}
+          OR record_data->'extractedFields'->>'merchantName' ILIKE $${countParamIndex + 2}
+          OR raw_line ILIKE $${countParamIndex + 3}
+        )`;
+        const searchPattern = `%${merchantName}%`;
+        countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        countParamIndex += 4;
+      }
+      
+      if (merchantAccountNumber) {
+        countQuery += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${countParamIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${countParamIndex + 1}
+        )`;
+        const accountPattern = `%${merchantAccountNumber}%`;
+        countParams.push(accountPattern, accountPattern);
+        countParamIndex += 2;
+      }
+      
+      query += ` ORDER BY id ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit as string, offset as string);
+      
+      const result = await pool.query(query, params);
+      
+      // Transform data to match expected JSON viewer format
+      const transformedData = result.rows.map(row => {
+        // Parse record_data if it's a string (from JSONB column)
+        let recordData = {};
+        try {
+          if (typeof row.record_data === 'string') {
+            recordData = JSON.parse(row.record_data);
+          } else if (typeof row.record_data === 'object' && row.record_data !== null) {
+            recordData = row.record_data;
+          }
+        } catch (parseError) {
+          recordData = {};
+        }
+        
+        // Extract the nested extractedFields if it exists
+        let extractedFields = {};
+        if (recordData.extractedFields && typeof recordData.extractedFields === 'object') {
+          extractedFields = recordData.extractedFields;
+        } else if (Object.keys(recordData).length > 0) {
+          // If no nested extractedFields, use the recordData directly
+          extractedFields = recordData;
+        }
+        
+        // Extract merchant account number for direct access
+        let merchantAccountNumber = null;
+        if (extractedFields.merchantAccountNumber) {
+          merchantAccountNumber = extractedFields.merchantAccountNumber;
+        } else if (recordData.merchantAccountNumber) {
+          merchantAccountNumber = recordData.merchantAccountNumber;
+        }
+        
+        // Extract merchant name for direct access
+        let merchantName = null;
+        if (extractedFields.merchantName) {
+          merchantName = extractedFields.merchantName;
+        } else if (recordData.merchantName) {
+          merchantName = recordData.merchantName;
+        }
+        
+        return {
+          id: row.id,
+          upload_id: row.upload_id,
+          filename: row.filename || 'Unknown',
+          record_type: row.record_type,
+          line_number: row.line_number || 0,
+          raw_line: row.raw_line || '',
+          extracted_fields: extractedFields,
+          record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
+          processing_time_ms: row.field_count || 0,
+          created_at: row.created_at,
+          // Direct access fields for easier frontend handling
+          merchant_account_number: merchantAccountNumber,
+          merchant_name: merchantName
+        };
+      });
+      
+      // Execute count query
+      const countResult = await pool.query(countQuery, countParams);
+      const total = parseInt(countResult.rows[0].total);
+      
+      // Get timing metadata from uploader uploads table
+      let timingMetadata = null;
+      try {
+        const uploaderTableName = getTableName('uploader_uploads');
+        const timingQuery = `
+          SELECT processing_notes, created_at, updated_at
+          FROM ${uploaderTableName}
+          WHERE id = $1
+        `;
+        const timingResult = await pool.query(timingQuery, [id]);
+        if (timingResult.rows.length > 0) {
+          const notes = timingResult.rows[0].processing_notes;
+          if (notes && typeof notes === 'object' && notes.encodingMetadata) {
+            timingMetadata = {
+              encodingStartTime: notes.encodingMetadata.timingData?.startTime,
+              encodingFinishTime: notes.encodingMetadata.timingData?.finishTime,
+              totalEncodingTimeMs: notes.encodingMetadata.encodingTimeMs,
+              totalRecords: notes.encodingMetadata.totalRecords,
+              recordTypeBreakdown: notes.encodingMetadata.recordCounts?.byType,
+              batchPerformance: notes.encodingMetadata.timingData?.batchTimes
+            };
+          }
+        }
+      } catch (timingError) {
+        console.log(`[JSONB-API] Could not fetch timing metadata: ${timingError.message}`);
+      }
+      
+      res.json({
+        data: transformedData,
+        tableName: tableName,
+        timingMetadata: timingMetadata,
+        pagination: {
+          total: total,
+          limit: parseInt(limit as string),
+          offset: parseInt(offset as string),
+          hasMore: parseInt(offset as string) + parseInt(limit as string) < total
+        }
+      });
+    } catch (error: any) {
+      console.error('Get JSONB data error:', error);
       res.status(500).json({ error: error.message });
     }
   });
