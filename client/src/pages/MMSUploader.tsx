@@ -53,8 +53,8 @@ function TimingDisplay({ uploadId }: { uploadId: string }) {
     queryKey: ['/api/uploader', uploadId, 'timing'],
     queryFn: () => apiRequest(`/api/uploader/${uploadId}/timing`),
     enabled: !!uploadId,
-    refetchInterval: 5000, // Refetch every 5 seconds to catch timing updates
-    staleTime: 0, // Consider data stale immediately so it refetches more often
+    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
+    refetchOnWindowFocus: false,
     retry: 1 // Retry once if it fails
   });
 
@@ -347,7 +347,8 @@ export default function MMSUploader() {
       }
       return data;
     },
-    refetchInterval: 1000 // Refresh every 1 second for real-time upload feedback
+    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
+    refetchOnWindowFocus: false
   });
 
   const uploads = uploadsResponse?.uploads || [];
@@ -375,7 +376,8 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch storage config');
       return response.json();
     },
-    refetchInterval: 5000 // Check storage status every 5 seconds
+    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
+    refetchOnWindowFocus: false
   });
 
 
@@ -388,7 +390,7 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch last new data date');
       return response.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
     refetchOnWindowFocus: false,
   });
 
@@ -407,7 +409,8 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch Auto 4-5 status');
       return response.json();
     },
-    refetchInterval: 5000 // Check status every 5 seconds
+    staleTime: Infinity, // Never auto-refresh - "never re-fresh" policy
+    refetchOnWindowFocus: false
   });
 
   // Sync auto45 enabled state when query data changes
