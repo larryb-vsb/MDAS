@@ -14522,9 +14522,16 @@ export class DatabaseStorage implements IStorage {
         WHERE setting_key = 'auto_step6_enabled'
       `);
       
-      return result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+      // Return false if no row found or value is not 'true'
+      if (result.rows.length === 0) {
+        return false;
+      }
+      
+      const value = result.rows[0].setting_value;
+      return value === 'true';
     } catch (error) {
       console.error('[AUTO-STEP6] Error checking Auto Step 6 setting:', error);
+      // Return false on any error - don't crash MMS Watcher
       return false;
     }
   }
