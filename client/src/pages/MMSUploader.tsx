@@ -30,9 +30,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
+// API Response Type Definitions
+interface TimingResponse {
+  success: boolean;
+  hasTiming: boolean;
+  duration?: string;
+}
+
+interface GlobalSearchResponse {
+  data: any[];
+  total: number;
+}
+
+interface Step6ProcessingResponse {
+  results?: Array<{ uploadId: string; [key: string]: any }>;
+  processedCount?: number;
+}
+
 // Timing Display Component
 function TimingDisplay({ uploadId }: { uploadId: string }) {
-  const { data: timing, isLoading } = useQuery({
+  const { data: timing, isLoading } = useQuery<TimingResponse>({
     queryKey: ['/api/uploader', uploadId, 'timing'],
     queryFn: () => apiRequest(`/api/uploader/${uploadId}/timing`),
     enabled: !!uploadId,
@@ -231,7 +248,7 @@ export default function MMSUploader() {
         offset: '0'
       });
 
-      const response = await apiRequest(`/api/uploader/global-merchant-search?${params}`);
+      const response = await apiRequest(`/api/uploader/global-merchant-search?${params}`) as GlobalSearchResponse;
       
       setJsonbQueryResults(response.data || []);
       setJsonbTotalResults(response.total || 0);
@@ -747,13 +764,13 @@ export default function MMSUploader() {
   });
 
   // Step 6 Processing mutation for progressing encoded files to full JSON processing in master table
-  const step6ProcessingMutation = useMutation({
+  const step6ProcessingMutation = useMutation<Step6ProcessingResponse, Error, string[]>({
     mutationFn: async (uploadIds: string[]) => {
       console.log('[STEP-6-PROCESSING] Calling API with uploadIds:', uploadIds);
       const response = await apiRequest('/api/uploader/step6-processing', {
         method: 'POST',
         body: { uploadIds }
-      });
+      }) as Step6ProcessingResponse;
       console.log('[STEP-6-PROCESSING] API response:', response);
       return response;
     },
