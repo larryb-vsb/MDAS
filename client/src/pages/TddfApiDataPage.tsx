@@ -3084,14 +3084,40 @@ export default function TddfApiDataPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm(`Are you sure you want to delete ${selectedArchiveFiles.length} archive file(s)?`)) {
-                          toast({ 
-                            title: "Delete initiated", 
-                            description: `Deleting ${selectedArchiveFiles.length} selected archive file(s)` 
-                          });
-                          // TODO: Implement delete logic
-                          setSelectedArchiveFiles([]);
+                          try {
+                            const response = await fetch('/api/tddf-archive/bulk-delete', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ archiveIds: selectedArchiveFiles })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            if (response.ok) {
+                              toast({ 
+                                title: "Success", 
+                                description: data.message || `Deleted ${selectedArchiveFiles.length} archive file(s)` 
+                              });
+                              setSelectedArchiveFiles([]);
+                              refetchArchive();
+                            } else {
+                              toast({ 
+                                title: "Error", 
+                                description: data.error || 'Failed to delete archive files',
+                                variant: "destructive"
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Error deleting archive files:', error);
+                            toast({ 
+                              title: "Error", 
+                              description: 'Failed to delete archive files',
+                              variant: "destructive"
+                            });
+                          }
                         }
                       }}
                       data-testid="button-delete-archive"

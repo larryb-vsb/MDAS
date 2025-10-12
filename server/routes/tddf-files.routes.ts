@@ -1565,6 +1565,39 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
+  // Bulk delete archive file records
+  app.post('/api/tddf-archive/bulk-delete', isAuthenticated, async (req, res) => {
+    try {
+      const { archiveIds } = req.body;
+      
+      if (!archiveIds || !Array.isArray(archiveIds) || archiveIds.length === 0) {
+        return res.status(400).json({ error: 'Archive IDs are required' });
+      }
+      
+      console.log(`🗑️ Starting bulk delete for ${archiveIds.length} archive files`);
+      
+      const query = `
+        DELETE FROM ${getTableName('tddf_archive')}
+        WHERE id = ANY($1)
+        RETURNING id, archive_filename, archive_path
+      `;
+      
+      const result = await pool.query(query, [archiveIds]);
+      
+      console.log(`🗑️ Successfully deleted ${result.rows.length} archive records`);
+      
+      res.json({
+        message: `Successfully deleted ${result.rows.length} archive file(s)`,
+        deletedCount: result.rows.length,
+        deletedFiles: result.rows
+      });
+      
+    } catch (error) {
+      console.error('Error bulk deleting archive files:', error);
+      res.status(500).json({ error: 'Failed to delete archive files' });
+    }
+  });
+
   // Get archive file content for viewing
   app.get('/api/tddf-archive/:id/content', isAuthenticated, async (req, res) => {
     try {
