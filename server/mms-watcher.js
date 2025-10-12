@@ -71,19 +71,44 @@ class MMSWatcher {
             await this.debugAllFiles();
           }
         }
-        
-        // Step 6: Check for encoded files that need completion processing
-        console.log('[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...');
-        const hasEncodedFiles = await this.hasFilesInPhase('encoded');
-        console.log(`[MMS-WATCHER] [AUTO-STEP6] Found encoded files: ${hasEncodedFiles}`);
-        if (hasEncodedFiles) {
-          console.log('[MMS-WATCHER] [AUTO-STEP6] Processing encoded files for Step 6 completion');
-          await this.processEncodedFiles();
-        }
       }
       
       // Manual encoding will be handled separately via manual queue
     }, 20000); // Check every 20 seconds for auto encoding
+    
+    // Step 6 Processing Service - Independent from Auto 4-5
+    this.step6ProcessingIntervalId = setInterval(async () => {
+      try {
+        // Check if Auto Step 6 is enabled by querying system settings directly
+        const { db } = await import('./db.js');
+        const { sql } = await import('drizzle-orm');
+        const { getTableName } = await import('./table-config.js');
+        
+        const result = await db.execute(sql`
+          SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+          WHERE setting_key = 'auto_step6_enabled'
+        `);
+        
+        const autoStep6Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+        
+        if (!autoStep6Enabled) {
+          console.log('[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 is disabled, skipping encoded file processing');
+          return;
+        }
+        
+        // Auto Step 6 is enabled - check for encoded files
+        console.log('[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...');
+        const hasEncodedFiles = await this.hasFilesInPhase('encoded');
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] Found encoded files: ${hasEncodedFiles}`);
+        
+        if (hasEncodedFiles) {
+          console.log('[MMS-WATCHER] [AUTO-STEP6] Processing encoded files for Step 6 completion');
+          await this.processEncodedFiles();
+        }
+      } catch (error) {
+        console.error('[MMS-WATCHER] [AUTO-STEP6] Error in Step 6 processing interval:', error);
+      }
+    }, 60000); // Check every 60 seconds for Step 6 processing
     
     // JSONB duplicate cleanup service - DISABLED AUTO-START
     // Note: Duplicate cleanup now requires manual triggering from Processing page
@@ -99,6 +124,7 @@ class MMSWatcher {
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 30 seconds (optimized)');
     console.log('[MMS-WATCHER] File encoding service started - processes identified files every 20 seconds (optimized)');
+    console.log('[MMS-WATCHER] Step 6 processing service started - processes encoded files to master table every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Pipeline recovery service started - handles stuck files and cache updates every minute');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
@@ -126,6 +152,10 @@ class MMSWatcher {
     if (this.pipelineRecoveryIntervalId) {
       clearInterval(this.pipelineRecoveryIntervalId);
       this.pipelineRecoveryIntervalId = null;
+    }
+    if (this.step6ProcessingIntervalId) {
+      clearInterval(this.step6ProcessingIntervalId);
+      this.step6ProcessingIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
