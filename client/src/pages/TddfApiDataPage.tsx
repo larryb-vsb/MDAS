@@ -976,6 +976,33 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Archive mutation for bulk archiving (Step 7)
+  const archiveMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/tddf-archive/bulk-archive', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-archive'] });
+      setSelectedUploads([]);
+      toast({ 
+        title: "Archive completed successfully", 
+        description: `${data.archivedFiles?.length || 0} file(s) archived to permanent storage`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Archive failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
@@ -2144,6 +2171,39 @@ export default function TddfApiDataPage() {
                       >
                         <RefreshCw className="h-4 w-4 mr-1" />
                         Reset Errors
+                      </Button>
+
+                      {/* Archive Selected Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const archiveFiles = selectedUploads.filter(id => {
+                            const upload = uploads.find((u: UploaderUpload) => u.id === id);
+                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                          });
+                          
+                          if (archiveFiles.length === 0) {
+                            toast({ 
+                              title: "No eligible files selected", 
+                              description: "Please select files that are 'encoded' or 'completed' for archiving",
+                              variant: "destructive" 
+                            });
+                            return;
+                          }
+                          
+                          // Trigger archive API call
+                          archiveMutation.mutate(archiveFiles);
+                        }}
+                        className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+                        disabled={archiveMutation.isPending || !selectedUploads.some(id => {
+                          const upload = uploads.find((u: UploaderUpload) => u.id === id);
+                          return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                        })}
+                        data-testid="button-archive-selected"
+                      >
+                        <Database className="h-4 w-4 mr-1" />
+                        Archive
                       </Button>
                       
                       <Button 
