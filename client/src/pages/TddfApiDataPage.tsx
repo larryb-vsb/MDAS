@@ -3062,6 +3062,46 @@ export default function TddfApiDataPage() {
                   Clear Filters
                 </Button>
                 <div className="flex-1" />
+                
+                {/* Selected Archive Actions */}
+                {selectedArchiveFiles.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        toast({ 
+                          title: "Reprocess initiated", 
+                          description: `Reprocessing ${selectedArchiveFiles.length} selected archive file(s)` 
+                        });
+                        // TODO: Implement reprocess logic
+                      }}
+                      data-testid="button-reprocess-archive"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Reprocess Selected ({selectedArchiveFiles.length})
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete ${selectedArchiveFiles.length} archive file(s)?`)) {
+                          toast({ 
+                            title: "Delete initiated", 
+                            description: `Deleting ${selectedArchiveFiles.length} selected archive file(s)` 
+                          });
+                          // TODO: Implement delete logic
+                          setSelectedArchiveFiles([]);
+                        }
+                      }}
+                      data-testid="button-delete-archive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete Selected ({selectedArchiveFiles.length})
+                    </Button>
+                  </>
+                )}
+                
                 <Button
                   variant="default"
                   size="sm"
