@@ -256,4 +256,38 @@ export class ReplitStorageService {
     }
   }
 
+  /**
+   * Move a file from one location to another in Replit Object Storage
+   * This copies the file to the new location and deletes the original
+   * @param fromPath - Source file path/key
+   * @param toPath - Destination file path/key
+   * @returns Promise<{ success: boolean; error?: string }> - Success status and optional error message
+   */
+  static async moveFile(fromPath: string, toPath: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`[REPLIT-STORAGE] Moving file from ${fromPath} to ${toPath}`);
+      
+      // First, copy the file to the new location
+      const copySuccess = await this.copyFile(fromPath, toPath);
+      
+      if (!copySuccess) {
+        return { success: false, error: 'Failed to copy file to new location' };
+      }
+      
+      // Then delete the original file
+      const deleteSuccess = await this.deleteFile(fromPath);
+      
+      if (!deleteSuccess) {
+        console.warn(`[REPLIT-STORAGE] File copied successfully but original could not be deleted: ${fromPath}`);
+        return { success: false, error: 'File copied but original deletion failed' };
+      }
+      
+      console.log(`[REPLIT-STORAGE] Move successful: ${fromPath} -> ${toPath}`);
+      return { success: true };
+    } catch (error) {
+      console.error('[REPLIT-STORAGE] Move error:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
 }
