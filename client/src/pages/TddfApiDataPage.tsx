@@ -407,6 +407,15 @@ interface AutoStep6SettingResponse {
   autoStep6Enabled: boolean;
 }
 
+interface AutoStep7Setting {
+  autoStep7Enabled: boolean;
+}
+
+interface AutoStep7SettingResponse {
+  message: string;
+  autoStep7Enabled: boolean;
+}
+
 interface WarningResetResponse {
   resetCount: number;
   message: string;
@@ -478,10 +487,17 @@ export default function TddfApiDataPage() {
   const [keep, setKeep] = useState<boolean>(false);
   const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
   const [autoStep6Enabled, setAutoStep6Enabled] = useState<boolean>(false);
+  const [autoStep7Enabled, setAutoStep7Enabled] = useState<boolean>(false);
 
   // Load Auto Step 6 setting on mount
   const { data: autoStep6Setting } = useQuery<AutoStep6Setting>({
     queryKey: ['/api/uploader/auto-step6-setting'],
+    enabled: true
+  });
+
+  // Load Auto Step 7 setting on mount
+  const { data: autoStep7Setting } = useQuery<AutoStep7Setting>({
+    queryKey: ['/api/uploader/auto-step7-setting'],
     enabled: true
   });
 
@@ -491,6 +507,13 @@ export default function TddfApiDataPage() {
       setAutoStep6Enabled(autoStep6Setting.autoStep6Enabled);
     }
   }, [autoStep6Setting]);
+
+  // Update Auto Step 7 state when API data loads
+  useEffect(() => {
+    if (autoStep7Setting?.autoStep7Enabled !== undefined) {
+      setAutoStep7Enabled(autoStep7Setting.autoStep7Enabled);
+    }
+  }, [autoStep7Setting]);
 
   // Mutation to save Auto Step 6 setting
   const saveAutoStep6Setting = useMutation<AutoStep6SettingResponse, Error, boolean>({
@@ -525,6 +548,41 @@ export default function TddfApiDataPage() {
     setAutoStep6Enabled(enabled); // Update local state immediately for responsive UI
     saveAutoStep6Setting.mutate(enabled);
   };
+
+  // Mutation to save Auto Step 7 setting
+  const saveAutoStep7Setting = useMutation<AutoStep7SettingResponse, Error, boolean>({
+    mutationFn: async (enabled: boolean) => {
+      const data = await apiRequest('/api/uploader/auto-step7-setting', {
+        method: 'POST',
+        body: JSON.stringify({ enabled }),
+        headers: { 'Content-Type': 'application/json' }
+      }) as AutoStep7SettingResponse;
+      return data;
+    },
+    onSuccess: (data: AutoStep7SettingResponse) => {
+      toast({
+        title: data.message,
+        description: `Auto Step 7 archiving is now ${data.autoStep7Enabled ? 'enabled' : 'disabled'}`,
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/auto-step7-setting'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to save Auto Step 7 setting",
+        variant: "destructive"
+      });
+      console.error('Error saving Auto Step 7 setting:', error);
+    }
+  });
+
+  // Handle Auto Step 7 toggle change
+  const handleAutoStep7Change = async (enabled: boolean) => {
+    setAutoStep7Enabled(enabled); // Update local state immediately for responsive UI
+    saveAutoStep7Setting.mutate(enabled);
+  };
+
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [filenameFilter, setFilenameFilter] = useState('');
@@ -2065,6 +2123,27 @@ export default function TddfApiDataPage() {
                       checked={autoStep6Enabled}
                       onCheckedChange={handleAutoStep6Change}
                       disabled={saveAutoStep6Setting.isPending}
+                    />
+                  </div>
+                </div>
+
+                {/* Auto 7 Archive Switch */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Database className="h-5 w-5 text-green-600" />
+                      <div>
+                        <div className="font-medium text-green-800">Auto 7 Archive</div>
+                        <div className="text-sm text-green-600">
+                          Enable automatic Step 7 archiving for completed files
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={autoStep7Enabled}
+                      onCheckedChange={handleAutoStep7Change}
+                      disabled={saveAutoStep7Setting.isPending}
+                      data-testid="switch-auto-step7"
                     />
                   </div>
                 </div>

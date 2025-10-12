@@ -955,6 +955,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto Step 7 Setting endpoints
+  app.get("/api/uploader/auto-step7-setting", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[AUTO-STEP7] Fetching Auto Step 7 setting');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_step7_enabled'
+      `);
+      
+      const enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+      
+      console.log(`[AUTO-STEP7] Current Auto Step 7 setting: ${enabled}`);
+      
+      res.json({
+        autoStep7Enabled: enabled
+      });
+    } catch (error) {
+      console.error('[AUTO-STEP7] Error fetching Auto Step 7 setting:', error);
+      res.status(500).json({ error: 'Failed to fetch Auto Step 7 setting' });
+    }
+  });
+
+  app.post("/api/uploader/auto-step7-setting", isAuthenticated, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      const username = (req as any).user?.username || 'unknown';
+      
+      console.log(`[AUTO-STEP7] Updating Auto Step 7 setting to: ${enabled} (by: ${username})`);
+      
+      // Upsert the setting
+      await db.execute(sql`
+        INSERT INTO ${sql.identifier(getTableName('system_settings'))} (setting_key, setting_value, setting_type, description, last_updated_by)
+        VALUES ('auto_step7_enabled', ${enabled ? 'true' : 'false'}, 'boolean', 'Enable automatic Step 7 archiving for completed TDDF files', ${username})
+        ON CONFLICT (setting_key)
+        DO UPDATE SET 
+          setting_value = ${enabled ? 'true' : 'false'},
+          last_updated_by = ${username},
+          updated_at = NOW()
+      `);
+      
+      console.log(`[AUTO-STEP7] Successfully updated Auto Step 7 setting to: ${enabled}`);
+      
+      res.json({
+        success: true,
+        autoStep7Enabled: enabled,
+        message: `Auto Step 7 archiving ${enabled ? 'enabled' : 'disabled'}`
+      });
+    } catch (error) {
+      console.error('[AUTO-STEP7] Error saving Auto Step 7 setting:', error);
+      res.status(500).json({ error: 'Failed to save Auto Step 7 setting' });
+    }
+  });
+
   // Step 6 Processing endpoint - processes ALL records to master tddfJsonb table
   app.post("/api/uploader/step6-processing", isAuthenticated, async (req, res) => {
     console.log("[STEP-6-PROCESSING] API endpoint reached with body:", req.body);
