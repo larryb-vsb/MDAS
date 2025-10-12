@@ -1315,12 +1315,13 @@ export default function TddfApiDataPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schemas">Schemas</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="raw-data">Raw Data</TabsTrigger>
+          <TabsTrigger value="archive-data">Archive Data</TabsTrigger>
           <TabsTrigger value="processing">Processing</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
@@ -3110,6 +3111,27 @@ export default function TddfApiDataPage() {
           />
         </TabsContent>
 
+        <TabsContent value="archive-data" className="space-y-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold">Archive Data</h2>
+              <p className="text-muted-foreground">View archived TDDF records from permanent storage</p>
+            </div>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/all-archive-records"], exact: false });
+                toast({ title: "Archive data refreshed" });
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Data
+            </Button>
+          </div>
+          
+          <ArchiveDataTab />
+        </TabsContent>
+
         <TabsContent value="processing" className="space-y-4">
           <h2 className="text-2xl font-bold">Processing Queue</h2>
           
@@ -4281,6 +4303,242 @@ function FileViewDisplay({
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+// Archive Data Tab Component
+function ArchiveDataTab() {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+  const [recordType, setRecordType] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [archiveFileId, setArchiveFileId] = useState<string>('');
+  
+  // Fetch archive records
+  const { data: archiveData, isLoading } = useQuery<{
+    data: any[];
+    summary: { totalRecords: number; bhRecords: number; dtRecords: number; totalArchiveFiles: number };
+    pagination: { limit: number; offset: number; total: number };
+  }>({
+    queryKey: ['/api/tddf-api/all-archive-records', { 
+      limit: pageSize, 
+      offset: currentPage * pageSize, 
+      recordType: recordType !== 'all' ? recordType : undefined,
+      search: searchQuery || undefined,
+      archiveFileId: archiveFileId || undefined
+    }],
+    refetchInterval: false,
+    staleTime: 60000
+  });
+
+  const records = archiveData?.data || [];
+  const summary = archiveData?.summary || { totalRecords: 0, bhRecords: 0, dtRecords: 0, totalArchiveFiles: 0 };
+  const pagination = archiveData?.pagination || { limit: pageSize, offset: 0, total: 0 };
+  const totalPages = Math.ceil(pagination.total / pageSize);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">BH Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">DT Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Archive Files</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalArchiveFiles.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Record Type</Label>
+              <Select value={recordType} onValueChange={setRecordType}>
+                <SelectTrigger data-testid="select-record-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="BH">BH (Batch Header)</SelectItem>
+                  <SelectItem value="DT">DT (Transaction)</SelectItem>
+                  <SelectItem value="BT">BT (Batch Trailer)</SelectItem>
+                  <SelectItem value="FH">FH (File Header)</SelectItem>
+                  <SelectItem value="FT">FT (File Trailer)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Search</Label>
+              <Input
+                placeholder="Search records..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Archive File ID</Label>
+              <Input
+                placeholder="Filter by archive file ID..."
+                value={archiveFileId}
+                onChange={(e) => setArchiveFileId(e.target.value)}
+                data-testid="input-archive-file-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Page Size</Label>
+              <Select value={pageSize.toString()} onValueChange={(v) => {
+                setPageSize(parseInt(v));
+                setCurrentPage(0);
+              }}>
+                <SelectTrigger data-testid="select-page-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="1000">1K</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Records Table */}
+      <Card>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : records.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No archive records found
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Record Type</TableHead>
+                    <TableHead>Line #</TableHead>
+                    <TableHead>Merchant Account</TableHead>
+                    <TableHead>Archive File</TableHead>
+                    <TableHead>Original Filename</TableHead>
+                    <TableHead>Archived At</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {records.map((record: any) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <Badge>{record.record_type}</Badge>
+                      </TableCell>
+                      <TableCell>{record.line_number}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {record.merchant_account_number || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {record.archive_filename || record.archive_file_id}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {record.original_filename || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {record.archived_at ? format(new Date(record.archived_at), "MMM d, yyyy HH:mm") : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" data-testid={`button-view-${record.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, pagination.total)} of {pagination.total.toLocaleString()} records
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(0)}
+                    disabled={currentPage === 0}
+                    data-testid="button-first-page"
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                    disabled={currentPage === 0}
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    data-testid="button-next-page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages - 1)}
+                    disabled={currentPage >= totalPages - 1}
+                    data-testid="button-last-page"
+                  >
+                    Last
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

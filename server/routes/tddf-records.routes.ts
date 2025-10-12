@@ -1966,6 +1966,94 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
+  // Get all TDDF archive records with summary statistics for Archive Data tab
+  app.get('/api/tddf-api/all-archive-records', isAuthenticated, async (req, res) => {
+    try {
+      const { 
+        limit = 100, 
+        offset = 0, 
+        recordType, 
+        search,
+        archiveFileId
+      } = req.query;
+      
+      console.log('[ARCHIVE-RECORDS] Request params:', { limit, offset, recordType, search, archiveFileId });
+      
+      // Build WHERE conditions
+      const whereConditions = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+      
+      if (recordType) {
+        whereConditions.push(`record_type = $${paramIndex}`);
+        params.push(recordType);
+        paramIndex++;
+      }
+      
+      if (search) {
+        whereConditions.push(`(raw_line ILIKE $${paramIndex} OR merchant_account_number ILIKE $${paramIndex})`);
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      if (archiveFileId) {
+        whereConditions.push(`archive_file_id = $${paramIndex}`);
+        params.push(archiveFileId);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Get summary statistics
+      const summaryResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(DISTINCT archive_file_id) as total_archive_files
+        FROM ${getTableName('tddf_archive_records')}
+        ${whereClause}
+      `, params);
+      
+      const summary = summaryResult.rows[0];
+      
+      // Get paginated records
+      params.push(limit, offset);
+      const recordsResult = await pool.query(`
+        SELECT 
+          r.*,
+          a.archive_filename,
+          a.original_filename as archive_original_filename
+        FROM ${getTableName('tddf_archive_records')} r
+        LEFT JOIN ${getTableName('tddf_archive')} a ON r.archive_file_id = a.id
+        ${whereClause}
+        ORDER BY r.archived_at DESC, r.line_number ASC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, params);
+      
+      console.log('[ARCHIVE-RECORDS] Found records:', recordsResult.rows.length);
+      
+      res.json({
+        data: recordsResult.rows,
+        summary: {
+          totalRecords: parseInt(summary.total_records),
+          bhRecords: parseInt(summary.bh_records),
+          dtRecords: parseInt(summary.dt_records),
+          totalArchiveFiles: parseInt(summary.total_archive_files)
+        },
+        pagination: {
+          limit: parseInt(limit as string),
+          offset: parseInt(offset as string),
+          total: parseInt(summary.total_records)
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching TDDF archive records:', error);
+      res.status(500).json({ error: 'Failed to fetch archive records' });
+    }
+  });
+
   // Get records with dynamic field selection
   app.get('/api/tddf-api/records/:fileId', isAuthenticated, async (req, res) => {
     try {
