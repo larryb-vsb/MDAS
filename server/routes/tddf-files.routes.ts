@@ -1634,51 +1634,90 @@ export function registerTddfFilesRoutes(app: Express) {
       const archivePrefix = `${environment}-tddf-archive`;
       
       for (const upload of validUploads) {
-        const { businessDay, fileDate } = extractBusinessDayFromFilename(upload.filename);
-        
-        // Generate archive filename and path
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const archiveFilename = `${timestamp}_${upload.filename}`;
-        const archivePath = `${archivePrefix}/${archiveFilename}`;
-        
-        // Insert archive record
-        const insertQuery = `
-          INSERT INTO ${getTableName('tddf_archive')} (
-            archive_filename, original_filename, archive_path, original_upload_path,
-            file_size, file_hash, archive_status, step6_status,
-            business_day, file_date, original_upload_id,
-            metadata, created_by, updated_by
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-          ) RETURNING *
-        `;
-        
-        const metadata = {
-          original_phase: upload.current_phase,
-          archived_by: username,
-          archive_initiated_at: new Date().toISOString()
-        };
-        
-        const archiveResult = await pool.query(insertQuery, [
-          archiveFilename,
-          upload.filename,
-          archivePath,
-          `${environment}-uploader/${upload.filename}`,
-          upload.file_size,
-          `temp-hash-${Date.now()}`,
-          'pending',
-          'pending',
-          businessDay,
-          fileDate,
-          upload.id,
-          JSON.stringify(metadata),
-          username,
-          username
-        ]);
-        
-        archivedFiles.push(archiveResult.rows[0]);
-        
-        console.log(`📦 Created archive record for ${upload.filename} -> ${archivePath}`);
+        // Start transaction for atomic archive operation
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          const { businessDay, fileDate } = extractBusinessDayFromFilename(upload.filename);
+          
+          // Generate archive filename and path
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const archiveFilename = `${timestamp}_${upload.filename}`;
+          const archivePath = `${archivePrefix}/${archiveFilename}`;
+          
+          // Insert archive record
+          const insertQuery = `
+            INSERT INTO ${getTableName('tddf_archive')} (
+              archive_filename, original_filename, archive_path, original_upload_path,
+              file_size, file_hash, archive_status, step6_status,
+              business_day, file_date, original_upload_id,
+              metadata, created_by, updated_by
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+            ) RETURNING *
+          `;
+          
+          const metadata = {
+            original_phase: upload.current_phase,
+            archived_by: username,
+            archive_initiated_at: new Date().toISOString()
+          };
+          
+          const archiveResult = await client.query(insertQuery, [
+            archiveFilename,
+            upload.filename,
+            archivePath,
+            `${environment}-uploader/${upload.filename}`,
+            upload.file_size,
+            `temp-hash-${Date.now()}`,
+            'pending',
+            'pending',
+            businessDay,
+            fileDate,
+            upload.id,
+            JSON.stringify(metadata),
+            username,
+            username
+          ]);
+          
+          const archiveFileId = archiveResult.rows[0].id;
+          const archivedAt = new Date();
+          
+          // Copy JSONB records to permanent archive storage (preserving all original fields)
+          const copyRecordsQuery = `
+            INSERT INTO ${getTableName('tddf_archive_records')} (
+              upload_id, record_type, record_data, processing_status, created_at,
+              record_identifier, line_number, raw_line, field_count, original_filename,
+              file_processing_date, file_sequence_number, file_processing_time, file_system_id,
+              mainframe_process_data, merchant_account_number, raw_line_hash,
+              is_archived, archived_at, archive_file_id, processed_at
+            )
+            SELECT 
+              upload_id, record_type, record_data, processing_status, created_at,
+              record_identifier, line_number, raw_line, field_count, original_filename,
+              file_processing_date, file_sequence_number, file_processing_time, file_system_id,
+              mainframe_process_data, merchant_account_number, raw_line_hash,
+              true, $2, $3, processed_at
+            FROM ${getTableName('uploader_tddf_jsonb_records')}
+            WHERE upload_id = $1
+          `;
+          
+          const copyResult = await client.query(copyRecordsQuery, [upload.id, archivedAt, archiveFileId]);
+          
+          await client.query('COMMIT');
+          
+          archivedFiles.push(archiveResult.rows[0]);
+          console.log(`📦 Created archive record for ${upload.filename} -> ${archivePath}`);
+          console.log(`📦 Copied ${copyResult.rowCount} JSONB records to archive (transaction committed)`);
+          
+        } catch (error) {
+          await client.query('ROLLBACK');
+          console.error(`📦 Error archiving ${upload.filename}, transaction rolled back:`, error);
+          throw error;
+        } finally {
+          client.release();
+        }
       }
       
       res.json({

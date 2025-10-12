@@ -2895,6 +2895,52 @@ export const insertTddfArchiveSchema = createInsertSchema(tddfArchive).omit({
 export type TddfArchive = typeof tddfArchive.$inferSelect;
 export type InsertTddfArchive = typeof insertTddfArchiveSchema._type;
 
+// TDDF Archive Records - Permanent storage for archived TDDF records
+// Matches dev_uploader_tddf_jsonb_records structure with archive flags
+export const tddfArchiveRecords = pgTable(getTableName("tddf_archive_records"), {
+  id: serial("id").primaryKey(),
+  uploadId: text("upload_id"), // Original upload reference (may be null for orphaned records)
+  recordType: text("record_type").notNull(), // DT, BH, P1, P2, etc.
+  recordData: jsonb("record_data").notNull(), // Complete TDDF record as JSON
+  processingStatus: text("processing_status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // Extended TDDF metadata fields (matching uploader_tddf_jsonb_records)
+  recordIdentifier: text("record_identifier"),
+  lineNumber: integer("line_number"),
+  rawLine: text("raw_line"),
+  fieldCount: integer("field_count"),
+  originalFilename: text("original_filename"),
+  fileProcessingDate: date("file_processing_date"),
+  fileSequenceNumber: text("file_sequence_number"),
+  fileProcessingTime: text("file_processing_time"),
+  fileSystemId: text("file_system_id"),
+  mainframeProcessData: jsonb("mainframe_process_data"),
+  merchantAccountNumber: text("merchant_account_number"),
+  rawLineHash: text("raw_line_hash"),
+  
+  // Archive tracking fields
+  isArchived: boolean("is_archived").default(true).notNull(), // Always true for archive records
+  archivedAt: timestamp("archived_at").notNull(),
+  archiveFileId: integer("archive_file_id").notNull().references(() => tddfArchive.id),
+  
+  processedAt: timestamp("processed_at")
+}, (table) => ({
+  recordTypeIdx: index("tddf_archive_records_record_type_idx").on(table.recordType),
+  archiveFileIdIdx: index("tddf_archive_records_archive_file_id_idx").on(table.archiveFileId),
+  merchantAccountIdx: index("tddf_archive_records_merchant_account_idx").on(table.merchantAccountNumber),
+  rawLineHashIdx: index("tddf_archive_records_raw_line_hash_idx").on(table.rawLineHash),
+  archivedAtIdx: index("tddf_archive_records_archived_at_idx").on(table.archivedAt)
+}));
+
+// TDDF Archive Records Zod schemas and types
+export const insertTddfArchiveRecordsSchema = createInsertSchema(tddfArchiveRecords).omit({
+  id: true,
+  createdAt: true
+});
+export type TddfArchiveRecord = typeof tddfArchiveRecords.$inferSelect;
+export type InsertTddfArchiveRecord = typeof insertTddfArchiveRecordsSchema._type;
+
 // TDDF Daily View System Tables - Complete isolation from existing systems
 // Master table containing all TDDF records organized for daily view
 export const tddfDatamaster = pgTable(getTableName("tddf_datamaster"), {
