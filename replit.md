@@ -44,6 +44,7 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **TSYS Merchant Status System**: Comprehensive TSYS merchant status code mapping system with dual-field architecture for consistent UI display.
 - **Modular Route Architecture**: Reorganized monolithic `routes.ts` into modular, maintainable route files for improved maintainability, faster navigation, and reduced merge conflicts.
 - **TDDF Merchant Name Lookup**: Enhanced TDDF viewer with asynchronous merchant name lookup functionality across all view modes, including account number normalization.
+- **Independent Step 6 Processing Interval**: Auto Step 6 now runs on its own 60-second interval (independent from Auto 4-5), queries database setting before each run, and automatically processes encoded TDDF files to completion when enabled.
 
 ## External Dependencies
 
