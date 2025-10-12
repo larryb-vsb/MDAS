@@ -596,6 +596,7 @@ export default function TddfApiDataPage() {
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
   const [uploadsItemsPerPage, setUploadsItemsPerPage] = useState(5);
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
+  const [selectedArchiveFiles, setSelectedArchiveFiles] = useState<number[]>([]);
   const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
   const [uploaderFileContent, setUploaderFileContent] = useState<string>('');
   const [loadingUploaderContent, setLoadingUploaderContent] = useState(false);
@@ -3081,7 +3082,16 @@ export default function TddfApiDataPage() {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
+                        checked={selectedArchiveFiles.length === archivedFiles.length && archivedFiles.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedArchiveFiles(archivedFiles.map((f: any) => f.id));
+                          } else {
+                            setSelectedArchiveFiles([]);
+                          }
+                        }}
                         aria-label="Select all archive files"
+                        data-testid="checkbox-select-all-archive"
                       />
                     </TableHead>
                     <TableHead>Original Filename</TableHead>
@@ -3112,7 +3122,17 @@ export default function TddfApiDataPage() {
                     archivedFiles.map((file: any) => (
                       <TableRow key={file.id}>
                         <TableCell>
-                          <Checkbox />
+                          <Checkbox 
+                            checked={selectedArchiveFiles.includes(file.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedArchiveFiles([...selectedArchiveFiles, file.id]);
+                              } else {
+                                setSelectedArchiveFiles(selectedArchiveFiles.filter(id => id !== file.id));
+                              }
+                            }}
+                            data-testid={`checkbox-archive-${file.id}`}
+                          />
                         </TableCell>
                         <TableCell className="font-medium max-w-[300px]" title={file.original_filename}>
                           <div className="truncate">{file.original_filename}</div>
