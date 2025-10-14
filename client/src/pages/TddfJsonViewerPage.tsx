@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft, Info, FileText, BarChart3, Search, X, CreditCard } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { useMerchantLookup } from '@/hooks/useMerchantLookup';
 
 interface JsonbRecord {
   id: number;
@@ -238,6 +239,7 @@ interface TreeViewDisplayProps {
   getRecordTypeName: (type: string) => string;
   formatFieldValue: (key: string, value: any) => string;
   groupRecordsHierarchically: (records: JsonbRecord[]) => any[];
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
 }
 
 function TreeViewDisplay({ 
@@ -249,7 +251,8 @@ function TreeViewDisplay({
   getRecordTypeBadgeColor, 
   getRecordTypeName, 
   formatFieldValue, 
-  groupRecordsHierarchically 
+  groupRecordsHierarchically,
+  getMerchantName
 }: TreeViewDisplayProps) {
   const hierarchicalData = groupRecordsHierarchically(records);
 
@@ -280,6 +283,41 @@ function TreeViewDisplay({
                     </Badge>
                     <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
                     <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
+                    
+                    {/* Merchant Account Number, Name, Batch Date, and Net Deposit for BH records */}
+                    {(() => {
+                      const merchantAccountNumber = batch.batchHeader.extracted_fields?.merchantAccountNumber;
+                      const merchantName = getMerchantName(merchantAccountNumber);
+                      const batchDate = batch.batchHeader.extracted_fields?.batchDate;
+                      const netDeposit = batch.batchHeader.extracted_fields?.netDeposit;
+                      
+                      return (merchantAccountNumber || batchDate || netDeposit) ? (
+                        <div className="flex items-center gap-3 ml-3">
+                          {merchantAccountNumber && (
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-blue-600">
+                                {merchantAccountNumber.replace(/^0+/, '')}
+                              </span>
+                              {merchantName && (
+                                <span className="text-xs text-blue-500 font-medium uppercase">
+                                  {merchantName}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {batchDate && (
+                            <span className="text-sm text-gray-700">
+                              📅 {batchDate}
+                            </span>
+                          )}
+                          {netDeposit && (
+                            <span className="text-sm font-semibold text-green-600">
+                              ${parseFloat(netDeposit).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
                   </>
                 ) : (
                   <>
@@ -459,6 +497,9 @@ export default function TddfJsonViewerPage() {
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<'all' | 'metadata'>('all');
+
+  // Merchant lookup for displaying merchant names
+  const { getMerchantName } = useMerchantLookup();
 
   const { data: jsonbData, isLoading, error, refetch } = useQuery({
     queryKey: [isUnlimited ? '/api/tddf-api/records' : '/api/uploader', uploadId, 'jsonb-data', { 
@@ -1517,6 +1558,7 @@ export default function TddfJsonViewerPage() {
                   getRecordTypeName={getRecordTypeName}
                   formatFieldValue={formatFieldValue}
                   groupRecordsHierarchically={groupRecordsHierarchically}
+                  getMerchantName={getMerchantName}
                 />
               ) : (
                 <div className="space-y-4">
