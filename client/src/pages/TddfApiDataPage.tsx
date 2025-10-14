@@ -4216,6 +4216,45 @@ function RecordDetailView({ record }: { record: any }) {
   const parsedData = record.parsed_data || {};
   const rawData = record.raw_data || '';
   
+  // Define field order for BH records (batchId moved to end)
+  const BH_FIELD_ORDER = [
+    'sequenceNumber',
+    'entryRunNumber',
+    'sequenceWithinRun',
+    'recordIdentifier',
+    'bankNumber',
+    'merchantAccountNumber',
+    'associationNumber',
+    'groupNumber',
+    'transactionCode',
+    'batchDate',
+    'batchJulianDate',
+    'netDeposit',
+    'rejectReason',
+    'merchantReferenceNum',
+    'batchHeaderCarryIndicator',
+    'associationNumberBatch',
+    'merchantBankNumber',
+    'debitCreditIndicator',
+    'achPostingDate',
+    'batchId' // Moved to end
+  ];
+  
+  // Sort fields based on record type
+  const sortedEntries = record.record_type === 'BH' 
+    ? Object.entries(parsedData).sort(([keyA], [keyB]) => {
+        const indexA = BH_FIELD_ORDER.indexOf(keyA);
+        const indexB = BH_FIELD_ORDER.indexOf(keyB);
+        
+        // If field not in order array, put it at the end
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        
+        return indexA - indexB;
+      })
+    : Object.entries(parsedData);
+  
   return (
     <div className="w-full">
       <div className="mb-4">
@@ -4252,7 +4291,7 @@ function RecordDetailView({ record }: { record: any }) {
         <TabsContent value="fields" className="mt-4">
           <div className="space-y-2">
             {Object.keys(parsedData).length > 0 ? (
-              Object.entries(parsedData).map(([key, value]) => (
+              sortedEntries.map(([key, value]) => (
                 <div key={key} className="flex justify-between items-start py-2 border-b border-border/40">
                   <span className="font-medium text-sm capitalize">{key.replace(/_/g, ' ')}:</span>
                   <span className="text-sm text-muted-foreground ml-4 text-right max-w-md break-all">
