@@ -495,18 +495,21 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const { getMerchantName } = useMerchantLookup();
   
+  // Pad merchant ID with leading zero for TDDF queries (15 digits -> 16 digits)
+  const paddedMerchantId = merchantId ? merchantId.padStart(16, '0') : '';
+  
   // Calculate 60 days ago from today
   const sixtyDaysAgo = format(subDays(new Date(), 60), 'yyyy-MM-dd');
   
   // Query for BH records from last 60 days
   const { data: recentBatches, isLoading: recentLoading } = useQuery<any[]>({
-    queryKey: ['/api/tddf-api/merchant-batches', merchantId, sixtyDaysAgo],
+    queryKey: ['/api/tddf-api/merchant-batches', paddedMerchantId, sixtyDaysAgo],
     queryFn: async () => {
-      if (!merchantId) return [];
+      if (!paddedMerchantId) return [];
       
       const params = new URLSearchParams({
         record_type: 'BH',
-        merchant_account: merchantId,
+        merchant_account: paddedMerchantId,
         date_from: sixtyDaysAgo,
         limit: '1000'
       });
@@ -514,25 +517,25 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
       return response?.records || [];
     },
-    enabled: !!merchantId
+    enabled: !!paddedMerchantId
   });
   
   // Fallback query for most recent batch if no recent batches found
   const { data: lastBatch, isLoading: lastLoading } = useQuery<any[]>({
-    queryKey: ['/api/tddf-api/merchant-last-batch', merchantId],
+    queryKey: ['/api/tddf-api/merchant-last-batch', paddedMerchantId],
     queryFn: async () => {
-      if (!merchantId) return [];
+      if (!paddedMerchantId) return [];
       
       const params = new URLSearchParams({
         record_type: 'BH',
-        merchant_account: merchantId,
+        merchant_account: paddedMerchantId,
         limit: '1'
       });
       
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
       return response?.records || [];
     },
-    enabled: !!merchantId && !recentLoading && (!recentBatches || recentBatches.length === 0)
+    enabled: !!paddedMerchantId && !recentLoading && (!recentBatches || recentBatches.length === 0)
   });
 
   const toggleBatch = (index: number) => {
