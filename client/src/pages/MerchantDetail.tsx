@@ -507,8 +507,8 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   
   // Query for BH records with date range
-  const { data: batchesResponse, isLoading, refetch } = useQuery<any>({
-    queryKey: ['/api/tddf-api/merchant-batches', paddedMerchantId, dateFrom, dateTo, itemsPerPage],
+  const { data: batchesResponse, isLoading, isFetching, refetch } = useQuery<any>({
+    queryKey: ['/api/tddf-api/merchant-batches', paddedMerchantId, dateFrom, dateTo],
     queryFn: async () => {
       if (!paddedMerchantId) return { records: [], total: 0 };
       
@@ -571,12 +571,12 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
           </div>
           <Button
             onClick={handleRefresh}
-            disabled={isLoading}
+            disabled={isFetching}
             variant="outline"
             size="sm"
             data-testid="button-refresh-batches"
           >
-            {isLoading ? (
+            {isFetching ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Loading...
