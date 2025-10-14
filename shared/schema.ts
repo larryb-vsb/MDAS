@@ -148,7 +148,19 @@ export const merchants = pgTable(getTableName("merchants"), {
   transDestination: text("trans_destination"), // Trans Destination
   merchantEmailAddress: text("merchant_email_address"), // Merchant Email Address
   chargebackEmailAddress: text("chargeback_email_address") // Chargeback Email Address
-});
+}, (table) => ({
+  // Time-based analytics indexes
+  createdAtIdx: index("merchants_created_at_idx").on(table.createdAt),
+  lastUploadDateIdx: index("merchants_last_upload_date_idx").on(table.lastUploadDate),
+  clientSinceDateIdx: index("merchants_client_since_date_idx").on(table.clientSinceDate),
+  lastActivityDateIdx: index("merchants_last_activity_date_idx").on(table.lastActivityDate),
+  merchantActivationDateIdx: index("merchants_merchant_activation_date_idx").on(table.merchantActivationDate),
+  dateOfFirstDepositIdx: index("merchants_date_of_first_deposit_idx").on(table.dateOfFirstDeposit),
+  dateOfLastDepositIdx: index("merchants_date_of_last_deposit_idx").on(table.dateOfLastDeposit),
+  // Composite indexes for common query patterns
+  statusCreatedAtIdx: index("merchants_status_created_at_idx").on(table.status, table.createdAt),
+  merchantTypeLastUploadIdx: index("merchants_type_last_upload_idx").on(table.merchantType, table.lastUploadDate)
+}));
 
 // API Merchants table - for merchant imports from file uploads (ACH merchants)
 export const apiMerchants = pgTable(getTableName("api_merchants"), {
@@ -1380,7 +1392,16 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   startTimeIdx: index("uploader_uploads_start_time_idx").on(table.startTime),
   filenameIdx: index("uploader_uploads_filename_idx").on(table.filename),
   createdByIdx: index("uploader_uploads_created_by_idx").on(table.createdBy),
-  finalFileTypeIdx: index("uploader_uploads_final_file_type_idx").on(table.finalFileType)
+  finalFileTypeIdx: index("uploader_uploads_final_file_type_idx").on(table.finalFileType),
+  // Time-based analytics indexes
+  uploadedAtIdx: index("uploader_uploads_uploaded_at_idx").on(table.uploadedAt),
+  encodingStartedAtIdx: index("uploader_uploads_encoding_started_at_idx").on(table.encodingStartedAt),
+  encodingCompletedAtIdx: index("uploader_uploads_encoding_completed_at_idx").on(table.encodingCompletedAt),
+  identifiedAtIdx: index("uploader_uploads_identified_at_idx").on(table.identifiedAt),
+  lastUpdatedIdx: index("uploader_uploads_last_updated_idx").on(table.lastUpdated),
+  // Composite indexes for pipeline analytics
+  phaseStartTimeIdx: index("uploader_uploads_phase_start_time_idx").on(table.currentPhase, table.startTime),
+  statusUploadedAtIdx: index("uploader_uploads_status_uploaded_at_idx").on(table.uploadStatus, table.uploadedAt)
 }));
 
 // JSON processing table for Phase 5+ (future expansion)
@@ -1419,7 +1440,12 @@ export const uploaderTddfJsonbRecords = pgTable(getTableName("uploader_tddf_json
   uploadIdIdx: index("uploader_tddf_jsonb_upload_id_idx").on(table.uploadId),
   recordTypeIdx: index("uploader_tddf_jsonb_record_type_idx").on(table.recordType),
   processingStatusIdx: index("uploader_tddf_jsonb_processing_status_idx").on(table.processingStatus),
-  lineNumberIdx: index("uploader_tddf_jsonb_line_number_idx").on(table.lineNumber)
+  lineNumberIdx: index("uploader_tddf_jsonb_line_number_idx").on(table.lineNumber),
+  // Time-based analytics indexes
+  createdAtIdx: index("uploader_tddf_jsonb_created_at_idx").on(table.createdAt),
+  processedAtIdx: index("uploader_tddf_jsonb_processed_at_idx").on(table.processedAt),
+  // Composite index for timeline queries
+  recordTypeCreatedAtIdx: index("uploader_tddf_jsonb_record_type_created_at_idx").on(table.recordType, table.createdAt)
 }));
 
 // TDDF JSONB storage table for fast batch encoding (Stage 5)
