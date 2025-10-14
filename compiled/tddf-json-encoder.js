@@ -70,11 +70,18 @@ export const BH_RECORD_FIELDS = [
     { name: 'associationNumber', positions: [40, 45], type: 'text', description: 'Association ID (6 chars)' },
     { name: 'groupNumber', positions: [46, 51], type: 'text', description: 'Group number (6 chars)' },
     { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code (4 chars)' },
-    // Batch information (positions 56-135)
-    { name: 'batchId', positions: [56, 71], type: 'text', description: 'Batch ID (16 chars)' },
-    { name: 'batchDate', positions: [72, 79], type: 'date', description: 'Batch date (MMDDCCYY)' },
-    { name: 'transactionCount', positions: [80, 87], type: 'numeric', precision: 8, scale: 0, description: 'Transaction count' },
-    { name: 'totalAmount', positions: [88, 103], type: 'numeric', precision: 16, scale: 2, description: 'Total batch amount' }
+    // Batch information (positions 56-126)
+    { name: 'batchDate', positions: [56, 63], type: 'date', description: 'Batch date (MMDDCCYY)' },
+    { name: 'batchJulianDate', positions: [64, 68], type: 'text', description: 'Batch Julian date (5 chars)' },
+    { name: 'netDeposit', positions: [69, 83], type: 'numeric', precision: 15, scale: 2, description: 'Net deposit amount' },
+    { name: 'rejectReason', positions: [84, 87], type: 'text', description: 'Reject reason (4 chars)' },
+    { name: 'merchantReferenceNum', positions: [88, 103], type: 'text', description: 'Merchant reference number (16 chars)' },
+    { name: 'batchHeaderCarryIndicator', positions: [104, 104], type: 'text', description: 'Batch header carry indicator (1 char)' },
+    { name: 'associationNumberBatch', positions: [105, 110], type: 'text', description: 'Association number (6 chars)' },
+    { name: 'merchantBankNumber', positions: [111, 114], type: 'text', description: 'Merchant bank number (4 chars)' },
+    { name: 'debitCreditIndicator', positions: [115, 115], type: 'text', description: 'Debit/Credit indicator (1 char)' },
+    { name: 'achPostingDate', positions: [116, 123], type: 'date', description: 'ACH posting date (MMDDCCYY)' },
+    { name: 'batchId', positions: [124, 126], type: 'text', description: 'Batch ID (3 chars)' }
 ];
 /**
  * Extract field value from TDDF line using field definition

@@ -184,17 +184,26 @@ const DT_FIELD_SPECS = {
 
 // BH Record (Batch Header) - Fixed-width format
 const BH_FIELD_SPECS = {
-  sequenceNumber: { start: 0, end: 7, type: 'string' },
-  entryRunNumber: { start: 7, end: 13, type: 'string' },
-  sequenceWithinRun: { start: 13, end: 17, type: 'string' },
-  recordIdentifier: { start: 17, end: 19, type: 'string' },
-  bankNumber: { start: 19, end: 23, type: 'string' },
-  merchantAccountNumber: { start: 23, end: 39, type: 'string' },
-  batchNumber: { start: 39, end: 51, type: 'string' },
-  batchDate: { start: 51, end: 59, type: 'date' },
-  netDeposit: { start: 59, end: 74, type: 'amount' },
-  transactionCount: { start: 74, end: 79, type: 'number' },
-  batchId: { start: 79, end: 91, type: 'string' }
+  sequenceNumber: { start: 0, end: 7, type: 'string' },              // TDDF 1-7
+  entryRunNumber: { start: 7, end: 13, type: 'string' },             // TDDF 8-13
+  sequenceWithinRun: { start: 13, end: 17, type: 'string' },         // TDDF 14-17
+  recordIdentifier: { start: 17, end: 19, type: 'string' },          // TDDF 18-19
+  bankNumber: { start: 19, end: 23, type: 'string' },                // TDDF 20-23
+  merchantAccountNumber: { start: 23, end: 39, type: 'string' },     // TDDF 24-39
+  associationNumber: { start: 39, end: 45, type: 'string' },         // TDDF 40-45
+  groupNumber: { start: 45, end: 51, type: 'string' },               // TDDF 46-51
+  transactionCode: { start: 51, end: 55, type: 'string' },           // TDDF 52-55
+  batchDate: { start: 55, end: 63, type: 'date' },                   // TDDF 56-63 [CORRECTED]
+  batchJulianDate: { start: 63, end: 68, type: 'string' },           // TDDF 64-68
+  netDeposit: { start: 68, end: 83, type: 'amount' },                // TDDF 69-83 [CORRECTED]
+  rejectReason: { start: 83, end: 87, type: 'string' },              // TDDF 84-87
+  merchantReferenceNum: { start: 87, end: 103, type: 'string' },     // TDDF 88-103 [CORRECTED]
+  batchHeaderCarryIndicator: { start: 103, end: 104, type: 'string' }, // TDDF 104
+  associationNumberBatch: { start: 104, end: 110, type: 'string' },  // TDDF 105-110
+  merchantBankNumber: { start: 110, end: 114, type: 'string' },      // TDDF 111-114
+  debitCreditIndicator: { start: 114, end: 115, type: 'string' },    // TDDF 115
+  achPostingDate: { start: 115, end: 123, type: 'date' },            // TDDF 116-123
+  batchId: { start: 123, end: 126, type: 'string' }                  // TDDF 124-126 [CORRECTED]
 };
 
 /**
