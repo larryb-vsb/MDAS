@@ -36,6 +36,30 @@ interface EncodingTimingData {
   }>;
 }
 
+// Custom BH field ordering - batchId appears last
+const BH_FIELD_ORDER = [
+  'recordIdentifier',
+  'batchDate',
+  'bankNumber',
+  'netDeposit',
+  'achPostingDate',
+  'batchJulianDate',
+  'associationNumber',
+  'debitCreditIndicator',
+  'associationNumberBatch',
+  'groupNumber',
+  'entryBankNumber',
+  'transactionCode',
+  'sequenceWithinRun',
+  'merchantReferenceNum',
+  'batchHeaderCarryIndicator',
+  'rejectReason',
+  'sequenceNumber',
+  'recordIdentifierAlt',
+  'merchantBankNumber',
+  'batchId'  // Last position
+];
+
 // Card type badge configuration
 function getCardTypeBadges(cardType: string) {
   const badges: Record<string, { label: string; className: string }> = {
