@@ -175,23 +175,38 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
                 )}
                 
                 {/* Display other extracted fields (excluding TTI to avoid duplication) */}
-                {Object.entries(record.extracted_fields)
-                  .filter(([key]) => key !== 'transactionTypeIdentifier') // Skip TTI since we show it above
-                  .map(([key, value]) => (
-                  <div key={key} className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`}>
-                    <div className="font-medium text-gray-700 mb-1">
-                      {key === 'merchantAccountNumber' ? 'Merchant Account Number' : 
-                       key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                {(() => {
+                  const entries = Object.entries(record.extracted_fields)
+                    .filter(([key]) => key !== 'transactionTypeIdentifier'); // Skip TTI since we show it above
+                  
+                  // Apply custom ordering for BH records
+                  const sortedEntries = record.record_type === 'BH'
+                    ? entries.sort(([keyA], [keyB]) => {
+                        const indexA = BH_FIELD_ORDER.indexOf(keyA);
+                        const indexB = BH_FIELD_ORDER.indexOf(keyB);
+                        if (indexA === -1 && indexB === -1) return 0;
+                        if (indexA === -1) return 1;
+                        if (indexB === -1) return -1;
+                        return indexA - indexB;
+                      })
+                    : entries;
+                  
+                  return sortedEntries.map(([key, value]) => (
+                    <div key={key} className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`}>
+                      <div className="font-medium text-gray-700 mb-1">
+                        {key === 'merchantAccountNumber' ? 'Merchant Account Number' : 
+                         key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      </div>
+                      <div className={`font-mono ${
+                        key === 'recordIdentifier' ? 'text-red-600 font-bold' : 
+                        key === 'merchantAccountNumber' ? 'text-blue-600 font-semibold' : 
+                        'text-gray-900'
+                      }`}>
+                        {formatFieldValue(key, value)}
+                      </div>
                     </div>
-                    <div className={`font-mono ${
-                      key === 'recordIdentifier' ? 'text-red-600 font-bold' : 
-                      key === 'merchantAccountNumber' ? 'text-blue-600 font-semibold' : 
-                      'text-gray-900'
-                    }`}>
-                      {formatFieldValue(key, value)}
-                    </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             ) : (
               <p className="text-gray-500 text-sm">No extracted fields available</p>
