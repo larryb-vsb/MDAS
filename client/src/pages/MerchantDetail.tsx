@@ -498,45 +498,42 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   // Pad merchant ID with leading zero for TDDF queries (15 digits -> 16 digits)
   const paddedMerchantId = merchantId ? merchantId.padStart(16, '0') : '';
   
-  // Calculate 60 days ago from today
-  const sixtyDaysAgo = format(subDays(new Date(), 60), 'yyyy-MM-dd');
+  // Date range state - default to last 60 days
+  const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 60), 'yyyy-MM-dd'));
+  const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   
-  // Query for BH records from last 60 days
-  const { data: recentBatches, isLoading: recentLoading } = useQuery<any[]>({
-    queryKey: ['/api/tddf-api/merchant-batches', paddedMerchantId, sixtyDaysAgo],
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  
+  // Query for BH records with date range
+  const { data: batchesResponse, isLoading, refetch } = useQuery<any>({
+    queryKey: ['/api/tddf-api/merchant-batches', paddedMerchantId, dateFrom, dateTo, itemsPerPage],
     queryFn: async () => {
-      if (!paddedMerchantId) return [];
+      if (!paddedMerchantId) return { records: [], total: 0 };
       
       const params = new URLSearchParams({
         record_type: 'BH',
         merchant_account: paddedMerchantId,
-        date_from: sixtyDaysAgo,
-        limit: '1000'
+        date_from: dateFrom,
+        date_to: dateTo,
+        limit: '10000' // Fetch all, paginate on frontend
       });
       
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
-      return response?.records || [];
+      return { records: response?.records || [], total: response?.records?.length || 0 };
     },
     enabled: !!paddedMerchantId
   });
+
+  const batches = batchesResponse?.records || [];
+  const totalBatches = batchesResponse?.total || 0;
   
-  // Fallback query for most recent batch if no recent batches found
-  const { data: lastBatch, isLoading: lastLoading } = useQuery<any[]>({
-    queryKey: ['/api/tddf-api/merchant-last-batch', paddedMerchantId],
-    queryFn: async () => {
-      if (!paddedMerchantId) return [];
-      
-      const params = new URLSearchParams({
-        record_type: 'BH',
-        merchant_account: paddedMerchantId,
-        limit: '1'
-      });
-      
-      const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
-      return response?.records || [];
-    },
-    enabled: !!paddedMerchantId && !recentLoading && (!recentBatches || recentBatches.length === 0)
-  });
+  // Calculate pagination
+  const totalPages = Math.ceil(totalBatches / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBatches = batches.slice(startIndex, endIndex);
 
   const toggleBatch = (index: number) => {
     const batchKey = `batch-${index}`;
@@ -551,146 +548,277 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
     });
   };
 
-  // Show loading state while either query is loading
-  if (recentLoading || lastLoading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-12">
-          <Loader2 className="h-8 w-8 animate-spin mr-3" />
-          <span>Loading batch records...</span>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleRefresh = () => {
+    setExpandedBatches(new Set());
+    setCurrentPage(1);
+    refetch();
+  };
 
-  const batches = recentBatches && recentBatches.length > 0 ? recentBatches : (lastBatch || []);
-  const isShowingFallback = batches === lastBatch && lastBatch && lastBatch.length > 0;
-
-  // Only show empty state after both queries have completed
-  if (!batches || batches.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Batch Records (BH)</CardTitle>
-          <CardDescription>Last 60 days of batch header records from TDDF API data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            No batch records found for this merchant
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleDateRangeChange = () => {
+    setCurrentPage(1);
+    setExpandedBatches(new Set());
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Batch Records (BH) - Raw TDDF Tree View</CardTitle>
-        <CardDescription>
-          {isShowingFallback ? (
-            <span className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                Last Known Batch
-              </Badge>
-              No batches in last 60 days - showing most recent batch
-            </span>
-          ) : (
-            `Last 60 days of batch header records (${batches.length} batches)`
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {batches.map((bhRecord: any, index: number) => {
-            const batchKey = `batch-${index}`;
-            const isExpanded = expandedBatches.has(batchKey);
-            const merchantAccountNumber = extractMerchantAccountNumber(bhRecord);
-            const merchantName = getMerchantName(merchantAccountNumber);
-            const batchDate = extractBatchDate(bhRecord);
-            const netDeposit = bhRecord.parsed_data?.netDeposit || bhRecord.record_data?.netDeposit;
-            
-            return (
-              <Card key={index} className="border-l-4 border-l-green-500">
-                <CardHeader className="pb-2">
-                  <div 
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -m-3 p-3 rounded"
-                    onClick={() => toggleBatch(index)}
-                    data-testid={`bh-batch-header-${index}`}
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-gray-600" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-gray-600" />
-                    )}
-                    
-                    <Badge className="bg-green-500 text-white">
-                      {bhRecord.record_type}
-                    </Badge>
-                    <span className="font-medium">Batch Header</span>
-                    <span className="text-sm text-gray-600">Line {bhRecord.line_number}</span>
-                    
-                    {/* Merchant Account Number and Name */}
-                    {merchantAccountNumber && (
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-blue-600" data-testid="bh-merchant-account">
-                          • {merchantAccountNumber}
-                        </span>
-                        {merchantName && (
-                          <span className="text-xs font-semibold text-green-600 ml-3" data-testid="bh-merchant-name">
-                            {merchantName}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Batch Date */}
-                    {batchDate && (
-                      <Badge variant="outline" className="ml-2" data-testid="bh-batch-date">
-                        {batchDate}
-                      </Badge>
-                    )}
-                    
-                    {/* Net Deposit */}
-                    {netDeposit && (
-                      <span className="ml-auto text-sm font-medium text-gray-700" data-testid="bh-net-deposit">
-                        Net: {formatCurrency(netDeposit / 100)}
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Batch Records (BH) - Raw TDDF Tree View</CardTitle>
+            <CardDescription>
+              {totalBatches > 0 ? `Showing ${totalBatches} batch header records` : 'No batch records found'}
+            </CardDescription>
+          </div>
+          <Button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            variant="outline"
+            size="sm"
+            data-testid="button-refresh-batches"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </>
+            )}
+          </Button>
+        </div>
 
-                {/* Expanded BH Record Details */}
-                {isExpanded && (
-                  <CardContent className="pt-0">
-                    <div className="ml-6 space-y-2">
-                      <div className="bg-muted/30 p-4 rounded-md">
-                        <h4 className="font-medium mb-3">Parsed Fields</h4>
-                        <div className="space-y-2">
-                          {Object.entries(bhRecord.parsed_data || bhRecord.record_data || {}).map(([key, value]) => (
-                            <div key={key} className="flex justify-between items-start py-1 text-sm">
-                              <span className="font-medium capitalize text-muted-foreground">{key.replace(/_/g, ' ')}:</span>
-                              <span className="text-right max-w-md break-all ml-4">
-                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+        {/* Date Range and Pagination Controls */}
+        <div className="flex flex-wrap items-end gap-4 mt-4">
+          {/* Date From */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">From Date</label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                handleDateRangeChange();
+              }}
+              className="w-40"
+              data-testid="input-date-from"
+            />
+          </div>
+
+          {/* Date To */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">To Date</label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                handleDateRangeChange();
+              }}
+              className="w-40"
+              data-testid="input-date-to"
+            />
+          </div>
+
+          {/* Items Per Page */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Per Page</label>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(parseInt(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-24" data-testid="select-items-per-page">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Pagination Info */}
+          {totalBatches > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages} ({totalBatches} total)
+              </span>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center p-12">
+            <Loader2 className="h-8 w-8 animate-spin mr-3" />
+            <span>Loading batch records...</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && totalBatches === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            No batch records found for this merchant in the selected date range
+          </div>
+        )}
+
+        {/* Batches List */}
+        {!isLoading && paginatedBatches.length > 0 && (
+          <div className="space-y-3">
+            {paginatedBatches.map((bhRecord: any, index: number) => {
+              const batchKey = `batch-${startIndex + index}`;
+              const isExpanded = expandedBatches.has(batchKey);
+              const merchantAccountNumber = extractMerchantAccountNumber(bhRecord);
+              const merchantName = getMerchantName(merchantAccountNumber);
+              const batchDate = extractBatchDate(bhRecord);
+              const netDeposit = bhRecord.parsed_data?.netDeposit || bhRecord.record_data?.netDeposit;
+              
+              return (
+                <Card key={startIndex + index} className="border-l-4 border-l-green-500">
+                  <CardHeader className="pb-2">
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -m-3 p-3 rounded"
+                      onClick={() => toggleBatch(startIndex + index)}
+                      data-testid={`bh-batch-header-${startIndex + index}`}
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-gray-600" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-600" />
+                      )}
                       
-                      {bhRecord.raw_data && (
-                        <div className="bg-muted/30 p-4 rounded-md mt-3">
-                          <h4 className="font-medium mb-2">Raw Data</h4>
-                          <pre className="text-xs font-mono whitespace-pre-wrap break-all">{bhRecord.raw_data}</pre>
+                      <Badge className="bg-green-500 text-white">
+                        {bhRecord.record_type}
+                      </Badge>
+                      <span className="font-medium">Batch Header</span>
+                      <span className="text-sm text-gray-600">Line {bhRecord.line_number}</span>
+                      
+                      {/* Merchant Account Number and Name */}
+                      {merchantAccountNumber && (
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-blue-600" data-testid="bh-merchant-account">
+                            • {merchantAccountNumber}
+                          </span>
+                          {merchantName && (
+                            <span className="text-xs font-semibold text-green-600 ml-3" data-testid="bh-merchant-name">
+                              {merchantName}
+                            </span>
+                          )}
                         </div>
                       )}
+                      
+                      {/* Batch Date */}
+                      {batchDate && (
+                        <Badge variant="outline" className="ml-2" data-testid="bh-batch-date">
+                          {batchDate}
+                        </Badge>
+                      )}
+                      
+                      {/* Net Deposit */}
+                      {netDeposit && (
+                        <span className="ml-auto text-sm font-medium text-gray-700" data-testid="bh-net-deposit">
+                          Net: {formatCurrency(netDeposit / 100)}
+                        </span>
+                      )}
                     </div>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+                  </CardHeader>
+
+                  {/* Expanded BH Record Details */}
+                  {isExpanded && (
+                    <CardContent className="pt-0">
+                      <div className="ml-6 space-y-2">
+                        <div className="bg-muted/30 p-4 rounded-md">
+                          <h4 className="font-medium mb-3">Parsed Fields</h4>
+                          <div className="space-y-2">
+                            {Object.entries(bhRecord.parsed_data || bhRecord.record_data || {}).map(([key, value]) => (
+                              <div key={key} className="flex justify-between items-start py-1 text-sm">
+                                <span className="font-medium capitalize text-muted-foreground">{key.replace(/_/g, ' ')}:</span>
+                                <span className="text-right max-w-md break-all ml-4">
+                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {bhRecord.raw_data && (
+                          <div className="bg-muted/30 p-4 rounded-md mt-3">
+                            <h4 className="font-medium mb-2">Raw Data</h4>
+                            <pre className="text-xs font-mono whitespace-pre-wrap break-all">{bhRecord.raw_data}</pre>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6">
+            <Button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              variant="outline"
+              size="sm"
+              data-testid="button-previous-page"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+
+            <div className="flex items-center gap-2">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <Button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    className="w-10"
+                    data-testid={`button-page-${pageNum}`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <Button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              size="sm"
+              data-testid="button-next-page"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
