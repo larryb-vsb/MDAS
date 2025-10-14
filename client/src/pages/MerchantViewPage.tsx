@@ -226,7 +226,8 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
     });
   };
 
-  if (recentLoading) {
+  // Show loading state while either query is loading
+  if (recentLoading || lastLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-12">
@@ -240,6 +241,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   const batches = recentBatches && recentBatches.length > 0 ? recentBatches : (lastBatch || []);
   const isShowingFallback = batches === lastBatch && lastBatch && lastBatch.length > 0;
 
+  // Only show empty state after both queries have completed
   if (!batches || batches.length === 0) {
     return (
       <Card>

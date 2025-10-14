@@ -71,7 +71,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { SubMerchantTerminals } from '@/components/merchants/SubMerchantTerminals';
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw, Loader2, ChevronDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { format, subDays } from 'date-fns';
+import { useMerchantLookup } from '@/hooks/useMerchantLookup';
 
 // Define the merchant form schema
 const merchantSchema = z.object({
@@ -446,6 +449,247 @@ function AddTransactionForm({
         </DialogFooter>
       </form>
     </Form>
+  );
+}
+
+// Helper functions for BH record processing
+function extractMerchantAccountNumber(record: any): string | null {
+  let merchantAccountNumber = record.parsed_data?.merchantAccountNumber || 
+                              record.record_data?.merchantAccountNumber ||
+                              record.parsed_data?.merchant_account_number ||
+                              record.record_data?.merchant_account_number;
+  
+  if (!merchantAccountNumber && (record.record_type === 'BH' || record.record_type === '10')) {
+    merchantAccountNumber = record.parsed_data?.acquirerBin || 
+                           record.record_data?.acquirerBin ||
+                           record.parsed_data?.acquirer_bin ||
+                           record.record_data?.acquirer_bin;
+  }
+  
+  return merchantAccountNumber ? merchantAccountNumber.toString().trim() : null;
+}
+
+function extractBatchDate(record: any): string | null {
+  const batchDate = record.parsed_data?.batchDate || 
+                    record.record_data?.batchDate ||
+                    record.parsed_data?.batch_date ||
+                    record.record_data?.batch_date;
+  
+  const batchJulianDate = record.parsed_data?.batchJulianDate || 
+                          record.record_data?.batchJulianDate ||
+                          record.parsed_data?.batch_julian_date ||
+                          record.record_data?.batch_julian_date;
+  
+  return batchDate || batchJulianDate || null;
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+}
+
+// Merchant Batches Tab Component
+function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
+  const { getMerchantName } = useMerchantLookup();
+  
+  // Calculate 60 days ago from today
+  const sixtyDaysAgo = format(subDays(new Date(), 60), 'yyyy-MM-dd');
+  
+  // Query for BH records from last 60 days
+  const { data: recentBatches, isLoading: recentLoading } = useQuery<any[]>({
+    queryKey: ['/api/tddf-api/merchant-batches', merchantId, sixtyDaysAgo],
+    queryFn: async () => {
+      if (!merchantId) return [];
+      
+      const params = new URLSearchParams({
+        record_type: 'BH',
+        merchant_account: merchantId,
+        date_from: sixtyDaysAgo,
+        limit: '1000'
+      });
+      
+      const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
+      return response?.records || [];
+    },
+    enabled: !!merchantId
+  });
+  
+  // Fallback query for most recent batch if no recent batches found
+  const { data: lastBatch, isLoading: lastLoading } = useQuery<any[]>({
+    queryKey: ['/api/tddf-api/merchant-last-batch', merchantId],
+    queryFn: async () => {
+      if (!merchantId) return [];
+      
+      const params = new URLSearchParams({
+        record_type: 'BH',
+        merchant_account: merchantId,
+        limit: '1'
+      });
+      
+      const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
+      return response?.records || [];
+    },
+    enabled: !!merchantId && !recentLoading && (!recentBatches || recentBatches.length === 0)
+  });
+
+  const toggleBatch = (index: number) => {
+    const batchKey = `batch-${index}`;
+    setExpandedBatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(batchKey)) {
+        newSet.delete(batchKey);
+      } else {
+        newSet.add(batchKey);
+      }
+      return newSet;
+    });
+  };
+
+  // Show loading state while either query is loading
+  if (recentLoading || lastLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin mr-3" />
+          <span>Loading batch records...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const batches = recentBatches && recentBatches.length > 0 ? recentBatches : (lastBatch || []);
+  const isShowingFallback = batches === lastBatch && lastBatch && lastBatch.length > 0;
+
+  // Only show empty state after both queries have completed
+  if (!batches || batches.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Batch Records (BH)</CardTitle>
+          <CardDescription>Last 60 days of batch header records from TDDF API data</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            No batch records found for this merchant
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Batch Records (BH) - Raw TDDF Tree View</CardTitle>
+        <CardDescription>
+          {isShowingFallback ? (
+            <span className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                Last Known Batch
+              </Badge>
+              No batches in last 60 days - showing most recent batch
+            </span>
+          ) : (
+            `Last 60 days of batch header records (${batches.length} batches)`
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {batches.map((bhRecord: any, index: number) => {
+            const batchKey = `batch-${index}`;
+            const isExpanded = expandedBatches.has(batchKey);
+            const merchantAccountNumber = extractMerchantAccountNumber(bhRecord);
+            const merchantName = getMerchantName(merchantAccountNumber);
+            const batchDate = extractBatchDate(bhRecord);
+            const netDeposit = bhRecord.parsed_data?.netDeposit || bhRecord.record_data?.netDeposit;
+            
+            return (
+              <Card key={index} className="border-l-4 border-l-green-500">
+                <CardHeader className="pb-2">
+                  <div 
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -m-3 p-3 rounded"
+                    onClick={() => toggleBatch(index)}
+                    data-testid={`bh-batch-header-${index}`}
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-gray-600" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-600" />
+                    )}
+                    
+                    <Badge className="bg-green-500 text-white">
+                      {bhRecord.record_type}
+                    </Badge>
+                    <span className="font-medium">Batch Header</span>
+                    <span className="text-sm text-gray-600">Line {bhRecord.line_number}</span>
+                    
+                    {/* Merchant Account Number and Name */}
+                    {merchantAccountNumber && (
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-blue-600" data-testid="bh-merchant-account">
+                          • {merchantAccountNumber}
+                        </span>
+                        {merchantName && (
+                          <span className="text-xs font-semibold text-green-600 ml-3" data-testid="bh-merchant-name">
+                            {merchantName}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Batch Date */}
+                    {batchDate && (
+                      <Badge variant="outline" className="ml-2" data-testid="bh-batch-date">
+                        {batchDate}
+                      </Badge>
+                    )}
+                    
+                    {/* Net Deposit */}
+                    {netDeposit && (
+                      <span className="ml-auto text-sm font-medium text-gray-700" data-testid="bh-net-deposit">
+                        Net: {formatCurrency(netDeposit / 100)}
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+
+                {/* Expanded BH Record Details */}
+                {isExpanded && (
+                  <CardContent className="pt-0">
+                    <div className="ml-6 space-y-2">
+                      <div className="bg-muted/30 p-4 rounded-md">
+                        <h4 className="font-medium mb-3">Parsed Fields</h4>
+                        <div className="space-y-2">
+                          {Object.entries(bhRecord.parsed_data || bhRecord.record_data || {}).map(([key, value]) => (
+                            <div key={key} className="flex justify-between items-start py-1 text-sm">
+                              <span className="font-medium capitalize text-muted-foreground">{key.replace(/_/g, ' ')}:</span>
+                              <span className="text-right max-w-md break-all ml-4">
+                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {bhRecord.raw_data && (
+                        <div className="bg-muted/30 p-4 rounded-md mt-3">
+                          <h4 className="font-medium mb-2">Raw Data</h4>
+                          <pre className="text-xs font-mono whitespace-pre-wrap break-all">{bhRecord.raw_data}</pre>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -922,10 +1166,11 @@ export default function MerchantDetail() {
         </div>
 
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="demographics">Demographics</TabsTrigger>
             <TabsTrigger value="terminals">Terminals</TabsTrigger>
+            <TabsTrigger value="batches">Batches</TabsTrigger>
             <TabsTrigger value="transactions">ACH Transactions</TabsTrigger>
           </TabsList>
 
@@ -1433,6 +1678,11 @@ export default function MerchantDetail() {
             merchantId={id!} 
             merchantName={data?.merchant.name}
           />
+        </TabsContent>
+
+        {/* Batches Tab */}
+        <TabsContent value="batches">
+          <MerchantBatchesTab merchantId={data?.merchant.clientMID || ''} />
         </TabsContent>
 
         {/* ACH Transactions Tab */}
