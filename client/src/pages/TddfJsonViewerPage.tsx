@@ -389,6 +389,48 @@ function TreeViewDisplay({
                             <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
                             <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
                             
+                            {/* DT Record Inline Business Info */}
+                            {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
+                              const fields = transaction.dtRecord.extracted_fields || {};
+                              const merchantAccount = fields.merchantAccountNumber;
+                              const merchantName = merchantAccount ? getMerchantName(merchantAccount) : null;
+                              const transactionAmount = fields.transactionAmount;
+                              const transactionDate = fields.transactionDate;
+                              const terminalId = fields.terminalId;
+                              
+                              return (
+                                <div className="flex items-center gap-2 ml-2 text-xs">
+                                  {merchantAccount && (
+                                    <>
+                                      <span className="text-blue-600 font-medium">
+                                        💳 {merchantAccount.replace(/^0+/, '')}
+                                      </span>
+                                      {merchantName && (
+                                        <span className="text-blue-600 font-medium uppercase">
+                                          🏪 {merchantName}
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                  {transactionAmount && (
+                                    <span className="text-green-600 font-semibold">
+                                      💰 ${parseFloat(transactionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  )}
+                                  {transactionDate && (
+                                    <span className="text-gray-600">
+                                      📅 {new Date(transactionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                  )}
+                                  {terminalId && (
+                                    <span className="text-purple-600 font-mono">
+                                      🖥️ {terminalId}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            
                             {transaction.extensions.length > 0 && (
                               <div className="ml-auto flex items-center gap-1">
                                 <span className="text-xs text-gray-600">{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
