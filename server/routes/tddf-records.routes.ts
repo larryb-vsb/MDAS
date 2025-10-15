@@ -2439,13 +2439,22 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
-  // Get latest 100 DT records for MCC/TDDF Transactions tab
+  // Get latest DT records for MCC/TDDF Transactions tab with pagination
   app.get('/api/tddf-records/dt-latest', isAuthenticated, async (req, res) => {
     try {
+      const { limit = 10, offset = 0 } = req.query;
       const environment = process.env.NODE_ENV || 'development';
       const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
-      // Get last 100 DT records
+      // Get total count of DT records
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as total
+        FROM ${jsonbTableName} r
+        WHERE r.record_type = 'DT'
+      `);
+      const totalRecords = parseInt(countResult.rows[0].total);
+      
+      // Get paginated DT records
       const recordsResult = await pool.query(`
         SELECT 
           r.id,
@@ -2464,8 +2473,8 @@ export function registerTddfRecordsRoutes(app: Express) {
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         WHERE r.record_type = 'DT'
         ORDER BY u.created_at DESC, r.line_number ASC
-        LIMIT 100
-      `);
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
       
       // Process records to add filename parsing info
       const processedRecords = recordsResult.rows.map(record => {
@@ -2507,7 +2516,9 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       res.json({
         data: processedRecords,
-        total: processedRecords.length
+        total: totalRecords,
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string)
       });
     } catch (error) {
       console.error('Error fetching latest DT records:', error);

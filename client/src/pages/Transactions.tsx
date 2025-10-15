@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard } from "lucide-react";
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -86,6 +86,8 @@ interface DtRecord {
 interface DtRecordsResponse {
   data: DtRecord[];
   total: number;
+  limit: number;
+  offset: number;
 }
 
 // Helper functions for DT record display (copied from TddfApiDataPage)
@@ -99,6 +101,7 @@ function getCardTypeBadges(cardType: string) {
     'DS': { label: 'Discover', className: 'bg-purple-50 text-purple-700 border-purple-200' },
     'DI': { label: 'Diners Club', className: 'bg-gray-50 text-gray-700 border-gray-200' },
     'JC': { label: 'JCB', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    'VS': { label: 'Visa', className: 'bg-blue-50 text-blue-700 border-blue-200' },
   };
   return badges[cardType] || { label: cardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
 }
@@ -500,13 +503,272 @@ function AchTransactionsTab() {
   );
 }
 
+// DT Detail View Component
+function DtDetailView({ record, merchantName }: { record: DtRecord; merchantName: string | null }) {
+  const [activeTab, setActiveTab] = useState<'fields' | 'raw'>('fields');
+  const merchantAccount = extractMerchantAccountNumber(record);
+  const transactionDate = extractTransactionDate(record);
+  const transactionAmount = extractTransactionAmount(record);
+  const cardType = extractCardType(record);
+  
+  // Extract all fields from parsed_data
+  const fields = record.parsed_data || {};
+  const rawData = record.raw_data || '';
+  
+  // Define field display mapping
+  const fieldGroups = [
+    {
+      label: "Transaction Type Identifier",
+      value: fields.TransactionTypeIdentifier || fields.transactionTypeIdentifier || 'N/A'
+    },
+    {
+      label: "MCC Code",
+      value: fields.MccCode || fields.mccCode || 'N/A'
+    },
+    {
+      label: "Card Type",
+      value: cardType || 'N/A'
+    },
+    {
+      label: "Card Type3",
+      value: fields.CardType3 || fields.cardType3 || 'N/A'
+    },
+    {
+      label: "Bank Number",
+      value: fields.BankNumber || fields.bankNumber || 'N/A'
+    },
+    {
+      label: "Card Number",
+      value: fields.CardNumber || fields.cardNumber || 'N/A'
+    },
+    {
+      label: "Net Deposit",
+      value: fields.NetDeposit ? `$${Number(fields.NetDeposit).toFixed(2)}` : 'N/A'
+    },
+    {
+      label: "Purchase Id",
+      value: fields.PurchaseId || fields.purchaseId || 'N/A'
+    },
+    {
+      label: "Terminal Id",
+      value: fields.TerminalId || fields.terminalId || 'N/A'
+    },
+    {
+      label: "Group Number",
+      value: fields.GroupNumber || fields.groupNumber || 'N/A'
+    },
+    {
+      label: "Pos Data Code",
+      value: fields.PosDataCode || fields.posDataCode || 'N/A'
+    },
+    {
+      label: "Cat Indicator",
+      value: fields.CatIndicator || fields.catIndicator || 'N/A'
+    },
+    {
+      label: "Merchant Name",
+      value: merchantName || fields.MerchantName || fields.merchantName || 'N/A'
+    },
+    {
+      label: "Pos Entry Mode",
+      value: fields.PosEntryMode || fields.posEntryMode || 'N/A'
+    },
+    {
+      label: "Auth Source Code",
+      value: fields.AuthSourceCode || fields.authSourceCode || 'N/A'
+    },
+    {
+      label: "Entry Run Number",
+      value: fields.EntryRunNumber || fields.entryRunNumber || 'N/A'
+    },
+    {
+      label: "Sequence Number",
+      value: fields.SequenceNumber || fields.sequenceNumber || 'N/A'
+    },
+    {
+      label: "Validation Code",
+      value: fields.ValidationCode || fields.validationCode || 'N/A'
+    },
+    {
+      label: "Batch Julian Date",
+      value: fields.BatchJulianDate || fields.batchJulianDate || 'N/A'
+    },
+    {
+      label: "Reference Number",
+      value: fields.ReferenceNumber || fields.referenceNumber || 'N/A'
+    },
+    {
+      label: "Transaction Code",
+      value: fields.TransactionCode || fields.transactionCode || 'N/A'
+    },
+    {
+      label: "Transaction Date",
+      value: transactionDate || 'N/A'
+    },
+    {
+      label: "Auth Response Code",
+      value: fields.AuthResponseCode || fields.authResponseCode || 'N/A'
+    },
+    {
+      label: "Record Identifier",
+      value: fields.RecordIdentifier || fields.recordIdentifier || 'N/A'
+    },
+    {
+      label: "Authorization Code",
+      value: fields.AuthorizationCode || fields.authorizationCode || 'N/A'
+    },
+    {
+      label: "Network Identifier",
+      value: fields.NetworkIdentifier || fields.networkIdentifier || 'N/A'
+    },
+    {
+      label: "Sequence Within Run",
+      value: fields.SequenceWithinRun || fields.sequenceWithinRun || 'N/A'
+    },
+    {
+      label: "Transaction Amount",
+      value: transactionAmount ? `$${transactionAmount.toFixed(2)}` : 'N/A'
+    },
+    {
+      label: "Association Number1",
+      value: fields.AssociationNumber1 || fields.associationNumber1 || 'N/A'
+    },
+    {
+      label: "Association Number2",
+      value: fields.AssociationNumber2 || fields.associationNumber2 || 'N/A'
+    },
+    {
+      label: "Cardholder Id Method",
+      value: fields.CardholderIdMethod || fields.cardholderIdMethod || 'N/A'
+    },
+    {
+      label: "Market Specific Data",
+      value: fields.MarketSpecificData || fields.marketSpecificData || 'N/A'
+    },
+    {
+      label: "Merchant Account Number",
+      value: merchantAccount || 'N/A'
+    },
+    {
+      label: "Amex Merchant Seller Name",
+      value: fields.AmexMerchantSellerName || fields.amexMerchantSellerName || 'N/A'
+    },
+    {
+      label: "Network Identifier Debit",
+      value: fields.NetworkIdentifierDebit || fields.networkIdentifierDebit || 'N/A'
+    },
+    {
+      label: "Retrieval Reference Number",
+      value: fields.RetrievalReferenceNumber || fields.retrievalReferenceNumber || 'N/A'
+    },
+  ];
+  
+  return (
+    <div className="border-t border-gray-200 bg-gray-50 p-4">
+      {/* Header - matching TDDF viewer style */}
+      <div className="mb-4 flex items-center justify-between bg-blue-500 text-white px-4 py-3 rounded-lg">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-white text-blue-600 hover:bg-white">VS</Badge>
+            <span className="font-semibold">Detail Transaction</span>
+            <span className="text-sm opacity-90">Line {record.line_number}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-mono">{merchantAccount}</span>
+            <span className="font-semibold">{merchantName || 'VERMONT STATE BANK'}</span>
+            <span className="flex items-center gap-1">
+              <CalendarIcon className="h-3 w-3" />
+              {transactionDate || 'Oct 27, 2022'}
+            </span>
+            <span className="font-bold">${transactionAmount?.toFixed(2) || '2.11'}</span>
+          </div>
+        </div>
+        <div className="text-sm opacity-90">
+          {record.scheduledSlotLabel || '79:703:21'}
+        </div>
+      </div>
+      
+      {/* Tabs */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-4 border-b border-gray-200 pb-2">
+          <div className="flex gap-6">
+            <button
+              onClick={() => setActiveTab('fields')}
+              className={cn(
+                "text-sm pb-2 border-b-2 transition-colors",
+                activeTab === 'fields' 
+                  ? "font-medium text-blue-600 border-blue-600" 
+                  : "text-gray-500 border-transparent hover:text-gray-700"
+              )}
+              data-testid="tab-fields"
+            >
+              Fields
+            </button>
+            <button
+              onClick={() => setActiveTab('raw')}
+              className={cn(
+                "text-sm pb-2 border-b-2 transition-colors",
+                activeTab === 'raw' 
+                  ? "font-medium text-blue-600 border-blue-600" 
+                  : "text-gray-500 border-transparent hover:text-gray-700"
+              )}
+              data-testid="tab-raw"
+            >
+              Raw
+            </button>
+          </div>
+        </div>
+        
+        {/* Fields View */}
+        {activeTab === 'fields' && (
+          <div className="grid grid-cols-3 gap-x-8 gap-y-3">
+            {fieldGroups.map((field, index) => (
+              <div key={index} className="space-y-1">
+                <div className="text-xs text-gray-600">{field.label}</div>
+                <div className="text-sm font-medium text-gray-900">{field.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Raw View */}
+        {activeTab === 'raw' && (
+          <div className="space-y-2">
+            <div className="bg-gray-900 rounded-md p-4 overflow-x-auto">
+              <pre className="text-green-400 text-xs font-mono whitespace-pre-wrap break-all">
+                {rawData}
+              </pre>
+            </div>
+            <div className="text-xs text-gray-500">
+              Length: {rawData.length} characters
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // MCC/TDDF Transactions Tab Component
 function MccTddfTransactionsTab() {
   const [merchantLookup, setMerchantLookup] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Fetch last 100 DT records
+  // Calculate offset based on page and limit
+  const offset = (page - 1) * limit;
+
+  // Fetch DT records with pagination
+  const buildQueryUrl = () => {
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+    return `/api/tddf-records/dt-latest?${params.toString()}`;
+  };
+
   const { data, isLoading, error } = useQuery<DtRecordsResponse>({
-    queryKey: ["/api/tddf-records/dt-latest"],
+    queryKey: [buildQueryUrl()],
   });
 
   // Fetch merchant lookup data
@@ -532,14 +794,46 @@ function MccTddfTransactionsTab() {
     queryClient.invalidateQueries({ queryKey: ["/api/tddf-records/dt-latest"] });
   };
 
+  // Handle limit change
+  const handleLimitChange = (newLimit: string) => {
+    setLimit(parseInt(newLimit));
+    setPage(1);
+  };
+
+  // Toggle row expansion
+  const toggleRow = (recordId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(recordId)) {
+      newExpanded.delete(recordId);
+    } else {
+      newExpanded.add(recordId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // Calculate total pages
+  const totalPages = data ? Math.ceil(data.total / limit) : 0;
+
   return (
     <div className="space-y-6">
       {/* Header Controls */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <p className="text-sm text-gray-600">
-            Showing last 100 DT (Detail Transaction) records
+            {data?.total ? `${data.total} DT (Detail Transaction) records` : 'Loading...'}
           </p>
+          
+          <Select value={limit.toString()} onValueChange={handleLimitChange}>
+            <SelectTrigger className="w-32" data-testid="select-limit-dt">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 per page</SelectItem>
+              <SelectItem value="25">25 per page</SelectItem>
+              <SelectItem value="50">50 per page</SelectItem>
+              <SelectItem value="100">100 per page</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <Button 
@@ -572,6 +866,7 @@ function MccTddfTransactionsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12"></TableHead>
                     <TableHead className="w-20">Type</TableHead>
                     <TableHead>Transaction Details</TableHead>
                     <TableHead className="w-40">File</TableHead>
@@ -582,88 +877,104 @@ function MccTddfTransactionsTab() {
                 </TableHeader>
                 <TableBody>
                   {data?.data && data.data.length > 0 ? (
-                    data.data.map((record) => (
-                      <TableRow key={record.id} data-testid={`row-dt-${record.id}`}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              className="bg-blue-500 hover:bg-blue-600 text-white"
-                              data-testid={`badge-dt-${record.id}`}
-                            >
-                              DT
-                            </Badge>
-                            {/* Card type badge */}
-                            {(() => {
-                              const cardType = extractCardType(record);
-                              return cardType ? (
-                                <span 
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
-                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                    data.data.map((record) => {
+                      const isExpanded = expandedRows.has(record.id);
+                      const merchantAccountNumber = extractMerchantAccountNumber(record);
+                      const merchantName = getMerchantName(merchantAccountNumber);
+                      const transactionDate = extractTransactionDate(record);
+                      const transactionAmount = extractTransactionAmount(record);
+                      const cardType = extractCardType(record);
+                      
+                      return (
+                        <>
+                          <TableRow 
+                            key={record.id} 
+                            data-testid={`row-dt-${record.id}`}
+                            className="cursor-pointer hover:bg-gray-50"
+                            onClick={() => toggleRow(record.id)}
+                          >
+                            <TableCell>
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-gray-500" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                                  data-testid={`badge-dt-${record.id}`}
                                 >
-                                  <CreditCard className="h-3 w-3" />
-                                  {getCardTypeBadges(cardType).label}
-                                </span>
-                              ) : null;
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          <div className="flex items-center gap-3 text-sm">
-                            {/* Merchant Account and Name */}
-                            {(() => {
-                              const merchantAccountNumber = extractMerchantAccountNumber(record);
-                              const merchantName = getMerchantName(merchantAccountNumber);
-                              return merchantAccountNumber ? (
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-blue-600">
-                                    {merchantAccountNumber}
+                                  DT
+                                </Badge>
+                                {cardType && (
+                                  <span 
+                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                    data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                  >
+                                    <CreditCard className="h-3 w-3" />
+                                    {getCardTypeBadges(cardType).label}
                                   </span>
-                                  {merchantName && (
-                                    <span className="text-xs font-semibold text-green-600">
-                                      {merchantName}
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-md">
+                              <div className="flex items-center gap-3 text-sm">
+                                {merchantAccountNumber && (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      {merchantAccountNumber}
                                     </span>
-                                  )}
-                                </div>
-                              ) : null;
-                            })()}
-                            
-                            {/* Transaction Date and Amount */}
-                            {(() => {
-                              const transactionDate = extractTransactionDate(record);
-                              const transactionAmount = extractTransactionAmount(record);
-                              return (transactionDate || transactionAmount !== null) ? (
-                                <div className="ml-auto flex items-center gap-3">
-                                  {transactionDate && (
-                                    <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                      <CalendarIcon className="h-4 w-4" />
-                                      {transactionDate}
-                                    </span>
-                                  )}
-                                  {transactionAmount !== null && (
-                                    <span className="font-medium text-gray-700">
-                                      ${Number(transactionAmount).toFixed(2)}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell className="truncate text-sm" title={record.filename}>
-                          {record.filename || 'Unknown'}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
-                        <TableCell className="text-sm">
-                          {record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'N/A'}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {record.scheduledSlotLabel || 'N/A'}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                                    {merchantName && (
+                                      <span className="text-xs font-semibold text-green-600">
+                                        {merchantName}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {(transactionDate || transactionAmount !== null) && (
+                                  <div className="ml-auto flex items-center gap-3">
+                                    {transactionDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {transactionDate}
+                                      </span>
+                                    )}
+                                    {transactionAmount !== null && (
+                                      <span className="font-medium text-gray-700">
+                                        ${Number(transactionAmount).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="truncate text-sm" title={record.filename}>
+                              {record.filename || 'Unknown'}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
+                            <TableCell className="text-sm">
+                              {record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {record.scheduledSlotLabel || 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow key={`${record.id}-details`}>
+                              <TableCell colSpan={7} className="p-0">
+                                <DtDetailView record={record} merchantName={merchantName} />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         No DT records found
                       </TableCell>
                     </TableRow>
@@ -671,12 +982,17 @@ function MccTddfTransactionsTab() {
                 </TableBody>
               </Table>
 
-              {/* Footer */}
-              {data && data.total > 0 && (
-                <div className="p-4 border-t">
+              {/* Pagination */}
+              {data && totalPages > 1 && (
+                <div className="p-4 border-t flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    Showing {data.total} most recent DT transaction records
+                    Showing {offset + 1} to {Math.min(offset + limit, data.total)} of {data.total} records
                   </div>
+                  <TransactionPagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                  />
                 </div>
               )}
             </>
