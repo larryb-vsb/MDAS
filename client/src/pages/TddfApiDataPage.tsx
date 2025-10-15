@@ -4108,7 +4108,7 @@ function TreeViewDisplay({
                           )}
                           {netDeposit && (
                             <span className="font-medium text-gray-700">
-                              ${(netDeposit / 100).toFixed(2)}
+                              ${Number(netDeposit).toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -5651,7 +5651,7 @@ function RawDataTab({
                                     )}
                                     {netDeposit && (
                                       <span className="font-medium text-gray-700">
-                                        ${(netDeposit / 100).toFixed(2)}
+                                        ${Number(netDeposit).toFixed(2)}
                                       </span>
                                     )}
                                   </div>
@@ -5692,7 +5692,7 @@ function RawDataTab({
                                     )}
                                     {transactionAmount !== null && (
                                       <span className="font-medium text-gray-700">
-                                        ${(transactionAmount / 100).toFixed(2)}
+                                        ${Number(transactionAmount).toFixed(2)}
                                       </span>
                                     )}
                                   </div>
