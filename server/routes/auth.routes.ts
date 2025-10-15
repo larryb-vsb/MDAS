@@ -3,12 +3,30 @@ import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { storage } from "../storage";
 
+// Helper function to get test credentials from Test_Creds secret
+function getTestCredentials(): { username: string; password: string } {
+  try {
+    const testCredsSecret = process.env.Test_Creds;
+    if (testCredsSecret) {
+      const testCreds = JSON.parse(testCredsSecret);
+      return {
+        username: testCreds.username || 'admin',
+        password: testCreds.password || 'admin123'
+      };
+    }
+  } catch (error) {
+    console.log('[TEST-CREDS] Error reading Test_Creds secret, using defaults');
+  }
+  return { username: 'admin', password: 'admin123' };
+}
+
 export function registerAuthRoutes(app: Express) {
   // LOGIN VERIFICATION: Test actual login flow with detailed logging
   app.post("/api/auth/test-login", async (req, res) => {
     try {
       console.log("[LOGIN-TEST] Starting comprehensive login test...");
-      const { username = "admin", password = "admin123" } = req.body;
+      const defaultCreds = getTestCredentials();
+      const { username = defaultCreds.username, password = defaultCreds.password } = req.body;
       
       console.log(`[LOGIN-TEST] Testing credentials: ${username} / ${password.length}-char password`);
       
