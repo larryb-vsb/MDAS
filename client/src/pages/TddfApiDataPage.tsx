@@ -330,6 +330,21 @@ function extractMerchantAccountNumber(record: any): string | null {
   return merchantAccountNumber ? merchantAccountNumber.toString().trim() : null;
 }
 
+// Helper function to extract batch date from BH record
+function extractBatchDate(record: any): string | null {
+  const batchDate = record.parsed_data?.batchDate || 
+                    record.record_data?.batchDate ||
+                    record.parsed_data?.batch_date ||
+                    record.record_data?.batch_date;
+  
+  const batchJulianDate = record.parsed_data?.batchJulianDate || 
+                          record.record_data?.batchJulianDate ||
+                          record.parsed_data?.batch_julian_date ||
+                          record.record_data?.batch_julian_date;
+  
+  return batchDate || batchJulianDate || null;
+}
+
 // Helper functions and interfaces now imported from shared library
 
 // Daily View Interfaces for TDDF API Data
