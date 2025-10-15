@@ -15134,6 +15134,7 @@ export class DatabaseStorage implements IStorage {
         encodingComplete: 'encoding_complete',
         encodedLines: 'encoded_lines',
         businessDay: 'business_day', // Business day from filename
+        businessday: 'business_day', // Business day (lowercase fallback)
         // MMS Watcher field mappings
         encodingNotes: 'encoding_notes',
         canRetry: 'can_retry',

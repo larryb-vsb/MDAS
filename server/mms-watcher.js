@@ -658,7 +658,7 @@ class MMSWatcher {
     }
     
     // Update upload record with identification results
-    await this.storage.updateUploaderUpload(upload.id, {
+    const updateObject = {
       currentPhase: 'identified',
       identifiedAt: new Date(),
       detectedFileType: identification.detectedType,
@@ -681,7 +681,12 @@ class MMSWatcher {
           : null,
         identifiedAt: new Date().toISOString()
       })
-    });
+    };
+    
+    console.log('[MMS-WATCHER-DEBUG] Update object keys:', Object.keys(updateObject));
+    console.log('[MMS-WATCHER-DEBUG] businessDay value:', updateObject.businessDay);
+    
+    await this.storage.updateUploaderUpload(upload.id, updateObject);
 
     const successContext = FileTaggedLogger.createContext(upload, 4, 'COMPLETE');
     FileTaggedLogger.success(successContext, `File identified: ${identification.detectedType}`, { lineCount: identification.lineCount, format: identification.format });
