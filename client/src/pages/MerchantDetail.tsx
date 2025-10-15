@@ -504,7 +504,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Query for BH records with date range
   const { data: batchesResponse, isLoading, isFetching, refetch } = useQuery<any>({

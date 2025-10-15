@@ -1821,7 +1821,8 @@ export function registerTddfRecordsRoutes(app: Express) {
         offset = 0, 
         recordType, 
         search,
-        filename
+        filename,
+        merchant_account
       } = req.query;
       
       // Build WHERE conditions separately for summary and records queries
@@ -1857,6 +1858,16 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordsWhereConditions.push(`u.filename = $${recordsParamIndex}`);
         summaryParams.push(filename as string);
         recordsParams.push(filename as string);
+        summaryParamIndex++;
+        recordsParamIndex++;
+      }
+      
+      // Add merchant_account filtering (16-digit padded merchant ID)
+      if (merchant_account) {
+        summaryWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${summaryParamIndex})`);
+        recordsWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${recordsParamIndex})`);
+        summaryParams.push(merchant_account as string);
+        recordsParams.push(merchant_account as string);
         summaryParamIndex++;
         recordsParamIndex++;
       }
