@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { format } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -755,15 +755,45 @@ function MccTddfTransactionsTab() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // Filter states
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [merchantAccount, setMerchantAccount] = useState<string>("");
+  const [associationNumber, setAssociationNumber] = useState<string>("");
+  const [groupNumber, setGroupNumber] = useState<string>("");
+  const [terminalId, setTerminalId] = useState<string>("");
+  const [cardType, setCardType] = useState<string>("all");
+  const [filtersApplied, setFiltersApplied] = useState(false);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
 
-  // Fetch DT records with pagination
+  // Fetch DT records with pagination and filters
   const buildQueryUrl = () => {
     const params = new URLSearchParams();
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
+    
+    // Add filter parameters
+    if (selectedDate) {
+      params.append('batchDate', format(selectedDate, 'yyyy-MM-dd'));
+    }
+    if (merchantAccount.trim()) {
+      params.append('merchantAccount', merchantAccount.trim());
+    }
+    if (associationNumber.trim()) {
+      params.append('associationNumber', associationNumber.trim());
+    }
+    if (groupNumber.trim()) {
+      params.append('groupNumber', groupNumber.trim());
+    }
+    if (terminalId.trim()) {
+      params.append('terminalId', terminalId.trim());
+    }
+    if (cardType && cardType !== 'all') {
+      params.append('cardType', cardType);
+    }
+    
     return `/api/tddf-records/dt-latest?${params.toString()}`;
   };
 
@@ -811,6 +841,40 @@ function MccTddfTransactionsTab() {
     setExpandedRows(newExpanded);
   };
 
+  // Date navigation
+  const goToPreviousDay = () => {
+    setSelectedDate(subDays(selectedDate, 1));
+    setPage(1);
+  };
+
+  const goToNextDay = () => {
+    setSelectedDate(addDays(selectedDate, 1));
+    setPage(1);
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSelectedDate(new Date());
+    setMerchantAccount("");
+    setAssociationNumber("");
+    setGroupNumber("");
+    setTerminalId("");
+    setCardType("all");
+    setFiltersApplied(false);
+    setPage(1);
+  };
+
+  // Check if any filters are applied (besides today's date)
+  useEffect(() => {
+    const hasFilters = 
+      merchantAccount.trim() !== "" ||
+      associationNumber.trim() !== "" ||
+      groupNumber.trim() !== "" ||
+      terminalId.trim() !== "" ||
+      (cardType !== "all" && cardType !== "");
+    setFiltersApplied(hasFilters);
+  }, [merchantAccount, associationNumber, groupNumber, terminalId, cardType]);
+
   // Calculate total pages
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
@@ -820,7 +884,7 @@ function MccTddfTransactionsTab() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <p className="text-sm text-gray-600">
-            {data?.total ? `${data.total} DT (Detail Transaction) records` : 'Loading...'}
+            {data?.total ? `${data.total} DT (Detail Transaction) records${filtersApplied ? ' (filtered)' : ''}` : 'Loading...'}
           </p>
           
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
@@ -847,6 +911,121 @@ function MccTddfTransactionsTab() {
           Refresh
         </Button>
       </div>
+
+      {/* Filter Bar */}
+      <Card className="bg-gray-50">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            {/* Date Navigation */}
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700 min-w-24">Date:</label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousDay}
+                  data-testid="button-previous-day"
+                >
+                  ←
+                </Button>
+                <div className="px-4 py-2 bg-white border rounded-md text-sm font-medium min-w-32 text-center">
+                  {format(selectedDate, 'MMM dd, yyyy')}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextDay}
+                  data-testid="button-next-day"
+                >
+                  →
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter Inputs */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-24">Merchant Acct:</label>
+                <Input
+                  value={merchantAccount}
+                  onChange={(e) => setMerchantAccount(e.target.value)}
+                  placeholder="16-digit account number"
+                  className="flex-1"
+                  data-testid="input-merchant-account"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-24">Association #:</label>
+                <Input
+                  value={associationNumber}
+                  onChange={(e) => setAssociationNumber(e.target.value)}
+                  placeholder="Association number"
+                  className="flex-1"
+                  data-testid="input-association-number"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-24">Group #:</label>
+                <Input
+                  value={groupNumber}
+                  onChange={(e) => setGroupNumber(e.target.value)}
+                  placeholder="Group number"
+                  className="flex-1"
+                  data-testid="input-group-number"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-24">Terminal ID:</label>
+                <Input
+                  value={terminalId}
+                  onChange={(e) => setTerminalId(e.target.value)}
+                  placeholder="Terminal identifier"
+                  className="flex-1"
+                  data-testid="input-terminal-id"
+                />
+              </div>
+            </div>
+
+            {/* Card Type and Clear Button */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-24">Card Type:</label>
+                <Select value={cardType} onValueChange={setCardType}>
+                  <SelectTrigger className="w-48" data-testid="select-card-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Card Types</SelectItem>
+                    <SelectItem value="VD">Visa Debit</SelectItem>
+                    <SelectItem value="VC">Visa Credit</SelectItem>
+                    <SelectItem value="MD">Mastercard Debit</SelectItem>
+                    <SelectItem value="MC">Mastercard Credit</SelectItem>
+                    <SelectItem value="AX">American Express</SelectItem>
+                    <SelectItem value="DS">Discover</SelectItem>
+                    <SelectItem value="DI">Diners Club</SelectItem>
+                    <SelectItem value="JC">JCB</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filtersApplied && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="text-red-600 hover:text-red-700"
+                  data-testid="button-clear-filters"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Table */}
       <Card>
