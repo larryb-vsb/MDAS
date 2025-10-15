@@ -15154,9 +15154,9 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Debug logging to identify field mapping
-      logger.uploader(`Update fields for ${id}:`, fields);
-      logger.uploader(`SET clause: ${setClause}`);
-      logger.uploader(`Updates object:`, JSON.stringify(updates, null, 2));
+      console.log(`[UPLOADER-DEBUG] Update fields for ${id}:`, fields);
+      console.log(`[UPLOADER-DEBUG] SET clause: ${setClause}`);
+      console.log(`[UPLOADER-DEBUG] Updates object:`, JSON.stringify(updates, null, 2));
       
       // Update query - last_updated is included in updates object if needed
       const query = `
