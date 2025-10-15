@@ -345,6 +345,35 @@ function extractBatchDate(record: any): string | null {
   return batchDate || batchJulianDate || null;
 }
 
+// Helper function to extract transaction date from DT record
+function extractTransactionDate(record: any): string | null {
+  const transactionDate = record.parsed_data?.TransactionDate || 
+                         record.record_data?.TransactionDate ||
+                         record.parsed_data?.transactionDate ||
+                         record.record_data?.transactionDate ||
+                         record.parsed_data?.transaction_date ||
+                         record.record_data?.transaction_date;
+  
+  return transactionDate ? transactionDate.toString().trim() : null;
+}
+
+// Helper function to extract transaction amount from DT record
+function extractTransactionAmount(record: any): number | null {
+  const transactionAmount = record.parsed_data?.TransactionAmount || 
+                           record.record_data?.TransactionAmount ||
+                           record.parsed_data?.transactionAmount ||
+                           record.record_data?.transactionAmount ||
+                           record.parsed_data?.transaction_amount ||
+                           record.record_data?.transaction_amount;
+  
+  if (transactionAmount !== null && transactionAmount !== undefined) {
+    const amount = parseFloat(transactionAmount.toString());
+    return isNaN(amount) ? null : amount;
+  }
+  
+  return null;
+}
+
 // Helper functions and interfaces now imported from shared library
 
 // Daily View Interfaces for TDDF API Data
