@@ -5565,9 +5565,52 @@ function RawDataTab({
                           </div>
                         </TableCell>
                         <TableCell className="max-w-md">
-                          <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
-                            {formatRecordContent(record)}
-                          </div>
+                          {record.record_type === 'BH' ? (
+                            <div className="flex items-center gap-3 text-sm">
+                              {/* Merchant Account and Name */}
+                              {(() => {
+                                const merchantAccountNumber = extractMerchantAccountNumber(record);
+                                const merchantName = getMerchantName(merchantAccountNumber);
+                                return merchantAccountNumber ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      {merchantAccountNumber}
+                                    </span>
+                                    {merchantName && (
+                                      <span className="text-xs font-semibold text-green-600">
+                                        {merchantName}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              {/* Batch Date and Net Deposit */}
+                              {(() => {
+                                const batchDate = extractBatchDate(record);
+                                const netDeposit = record.parsed_data?.netDeposit || record.record_data?.netDeposit;
+                                return (batchDate || netDeposit) ? (
+                                  <div className="ml-auto flex items-center gap-3">
+                                    {batchDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {batchDate}
+                                      </span>
+                                    )}
+                                    {netDeposit && (
+                                      <span className="font-medium text-gray-700">
+                                        ${(netDeposit / 100).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
+                          ) : (
+                            <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
+                              {formatRecordContent(record)}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="truncate text-sm" title={record.original_filename || record.filename}>
                           {record.original_filename || record.filename || 'Unknown'}
