@@ -637,6 +637,26 @@ class MMSWatcher {
     // Analyze file structure and content, considering user's original file type selection
     const identification = await this.analyzeFileContent(fileContent, upload.filename, upload.fileType);
     
+    // Extract business day from filename (MMDDYYYY pattern)
+    let businessDay = null;
+    const dateMatch = upload.filename.match(/(\d{8})/);
+    if (dateMatch) {
+      const dateStr = dateMatch[1];
+      if (dateStr.length === 8) {
+        const month = dateStr.substring(0, 2);
+        const day = dateStr.substring(2, 4);
+        const year = dateStr.substring(4, 8);
+        try {
+          const parsedDate = new Date(`${year}-${month}-${day}`);
+          if (!isNaN(parsedDate.getTime())) {
+            businessDay = parsedDate;
+          }
+        } catch (error) {
+          console.log(`[MMS-WATCHER] Could not parse business day from filename: ${upload.filename}`);
+        }
+      }
+    }
+    
     // Update upload record with identification results
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'identified',
@@ -646,6 +666,7 @@ class MMSWatcher {
       lineCount: identification.lineCount,
       hasHeaders: identification.hasHeaders,
       fileFormat: identification.format,
+      businessDay: businessDay, // Set the extracted business day
       validationErrors: identification.validationErrors && identification.validationErrors.length > 0 
         ? JSON.stringify(identification.validationErrors)
         : null,

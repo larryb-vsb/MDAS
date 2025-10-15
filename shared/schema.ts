@@ -1351,6 +1351,9 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   encodingComplete: timestamp("encoding_complete"), // When encoding finished
   encodedLines: integer("encoded_lines"), // Number of lines that were encoded
   
+  // Business day extracted from filename (MMDDYYYY format)
+  businessDay: date("business_day"), // Extracted business day from filename during identification
+  
   // Phase 1: Started
   startTime: timestamp("start_time").defaultNow().notNull(), // When upload was initiated
   
