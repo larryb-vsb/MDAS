@@ -45,6 +45,7 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **Modular Route Architecture**: Reorganized monolithic `routes.ts` into modular, maintainable route files for improved maintainability, faster navigation, and reduced merge conflicts.
 - **TDDF Merchant Name Lookup**: Enhanced TDDF viewer with asynchronous merchant name lookup functionality across all view modes, including account number normalization.
 - **Independent Step 6 Processing Interval**: Auto Step 6 now runs on its own 60-second interval (independent from Auto 4-5), queries database setting before each run, and automatically processes encoded TDDF files to completion when enabled.
+- **TDDF JSONB Query Performance Optimization**: Implemented high-performance indexes on JSONB fields (merchantAccountNumber, batchDate) achieving 93% query speedup (980ms → 64ms) for merchant batch filtering. Uses text-based date comparisons to leverage indexes while maintaining ISO-8601 format compatibility.
 
 ## External Dependencies
 
