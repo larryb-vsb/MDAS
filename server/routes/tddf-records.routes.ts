@@ -1872,6 +1872,26 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordsParamIndex++;
       }
       
+      // Add date range filtering
+      const { date_from, date_to } = req.query;
+      if (date_from) {
+        summaryWhereConditions.push(`(r.record_data->>'batchDate')::date >= $${summaryParamIndex}::date`);
+        recordsWhereConditions.push(`(r.record_data->>'batchDate')::date >= $${recordsParamIndex}::date`);
+        summaryParams.push(date_from as string);
+        recordsParams.push(date_from as string);
+        summaryParamIndex++;
+        recordsParamIndex++;
+      }
+      
+      if (date_to) {
+        summaryWhereConditions.push(`(r.record_data->>'batchDate')::date <= $${summaryParamIndex}::date`);
+        recordsWhereConditions.push(`(r.record_data->>'batchDate')::date <= $${recordsParamIndex}::date`);
+        summaryParams.push(date_to as string);
+        recordsParams.push(date_to as string);
+        summaryParamIndex++;
+        recordsParamIndex++;
+      }
+      
       const summaryWhereClause = summaryWhereConditions.length > 0 ? 
         `WHERE ${summaryWhereConditions.join(' AND ')}` : '';
       const recordsWhereClause = recordsWhereConditions.length > 0 ? 
