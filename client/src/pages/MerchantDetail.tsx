@@ -498,9 +498,12 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   // Pad merchant ID with leading zero for TDDF queries (15 digits -> 16 digits)
   const paddedMerchantId = merchantId ? merchantId.padStart(16, '0') : '';
   
-  // Date range state - default to last 60 days
-  const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 60), 'yyyy-MM-dd'));
-  const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
+  // Debug logging for merchant ID
+  console.log('[BATCHES-TAB] Component rendered with:', { merchantId, paddedMerchantId, enabled: !!paddedMerchantId });
+  
+  // Date range state - default to empty (fetch all records)
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -509,7 +512,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   // Query for BH records with date range - v2 to bust stale cache
   const { data: batchesResponse, isLoading, isFetching, refetch } = useQuery<any>({
     queryKey: ['/api/tddf-api/all-records', { 
-      record_type: 'BH',
+      recordType: 'BH',
       merchant_account: paddedMerchantId,
       date_from: dateFrom,
       date_to: dateTo,
@@ -519,14 +522,21 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
       if (!paddedMerchantId) return { records: [], total: 0 };
       
       const params = new URLSearchParams({
-        record_type: 'BH',
+        recordType: 'BH',
         merchant_account: paddedMerchantId,
-        date_from: dateFrom,
-        date_to: dateTo,
         limit: '10000'
       });
       
+      // Only add date filters if they have values
+      if (dateFrom) params.append('date_from', dateFrom);
+      if (dateTo) params.append('date_to', dateTo);
+      
+      console.log('[BATCHES-TAB] Query URL:', `/api/tddf-api/all-records?${params}`);
+      
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
+      
+      console.log('[BATCHES-TAB] API Response:', response);
+      
       return { records: response?.data || [], total: response?.data?.length || 0 };
     },
     enabled: !!paddedMerchantId,
