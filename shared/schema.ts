@@ -323,6 +323,23 @@ export const transactions = pgTable(getTableName("transactions"), {
   uniqueFilenameLine: unique().on(table.sourceFilename, table.sourceRowNumber)
 }));
 
+// ACH Transactions table - imported from uploader system
+export const apiAchTransactions = pgTable(getTableName("api_achtransactions"), {
+  id: text("id").primaryKey(), // Text ID from uploader system
+  merchantName: text("merchant_name"),
+  merchantId: text("merchant_id"),
+  accountNumber: text("account_number"),
+  amount: numeric("amount", { precision: 15, scale: 2 }),
+  transactionDate: date("transaction_date"),
+  code: text("code"),
+  description: text("description"),
+  company: text("company"),
+  traceNumber: text("trace_number"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  fileSource: text("file_source") // Source CSV filename
+});
+
 // Uploaded files table - PRODUCTION-COMPATIBLE ID TYPE
 export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   id: text("id").primaryKey(), // TEXT TYPE matches production (dev uses serial but we preserve compatibility)
@@ -434,6 +451,9 @@ export const insertMerchantSchema = merchantsSchema.omit({ id: true });
 // Zod schemas for transactions
 export const transactionsSchema = createInsertSchema(transactions);
 export const insertTransactionSchema = transactionsSchema.omit({ id: true });
+
+export const apiAchTransactionsSchema = createInsertSchema(apiAchTransactions);
+export const insertApiAchTransactionSchema = apiAchTransactionsSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
 // TDDF Batch Headers (BH) - Contains batch-level information that groups DT records
 export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
@@ -1141,6 +1161,8 @@ export type Merchant = typeof merchants.$inferSelect;
 export type InsertMerchant = typeof merchants.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
+export type ApiAchTransaction = typeof apiAchTransactions.$inferSelect;
+export type InsertApiAchTransaction = typeof apiAchTransactions.$inferInsert;
 export type UploadedFile = typeof uploadedFiles.$inferSelect;
 export type InsertUploadedFile = typeof uploadedFiles.$inferInsert;
 export type BackupHistory = typeof backupHistory.$inferSelect;

@@ -16,6 +16,7 @@ import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";
 import { registerMerchantRoutes } from "./routes/merchants.routes";
+import { registerTransactionRoutes } from "./routes/transactions.routes";
 import { registerUserRoutes } from "./routes/users.routes";
 import { registerApiUserRoutes } from "./routes/api-users.routes";
 import { registerTddfFilesRoutes } from "./routes/tddf-files.routes";
@@ -229,6 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Phase A: Core Business Routes  
   registerMerchantRoutes(app);
+  registerTransactionRoutes(app);
   registerUserRoutes(app);
   registerApiUserRoutes(app);
   
