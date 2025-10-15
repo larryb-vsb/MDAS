@@ -521,7 +521,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
       });
       
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
-      return { records: response?.records || [], total: response?.records?.length || 0 };
+      return { records: response?.data || [], total: response?.data?.length || 0 };
     },
     enabled: !!paddedMerchantId
   });
