@@ -1825,6 +1825,18 @@ export function registerTddfRecordsRoutes(app: Express) {
         merchant_account
       } = req.query;
       
+      // Debug logging for Batches tab troubleshooting
+      if (merchant_account) {
+        console.log('[ALL-RECORDS-API] Merchant batches request:', {
+          merchant_account,
+          recordType,
+          date_from: req.query.date_from,
+          date_to: req.query.date_to,
+          limit,
+          offset
+        });
+      }
+      
       // Build WHERE conditions separately for summary and records queries
       let summaryWhereConditions = [];
       let recordsWhereConditions = [];
@@ -1977,7 +1989,7 @@ export function registerTddfRecordsRoutes(app: Express) {
         };
       });
       
-      res.json({
+      const responseData = {
         data: processedRecords,
         summary: {
           totalRecords: parseInt(summary.total_records),
@@ -1990,7 +2002,18 @@ export function registerTddfRecordsRoutes(app: Express) {
           offset: parseInt(offset as string),
           total: parseInt(summary.total_records)
         }
-      });
+      };
+      
+      // Debug logging for merchant batches response
+      if (merchant_account) {
+        console.log('[ALL-RECORDS-API] Response summary:', {
+          dataCount: processedRecords.length,
+          totalRecords: parseInt(summary.total_records),
+          bhRecords: parseInt(summary.bh_records)
+        });
+      }
+      
+      res.json(responseData);
     } catch (error) {
       console.error('Error fetching TDDF API all records:', error);
       res.status(500).json({ error: 'Failed to fetch records' });
