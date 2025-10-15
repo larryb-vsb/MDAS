@@ -498,9 +498,8 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   // Pad merchant ID with leading zero for TDDF queries (15 digits -> 16 digits)
   const paddedMerchantId = merchantId ? merchantId.padStart(16, '0') : '';
   
-  // Date range state - default to empty (fetch all records)
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // Single date state - default to today
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
