@@ -2,6 +2,7 @@ import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { SchemaVersionManager } from './schema_version';
 import { getTableName } from './table-config';
+import bcrypt from 'bcrypt';
 
 /**
  * Fix schema_versions table structure to match current schema definition
@@ -209,30 +210,51 @@ export async function ensureAdminUser() {
       return false;
     }
     
+    // Get admin credentials from Test_Creds secret
+    let adminUsername = 'admin';
+    let adminPassword = 'admin123';
+    let passwordHash: string;
+    
+    try {
+      const testCredsSecret = process.env.Test_Creds;
+      if (testCredsSecret) {
+        const testCreds = JSON.parse(testCredsSecret);
+        if (testCreds.username) adminUsername = testCreds.username;
+        if (testCreds.password) adminPassword = testCreds.password;
+        console.log(`[ADMIN INIT] Using credentials from Test_Creds secret: username=${adminUsername}`);
+      } else {
+        console.log('[ADMIN INIT] ⚠️  Test_Creds secret not found, using default credentials');
+      }
+      
+      // Hash the password from secret
+      passwordHash = await bcrypt.hash(adminPassword, 10);
+      console.log(`[ADMIN INIT] Password hashed successfully`);
+    } catch (secretError) {
+      console.error('[ADMIN INIT] ❌ Error reading Test_Creds secret:', secretError);
+      console.log('[ADMIN INIT] Falling back to default credentials');
+      passwordHash = await bcrypt.hash('admin123', 10);
+    }
+    
     // Check if the admin user exists
     try {
       console.log(`[ADMIN INIT] Checking for admin user in table: ${usersTableName}`);
       const adminResult = await db.execute(sql`
-        SELECT * FROM ${sql.identifier(usersTableName)} WHERE username = 'admin' LIMIT 1
+        SELECT * FROM ${sql.identifier(usersTableName)} WHERE username = ${adminUsername} LIMIT 1
       `);
       
       console.log(`[ADMIN INIT] Admin user query returned ${adminResult.rows.length} rows`);
       
-      // Hash the default password (admin123) - this is a known bcrypt hash for 'admin123'
-      const passwordHash = '$2b$10$hIJ9hSuT7PJwlSxZu5ibbOGh7v3yMHGBITKrMpkpyaZFdHFvQhfIK';
-      console.log(`[ADMIN INIT] Using password hash: ${passwordHash}`);
-      
       if (adminResult.rows.length === 0) {
-        console.log('[ADMIN INIT] Admin user does not exist, creating default admin...');
+        console.log(`[ADMIN INIT] Admin user "${adminUsername}" does not exist, creating...`);
         
         try {
           await db.execute(sql`
             INSERT INTO ${sql.identifier(usersTableName)} (username, password, email, first_name, last_name, role, developer_flag, default_dashboard, theme_preference, created_at, last_login)
-            VALUES ('admin', ${passwordHash}, 'admin@example.com', 'System', 'Administrator', 'admin', true, 'merchants', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (${adminUsername}, ${passwordHash}, 'admin@example.com', 'System', 'Administrator', 'admin', true, 'merchants', 'system', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           `);
           
-          console.log('[ADMIN INIT] ✅ Default admin user created successfully');
-          console.log('[ADMIN INIT] ✅ You can login with username "admin" and password "admin123"');
+          console.log(`[ADMIN INIT] ✅ Admin user "${adminUsername}" created successfully`);
+          console.log(`[ADMIN INIT] ✅ Credentials stored in Test_Creds secret`);
         } catch (insertError) {
           console.error('[ADMIN INIT] ❌ Error creating admin user:', insertError);
           
@@ -240,29 +262,20 @@ export async function ensureAdminUser() {
           console.log('[ADMIN INIT] Trying with minimal fields...');
           await db.execute(sql`
             INSERT INTO ${sql.identifier(usersTableName)} (username, password, email, role, created_at)
-            VALUES ('admin', ${passwordHash}, 'admin@example.com', 'admin', CURRENT_TIMESTAMP)
+            VALUES (${adminUsername}, ${passwordHash}, 'admin@example.com', 'admin', CURRENT_TIMESTAMP)
           `);
-          console.log('[ADMIN INIT] ✅ Admin user created with minimal fields');
+          console.log(`[ADMIN INIT] ✅ Admin user "${adminUsername}" created with minimal fields`);
         }
       } else {
-        console.log('[ADMIN INIT] Admin user exists, checking if password needs update...');
+        console.log(`[ADMIN INIT] Admin user "${adminUsername}" exists, updating password from Test_Creds...`);
         console.log(`[ADMIN INIT] Current admin user data:`, JSON.stringify(adminResult.rows[0], null, 2));
         
-        // Only update password if it's still the default or empty
-        const currentPassword = adminResult.rows[0].password;
-        const defaultPasswordHash = '$2b$10$hIJ9hSuT7PJwlSxZu5ibbOGh7v3yMHGBITKrMpkpyaZFdHFvQhfIK';
+        // Always update password to match Test_Creds secret
+        await db.execute(sql`
+          UPDATE ${sql.identifier(usersTableName)} SET password = ${passwordHash} WHERE username = ${adminUsername}
+        `);
         
-        if (!currentPassword || currentPassword === defaultPasswordHash) {
-          // Update the admin password to match our expected hash
-          await db.execute(sql`
-            UPDATE ${sql.identifier(usersTableName)} SET password = ${passwordHash} WHERE username = 'admin'
-          `);
-          
-          console.log('[ADMIN INIT] ✅ Admin password updated to default');
-          console.log('[ADMIN INIT] ✅ You can login with username "admin" and password "admin123"');
-        } else {
-          console.log('[ADMIN INIT] Admin user has custom password - keeping existing password');
-        }
+        console.log(`[ADMIN INIT] ✅ Admin password synced with Test_Creds secret`);
       }
       
       return true;
