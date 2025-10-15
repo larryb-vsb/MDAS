@@ -73,7 +73,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SubMerchantTerminals } from '@/components/merchants/SubMerchantTerminals';
 import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw, Loader2, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { format, subDays } from 'date-fns';
+import { format, subDays, addDays, parseISO } from 'date-fns';
 import { useMerchantLookup } from '@/hooks/useMerchantLookup';
 
 // Define the merchant form schema
@@ -505,13 +505,12 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  // Query for BH records with date range - v2 to bust stale cache
+  // Query for BH records with single date filter
   const { data: batchesResponse, isLoading, isFetching, refetch } = useQuery<any>({
     queryKey: ['/api/tddf-api/all-records', { 
       recordType: 'BH',
       merchant_account: paddedMerchantId,
-      date_from: dateFrom,
-      date_to: dateTo,
+      batch_date: selectedDate,
       limit: '50000'
     }],
     queryFn: async () => {
@@ -523,9 +522,10 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
         limit: '50000'
       });
       
-      // Only add date filters if they have values
-      if (dateFrom) params.append('date_from', dateFrom);
-      if (dateTo) params.append('date_to', dateTo);
+      // Add single date filter if selected
+      if (selectedDate) {
+        params.append('batch_date', selectedDate);
+      }
       
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
       
@@ -564,9 +564,25 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
     refetch();
   };
 
-  const handleDateRangeChange = () => {
+  const handleDateChange = () => {
     setCurrentPage(1);
     setExpandedBatches(new Set());
+  };
+
+  const handlePreviousDay = () => {
+    if (!selectedDate) return;
+    const currentDate = parseISO(selectedDate);
+    const previousDay = subDays(currentDate, 1);
+    setSelectedDate(format(previousDay, 'yyyy-MM-dd'));
+    handleDateChange();
+  };
+
+  const handleNextDay = () => {
+    if (!selectedDate) return;
+    const currentDate = parseISO(selectedDate);
+    const nextDay = addDays(currentDate, 1);
+    setSelectedDate(format(nextDay, 'yyyy-MM-dd'));
+    handleDateChange();
   };
 
   return (
@@ -600,36 +616,41 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
           </Button>
         </div>
 
-        {/* Date Range and Pagination Controls */}
+        {/* Single Date and Pagination Controls */}
         <div className="flex flex-wrap items-end gap-4 mt-4">
-          {/* Date From */}
+          {/* Date Navigation */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">From Date</label>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
-                handleDateRangeChange();
-              }}
-              className="w-40"
-              data-testid="input-date-from"
-            />
-          </div>
-
-          {/* Date To */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">To Date</label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
-                handleDateRangeChange();
-              }}
-              className="w-40"
-              data-testid="input-date-to"
-            />
+            <label className="text-sm font-medium">Batch Date</label>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handlePreviousDay}
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                data-testid="button-previous-day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  handleDateChange();
+                }}
+                className="w-40"
+                data-testid="input-batch-date"
+              />
+              <Button
+                onClick={handleNextDay}
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                data-testid="button-next-day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Items Per Page */}
@@ -677,7 +698,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
         {/* Empty State */}
         {!isLoading && totalBatches === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            No batch records found for this merchant in the selected date range
+            No batch records found for this merchant on {selectedDate}
           </div>
         )}
 

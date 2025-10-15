@@ -1845,24 +1845,36 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordsParamIndex++;
       }
       
-      // Add date range filtering (using text comparison since YYYY-MM-DD sorts correctly)
-      const { date_from, date_to } = req.query;
-      if (date_from) {
-        summaryWhereConditions.push(`(r.record_data->>'batchDate') >= $${summaryParamIndex}`);
-        recordsWhereConditions.push(`(r.record_data->>'batchDate') >= $${recordsParamIndex}`);
-        summaryParams.push(date_from as string);
-        recordsParams.push(date_from as string);
-        summaryParamIndex++;
-        recordsParamIndex++;
-      }
+      // Add date filtering (using text comparison since YYYY-MM-DD sorts correctly)
+      const { date_from, date_to, batch_date } = req.query;
       
-      if (date_to) {
-        summaryWhereConditions.push(`(r.record_data->>'batchDate') <= $${summaryParamIndex}`);
-        recordsWhereConditions.push(`(r.record_data->>'batchDate') <= $${recordsParamIndex}`);
-        summaryParams.push(date_to as string);
-        recordsParams.push(date_to as string);
+      // Single date filter (exact match) - takes precedence over date range
+      if (batch_date) {
+        summaryWhereConditions.push(`(r.record_data->>'batchDate') = $${summaryParamIndex}`);
+        recordsWhereConditions.push(`(r.record_data->>'batchDate') = $${recordsParamIndex}`);
+        summaryParams.push(batch_date as string);
+        recordsParams.push(batch_date as string);
         summaryParamIndex++;
         recordsParamIndex++;
+      } else {
+        // Date range filtering (only if batch_date not specified)
+        if (date_from) {
+          summaryWhereConditions.push(`(r.record_data->>'batchDate') >= $${summaryParamIndex}`);
+          recordsWhereConditions.push(`(r.record_data->>'batchDate') >= $${recordsParamIndex}`);
+          summaryParams.push(date_from as string);
+          recordsParams.push(date_from as string);
+          summaryParamIndex++;
+          recordsParamIndex++;
+        }
+        
+        if (date_to) {
+          summaryWhereConditions.push(`(r.record_data->>'batchDate') <= $${summaryParamIndex}`);
+          recordsWhereConditions.push(`(r.record_data->>'batchDate') <= $${recordsParamIndex}`);
+          summaryParams.push(date_to as string);
+          recordsParams.push(date_to as string);
+          summaryParamIndex++;
+          recordsParamIndex++;
+        }
       }
       
       const summaryWhereClause = summaryWhereConditions.length > 0 ? 
