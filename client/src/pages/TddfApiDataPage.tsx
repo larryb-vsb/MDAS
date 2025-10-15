@@ -4064,6 +4064,27 @@ function TreeViewDisplay({
                         </div>
                       ) : null;
                     })()}
+                    
+                    {/* Batch Date and Net Deposit for BH records */}
+                    {(() => {
+                      const batchDate = extractBatchDate(batch.batchHeader);
+                      const netDeposit = batch.batchHeader.parsed_data?.netDeposit || batch.batchHeader.record_data?.netDeposit;
+                      return (batchDate || netDeposit) ? (
+                        <div className="ml-auto flex items-center gap-3">
+                          {batchDate && (
+                            <span className="flex items-center gap-1 text-blue-600 font-medium">
+                              <CalendarIcon className="h-4 w-4" />
+                              {batchDate}
+                            </span>
+                          )}
+                          {netDeposit && (
+                            <span className="font-medium text-gray-700">
+                              ${(netDeposit / 100).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
                   </>
                 ) : (
                   <>
@@ -4072,10 +4093,12 @@ function TreeViewDisplay({
                   </>
                 )}
                 
-                <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
-                  <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
-                  {batch.trailer && <span>• Has Trailer</span>}
-                </div>
+                {!batch.batchHeader && (
+                  <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                    <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
+                    {batch.trailer && <span>• Has Trailer</span>}
+                  </div>
+                )}
               </div>
             </CardHeader>
 
