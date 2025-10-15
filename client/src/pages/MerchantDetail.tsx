@@ -716,19 +716,20 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
                         </div>
                       )}
                       
-                      {/* Batch Date */}
-                      {batchDate && (
-                        <Badge variant="outline" className="ml-2" data-testid="bh-batch-date">
-                          {batchDate}
-                        </Badge>
-                      )}
-                      
-                      {/* Net Deposit */}
-                      {netDeposit && (
-                        <span className="ml-auto text-sm font-medium text-gray-700" data-testid="bh-net-deposit">
-                          Net: {formatCurrency(netDeposit / 100)}
-                        </span>
-                      )}
+                      {/* Batch Date and Net Deposit as KBI */}
+                      <div className="ml-auto flex items-center gap-3 text-sm">
+                        {batchDate && (
+                          <span className="flex items-center gap-1 text-blue-600 font-medium" data-testid="bh-batch-date">
+                            <CalendarIcon className="h-4 w-4" />
+                            {batchDate}
+                          </span>
+                        )}
+                        {netDeposit && (
+                          <span className="font-medium text-gray-700" data-testid="bh-net-deposit">
+                            {formatCurrency(netDeposit / 100)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
 
