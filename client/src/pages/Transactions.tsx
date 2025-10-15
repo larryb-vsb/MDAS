@@ -757,7 +757,7 @@ function MccTddfTransactionsTab() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
   // Filter states
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [merchantAccount, setMerchantAccount] = useState<string>("");
   const [associationNumber, setAssociationNumber] = useState<string>("");
   const [groupNumber, setGroupNumber] = useState<string>("");
@@ -774,7 +774,7 @@ function MccTddfTransactionsTab() {
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
     
-    // Add filter parameters
+    // Add filter parameters (only if set)
     if (selectedDate) {
       params.append('batchDate', format(selectedDate, 'yyyy-MM-dd'));
     }
@@ -843,18 +843,26 @@ function MccTddfTransactionsTab() {
 
   // Date navigation
   const goToPreviousDay = () => {
-    setSelectedDate(subDays(selectedDate, 1));
+    const currentDate = selectedDate || new Date();
+    setSelectedDate(subDays(currentDate, 1));
     setPage(1);
   };
 
   const goToNextDay = () => {
-    setSelectedDate(addDays(selectedDate, 1));
+    const currentDate = selectedDate || new Date();
+    setSelectedDate(addDays(currentDate, 1));
+    setPage(1);
+  };
+  
+  // Set date to today
+  const setToToday = () => {
+    setSelectedDate(new Date());
     setPage(1);
   };
 
   // Clear all filters
   const handleClearFilters = () => {
-    setSelectedDate(new Date());
+    setSelectedDate(null);
     setMerchantAccount("");
     setAssociationNumber("");
     setGroupNumber("");
@@ -864,16 +872,17 @@ function MccTddfTransactionsTab() {
     setPage(1);
   };
 
-  // Check if any filters are applied (besides today's date)
+  // Check if any filters are applied
   useEffect(() => {
     const hasFilters = 
+      selectedDate !== null ||
       merchantAccount.trim() !== "" ||
       associationNumber.trim() !== "" ||
       groupNumber.trim() !== "" ||
       terminalId.trim() !== "" ||
       (cardType !== "all" && cardType !== "");
     setFiltersApplied(hasFilters);
-  }, [merchantAccount, associationNumber, groupNumber, terminalId, cardType]);
+  }, [selectedDate, merchantAccount, associationNumber, groupNumber, terminalId, cardType]);
 
   // Calculate total pages
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
@@ -932,8 +941,8 @@ function MccTddfTransactionsTab() {
                 >
                   ←
                 </Button>
-                <div className="px-4 py-2 bg-white border rounded-md text-sm font-medium min-w-32 text-center">
-                  {format(selectedDate, 'MMM dd, yyyy')}
+                <div className="px-4 py-2 bg-white border rounded-md text-sm font-medium min-w-40 text-center">
+                  {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'All Dates'}
                 </div>
                 <Button
                   variant="outline"
@@ -943,6 +952,16 @@ function MccTddfTransactionsTab() {
                 >
                   →
                 </Button>
+                {!selectedDate && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={setToToday}
+                    data-testid="button-set-today"
+                  >
+                    Today
+                  </Button>
+                )}
               </div>
             </div>
 
