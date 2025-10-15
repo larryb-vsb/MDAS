@@ -1385,6 +1385,7 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   
   // Current processing state
   currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, hold, encoding, processing, completed, failed
+  statusMessage: text("status_message"), // User-friendly status message for current phase
   lastUpdated: timestamp("last_updated").defaultNow().notNull()
 }, (table) => ({
   currentPhaseIdx: index("uploader_uploads_current_phase_idx").on(table.currentPhase),

@@ -46,6 +46,9 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **TDDF Merchant Name Lookup**: Enhanced TDDF viewer with asynchronous merchant name lookup functionality across all view modes, including account number normalization.
 - **Independent Step 6 Processing Interval**: Auto Step 6 now runs on its own 60-second interval (independent from Auto 4-5), queries database setting before each run, and automatically processes encoded TDDF files to completion when enabled.
 - **TDDF JSONB Query Performance Optimization**: Implemented high-performance indexes on JSONB fields (merchantAccountNumber, batchDate) achieving 93% query speedup (980ms → 64ms) for merchant batch filtering. Uses text-based date comparisons to leverage indexes while maintaining ISO-8601 format compatibility.
+- **Single-Day Batch View with Navigation**: Merchant Detail Batches tab now uses single-day date picker with Previous/Next navigation buttons (← →) instead of date range selector. Uses timezone-safe date parsing with `parseISO` and `addDays`/`subDays` from date-fns to prevent day-skipping across timezones. Backend supports `batch_date` parameter for exact-match filtering while maintaining backward compatibility with date range queries.
+- **Duplicate File Upload Prevention**: Line-level deduplication system using SHA-256 hash of first 52 characters (sequence + record type + bank + merchant + association + group). Post-insert validation strategy with bulk insert followed by single cleanup query using MAX(id) to retain newest records and delete older duplicates. UI displays "validating" status phase (teal badge) during duplicate cleanup.
+- **File Processing Status Messages**: Added `status_message` column to uploader_uploads table for user-friendly status messages during processing phases (e.g., "Validating & removing duplicates...", "Completed: X records, Y duplicates removed").
 
 ## External Dependencies
 
