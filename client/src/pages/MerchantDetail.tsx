@@ -498,9 +498,6 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   // Pad merchant ID with leading zero for TDDF queries (15 digits -> 16 digits)
   const paddedMerchantId = merchantId ? merchantId.padStart(16, '0') : '';
   
-  // Debug logging for merchant ID
-  console.log('[BATCHES-TAB] Component rendered with:', { merchantId, paddedMerchantId, enabled: !!paddedMerchantId });
-  
   // Date range state - default to empty (fetch all records)
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -516,7 +513,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
       merchant_account: paddedMerchantId,
       date_from: dateFrom,
       date_to: dateTo,
-      limit: '10000'
+      limit: '50000'
     }],
     queryFn: async () => {
       if (!paddedMerchantId) return { records: [], total: 0 };
@@ -524,18 +521,14 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
       const params = new URLSearchParams({
         recordType: 'BH',
         merchant_account: paddedMerchantId,
-        limit: '10000'
+        limit: '50000'
       });
       
       // Only add date filters if they have values
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
       
-      console.log('[BATCHES-TAB] Query URL:', `/api/tddf-api/all-records?${params}`);
-      
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
-      
-      console.log('[BATCHES-TAB] API Response:', response);
       
       return { records: response?.data || [], total: response?.data?.length || 0 };
     },
@@ -546,12 +539,6 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
 
   const batches = batchesResponse?.records || [];
   const totalBatches = batchesResponse?.total || 0;
-  
-  // Debug logging
-  console.log('[BATCHES-TAB] batchesResponse:', batchesResponse);
-  console.log('[BATCHES-TAB] batches array:', batches);
-  console.log('[BATCHES-TAB] batches.length:', batches.length);
-  console.log('[BATCHES-TAB] totalBatches:', totalBatches);
   
   // Calculate pagination
   const totalPages = Math.ceil(totalBatches / itemsPerPage) || 1;
