@@ -8,6 +8,29 @@ Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
 Critical System Requirement: "Never re-fresh" policy - all auto-refresh functionality permanently disabled and verified working.
 
+## Test Credentials Management
+Admin and test credentials are managed via the `Test_Creds` Replit Secret for security and consistency:
+
+### Secret Format
+The `Test_Creds` secret must be a JSON object:
+```json
+{
+  "username": "admin",
+  "password": "your_password_here"
+}
+```
+
+### Implementation
+- **Admin User Initialization**: On startup, `database-helpers.ts` reads `Test_Creds` to create/update the admin user with credentials from the secret
+- **Test Endpoints**: Login test endpoints (`/api/auth/test-login`) use `Test_Creds` for default test credentials
+- **Fallback**: If `Test_Creds` is missing or malformed, the system falls back to default credentials (username: `admin`, password: `admin123`)
+- **Security**: Credentials are never hardcoded in source files - always stored securely in Replit Secrets
+
+### Updating Credentials
+1. Go to Replit Secrets panel
+2. Update the `Test_Creds` secret with new JSON credentials
+3. Restart the application to apply changes
+
 ## System Architecture
 MMS employs a modern client-server architecture with a focus on performance, scalability, and maintainability.
 
