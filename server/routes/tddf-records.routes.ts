@@ -1872,11 +1872,11 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordsParamIndex++;
       }
       
-      // Add date range filtering
+      // Add date range filtering (using text comparison since YYYY-MM-DD sorts correctly)
       const { date_from, date_to } = req.query;
       if (date_from) {
-        summaryWhereConditions.push(`(r.record_data->>'batchDate')::date >= $${summaryParamIndex}::date`);
-        recordsWhereConditions.push(`(r.record_data->>'batchDate')::date >= $${recordsParamIndex}::date`);
+        summaryWhereConditions.push(`(r.record_data->>'batchDate') >= $${summaryParamIndex}`);
+        recordsWhereConditions.push(`(r.record_data->>'batchDate') >= $${recordsParamIndex}`);
         summaryParams.push(date_from as string);
         recordsParams.push(date_from as string);
         summaryParamIndex++;
@@ -1884,8 +1884,8 @@ export function registerTddfRecordsRoutes(app: Express) {
       }
       
       if (date_to) {
-        summaryWhereConditions.push(`(r.record_data->>'batchDate')::date <= $${summaryParamIndex}::date`);
-        recordsWhereConditions.push(`(r.record_data->>'batchDate')::date <= $${recordsParamIndex}::date`);
+        summaryWhereConditions.push(`(r.record_data->>'batchDate') <= $${summaryParamIndex}`);
+        recordsWhereConditions.push(`(r.record_data->>'batchDate') <= $${recordsParamIndex}`);
         summaryParams.push(date_to as string);
         recordsParams.push(date_to as string);
         summaryParamIndex++;
