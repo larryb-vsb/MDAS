@@ -506,9 +506,15 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  // Query for BH records with date range
+  // Query for BH records with date range - v2 to bust stale cache
   const { data: batchesResponse, isLoading, isFetching, refetch } = useQuery<any>({
-    queryKey: ['/api/tddf-api/merchant-batches', paddedMerchantId, dateFrom, dateTo],
+    queryKey: ['/api/tddf-api/all-records', { 
+      record_type: 'BH',
+      merchant_account: paddedMerchantId,
+      date_from: dateFrom,
+      date_to: dateTo,
+      limit: '10000'
+    }],
     queryFn: async () => {
       if (!paddedMerchantId) return { records: [], total: 0 };
       
@@ -517,13 +523,15 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
         merchant_account: paddedMerchantId,
         date_from: dateFrom,
         date_to: dateTo,
-        limit: '10000' // Fetch all, paginate on frontend
+        limit: '10000'
       });
       
       const response: any = await apiRequest(`/api/tddf-api/all-records?${params}`);
       return { records: response?.data || [], total: response?.data?.length || 0 };
     },
-    enabled: !!paddedMerchantId
+    enabled: !!paddedMerchantId,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false
   });
 
   const batches = batchesResponse?.records || [];
