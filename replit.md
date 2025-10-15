@@ -72,6 +72,7 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **Single-Day Batch View with Navigation**: Merchant Detail Batches tab now uses single-day date picker with Previous/Next navigation buttons (← →) instead of date range selector. Uses timezone-safe date parsing with `parseISO` and `addDays`/`subDays` from date-fns to prevent day-skipping across timezones. Backend supports `batch_date` parameter for exact-match filtering while maintaining backward compatibility with date range queries.
 - **Duplicate File Upload Prevention**: Line-level deduplication system using SHA-256 hash of first 52 characters (sequence + record type + bank + merchant + association + group). Post-insert validation strategy with bulk insert followed by single cleanup query using MAX(id) to retain newest records and delete older duplicates. UI displays "validating" status phase (teal badge) during duplicate cleanup.
 - **File Processing Status Messages**: Added `status_message` column to uploader_uploads table for user-friendly status messages during processing phases (e.g., "Validating & removing duplicates...", "Completed: X records, Y duplicates removed").
+- **Enhanced DT Record Display in Raw Data View**: DT records in Raw tab Flat View now display formatted business information (merchant name, account number, transaction date, and amount) alongside badges, matching the BH record display pattern for improved readability and data visibility.
 
 ## External Dependencies
 
