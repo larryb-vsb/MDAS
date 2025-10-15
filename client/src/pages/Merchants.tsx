@@ -39,6 +39,10 @@ export default function Merchants() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   
+  // State for sorting
+  const [sortColumn, setSortColumn] = useState<string>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  
   // Handle URL parameters on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -63,7 +67,7 @@ export default function Merchants() {
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
-    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery, merchantType],
+    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery, merchantType, sortColumn, sortDirection],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -83,6 +87,11 @@ export default function Merchants() {
       
       if (merchantType !== "All") {
         params.append('merchantType', merchantType);
+      }
+      
+      if (sortColumn) {
+        params.append('sortBy', sortColumn);
+        params.append('sortOrder', sortDirection);
       }
       
       const response = await fetch(`/api/merchants?${params.toString()}`);
@@ -183,6 +192,18 @@ export default function Merchants() {
       description: "Reloading merchant data...",
     });
   };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+    setCurrentPage(1); // Reset to first page when sorting changes
+  };
   
   return (
     <MainLayout>
@@ -261,6 +282,9 @@ export default function Merchants() {
               onDeleteSelected={handleDeleteSelected}
               deleteMutation={deleteMutation}
               mergeMutation={mergeMutation}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
           </TabsContent>
           
@@ -291,6 +315,9 @@ export default function Merchants() {
               onDeleteSelected={handleDeleteSelected}
               deleteMutation={deleteMutation}
               mergeMutation={mergeMutation}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
           </TabsContent>
           
@@ -321,6 +348,9 @@ export default function Merchants() {
               onDeleteSelected={handleDeleteSelected}
               deleteMutation={deleteMutation}
               mergeMutation={mergeMutation}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
           </TabsContent>
           

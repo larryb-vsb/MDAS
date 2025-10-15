@@ -17,8 +17,10 @@ export function registerMerchantRoutes(app: Express) {
       const lastUpload = req.query.lastUpload as string || "Any time";
       const search = req.query.search as string || "";
       const merchantType = req.query.merchantType as string || "All";
+      const sortBy = req.query.sortBy as string || "name";
+      const sortOrder = (req.query.sortOrder as string || "asc").toLowerCase() as "asc" | "desc";
 
-      const result = await storage.getMerchants(page, limit, status, lastUpload, search, merchantType);
+      const result = await storage.getMerchants(page, limit, status, lastUpload, search, merchantType, sortBy, sortOrder);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch merchants" });

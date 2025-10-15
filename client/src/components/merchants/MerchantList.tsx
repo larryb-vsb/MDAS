@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, Upload, Edit, Trash2, CheckSquare, GitMerge } from "lucide-react";
+import { Eye, Upload, Edit, Trash2, CheckSquare, GitMerge, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import MerchantPagination from "./MerchantPagination";
 import MergeModal from "./MergeModal";
 import { Merchant, Pagination } from "@/lib/types";
@@ -46,6 +46,9 @@ interface MerchantListProps {
   onDeleteSelected: () => void;
   deleteMutation: any;
   mergeMutation: any;
+  sortColumn: string;
+  sortDirection: "asc" | "desc";
+  onSort: (column: string) => void;
 }
 
 export default function MerchantList({
@@ -60,12 +63,26 @@ export default function MerchantList({
   onDeleteSelected,
   deleteMutation,
   mergeMutation,
+  sortColumn,
+  sortDirection,
+  onSort,
 }: MerchantListProps) {
   const [, setLocation] = useLocation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Render sort icon based on column state
+  const renderSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 opacity-40" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="w-4 h-4 ml-1" />
+      : <ArrowDown className="w-4 h-4 ml-1" />;
+  };
+  
   const getStatusBadgeColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
@@ -185,23 +202,59 @@ export default function MerchantList({
                       />
                     )}
                   </TableHead>
-                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
-                    Merchant
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("name")}
+                  >
+                    <div className="flex items-center">
+                      Merchant
+                      {renderSortIcon("name")}
+                    </div>
                   </TableHead>
-                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
-                    Client MID
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("clientMID")}
+                  >
+                    <div className="flex items-center">
+                      Client MID
+                      {renderSortIcon("clientMID")}
+                    </div>
                   </TableHead>
-                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
-                    Status
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("status")}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      {renderSortIcon("status")}
+                    </div>
                   </TableHead>
-                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
-                    Last Upload
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("lastUpload")}
+                  >
+                    <div className="flex items-center">
+                      Last Upload
+                      {renderSortIcon("lastUpload")}
+                    </div>
                   </TableHead>
-                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
-                    Daily Stats
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("dailyTransactions")}
+                  >
+                    <div className="flex items-center">
+                      Daily Stats
+                      {renderSortIcon("dailyTransactions")}
+                    </div>
                   </TableHead>
-                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
-                    Monthly Stats
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("monthlyTransactions")}
+                  >
+                    <div className="flex items-center">
+                      Monthly Stats
+                      {renderSortIcon("monthlyTransactions")}
+                    </div>
                   </TableHead>
                   <TableHead className="relative px-6 py-3">
                     <span className="sr-only">Actions</span>

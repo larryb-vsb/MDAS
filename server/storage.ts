@@ -241,7 +241,7 @@ export interface IStorage {
   bulkUpsertMccSchemaFields(fields: InsertMerchantMccSchema[]): Promise<{ inserted: number; updated: number }>;
 
   // Merchant operations
-  getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string, merchantType?: string): Promise<{
+  getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string, merchantType?: string, sortBy?: string, sortOrder?: "asc" | "desc"): Promise<{
     merchants: any[];
     pagination: {
       currentPage: number;
@@ -1174,7 +1174,9 @@ export class DatabaseStorage implements IStorage {
     status: string = "All", 
     lastUpload: string = "Any time",
     search: string = "",
-    merchantType: string = "All"
+    merchantType: string = "All",
+    sortBy: string = "name",
+    sortOrder: "asc" | "desc" = "asc"
   ): Promise<{
     merchants: any[];
     pagination: {
@@ -1364,24 +1366,59 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`[SEARCH DEBUG] Applying ${conditions.length} conditions to query`);
       
+      // Map frontend sort columns to database columns
+      const sortColumnMap: Record<string, string> = {
+        'name': 'name',
+        'clientMID': 'client_mid',
+        'status': 'status',
+        'lastUpload': 'last_upload_date',
+        'dailyTransactions': 'name', // No direct DB column, will sort in-memory
+        'monthlyTransactions': 'name' // No direct DB column, will sort in-memory
+      };
+      
+      // Validate sort order
+      const validatedSortOrder = (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'asc';
+      const dbSortColumn = sortColumnMap[sortBy] || 'name';
+      const orderDirection = validatedSortOrder.toUpperCase();
+      
+      // For transaction-based sorts, we need to fetch all records, compute stats, sort, then paginate
+      const needsInMemorySort = (sortBy === 'dailyTransactions' || sortBy === 'monthlyTransactions');
+      
       // Get total count for pagination (with filters applied)
       let countQuery, mainQuery;
       if (queryParams.length > 0) {
         countQuery = `SELECT COUNT(*) as count FROM ${merchantsTableName} ${whereClause}`;
-        mainQuery = `
-          SELECT * FROM ${merchantsTableName} 
-          ${whereClause}
-          ORDER BY name ASC
-          LIMIT ${limit} OFFSET ${(page - 1) * limit}
-        `;
+        if (needsInMemorySort) {
+          // Fetch all records for in-memory sorting
+          mainQuery = `
+            SELECT * FROM ${merchantsTableName} 
+            ${whereClause}
+            ORDER BY name ASC
+          `;
+        } else {
+          mainQuery = `
+            SELECT * FROM ${merchantsTableName} 
+            ${whereClause}
+            ORDER BY ${dbSortColumn} ${orderDirection}
+            LIMIT ${limit} OFFSET ${(page - 1) * limit}
+          `;
+        }
       } else {
         // No parameters - use simple queries
         countQuery = `SELECT COUNT(*) as count FROM ${merchantsTableName}`;
-        mainQuery = `
-          SELECT * FROM ${merchantsTableName}
-          ORDER BY name ASC
-          LIMIT ${limit} OFFSET ${(page - 1) * limit}
-        `;
+        if (needsInMemorySort) {
+          // Fetch all records for in-memory sorting
+          mainQuery = `
+            SELECT * FROM ${merchantsTableName}
+            ORDER BY name ASC
+          `;
+        } else {
+          mainQuery = `
+            SELECT * FROM ${merchantsTableName}
+            ORDER BY ${dbSortColumn} ${orderDirection}
+            LIMIT ${limit} OFFSET ${(page - 1) * limit}
+          `;
+        }
       }
       
       console.log(`[SEARCH DEBUG] Executing query with ${conditions.length} conditions`);
@@ -1402,7 +1439,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[SEARCH DEBUG] Query returned ${merchants.length} merchants`);
       
       // Calculate stats for each merchant and format lastUploadDate
-      const merchantsWithStats = await Promise.all(merchants.map(async (merchant) => {
+      let merchantsWithStats = await Promise.all(merchants.map(async (merchant) => {
         const stats = await this.getMerchantStats(merchant.id);
         
         // Format last upload date
@@ -1432,12 +1469,32 @@ export class DatabaseStorage implements IStorage {
         return {
           id: merchant.id,
           name: merchant.name,
+          clientMID: merchant.client_mid,
           status: merchant.status,
           lastUpload,
           dailyStats: stats.daily,
           monthlyStats: stats.monthly
         };
       }));
+      
+      // Apply in-memory sorting and pagination for transaction-based columns
+      if (needsInMemorySort) {
+        merchantsWithStats.sort((a, b) => {
+          const aValue = sortBy === 'dailyTransactions' 
+            ? a.dailyStats.transactions 
+            : a.monthlyStats.transactions;
+          const bValue = sortBy === 'dailyTransactions' 
+            ? b.dailyStats.transactions 
+            : b.monthlyStats.transactions;
+          
+          return validatedSortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+        });
+        
+        // Apply pagination after sorting
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        merchantsWithStats = merchantsWithStats.slice(startIndex, endIndex);
+      }
       
       const queryTime = Date.now() - startTime;
       console.log(`[MERCHANTS-DIRECT] ✅ Direct query completed in ${queryTime}ms`);
