@@ -89,23 +89,15 @@ export function registerTddfRecordsRoutes(app: Express) {
   // Get TDDF batch headers with pagination (must come before :id route)
   app.get("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
     try {
-      console.log('[BH API] Batch headers request received');
-      console.log('[BH API] User authenticated:', !!req.user);
-      console.log('[BH API] Query params:', req.query);
-      
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
       const merchantAccount = req.query.merchantAccount as string;
-      
-      console.log('[BH API] Calling storage.getTddfBatchHeaders with:', { page, limit, merchantAccount });
       
       const result = await storage.getTddfBatchHeaders({
         page,
         limit,
         merchantAccount
       });
-      
-      console.log('[BH API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
       
       res.json(result);
     } catch (error) {
@@ -119,8 +111,6 @@ export function registerTddfRecordsRoutes(app: Express) {
   // Get TDDF purchasing extensions (P1 records) with pagination
   app.get("/api/tddf/purchasing-extensions", isAuthenticated, async (req, res) => {
     try {
-      console.log('[P1 API] P1 purchasing extensions request received');
-      
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
       
@@ -128,8 +118,6 @@ export function registerTddfRecordsRoutes(app: Express) {
         page,
         limit
       });
-      
-      console.log('[P1 API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
       
       res.json(result);
     } catch (error) {
@@ -143,9 +131,6 @@ export function registerTddfRecordsRoutes(app: Express) {
   // Get TDDF other records (E1, G2, AD, DR, etc.) with pagination and filtering
   app.get("/api/tddf/other-records", isAuthenticated, async (req, res) => {
     try {
-      console.log('[OTHER API] Other records request received');
-      console.log('[OTHER API] Query params:', req.query);
-      
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
       const recordType = req.query.recordType as string;
@@ -158,15 +143,11 @@ export function registerTddfRecordsRoutes(app: Express) {
         return res.status(400).json({ error: "Invalid limit parameter" });
       }
       
-      console.log('[OTHER API] Calling storage with:', { page, limit, recordType });
-      
       const result = await storage.getTddfOtherRecords({
         page,
         limit,
         recordType
       });
-      
-      console.log('[OTHER API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
       
       res.json(result);
     } catch (error) {
@@ -180,8 +161,6 @@ export function registerTddfRecordsRoutes(app: Express) {
   // Get TDDF purchasing extensions 2 (P2 records) with pagination
   app.get("/api/tddf/purchasing-extensions-2", isAuthenticated, async (req, res) => {
     try {
-      console.log('[P2 API] P2 purchasing extensions request received');
-      
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
       
@@ -189,8 +168,6 @@ export function registerTddfRecordsRoutes(app: Express) {
         page,
         limit
       });
-      
-      console.log('[P2 API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
       
       res.json(result);
     } catch (error) {
@@ -210,11 +187,7 @@ export function registerTddfRecordsRoutes(app: Express) {
         return res.status(400).json({ error: "recordIds must be a non-empty array" });
       }
 
-      console.log('[BH DELETE] Attempting to delete BH records:', recordIds);
-      
       await storage.deleteTddfBatchHeaders(recordIds);
-      
-      console.log('[BH DELETE] Successfully deleted BH records:', recordIds);
       
       res.json({ 
         success: true, 
