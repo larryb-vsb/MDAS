@@ -399,6 +399,10 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
       // Generate unique record ID for master table
       const masterRecordId = `${upload.id}_line_${lineNumber}_${recordType}`;
       
+      // Calculate hash from first 52 characters for duplicate detection
+      const first52Chars = line.substring(0, 52);
+      const rawLineHash = crypto.createHash('sha256').update(first52Chars).digest('hex');
+      
       // Prepare master table record (tddfJsonb)
       const masterRecord = {
         id: masterRecordId,
@@ -407,6 +411,7 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
         lineNumber: lineNumber,
         recordType: recordType,
         rawLine: line,
+        rawLineHash: rawLineHash,
         extractedFields: JSON.stringify(extractedFields),
         recordIdentifier: extractedFields.recordIdentifier || null,
         tddfProcessingDatetime: processingDatetime,
@@ -472,6 +477,54 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
       await insertApiRecordsBatch(apiRecordsTable, apiRecordsBatch);
     }
     
+    console.log(`[STEP-6-VALIDATION] Starting duplicate validation and cleanup...`);
+    
+    // Update status to 'validating'
+    const { getTableName: getUploaderTableName } = await import("./table-config");
+    const uploaderTableName = getUploaderTableName('uploader_uploads');
+    await batchPool.query(`
+      UPDATE ${uploaderTableName}
+      SET current_phase = 'validating', 
+          status_message = 'Validating & removing duplicates...'
+      WHERE id = $1
+    `, [upload.id]);
+    
+    // Count records before cleanup
+    const beforeCountResult = await batchPool.query(`
+      SELECT COUNT(*) as count FROM ${tddfJsonbTable} WHERE upload_id = $1
+    `, [upload.id]);
+    const recordsBeforeCleanup = parseInt(beforeCountResult.rows[0]?.count || '0', 10);
+    
+    // Remove duplicate records (keep newest based on MAX(id))
+    const deleteResult = await batchPool.query(`
+      DELETE FROM ${tddfJsonbTable}
+      WHERE id IN (
+        SELECT t1.id
+        FROM ${tddfJsonbTable} t1
+        WHERE t1.raw_line_hash IN (
+          SELECT raw_line_hash
+          FROM ${tddfJsonbTable}
+          WHERE raw_line_hash IS NOT NULL
+          GROUP BY raw_line_hash
+          HAVING COUNT(*) > 1
+        )
+        AND t1.id NOT IN (
+          SELECT MAX(id) as max_id
+          FROM ${tddfJsonbTable}
+          WHERE raw_line_hash IS NOT NULL
+          GROUP BY raw_line_hash
+        )
+      )
+    `);
+    
+    const duplicatesRemoved = deleteResult.rowCount || 0;
+    const recordsAfterCleanup = recordsBeforeCleanup - duplicatesRemoved;
+    
+    console.log(`[STEP-6-VALIDATION] ✅ Duplicate cleanup completed:`);
+    console.log(`[STEP-6-VALIDATION] - Records before: ${recordsBeforeCleanup}`);
+    console.log(`[STEP-6-VALIDATION] - Duplicates removed: ${duplicatesRemoved}`);
+    console.log(`[STEP-6-VALIDATION] - Records after: ${recordsAfterCleanup}`);
+    
     // Process merchants and terminals from DT records
     if (dtRecordsForMerchantProcessing.length > 0) {
       console.log(`[STEP-6-MERCHANTS] Processing ${dtRecordsForMerchantProcessing.length} DT records for merchant/terminal updates`);
@@ -489,11 +542,21 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     const totalRecords = masterRecordCount + apiRecordCount;
     const recordsPerSecond = totalRecords > 0 && durationSeconds > 0 ? totalRecords / durationSeconds : 0;
     
+    // Update to 'completed' status with duplicate stats
+    await batchPool.query(`
+      UPDATE ${uploaderTableName}
+      SET current_phase = 'completed', 
+          status_message = $1
+      WHERE id = $2
+    `, [`Completed: ${recordsAfterCleanup} records, ${duplicatesRemoved} duplicates removed`, upload.id]);
+    
     console.log(`[STEP-6-PROCESSING] ✅ Successfully processed ${upload.filename}:`);
     console.log(`[STEP-6-PROCESSING] - Total lines: ${lines.length}`);
     console.log(`[STEP-6-PROCESSING] - Master table records: ${masterRecordCount}`);
     console.log(`[STEP-6-PROCESSING] - API records: ${apiRecordCount}`);
     console.log(`[STEP-6-PROCESSING] - Skipped lines: ${skipCount}`);
+    console.log(`[STEP-6-PROCESSING] - Duplicates removed: ${duplicatesRemoved}`);
+    console.log(`[STEP-6-PROCESSING] - Final record count: ${recordsAfterCleanup}`);
     console.log(`[STEP-6-PROCESSING] - Merchants created: ${merchantsCreated}, updated: ${merchantsUpdated}`);
     console.log(`[STEP-6-PROCESSING] - Terminals created: ${terminalsCreated}, updated: ${terminalsUpdated}`);
     console.log(`[STEP-6-PROCESSING] - Processing time: ${processingTimeMs}ms`);
@@ -521,6 +584,8 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
       masterRecords: masterRecordCount,
       apiRecords: apiRecordCount,
       skippedLines: skipCount,
+      duplicatesRemoved: duplicatesRemoved,
+      finalRecordCount: recordsAfterCleanup,
       processingTimeMs: processingTimeMs,
       merchantsCreated,
       merchantsUpdated,
@@ -566,8 +631,8 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   if (records.length === 0) return;
   
   const values = records.map((_, index) => {
-    const offset = index * 12;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+    const offset = index * 13;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13})`;
   }).join(', ');
   
   const params = records.flatMap(record => [
@@ -576,6 +641,7 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
     record.lineNumber,
     record.recordType,
     record.rawLine,
+    record.rawLineHash,
     record.extractedFields,
     record.recordIdentifier,
     record.tddfProcessingDatetime,
@@ -587,7 +653,7 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   
   await batchPool.query(`
     INSERT INTO ${tableName} (
-      upload_id, filename, line_number, record_type, raw_line, 
+      upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
       extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
       parsed_datetime, record_time_source, created_at
     ) VALUES ${values}

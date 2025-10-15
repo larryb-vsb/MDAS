@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink, Link2, Plus, Edit, Users, Building } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink, Link2, Plus, Edit, Users, Building, ShieldCheck } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -68,7 +68,7 @@ interface UploaderUploadWithPresigned extends UploaderUpload {
 
 
 
-// 9-State Processing Workflow
+// 10-State Processing Workflow (includes validating phase)
 const PROCESSING_PHASES = [
   { id: 'started', name: 'Started', icon: Play, color: 'blue', description: 'Upload initialized' },
   { id: 'uploading', name: 'Uploading', icon: Upload, color: 'purple', description: 'File transfer in progress' },
@@ -76,6 +76,7 @@ const PROCESSING_PHASES = [
   { id: 'identified', name: 'Identified', icon: Search, color: 'orange', description: 'File type detected and analyzed' },
   { id: 'hold', name: 'Hold', icon: Pause, color: 'yellow', description: 'Held from Auto 4-5 processing' },
   { id: 'encoding', name: 'Encoding', icon: Settings, color: 'pink', description: 'Data encoding and validation' },
+  { id: 'validating', name: 'Validating', icon: ShieldCheck, color: 'teal', description: 'Validating & removing duplicates' },
   { id: 'processing', name: 'Processing', icon: Database, color: 'indigo', description: 'Data being processed' },
   { id: 'completed', name: 'Completed', icon: CheckCircle, color: 'green', description: 'Successfully processed' },
   { id: 'warning', name: 'Warning State', icon: AlertCircle, color: 'red', description: 'Processing failed or has errors' }
@@ -140,7 +141,7 @@ const formatProcessingDuration = (durationSeconds: number): string => {
 // Storage status bulb color determination
 const getBulbColor = (upload: UploaderUpload, storageStatus?: any): string => {
   // Grey (not accessible) for early phases
-  if (!['uploaded', 'identified', 'encoding', 'processing', 'completed', 'encoded'].includes(upload.currentPhase || '')) {
+  if (!['uploaded', 'identified', 'encoding', 'validating', 'processing', 'completed', 'encoded'].includes(upload.currentPhase || '')) {
     return 'text-gray-400';
   }
   
@@ -286,7 +287,7 @@ export default function MMSUploader() {
     const objectName = upload.s3Key || `dev-uploader/${upload.id}/${upload.filename}`;
     
     // Early phases - still connecting/pending
-    if (!['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+    if (!['uploaded', 'identified', 'encoding', 'validating', 'processing', 'completed'].includes(upload.currentPhase || '')) {
       return `Object: ${objectName} - Status: Connecting/Pending`;
     }
     
@@ -1406,7 +1407,7 @@ export default function MMSUploader() {
   const completedUploads = (uploadsByPhase.completed?.length || 0) + (uploadsByPhase.encoded?.length || 0);
   const warningUploads = (uploadsByPhase.warning?.length || 0) + (uploadsByPhase.failed?.length || 0) + (uploadsByPhase.error?.length || 0);
   const activeUploads = (uploadsByPhase.started?.length || 0) + (uploadsByPhase.uploading?.length || 0); // Only truly uploading files
-  const processingUploads = (uploadsByPhase.uploaded?.length || 0) + (uploadsByPhase.identified?.length || 0) + (uploadsByPhase.encoding?.length || 0) + (uploadsByPhase.processing?.length || 0); // Files waiting for or undergoing processing
+  const processingUploads = (uploadsByPhase.uploaded?.length || 0) + (uploadsByPhase.identified?.length || 0) + (uploadsByPhase.encoding?.length || 0) + (uploadsByPhase.validating?.length || 0) + (uploadsByPhase.processing?.length || 0); // Files waiting for or undergoing processing
 
   // Reset page when filters or sorting change
   React.useEffect(() => {
@@ -1423,7 +1424,7 @@ export default function MMSUploader() {
       });
       return response;
     },
-    enabled: !!selectedFileForView && ['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(selectedFileForView.currentPhase || ''),
+    enabled: !!selectedFileForView && ['uploaded', 'identified', 'encoding', 'validating', 'encoded', 'processing', 'completed'].includes(selectedFileForView.currentPhase || ''),
     refetchOnWindowFocus: false
   });
 
@@ -3003,7 +3004,7 @@ export default function MMSUploader() {
                   paginatedUploads.map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
-                    const canViewContent = ['uploaded', 'identified', 'hold', 'encoding', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '');
+                    const canViewContent = ['uploaded', 'identified', 'hold', 'encoding', 'validating', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '');
                     
                     return (
                       <div key={upload.id} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50">
@@ -3145,7 +3146,7 @@ export default function MMSUploader() {
                           )}
 
                           {/* View Contents Button */}
-                          {['uploaded', 'identified', 'encoding', 'processing', 'completed', 'encoded'].includes(upload.currentPhase || '') && (
+                          {['uploaded', 'identified', 'encoding', 'validating', 'processing', 'completed', 'encoded'].includes(upload.currentPhase || '') && (
                             <Button
                               variant="ghost"
                               size="sm"
