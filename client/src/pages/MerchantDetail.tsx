@@ -537,6 +537,12 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
   const batches = batchesResponse?.records || [];
   const totalBatches = batchesResponse?.total || 0;
   
+  // Debug logging
+  console.log('[BATCHES-TAB] batchesResponse:', batchesResponse);
+  console.log('[BATCHES-TAB] batches array:', batches);
+  console.log('[BATCHES-TAB] batches.length:', batches.length);
+  console.log('[BATCHES-TAB] totalBatches:', totalBatches);
+  
   // Calculate pagination
   const totalPages = Math.ceil(totalBatches / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
