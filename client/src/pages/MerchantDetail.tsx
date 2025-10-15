@@ -1838,7 +1838,7 @@ export default function MerchantDetail() {
 
         {/* Batches Tab */}
         <TabsContent value="batches">
-          <MerchantBatchesTab merchantId={data?.merchant.clientMID || ''} />
+          <MerchantBatchesTab merchantId={data?.merchant.id || ''} />
         </TabsContent>
 
         {/* ACH Transactions Tab */}
