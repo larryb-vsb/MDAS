@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -63,6 +64,108 @@ interface TransactionsResponse {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+// DT Record interface
+interface DtRecord {
+  id: string;
+  file_id: string;
+  record_type: string;
+  line_number: number;
+  raw_data: string;
+  parsed_data: any;
+  created_at: string;
+  filename: string;
+  business_day: string;
+  file_processing_time?: string;
+  scheduledSlot?: string;
+  scheduledSlotLabel?: string;
+  slotDayOffset?: number;
+}
+
+interface DtRecordsResponse {
+  data: DtRecord[];
+  total: number;
+}
+
+// Helper functions for DT record display (copied from TddfApiDataPage)
+function getCardTypeBadges(cardType: string) {
+  const badges: Record<string, { label: string; className: string }> = {
+    'VD': { label: 'Visa Debit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'VC': { label: 'Visa Credit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'MD': { label: 'Mastercard Debit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    'MC': { label: 'Mastercard Credit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
+    'AX': { label: 'American Express', className: 'bg-green-50 text-green-700 border-green-200' },
+    'DS': { label: 'Discover', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+    'DI': { label: 'Diners Club', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+    'JC': { label: 'JCB', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  };
+  return badges[cardType] || { label: cardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
+}
+
+function extractCardType(record: any): string | null {
+  let cardType = record.parsed_data?.cardType || record.record_data?.cardType;
+  
+  if (!cardType && record.raw_data && record.raw_data.length >= 254) {
+    cardType = record.raw_data.substring(252, 254).trim() || null;
+  }
+  
+  return cardType ? cardType.toUpperCase().trim() : null;
+}
+
+function extractMerchantAccountNumber(record: any): string | null {
+  let merchantAccountNumber = record.parsed_data?.merchantAccountNumber || 
+                              record.record_data?.merchantAccountNumber ||
+                              record.parsed_data?.merchant_account_number ||
+                              record.record_data?.merchant_account_number;
+  
+  if (!merchantAccountNumber && (record.record_type === 'BH' || record.record_type === '10')) {
+    merchantAccountNumber = record.parsed_data?.acquirerBin || 
+                           record.record_data?.acquirerBin ||
+                           record.parsed_data?.AcquirerBIN ||
+                           record.record_data?.AcquirerBIN;
+  }
+  
+  // Normalize account number by removing leading zeros and padding to 16 digits
+  if (merchantAccountNumber) {
+    const cleaned = merchantAccountNumber.toString().replace(/^0+/, '');
+    merchantAccountNumber = cleaned.padStart(16, '0');
+  }
+  
+  return merchantAccountNumber;
+}
+
+function extractTransactionDate(record: any): string | null {
+  const transactionDate = record.parsed_data?.TransactionDate || 
+                         record.record_data?.TransactionDate ||
+                         record.parsed_data?.transactionDate ||
+                         record.record_data?.transactionDate;
+  
+  if (transactionDate) {
+    try {
+      const date = new Date(transactionDate);
+      if (!isNaN(date.getTime())) {
+        return format(date, 'yyyy-MM-dd');
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+function extractTransactionAmount(record: any): number | null {
+  const transactionAmount = record.parsed_data?.TransactionAmount || 
+                           record.record_data?.TransactionAmount ||
+                           record.parsed_data?.transactionAmount ||
+                           record.record_data?.transactionAmount ||
+                           record.parsed_data?.transaction_amount ||
+                           record.record_data?.transaction_amount;
+  
+  if (transactionAmount !== null && transactionAmount !== undefined) {
+    return Number(transactionAmount);
+  }
+  return null;
 }
 
 // Helper function to format currency
@@ -397,6 +500,193 @@ function AchTransactionsTab() {
   );
 }
 
+// MCC/TDDF Transactions Tab Component
+function MccTddfTransactionsTab() {
+  const [merchantLookup, setMerchantLookup] = useState<Record<string, string>>({});
+
+  // Fetch last 100 DT records
+  const { data, isLoading, error } = useQuery<DtRecordsResponse>({
+    queryKey: ["/api/tddf-records/dt-latest"],
+  });
+
+  // Fetch merchant lookup data
+  const { data: lookupData } = useQuery<Record<string, string>>({
+    queryKey: ['/api/merchants/lookup-map'],
+    enabled: (data?.data?.length ?? 0) > 0,
+  });
+
+  // Update merchant lookup when data changes
+  useEffect(() => {
+    if (lookupData) {
+      setMerchantLookup(lookupData);
+    }
+  }, [lookupData]);
+
+  const getMerchantName = (merchantAccount: string | null): string | null => {
+    if (!merchantAccount) return null;
+    return merchantLookup[merchantAccount] || null;
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/tddf-records/dt-latest"] });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header Controls */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-600">
+            Showing last 100 DT (Detail Transaction) records
+          </p>
+        </div>
+
+        <Button 
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="flex items-center gap-2"
+          data-testid="button-refresh-dt"
+        >
+          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-600">
+              Failed to load DT records. Please try again.
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">Type</TableHead>
+                    <TableHead>Transaction Details</TableHead>
+                    <TableHead className="w-40">File</TableHead>
+                    <TableHead className="w-16">Line</TableHead>
+                    <TableHead className="w-32">Business Day</TableHead>
+                    <TableHead className="w-24">Scheduled Slot</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data?.data && data.data.length > 0 ? (
+                    data.data.map((record) => (
+                      <TableRow key={record.id} data-testid={`row-dt-${record.id}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                              data-testid={`badge-dt-${record.id}`}
+                            >
+                              DT
+                            </Badge>
+                            {/* Card type badge */}
+                            {(() => {
+                              const cardType = extractCardType(record);
+                              return cardType ? (
+                                <span 
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                >
+                                  <CreditCard className="h-3 w-3" />
+                                  {getCardTypeBadges(cardType).label}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-md">
+                          <div className="flex items-center gap-3 text-sm">
+                            {/* Merchant Account and Name */}
+                            {(() => {
+                              const merchantAccountNumber = extractMerchantAccountNumber(record);
+                              const merchantName = getMerchantName(merchantAccountNumber);
+                              return merchantAccountNumber ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold text-blue-600">
+                                    {merchantAccountNumber}
+                                  </span>
+                                  {merchantName && (
+                                    <span className="text-xs font-semibold text-green-600">
+                                      {merchantName}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : null;
+                            })()}
+                            
+                            {/* Transaction Date and Amount */}
+                            {(() => {
+                              const transactionDate = extractTransactionDate(record);
+                              const transactionAmount = extractTransactionAmount(record);
+                              return (transactionDate || transactionAmount !== null) ? (
+                                <div className="ml-auto flex items-center gap-3">
+                                  {transactionDate && (
+                                    <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                      <CalendarIcon className="h-4 w-4" />
+                                      {transactionDate}
+                                    </span>
+                                  )}
+                                  {transactionAmount !== null && (
+                                    <span className="font-medium text-gray-700">
+                                      ${Number(transactionAmount).toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="truncate text-sm" title={record.filename}>
+                          {record.filename || 'Unknown'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
+                        <TableCell className="text-sm">
+                          {record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {record.scheduledSlotLabel || 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        No DT records found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Footer */}
+              {data && data.total > 0 && (
+                <div className="p-4 border-t">
+                  <div className="text-sm text-gray-600">
+                    Showing {data.total} most recent DT transaction records
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // Main Transactions Page
 export default function Transactions() {
   return (
@@ -422,20 +712,7 @@ export default function Transactions() {
           </TabsContent>
 
           <TabsContent value="mcc">
-            <Card>
-              <CardHeader>
-                <CardTitle>MCC/TDDF Transactions</CardTitle>
-                <CardDescription>
-                  MCC and TDDF transaction data will be available here
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-lg font-medium mb-2">Coming Soon</p>
-                  <p className="text-sm">MCC/TDDF transaction view will be added in a future update</p>
-                </div>
-              </CardContent>
-            </Card>
+            <MccTddfTransactionsTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -2438,4 +2438,80 @@ export function registerTddfRecordsRoutes(app: Express) {
       });
     }
   });
+
+  // Get latest 100 DT records for MCC/TDDF Transactions tab
+  app.get('/api/tddf-records/dt-latest', isAuthenticated, async (req, res) => {
+    try {
+      const environment = process.env.NODE_ENV || 'development';
+      const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      
+      // Get last 100 DT records
+      const recordsResult = await pool.query(`
+        SELECT 
+          r.id,
+          r.upload_id as file_id,
+          r.record_type,
+          r.line_number,
+          r.raw_line as raw_data,
+          r.record_data as parsed_data,
+          r.created_at,
+          u.filename,
+          u.created_at as business_day,
+          u.encoding_time_ms,
+          u.started_at,
+          u.completed_at
+        FROM ${jsonbTableName} r
+        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        WHERE r.record_type = 'DT'
+        ORDER BY u.created_at DESC, r.line_number ASC
+        LIMIT 100
+      `);
+      
+      // Process records to add filename parsing info
+      const processedRecords = recordsResult.rows.map(record => {
+        let file_processing_time = 'N/A';
+        let scheduledSlot = null;
+        let scheduledSlotLabel = null;
+        let slotDayOffset = 0;
+        
+        // Try intelligent filename parsing
+        const filenameParseResult = parseTddfFilename(record.filename);
+        
+        if (filenameParseResult.parseSuccess) {
+          scheduledSlot = filenameParseResult.scheduledSlotRaw;
+          scheduledSlotLabel = filenameParseResult.scheduledSlotLabel;
+          slotDayOffset = filenameParseResult.slotDayOffset;
+          
+          if (filenameParseResult.processingDelaySeconds !== null) {
+            file_processing_time = formatProcessingTime(filenameParseResult.processingDelaySeconds);
+          }
+        }
+        
+        // Fallback to encoding time
+        if (file_processing_time === 'N/A' && record.encoding_time_ms !== null) {
+          if (record.encoding_time_ms < 1000) {
+            file_processing_time = `${record.encoding_time_ms}ms`;
+          } else {
+            file_processing_time = `${(record.encoding_time_ms / 1000).toFixed(2)}s`;
+          }
+        }
+        
+        return {
+          ...record,
+          file_processing_time,
+          scheduledSlot,
+          scheduledSlotLabel,
+          slotDayOffset
+        };
+      });
+      
+      res.json({
+        data: processedRecords,
+        total: processedRecords.length
+      });
+    } catch (error) {
+      console.error('Error fetching latest DT records:', error);
+      res.status(500).json({ error: 'Failed to fetch DT records' });
+    }
+  });
 }
