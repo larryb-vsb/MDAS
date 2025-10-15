@@ -5658,6 +5658,47 @@ function RawDataTab({
                                 ) : null;
                               })()}
                             </div>
+                          ) : (record.record_type === 'DT' || record.record_type === '47') ? (
+                            <div className="flex items-center gap-3 text-sm">
+                              {/* Merchant Account and Name for DT records */}
+                              {(() => {
+                                const merchantAccountNumber = extractMerchantAccountNumber(record);
+                                const merchantName = getMerchantName(merchantAccountNumber);
+                                return merchantAccountNumber ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      {merchantAccountNumber}
+                                    </span>
+                                    {merchantName && (
+                                      <span className="text-xs font-semibold text-green-600">
+                                        {merchantName}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              {/* Transaction Date and Amount */}
+                              {(() => {
+                                const transactionDate = extractTransactionDate(record);
+                                const transactionAmount = extractTransactionAmount(record);
+                                return (transactionDate || transactionAmount !== null) ? (
+                                  <div className="ml-auto flex items-center gap-3">
+                                    {transactionDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {transactionDate}
+                                      </span>
+                                    )}
+                                    {transactionAmount !== null && (
+                                      <span className="font-medium text-gray-700">
+                                        ${(transactionAmount / 100).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
                           ) : (
                             <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
                               {formatRecordContent(record)}
