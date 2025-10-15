@@ -2526,7 +2526,7 @@ export function registerTddfRecordsRoutes(app: Express) {
           r.record_data as parsed_data,
           r.created_at,
           u.filename,
-          u.created_at as business_day,
+          u.business_day,
           u.encoding_time_ms,
           u.started_at,
           u.completed_at
