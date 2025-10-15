@@ -2439,22 +2439,83 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
-  // Get latest DT records for MCC/TDDF Transactions tab with pagination
+  // Get latest DT records for MCC/TDDF Transactions tab with pagination and filters
   app.get('/api/tddf-records/dt-latest', isAuthenticated, async (req, res) => {
     try {
-      const { limit = 10, offset = 0 } = req.query;
+      const { 
+        limit = 10, 
+        offset = 0,
+        merchantAccount,
+        associationNumber,
+        groupNumber,
+        terminalId,
+        batchDate,
+        cardType
+      } = req.query;
+      
       const environment = process.env.NODE_ENV || 'development';
       const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
-      // Get total count of DT records
+      // Build WHERE clause conditions
+      const conditions: string[] = ["r.record_type = 'DT'"];
+      const params: any[] = [];
+      let paramIndex = 1;
+      
+      // Filter by merchant account (16-digit, stored in JSONB)
+      if (merchantAccount && String(merchantAccount).trim()) {
+        conditions.push(`r.record_data->>'merchantAccountNumber' = $${paramIndex}`);
+        params.push(String(merchantAccount).trim());
+        paramIndex++;
+      }
+      
+      // Filter by association number (JSONB field)
+      if (associationNumber && String(associationNumber).trim()) {
+        conditions.push(`r.record_data->>'associationNumber' = $${paramIndex}`);
+        params.push(String(associationNumber).trim());
+        paramIndex++;
+      }
+      
+      // Filter by group number (JSONB field)
+      if (groupNumber && String(groupNumber).trim()) {
+        conditions.push(`r.record_data->>'groupNumber' = $${paramIndex}`);
+        params.push(String(groupNumber).trim());
+        paramIndex++;
+      }
+      
+      // Filter by terminal ID (JSONB field)
+      if (terminalId && String(terminalId).trim()) {
+        conditions.push(`r.record_data->>'terminalId' = $${paramIndex}`);
+        params.push(String(terminalId).trim());
+        paramIndex++;
+      }
+      
+      // Filter by batch date (JSONB field - ISO date string comparison)
+      if (batchDate && String(batchDate).trim()) {
+        conditions.push(`r.record_data->>'batchDate' = $${paramIndex}`);
+        params.push(String(batchDate).trim());
+        paramIndex++;
+      }
+      
+      // Filter by card type (JSONB field)
+      if (cardType && String(cardType).trim() && cardType !== 'all') {
+        conditions.push(`r.record_data->>'cardType' = $${paramIndex}`);
+        params.push(String(cardType).trim());
+        paramIndex++;
+      }
+      
+      const whereClause = conditions.join(' AND ');
+      
+      // Get total count of DT records with filters applied
       const countResult = await pool.query(`
         SELECT COUNT(*) as total
         FROM ${jsonbTableName} r
-        WHERE r.record_type = 'DT'
-      `);
+        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        WHERE ${whereClause}
+      `, params);
       const totalRecords = parseInt(countResult.rows[0].total);
       
-      // Get paginated DT records
+      // Get paginated DT records with filters applied
+      const dataParams = [...params, limit, offset];
       const recordsResult = await pool.query(`
         SELECT 
           r.id,
@@ -2471,10 +2532,10 @@ export function registerTddfRecordsRoutes(app: Express) {
           u.completed_at
         FROM ${jsonbTableName} r
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
-        WHERE r.record_type = 'DT'
+        WHERE ${whereClause}
         ORDER BY u.created_at DESC, r.line_number ASC
-        LIMIT $1 OFFSET $2
-      `, [limit, offset]);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, dataParams);
       
       // Process records to add filename parsing info
       const processedRecords = recordsResult.rows.map(record => {

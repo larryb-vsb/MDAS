@@ -884,7 +884,11 @@ function MccTddfTransactionsTab() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <p className="text-sm text-gray-600">
-            {data?.total ? `${data.total} DT (Detail Transaction) records${filtersApplied ? ' (filtered)' : ''}` : 'Loading...'}
+            {data?.total !== undefined 
+              ? filtersApplied 
+                ? `Showing ${data.total} filtered records` 
+                : `${data.total} DT (Detail Transaction) records`
+              : 'Loading...'}
           </p>
           
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
