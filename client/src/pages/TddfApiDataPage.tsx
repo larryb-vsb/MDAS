@@ -1079,10 +1079,10 @@ export default function TddfApiDataPage() {
     }
   });
 
-  // Archive mutation for bulk archiving (Step 7)
+  // Manual Step 7 Archive mutation for completed files
   const archiveMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
-      const response = await apiRequest('/api/tddf-archive/bulk-archive', {
+      const response = await apiRequest('/api/uploader/manual-step7-archive', {
         method: 'POST',
         body: { uploadIds }
       });
@@ -1093,13 +1093,13 @@ export default function TddfApiDataPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/tddf-archive'] });
       setSelectedUploads([]);
       toast({ 
-        title: "Archive completed successfully", 
-        description: `${data.archivedFiles?.length || 0} file(s) archived to permanent storage`
+        title: "Manual Step 7 completed successfully", 
+        description: `${data.successCount || 0} file(s) archived to permanent storage`
       });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Archive failed", 
+        title: "Manual Step 7 failed", 
         description: error.message, 
         variant: "destructive" 
       });
@@ -2297,37 +2297,37 @@ export default function TddfApiDataPage() {
                         Reset Errors
                       </Button>
 
-                      {/* Archive Selected Button */}
+                      {/* Manual Step 7 (Archive) Button */}
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={() => {
-                          const archiveFiles = selectedUploads.filter(id => {
+                          const completedFiles = selectedUploads.filter(id => {
                             const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                            return upload && upload.currentPhase === 'completed';
                           });
                           
-                          if (archiveFiles.length === 0) {
+                          if (completedFiles.length === 0) {
                             toast({ 
                               title: "No eligible files selected", 
-                              description: "Please select files that are 'encoded' or 'completed' for archiving",
+                              description: "Please select files that are 'completed' for Step 7 archiving",
                               variant: "destructive" 
                             });
                             return;
                           }
                           
-                          // Trigger archive API call
-                          archiveMutation.mutate(archiveFiles);
+                          // Trigger Manual Step 7 archive
+                          archiveMutation.mutate(completedFiles);
                         }}
-                        className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
                         disabled={archiveMutation.isPending || !selectedUploads.some(id => {
                           const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                          return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                          return upload && upload.currentPhase === 'completed';
                         })}
-                        data-testid="button-archive-selected"
+                        data-testid="button-manual-step7-archive"
                       >
                         <Database className="h-4 w-4 mr-1" />
-                        Archive
+                        Manual Step 7 (Archive)
                       </Button>
                       
                       <Button 
