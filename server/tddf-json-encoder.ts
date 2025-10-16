@@ -359,6 +359,11 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     let apiRecordCount = 0;
     let skipCount = 0;
     
+    // Record type counters for UI display
+    let bhCount = 0;
+    let dtCount = 0;
+    let otherCount = 0;
+    
     // Tracking for merchant and terminal updates
     let merchantsCreated = 0;
     let merchantsUpdated = 0;
@@ -423,6 +428,15 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
       
       masterTableBatch.push(masterRecord);
       masterRecordCount++;
+      
+      // Count record types for UI display
+      if (recordType === 'BH') {
+        bhCount++;
+      } else if (recordType === 'DT') {
+        dtCount++;
+      } else {
+        otherCount++;
+      }
       
       // Prepare enhanced API records table entry (tddApiRecords)
       const apiRecord = {
@@ -541,13 +555,22 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     const totalRecords = masterRecordCount + apiRecordCount;
     const recordsPerSecond = totalRecords > 0 && durationSeconds > 0 ? totalRecords / durationSeconds : 0;
     
-    // Update to 'completed' status with duplicate stats
+    // Update to 'completed' status with duplicate stats and record type counts
     await batchPool.query(`
       UPDATE ${uploaderTableName}
       SET current_phase = 'completed', 
-          status_message = $1
+          status_message = $1,
+          bh_record_count = $3,
+          dt_record_count = $4,
+          other_record_count = $5
       WHERE id = $2
-    `, [`Completed: ${recordsAfterCleanup} records, ${duplicatesRemoved} duplicates removed`, upload.id]);
+    `, [
+      `Completed: ${recordsAfterCleanup} records, ${duplicatesRemoved} duplicates removed`, 
+      upload.id,
+      bhCount,
+      dtCount,
+      otherCount
+    ]);
     
     console.log(`[STEP-6-PROCESSING] ✅ Successfully processed ${upload.filename}:`);
     console.log(`[STEP-6-PROCESSING] - Total lines: ${lines.length}`);
