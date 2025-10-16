@@ -3239,10 +3239,26 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.records !== null && file.records !== undefined 
-                            ? <span className="font-medium">{file.records.toLocaleString()}</span>
-                            : <span className="text-muted-foreground">-</span>
-                          }
+                          {file.records !== null && file.records !== undefined ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium cursor-help underline decoration-dotted">
+                                    {file.records.toLocaleString()}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="text-sm">
+                                    <div><strong>BH:</strong> {file.bh_record_count?.toLocaleString() || 0}</div>
+                                    <div><strong>DT:</strong> {file.dt_record_count?.toLocaleString() || 0}</div>
+                                    <div><strong>Others:</strong> {file.other_record_count?.toLocaleString() || 0}</div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {file.uploaded_at ? format(new Date(file.uploaded_at), 'MMM d, yyyy HH:mm') : '-'}
