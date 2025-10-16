@@ -1390,6 +1390,9 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   encodingStatus: text("encoding_status"), // pending, processing, completed, failed
   jsonRecordsCreated: integer("json_records_created"), // Number of JSON records created
   tddfRecordsCreated: integer("tddf_records_created"), // Number of TDDF records created (for TDDF files)
+  bhRecordCount: integer("bh_record_count"), // Batch Header record count
+  dtRecordCount: integer("dt_record_count"), // Detail Transaction record count
+  otherRecordCount: integer("other_record_count"), // Other record types (P1, P2, etc.)
   fieldSeparationStrategy: text("field_separation_strategy"), // Method used for field separation
   encodingErrors: jsonb("encoding_errors"), // Array of encoding errors/warnings
   healthMetadata: jsonb("health_metadata"), // Encoding health and quality metrics
