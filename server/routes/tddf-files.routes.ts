@@ -1393,7 +1393,10 @@ export function registerTddfFilesRoutes(app: Express) {
         'archived_at': 'archived_at',
         'filename': 'filename',
         'status': 'upload_status',
-        'records': 'tddf_records_created'
+        'records': 'tddf_records_created',
+        'business_day': 'business_day',
+        'sequence': 'file_sequence_number',
+        'time': 'file_processing_time'
       };
       
       const sortColumn = sortColumnMap[sortBy as string] || 'archived_at';
@@ -1416,7 +1419,10 @@ export function registerTddfFilesRoutes(app: Express) {
           created_by,
           bh_record_count,
           dt_record_count,
-          other_record_count
+          other_record_count,
+          business_day,
+          file_sequence_number,
+          file_processing_time
         FROM ${getTableName('uploader_uploads')}
         WHERE is_archived = true
         ORDER BY ${sortColumn} ${sortDirection} NULLS LAST

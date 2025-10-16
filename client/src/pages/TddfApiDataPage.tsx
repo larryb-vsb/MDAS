@@ -3232,6 +3232,33 @@ export default function TddfApiDataPage() {
                         {getArchiveSortIndicator('original_filename')}
                       </div>
                     </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('business_day')}
+                    >
+                      <div className="flex items-center">
+                        Business Day
+                        {getArchiveSortIndicator('business_day')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('sequence')}
+                    >
+                      <div className="flex items-center">
+                        Sequence
+                        {getArchiveSortIndicator('sequence')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('time')}
+                    >
+                      <div className="flex items-center">
+                        Time
+                        {getArchiveSortIndicator('time')}
+                      </div>
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50 select-none"
@@ -3267,14 +3294,14 @@ export default function TddfApiDataPage() {
                 <TableBody>
                   {isLoadingArchive ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={11} className="text-center py-8">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                         <span className="ml-2">Loading archive data...</span>
                       </TableCell>
                     </TableRow>
                   ) : archivedFiles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                         No archived files found. Use Manual Step 7 to archive completed files.
                       </TableCell>
                     </TableRow>
@@ -3299,6 +3326,17 @@ export default function TddfApiDataPage() {
                           <div className="text-xs text-muted-foreground">
                             {file.file_size_mb ? `${file.file_size_mb} MB` : 'Size unknown'}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {file.file_sequence_number || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {file.file_processing_time ? 
+                            `${file.file_processing_time.substring(0,2)}:${file.file_processing_time.substring(2,4)}:${file.file_processing_time.substring(4,6)}` : 
+                            '-'}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
