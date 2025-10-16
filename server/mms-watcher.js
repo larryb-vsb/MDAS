@@ -2121,11 +2121,15 @@ class MMSWatcher {
         return; // No TDDF files to archive
       }
 
-      console.log(`[MMS-WATCHER] [AUTO-STEP7] Archiving ${tddfFiles.length} completed TDDF files...`);
+      // Batch limit: Process only 5 files per run for safety
+      const BATCH_LIMIT = 5;
+      const filesToArchive = tddfFiles.slice(0, BATCH_LIMIT);
+      
+      console.log(`[MMS-WATCHER] [AUTO-STEP7] Found ${tddfFiles.length} completed TDDF files, archiving ${filesToArchive.length} (batch limit: ${BATCH_LIMIT})...`);
 
       // Archive files using database update
       const pool = this.storage.pool;
-      const uploadIds = tddfFiles.map(f => f.id);
+      const uploadIds = filesToArchive.map(f => f.id);
       
       const archiveQuery = `
         UPDATE ${getTableName('uploader_uploads')}
