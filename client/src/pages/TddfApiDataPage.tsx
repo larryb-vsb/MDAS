@@ -2951,6 +2951,16 @@ export default function TddfApiDataPage() {
                             <Button 
                               variant="ghost" 
                               size="sm"
+                              onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.filename)}`)}
+                              title="View TDDF records from this file"
+                              className="text-green-600 hover:text-green-700"
+                              data-testid={`button-view-tddf-${file.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
                               onClick={() => handleViewUploaderFile(file)}
                               title="View raw file contents"
                               data-testid={`button-view-file-${file.id}`}
