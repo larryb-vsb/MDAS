@@ -2887,7 +2887,7 @@ export default function TddfApiDataPage() {
                             file.file_date ? (
                               <span className="text-muted-foreground">{file.file_date}</span>
                             ) : (
-                              file.status === 'started' || file.status === 'uploading' || file.status === 'uploaded' ? (
+                              (file.current_phase === 'uploaded' || file.current_phase === 'identified' || file.current_phase === 'encoded' || file.current_phase === 'processing') ? (
                                 <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
@@ -2900,8 +2900,8 @@ export default function TddfApiDataPage() {
                           {file.schema_name ? `${file.schema_name} v${file.schema_version}` : "None"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getStatusBadgeVariant(file.status)}>
-                            {file.status}
+                          <Badge variant={getStatusBadgeVariant(file.current_phase || file.status)}>
+                            {file.current_phase || file.status}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -2923,7 +2923,7 @@ export default function TddfApiDataPage() {
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
-                            file.status === 'started' || file.status === 'uploading' || file.status === 'uploaded' ? (
+                            (file.current_phase === 'uploaded' || file.current_phase === 'identified' || file.current_phase === 'encoded' || file.current_phase === 'processing') ? (
                               <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
