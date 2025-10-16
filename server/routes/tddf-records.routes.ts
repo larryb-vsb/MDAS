@@ -2489,10 +2489,10 @@ export function registerTddfRecordsRoutes(app: Express) {
         paramIndex++;
       }
       
-      // Filter by batch date (JSONB field - ISO date string comparison)
+      // Filter by batch date (JSONB field - ISO timestamp pattern match)
       if (batchDate && String(batchDate).trim()) {
-        conditions.push(`r.record_data->>'batchDate' = $${paramIndex}`);
-        params.push(String(batchDate).trim());
+        conditions.push(`r.record_data->>'batchDate' LIKE $${paramIndex}`);
+        params.push(`${String(batchDate).trim()}%`); // Match ISO timestamps starting with date
         paramIndex++;
       }
       
