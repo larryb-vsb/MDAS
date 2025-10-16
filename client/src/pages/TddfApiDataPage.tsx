@@ -2822,6 +2822,8 @@ export default function TddfApiDataPage() {
                         {getSortIndicator('size')}
                       </div>
                     </TableHead>
+                    <TableHead>Sequence</TableHead>
+                    <TableHead>Time</TableHead>
                     <TableHead>Schema</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead 
@@ -2857,7 +2859,7 @@ export default function TddfApiDataPage() {
                 <TableBody>
                   {filesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center">
+                      <TableCell colSpan={12} className="text-center">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
@@ -2896,6 +2898,18 @@ export default function TddfApiDataPage() {
                           )}
                         </TableCell>
                         <TableCell>{formatFileSize(file.file_size)}</TableCell>
+                        <TableCell>
+                          {file.fileSequenceNumber || <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell>
+                          {file.fileProcessingTime ? (
+                            <span className="font-mono text-sm">
+                              {file.fileProcessingTime.substring(0, 2)}:{file.fileProcessingTime.substring(2, 4)}:{file.fileProcessingTime.substring(4, 6)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {file.schema_name ? `${file.schema_name} v${file.schema_version}` : "None"}
                         </TableCell>
