@@ -1376,71 +1376,45 @@ export function registerTddfFilesRoutes(app: Express) {
 
   // ==================== ARCHIVE MANAGEMENT ====================
 
-  // Get archived files with filtering
+  // Get archived files with filtering (from uploader_uploads WHERE isArchived=true)
   app.get('/api/tddf-archive', isAuthenticated, async (req, res) => {
     try {
       const { 
-        archiveStatus = 'all', 
-        step6Status = 'all',
-        businessDayFrom,
-        businessDayTo,
         limit = 50,
         offset = 0
       } = req.query;
       
-      let whereConditions = [];
-      const params: any[] = [];
-      let paramIndex = 1;
-      
-      if (archiveStatus !== 'all') {
-        whereConditions.push(`archive_status = $${paramIndex}`);
-        params.push(archiveStatus);
-        paramIndex++;
-      }
-      
-      if (step6Status !== 'all') {
-        whereConditions.push(`step6_status = $${paramIndex}`);
-        params.push(step6Status);
-        paramIndex++;
-      }
-      
-      if (businessDayFrom) {
-        whereConditions.push(`business_day >= $${paramIndex}`);
-        params.push(businessDayFrom);
-        paramIndex++;
-      }
-      
-      if (businessDayTo) {
-        whereConditions.push(`business_day <= $${paramIndex}`);
-        params.push(businessDayTo);
-        paramIndex++;
-      }
-      
-      const whereClause = whereConditions.length > 0 ? 
-        `WHERE ${whereConditions.join(' AND ')}` : '';
-      
+      // Query uploader_uploads table for archived files
       const query = `
         SELECT 
-          *,
-          ROUND(file_size / 1024.0 / 1024.0, 2) as file_size_mb
-        FROM ${getTableName('tddf_archive')}
-        ${whereClause}
-        ORDER BY archived_at DESC NULLS LAST, created_at DESC
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+          id,
+          filename as original_filename,
+          file_size,
+          ROUND(file_size / 1024.0 / 1024.0, 2) as file_size_mb,
+          current_phase,
+          upload_status as status,
+          tddf_records_created as records,
+          archived_at,
+          archived_by,
+          uploaded_at,
+          encoding_completed_at as step6_completed_at,
+          created_by
+        FROM ${getTableName('uploader_uploads')}
+        WHERE is_archived = true
+        ORDER BY archived_at DESC NULLS LAST
+        LIMIT $1 OFFSET $2
       `;
       
-      params.push(limit, offset);
-      
-      const result = await pool.query(query, params);
+      const result = await pool.query(query, [limit, offset]);
       
       // Get total count
       const countQuery = `
         SELECT COUNT(*) as total
-        FROM ${getTableName('tddf_archive')}
-        ${whereClause}
+        FROM ${getTableName('uploader_uploads')}
+        WHERE is_archived = true
       `;
       
-      const countResult = await pool.query(countQuery, params.slice(0, -2));
+      const countResult = await pool.query(countQuery);
       
       res.json({
         files: result.rows,
