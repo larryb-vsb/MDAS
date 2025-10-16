@@ -317,6 +317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const countParams: any[] = [];
         const countConditions: string[] = [];
         
+        // Exclude archived files from active file list
+        countConditions.push(`(is_archived = false OR is_archived IS NULL)`);
+        
         if (phase) {
           countConditions.push(`current_phase = $${countParams.length + 1}`);
           countParams.push(phase);
@@ -338,6 +341,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let query = `SELECT * FROM ${tableName}`;
         const params: any[] = [];
         const conditions: string[] = [];
+        
+        // Exclude archived files from active file list
+        conditions.push(`(is_archived = false OR is_archived IS NULL)`);
         
         if (phase) {
           conditions.push(`current_phase = $${params.length + 1}`);
