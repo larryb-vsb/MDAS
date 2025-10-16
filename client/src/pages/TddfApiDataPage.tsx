@@ -1094,7 +1094,7 @@ export default function TddfApiDataPage() {
       setSelectedUploads([]);
       toast({ 
         title: "Manual Step 7 completed successfully", 
-        description: `${data.successCount || 0} file(s) archived to permanent storage`
+        description: `${data.successCount || 0} file(s) marked as archived`
       });
     },
     onError: (error: any) => {
