@@ -3357,6 +3357,58 @@ export default function TddfApiDataPage() {
                   )}
                 </TableBody>
               </Table>
+
+              {/* Archive Pagination Controls */}
+              {!isLoadingArchive && archivedFiles.length > 0 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Items per page:</span>
+                    <Select
+                      value={archiveItemsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setArchiveItemsPerPage(parseInt(value));
+                        setArchivePage(0); // Reset to first page when changing page size
+                      }}
+                    >
+                      <SelectTrigger className="w-[80px]" data-testid="select-archive-items-per-page">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground ml-4">
+                      Showing {archivePage * archiveItemsPerPage + 1}-{Math.min((archivePage + 1) * archiveItemsPerPage, archiveData?.total || 0)} of {archiveData?.total || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setArchivePage(Math.max(0, archivePage - 1))}
+                      disabled={archivePage === 0}
+                      data-testid="button-archive-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm">
+                      {archivePage + 1} of {Math.max(1, Math.ceil((archiveData?.total || 0) / archiveItemsPerPage))}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setArchivePage(archivePage + 1)}
+                      disabled={archivePage >= Math.ceil((archiveData?.total || 0) / archiveItemsPerPage) - 1}
+                      data-testid="button-archive-next-page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
