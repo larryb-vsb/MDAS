@@ -1123,8 +1123,9 @@ export default function TddfJsonViewerPage() {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-white rounded-lg border">
-          <div className="flex items-center gap-4">
+        <div className="mb-6 p-4 bg-white rounded-lg border space-y-3">
+          {/* First Row: Filters */}
+          <div className="flex items-center gap-4 flex-wrap">
             <Select value={viewMode} onValueChange={(value: 'tree' | 'flat') => setViewMode(value)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -1170,7 +1171,6 @@ export default function TddfJsonViewerPage() {
               )}
             </div>
 
-
             {/* Terminal ID Filter */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1195,14 +1195,14 @@ export default function TddfJsonViewerPage() {
             </div>
 
             {/* Hierarchical Batch Information */}
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 ml-auto">
               {isLoading ? (
                 <span className="flex items-center gap-2 text-blue-600">
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   Loading batch data... {totalRecords > 0 ? `(${totalRecords} records)` : ''}
                 </span>
               ) : paginationInfo ? (
-                <span>
+                <span className="whitespace-nowrap">
                   Batches {((currentPage - 1) * 5) + 1}-{((currentPage - 1) * 5) + batchesInPage} of {totalBatches.toLocaleString()} 
                   <span className="text-gray-500 ml-2">({totalRecords.toLocaleString()} records)</span>
                   {selectedRecordType && <span className="ml-2 text-blue-600">(Filtered: {selectedRecordType})</span>}
@@ -1214,44 +1214,47 @@ export default function TddfJsonViewerPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Database Access Status */}
-            {totalRecords > 0 && (
-              <Badge 
-                variant="outline" 
-                className="text-green-700 bg-green-50 border-green-200 flex items-center gap-1"
-              >
-                <Database className="w-3 h-3" />
-                Direct Access ({totalRecords.toLocaleString()} records)
-              </Badge>
-            )}
-            
-            {/* Re-process Button */}
-            {totalRecords > 1000 && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleBuildCache}
-                disabled={isBuildingCache}
-                className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-              >
-                {isBuildingCache ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Re-process with Real Data
-                  </>
-                )}
-              </Button>
-            )}
+          {/* Second Row: Status and Pagination */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center gap-3">
+              {/* Database Access Status */}
+              {totalRecords > 0 && (
+                <Badge 
+                  variant="outline" 
+                  className="text-green-700 bg-green-50 border-green-200 flex items-center gap-1"
+                >
+                  <Database className="w-3 h-3" />
+                  Direct Access ({totalRecords.toLocaleString()} records)
+                </Badge>
+              )}
+              
+              {/* Re-process Button */}
+              {totalRecords > 1000 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleBuildCache}
+                  disabled={isBuildingCache}
+                  className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  {isBuildingCache ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Re-process with Real Data
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
             
             {/* Hierarchical Pagination Controls */}
             {paginationInfo && (
-              <>
+              <div className="flex items-center gap-3">
                 {/* Previous Button */}
                 <Button 
                   variant="outline" 
@@ -1295,7 +1298,7 @@ export default function TddfJsonViewerPage() {
                   Next
                   <ChevronRight className="w-4 h-4" />
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </div>
