@@ -4203,21 +4203,46 @@ function TreeViewDisplay({
                               ) : null;
                             })()}
                             
-                            {transaction.extensions.length > 0 && (
-                              <div className="ml-auto flex items-center gap-1">
-                                <span className="text-xs text-gray-600">{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
-                                <div className="flex gap-1">
-                                  {transaction.extensions.slice(0, 3).map((ext: any, i: number) => (
-                                    <Badge key={i} variant="outline" className={`text-xs ${getRecordTypeBadgeColor(ext.record_type)} text-white`}>
-                                      {ext.record_type}
-                                    </Badge>
-                                  ))}
-                                  {transaction.extensions.length > 3 && (
-                                    <Badge variant="outline" className="text-xs">+{transaction.extensions.length - 3}</Badge>
-                                  )}
+                            {/* Transaction Date and Amount for DT records - always show on right */}
+                            <div className="ml-auto flex items-center gap-3">
+                              {/* Transaction Date and Amount */}
+                              {(() => {
+                                const transactionDate = extractTransactionDate(transaction.dtRecord);
+                                const transactionAmount = extractTransactionAmount(transaction.dtRecord);
+                                return (transactionDate || transactionAmount !== null) ? (
+                                  <div className="flex items-center gap-3">
+                                    {transactionDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {transactionDate}
+                                      </span>
+                                    )}
+                                    {transactionAmount !== null && (
+                                      <span className="font-medium text-gray-700">
+                                        ${Number(transactionAmount).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              {/* Extensions */}
+                              {transaction.extensions.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-gray-600">{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
+                                  <div className="flex gap-1">
+                                    {transaction.extensions.slice(0, 3).map((ext: any, i: number) => (
+                                      <Badge key={i} variant="outline" className={`text-xs ${getRecordTypeBadgeColor(ext.record_type)} text-white`}>
+                                        {ext.record_type}
+                                      </Badge>
+                                    ))}
+                                    {transaction.extensions.length > 3 && (
+                                      <Badge variant="outline" className="text-xs">+{transaction.extensions.length - 3}</Badge>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </CardHeader>
 
