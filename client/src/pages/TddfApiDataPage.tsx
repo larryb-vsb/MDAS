@@ -1106,6 +1106,33 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Restore archived files mutation
+  const restoreArchivedMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/restore-archived', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-archive'] });
+      setSelectedArchiveFiles([]);
+      toast({ 
+        title: "Restore completed successfully", 
+        description: `${data.successCount || 0} file(s) restored to active processing`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Restore failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
@@ -3010,7 +3037,7 @@ export default function TddfApiDataPage() {
                     TDDF Archive Management ({isLoadingArchive ? '...' : archivedFiles.length})
                   </CardTitle>
                   <CardDescription>
-                    Permanent archive storage for processed TDDF files - dev-tddf-archive/ and prod-tddf-archive/
+                    Archived completed files - data remains in master table, use Restore to return files to active processing
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3111,79 +3138,18 @@ export default function TddfApiDataPage() {
                 {selectedArchiveFiles.length > 0 && (
                   <>
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      onClick={() => {
-                        toast({ 
-                          title: "Reprocess initiated", 
-                          description: `Reprocessing ${selectedArchiveFiles.length} selected archive file(s)` 
-                        });
-                        // TODO: Implement reprocess logic
-                      }}
-                      data-testid="button-reprocess-archive"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => restoreArchivedMutation.mutate(selectedArchiveFiles)}
+                      disabled={restoreArchivedMutation.isPending}
+                      data-testid="button-restore-selected"
                     >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Reprocess Selected ({selectedArchiveFiles.length})
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={async () => {
-                        if (confirm(`Are you sure you want to delete ${selectedArchiveFiles.length} archive file(s)?`)) {
-                          try {
-                            const response = await fetch('/api/tddf-archive/bulk-delete', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              credentials: 'include',
-                              body: JSON.stringify({ archiveIds: selectedArchiveFiles })
-                            });
-                            
-                            const data = await response.json();
-                            
-                            if (response.ok) {
-                              toast({ 
-                                title: "Success", 
-                                description: data.message || `Deleted ${selectedArchiveFiles.length} archive file(s)` 
-                              });
-                              setSelectedArchiveFiles([]);
-                              refetchArchive();
-                            } else {
-                              toast({ 
-                                title: "Error", 
-                                description: data.error || 'Failed to delete archive files',
-                                variant: "destructive"
-                              });
-                            }
-                          } catch (error) {
-                            console.error('Error deleting archive files:', error);
-                            toast({ 
-                              title: "Error", 
-                              description: 'Failed to delete archive files',
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                      data-testid="button-delete-archive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete Selected ({selectedArchiveFiles.length})
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      Restore Selected ({selectedArchiveFiles.length})
                     </Button>
                   </>
                 )}
-                
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => {
-                    // TODO: Archive selected upload files
-                    toast({ title: "Archive process initiated", description: "Selected files are being moved to permanent archive storage" });
-                  }}
-                >
-                  <Zap className="h-4 w-4 mr-1" />
-                  Archive Selected Uploads
-                </Button>
               </div>
 
               {/* Archive Table */}
@@ -3285,16 +3251,11 @@ export default function TddfApiDataPage() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => {
-                                // TODO: Restore file
-                                toast({ 
-                                  title: "Restore initiated", 
-                                  description: `Restoring ${file.original_filename} to active processing` 
-                                });
-                              }}
+                              onClick={() => restoreArchivedMutation.mutate([file.id])}
                               data-testid={`button-restore-${file.id}`}
                               title="Restore to active processing"
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              disabled={restoreArchivedMutation.isPending}
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>

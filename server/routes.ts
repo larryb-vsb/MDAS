@@ -876,6 +876,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Restore archived files endpoint
+  app.post("/api/uploader/restore-archived", isAuthenticated, async (req, res) => {
+    console.log("[RESTORE-ARCHIVED] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[RESTORE-ARCHIVED] Restoring ${uploadIds.length} archived files`);
+
+      const username = (req.user as any)?.username || 'system';
+      
+      // Update archive flags to restore files
+      const updateQuery = `
+        UPDATE ${getTableName('uploader_uploads')}
+        SET 
+          is_archived = false,
+          archived_at = NULL,
+          archived_by = NULL
+        WHERE id = ANY($1) AND is_archived = true
+        RETURNING id, filename
+      `;
+      
+      const result = await pool.query(updateQuery, [uploadIds]);
+      const restoredFiles = result.rows;
+      
+      console.log(`[RESTORE-ARCHIVED] Restored ${restoredFiles.length} file(s) to active processing`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: restoredFiles.length,
+        restoredFiles,
+        message: `Restored ${restoredFiles.length} file(s) to active processing`
+      });
+      
+    } catch (error) {
+      console.error("[RESTORE-ARCHIVED] Error restoring archived files:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
   // Individual file encoding endpoint (Step 5)
   app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
     try {
