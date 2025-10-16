@@ -2100,20 +2100,26 @@ class MMSWatcher {
         return; // Auto Step 7 is disabled, skip archiving
       }
       
-      // Find files in "completed" phase that are ready for archiving
-      const completedFiles = await this.storage.getUploaderUploads({
-        phase: 'completed'
-      });
+      // Find files in "completed" phase that are NOT already archived
+      const completedQuery = `
+        SELECT * FROM ${getTableName('uploader_uploads')}
+        WHERE current_phase = 'completed'
+          AND (is_archived IS NULL OR is_archived = false)
+        ORDER BY start_time DESC
+      `;
+      const completedResult = await this.storage.pool.query(completedQuery);
+      const completedFiles = completedResult.rows;
 
-      console.log(`[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 enabled - Found ${completedFiles.length} files in 'completed' phase`);
+      console.log(`[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 enabled - Found ${completedFiles.length} non-archived completed files`);
       
       if (completedFiles.length === 0) {
         return; // No files to archive
       }
 
       // Filter for TDDF files only (matching Step 6 pattern)
+      // Note: Database returns snake_case column names
       const tddfFiles = completedFiles.filter(upload => 
-        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf'
+        upload.final_file_type === 'tddf' || upload.detected_file_type === 'tddf' || upload.file_type === 'tddf'
       );
 
       if (tddfFiles.length === 0) {
