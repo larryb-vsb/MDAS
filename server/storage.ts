@@ -15135,6 +15135,8 @@ export class DatabaseStorage implements IStorage {
         encodedLines: 'encoded_lines',
         businessDay: 'business_day', // Business day from filename
         businessday: 'business_day', // Business day (lowercase fallback)
+        fileSequenceNumber: 'file_sequence_number', // TDDF sequence number from filename
+        fileProcessingTime: 'file_processing_time', // TDDF processing time from filename
         // MMS Watcher field mappings
         encodingNotes: 'encoding_notes',
         canRetry: 'can_retry',
