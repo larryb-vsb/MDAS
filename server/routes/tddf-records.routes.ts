@@ -2453,6 +2453,8 @@ export function registerTddfRecordsRoutes(app: Express) {
         cardType
       } = req.query;
       
+      console.log('[DT-LATEST-DEBUG] Query params:', { batchDate, merchantAccount, cardType, limit, offset });
+      
       const environment = process.env.NODE_ENV || 'development';
       const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
@@ -2505,6 +2507,9 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       const whereClause = conditions.join(' AND ');
       
+      console.log('[DT-LATEST-DEBUG] WHERE clause:', whereClause);
+      console.log('[DT-LATEST-DEBUG] Query params array:', params);
+      
       // Get total count of DT records with filters applied
       const countResult = await pool.query(`
         SELECT COUNT(*) as total
@@ -2513,6 +2518,8 @@ export function registerTddfRecordsRoutes(app: Express) {
         WHERE ${whereClause}
       `, params);
       const totalRecords = parseInt(countResult.rows[0].total);
+      
+      console.log('[DT-LATEST-DEBUG] Total records found:', totalRecords);
       
       // Get paginated DT records with filters applied
       const dataParams = [...params, limit, offset];
