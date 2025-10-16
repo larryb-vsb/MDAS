@@ -771,6 +771,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { processAllRecordsToMasterTable } = await import("./tddf-json-encoder");
   const { ReplitStorageService } = await import('./replit-storage-service');
 
+  // Manual Step 7 Archive endpoint for completed files
+  app.post("/api/uploader/manual-step7-archive", isAuthenticated, async (req, res) => {
+    console.log("[MANUAL-STEP7] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[MANUAL-STEP7] Processing ${uploadIds.length} files for manual archiving`);
+
+      // Validate files are ready for archiving
+      const validFiles = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          if (upload.currentPhase !== 'completed') {
+            errors.push({ 
+              uploadId, 
+              error: `File is in '${upload.currentPhase}' phase, only 'completed' files can be archived` 
+            });
+            continue;
+          }
+
+          validFiles.push({ uploadId, filename: upload.filename });
+          
+        } catch (error) {
+          console.error(`[MANUAL-STEP7] Error validating ${uploadId}:`, error);
+          errors.push({ 
+            uploadId, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+
+      if (validFiles.length === 0) {
+        return res.json({
+          success: false,
+          processedCount: uploadIds.length,
+          successCount: 0,
+          errorCount: errors.length,
+          validFiles: [],
+          errors,
+          message: `No valid completed files found for archiving. ${errors.length} errors.`
+        });
+      }
+
+      // Call the existing bulk-archive endpoint logic
+      const username = (req.user as any)?.username || 'system';
+      const environment = NODE_ENV === 'development' ? 'dev' : 'prod';
+      const archivePrefix = `${environment}-tddf-archive`;
+      
+      const archivedFiles = [];
+      
+      for (const { uploadId, filename } of validFiles) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          if (!upload) continue;
+
+          // Start transaction for atomic archive operation
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
+            
+            const { businessDay, fileDate } = extractBusinessDayFromFilename(upload.filename);
+            
+            // Generate archive filename and path
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const archiveFilename = `${timestamp}_${upload.filename}`;
+            const archivePath = `${archivePrefix}/${archiveFilename}`;
+            
+            // Insert archive record
+            const insertQuery = `
+              INSERT INTO ${getTableName('tddf_archive')} (
+                archive_filename, original_filename, archive_path, original_upload_path,
+                file_size, file_hash, archive_status, step6_status,
+                business_day, file_date, original_upload_id,
+                metadata, created_by, updated_by
+              ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+              ) RETURNING *
+            `;
+            
+            const metadata = {
+              original_phase: upload.currentPhase,
+              archived_by: username,
+              archive_initiated_at: new Date().toISOString(),
+              manual_archive: true
+            };
+            
+            const archiveResult = await client.query(insertQuery, [
+              archiveFilename,
+              upload.filename,
+              archivePath,
+              `${environment}-uploader/${upload.filename}`,
+              upload.fileSize || 0,
+              `temp-hash-${Date.now()}`,
+              'pending',
+              'pending',
+              businessDay,
+              fileDate,
+              upload.id,
+              JSON.stringify(metadata),
+              username,
+              username
+            ]);
+            
+            const archiveFileId = archiveResult.rows[0].id;
+            const archivedAt = new Date();
+            
+            // Copy JSONB records to permanent archive storage
+            const copyRecordsQuery = `
+              INSERT INTO ${getTableName('tddf_archive_records')} (
+                upload_id, record_type, record_data, processing_status, created_at,
+                record_identifier, line_number, raw_line, field_count, original_filename,
+                file_processing_date, file_sequence_number, file_processing_time, file_system_id,
+                mainframe_process_data, merchant_account_number, raw_line_hash,
+                is_archived, archived_at, archive_file_id, processed_at
+              )
+              SELECT 
+                upload_id, record_type, record_data, processing_status, created_at,
+                record_identifier, line_number, raw_line, field_count, original_filename,
+                file_processing_date, file_sequence_number, file_processing_time, file_system_id,
+                mainframe_process_data, merchant_account_number, raw_line_hash,
+                true, $2, $3, processed_at
+              FROM ${getTableName('uploader_tddf_jsonb_records')}
+              WHERE upload_id = $1
+            `;
+            
+            const copyResult = await client.query(copyRecordsQuery, [upload.id, archivedAt, archiveFileId]);
+            
+            await client.query('COMMIT');
+            
+            archivedFiles.push({
+              uploadId,
+              filename,
+              archivePath,
+              recordCount: copyResult.rowCount
+            });
+            console.log(`[MANUAL-STEP7] Archived ${filename} with ${copyResult.rowCount} records`);
+            
+          } catch (error) {
+            await client.query('ROLLBACK');
+            console.error(`[MANUAL-STEP7] Error archiving ${filename}, transaction rolled back:`, error);
+            errors.push({
+              uploadId,
+              error: error instanceof Error ? error.message : "Archive failed"
+            });
+          } finally {
+            client.release();
+          }
+          
+        } catch (error) {
+          console.error(`[MANUAL-STEP7] Error processing ${uploadId}:`, error);
+          errors.push({
+            uploadId,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }
+      
+      console.log(`[MANUAL-STEP7] Completed: ${archivedFiles.length} archived, ${errors.length} errors`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: archivedFiles.length,
+        errorCount: errors.length,
+        archivedFiles,
+        errors,
+        message: `Successfully archived ${archivedFiles.length} file(s) to permanent storage, ${errors.length} errors`
+      });
+      
+    } catch (error) {
+      console.error("[MANUAL-STEP7] Error in manual archiving:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
   // Individual file encoding endpoint (Step 5)
   app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
     try {
