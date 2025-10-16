@@ -1381,8 +1381,23 @@ export function registerTddfFilesRoutes(app: Express) {
     try {
       const { 
         limit = 50,
-        offset = 0
+        offset = 0,
+        sortBy = 'archived_at',
+        sortOrder = 'desc'
       } = req.query;
+      
+      // Map sortBy to actual column names
+      const sortColumnMap: Record<string, string> = {
+        'original_filename': 'filename',
+        'uploaded_at': 'uploaded_at',
+        'archived_at': 'archived_at',
+        'filename': 'filename',
+        'status': 'upload_status',
+        'records': 'tddf_records_created'
+      };
+      
+      const sortColumn = sortColumnMap[sortBy as string] || 'archived_at';
+      const sortDirection = (sortOrder as string).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       
       // Query uploader_uploads table for archived files
       const query = `
@@ -1404,7 +1419,7 @@ export function registerTddfFilesRoutes(app: Express) {
           other_record_count
         FROM ${getTableName('uploader_uploads')}
         WHERE is_archived = true
-        ORDER BY archived_at DESC NULLS LAST
+        ORDER BY ${sortColumn} ${sortDirection} NULLS LAST
         LIMIT $1 OFFSET $2
       `;
       
