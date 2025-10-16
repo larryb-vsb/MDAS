@@ -479,6 +479,10 @@ export default function TddfApiDataPage() {
     businessDayFrom: '',
     businessDayTo: ''
   });
+  const [archiveSortBy, setArchiveSortBy] = useState<string>('archived_at');
+  const [archiveSortOrder, setArchiveSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [archivePage, setArchivePage] = useState(0);
+  const [archiveItemsPerPage, setArchiveItemsPerPage] = useState(25);
   
   // Archive file viewer state
   const [viewingArchiveFile, setViewingArchiveFile] = useState<any>(null);
@@ -787,7 +791,7 @@ export default function TddfApiDataPage() {
 
   // Fetch archive data
   const { data: archiveData, isLoading: isLoadingArchive, refetch: refetchArchive } = useQuery({
-    queryKey: ['/api/tddf-archive', archiveFilters],
+    queryKey: ['/api/tddf-archive', archiveFilters, archiveSortBy, archiveSortOrder, archivePage, archiveItemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (archiveFilters.archiveStatus !== 'all') {
@@ -802,6 +806,12 @@ export default function TddfApiDataPage() {
       if (archiveFilters.businessDayTo) {
         params.set('businessDayTo', archiveFilters.businessDayTo);
       }
+      
+      // Add sorting and pagination
+      params.set('sortBy', archiveSortBy);
+      params.set('sortOrder', archiveSortOrder);
+      params.set('limit', archiveItemsPerPage.toString());
+      params.set('offset', (archivePage * archiveItemsPerPage).toString());
       
       const response = await fetch(`/api/tddf-archive?${params}`, {
         credentials: 'include'
