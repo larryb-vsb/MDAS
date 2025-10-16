@@ -1354,6 +1354,10 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   // Business day extracted from filename (MMDDYYYY format)
   businessDay: date("business_day"), // Extracted business day from filename during identification
   
+  // TDDF filename metadata (extracted during identification)
+  fileSequenceNumber: text("file_sequence_number"), // Sequence number from TDDF filename (e.g., 830, 2400)
+  fileProcessingTime: text("file_processing_time"), // Processing time from TDDF filename (e.g., HHMMSS format)
+  
   // Phase 1: Started
   startTime: timestamp("start_time").defaultNow().notNull(), // When upload was initiated
   
