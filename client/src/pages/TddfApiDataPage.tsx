@@ -3214,11 +3214,43 @@ export default function TddfApiDataPage() {
                         data-testid="checkbox-select-all-archive"
                       />
                     </TableHead>
-                    <TableHead>Original Filename</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('original_filename')}
+                    >
+                      <div className="flex items-center">
+                        Original Filename
+                        {getArchiveSortIndicator('original_filename')}
+                      </div>
+                    </TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Records</TableHead>
-                    <TableHead>Uploaded</TableHead>
-                    <TableHead>Archived Date</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('records')}
+                    >
+                      <div className="flex items-center">
+                        Records
+                        {getArchiveSortIndicator('records')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('uploaded_at')}
+                    >
+                      <div className="flex items-center">
+                        Uploaded
+                        {getArchiveSortIndicator('uploaded_at')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleArchiveSort('archived_at')}
+                    >
+                      <div className="flex items-center">
+                        Archived Date
+                        {getArchiveSortIndicator('archived_at')}
+                      </div>
+                    </TableHead>
                     <TableHead>Archived By</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
