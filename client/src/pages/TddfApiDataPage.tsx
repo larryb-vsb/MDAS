@@ -2905,30 +2905,33 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.record_count > 0 ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="font-medium cursor-help underline decoration-dotted">
-                                    {file.record_count.toLocaleString()}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <div className="text-sm">
-                                    <div><strong>BH:</strong> {file.bhRecordCount?.toLocaleString() || 0}</div>
-                                    <div><strong>DT:</strong> {file.dtRecordCount?.toLocaleString() || 0}</div>
-                                    <div><strong>Others:</strong> {file.otherRecordCount?.toLocaleString() || 0}</div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            (file.current_phase === 'uploaded' || file.current_phase === 'identified' || file.current_phase === 'encoded' || file.current_phase === 'processing') ? (
-                              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
+                          {(() => {
+                            const totalRecords = (file.bhRecordCount || 0) + (file.dtRecordCount || 0) + (file.otherRecordCount || 0);
+                            return totalRecords > 0 ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="font-medium cursor-help underline decoration-dotted">
+                                      {totalRecords.toLocaleString()}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="text-sm">
+                                      <div><strong>BH:</strong> {file.bhRecordCount?.toLocaleString() || 0}</div>
+                                      <div><strong>DT:</strong> {file.dtRecordCount?.toLocaleString() || 0}</div>
+                                      <div><strong>Others:</strong> {file.otherRecordCount?.toLocaleString() || 0}</div>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )
-                          )}
+                              (file.current_phase === 'uploaded' || file.current_phase === 'identified' || file.current_phase === 'encoded' || file.current_phase === 'processing') ? (
+                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           {file.record_count > 0 && (
