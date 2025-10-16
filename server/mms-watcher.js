@@ -110,6 +110,40 @@ class MMSWatcher {
       }
     }, 60000); // Check every 60 seconds for Step 6 processing
     
+    // Step 7 Auto Archive Service - Independent interval
+    this.step7ArchiveIntervalId = setInterval(async () => {
+      try {
+        // Check if Auto Step 7 is enabled by querying system settings directly
+        const { db } = await import('./db.js');
+        const { sql } = await import('drizzle-orm');
+        const { getTableName } = await import('./table-config.js');
+        
+        const result = await db.execute(sql`
+          SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+          WHERE setting_key = 'auto_step7_enabled'
+        `);
+        
+        const autoStep7Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+        
+        if (!autoStep7Enabled) {
+          console.log('[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 is disabled, skipping completed file archiving');
+          return;
+        }
+        
+        // Auto Step 7 is enabled - check for completed files
+        console.log('[MMS-WATCHER] [AUTO-STEP7] Checking for completed files...');
+        const hasCompletedFiles = await this.hasFilesInPhase('completed');
+        console.log(`[MMS-WATCHER] [AUTO-STEP7] Found completed files: ${hasCompletedFiles}`);
+        
+        if (hasCompletedFiles) {
+          console.log('[MMS-WATCHER] [AUTO-STEP7] Archiving completed files');
+          await this.processCompletedFiles();
+        }
+      } catch (error) {
+        console.error('[MMS-WATCHER] [AUTO-STEP7] Error in Step 7 archiving interval:', error);
+      }
+    }, 60000); // Check every 60 seconds for Step 7 archiving
+    
     // JSONB duplicate cleanup service - DISABLED AUTO-START
     // Note: Duplicate cleanup now requires manual triggering from Processing page
     // this.duplicateCleanupIntervalId = setInterval(() => {
@@ -125,6 +159,7 @@ class MMSWatcher {
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 30 seconds (optimized)');
     console.log('[MMS-WATCHER] File encoding service started - processes identified files every 20 seconds (optimized)');
     console.log('[MMS-WATCHER] Step 6 processing service started - processes encoded files to master table every 60 seconds (when enabled)');
+    console.log('[MMS-WATCHER] Step 7 auto archive service started - archives completed files every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Pipeline recovery service started - handles stuck files and cache updates every minute');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
@@ -156,6 +191,10 @@ class MMSWatcher {
     if (this.step6ProcessingIntervalId) {
       clearInterval(this.step6ProcessingIntervalId);
       this.step6ProcessingIntervalId = null;
+    }
+    if (this.step7ArchiveIntervalId) {
+      clearInterval(this.step7ArchiveIntervalId);
+      this.step7ArchiveIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
@@ -2038,6 +2077,77 @@ class MMSWatcher {
       }
     } catch (error) {
       console.error('[MMS-WATCHER] [AUTO-STEP6] Error processing encoded files:', error);
+    }
+  }
+
+  // Stage 7: Step 7 Auto Archive Service - Archive completed files
+  async processCompletedFiles() {
+    try {
+      // Check if Auto Step 7 is enabled by querying system settings directly
+      const { db } = await import('./db.js');
+      const { sql } = await import('drizzle-orm');
+      const { getTableName } = await import('./table-config.js');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_step7_enabled'
+      `);
+      
+      const autoStep7Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+      
+      if (!autoStep7Enabled) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 is disabled, skipping completed file archiving`);
+        return; // Auto Step 7 is disabled, skip archiving
+      }
+      
+      // Find files in "completed" phase that are ready for archiving
+      const completedFiles = await this.storage.getUploaderUploads({
+        phase: 'completed'
+      });
+
+      console.log(`[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 enabled - Found ${completedFiles.length} files in 'completed' phase`);
+      
+      if (completedFiles.length === 0) {
+        return; // No files to archive
+      }
+
+      // Filter for TDDF files only (matching Step 6 pattern)
+      const tddfFiles = completedFiles.filter(upload => 
+        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf'
+      );
+
+      if (tddfFiles.length === 0) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP7] No TDDF files found to archive (${completedFiles.length} total completed files)`);
+        return; // No TDDF files to archive
+      }
+
+      console.log(`[MMS-WATCHER] [AUTO-STEP7] Archiving ${tddfFiles.length} completed TDDF files...`);
+
+      // Archive files using database update
+      const pool = this.storage.pool;
+      const uploadIds = tddfFiles.map(f => f.id);
+      
+      const archiveQuery = `
+        UPDATE ${getTableName('uploader_uploads')}
+        SET 
+          is_archived = true,
+          archived_at = NOW(),
+          archived_by = $1
+        WHERE id = ANY($2::text[])
+        RETURNING id, filename, is_archived, archived_at
+      `;
+      
+      const archiveResult = await pool.query(archiveQuery, ['watcher', uploadIds]);
+      
+      console.log(`[MMS-WATCHER] [AUTO-STEP7] ✅ Successfully archived ${archiveResult.rows.length} file(s)`);
+      
+      // Log each archived file
+      for (const archivedFile of archiveResult.rows) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP7]   → Archived: ${archivedFile.filename} (${archivedFile.id})`);
+      }
+      
+    } catch (error) {
+      console.error('[MMS-WATCHER] [AUTO-STEP7] Error archiving completed files:', error);
     }
   }
 
