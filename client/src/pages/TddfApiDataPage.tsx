@@ -3158,7 +3158,7 @@ export default function TddfApiDataPage() {
                       variant="default"
                       size="sm"
                       className="bg-blue-600 hover:bg-blue-700 text-white"
-                      onClick={() => restoreArchivedMutation.mutate(selectedArchiveFiles)}
+                      onClick={() => restoreArchivedMutation.mutate(selectedArchiveFiles.map(String))}
                       disabled={restoreArchivedMutation.isPending}
                       data-testid="button-restore-selected"
                     >
@@ -3283,7 +3283,7 @@ export default function TddfApiDataPage() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => restoreArchivedMutation.mutate([file.id])}
+                              onClick={() => restoreArchivedMutation.mutate([String(file.id)])}
                               data-testid={`button-restore-${file.id}`}
                               title="Restore to active processing"
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
