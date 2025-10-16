@@ -1397,7 +1397,7 @@ export function registerTddfFilesRoutes(app: Express) {
           archived_at,
           archived_by,
           uploaded_at,
-          encoding_completed_at as step6_completed_at,
+          encoding_complete as step6_completed_at,
           created_by
         FROM ${getTableName('uploader_uploads')}
         WHERE is_archived = true
