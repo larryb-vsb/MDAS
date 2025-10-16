@@ -2967,24 +2967,6 @@ export default function TddfApiDataPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => {
-                                console.log('Filter button clicked for file:', file.filename);
-                                // Set global filename filter and navigate to Raw Data tab
-                                setGlobalFilenameFilter(file.filename);
-                                console.log('Setting active tab to raw-data');
-                                setActiveTab('raw-data');
-                                console.log('Setting view mode to file');
-                                setViewMode('file');
-                              }}
-                              title="Filter Raw Data by this file"
-                              className="text-blue-600 hover:text-blue-700"
-                              data-testid={`button-filter-file-${file.id}`}
-                            >
-                              <Filter className="h-4 w-4" />
-                            </Button>
                             <Button variant="ghost" size="sm" title="Download file">
                               <Download className="h-4 w-4" />
                             </Button>
