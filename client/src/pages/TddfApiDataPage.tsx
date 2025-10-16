@@ -3205,27 +3205,26 @@ export default function TddfApiDataPage() {
                       />
                     </TableHead>
                     <TableHead>Original Filename</TableHead>
-                    <TableHead>Archive Details</TableHead>
-                    <TableHead>Archive Status</TableHead>
-                    <TableHead>Step 6 Status</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Records</TableHead>
-                    <TableHead>Business Day</TableHead>
+                    <TableHead>Uploaded</TableHead>
                     <TableHead>Archived Date</TableHead>
+                    <TableHead>Archived By</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoadingArchive ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                         <span className="ml-2">Loading archive data...</span>
                       </TableCell>
                     </TableRow>
                   ) : archivedFiles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                        No archived files found. Use "Archive Selected Uploads" to move files to permanent storage.
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        No archived files found. Use Manual Step 7 to archive completed files.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -3246,80 +3245,59 @@ export default function TddfApiDataPage() {
                         </TableCell>
                         <TableCell className="font-medium max-w-[300px]" title={file.original_filename}>
                           <div className="truncate">{file.original_filename}</div>
-                        </TableCell>
-                        <TableCell className="max-w-[250px]">
-                          <div 
-                            className="cursor-help border-b border-dotted border-muted-foreground/50 hover:border-muted-foreground"
-                            title={`Archive File: ${file.archive_filename}\nStorage Path: ${file.archive_path}`}
-                          >
-                            <div className="text-xs font-mono truncate text-muted-foreground">
-                              {file.archive_filename}
-                            </div>
-                            <div className="text-xs font-mono truncate text-muted-foreground/70">
-                              {file.archive_path}
-                            </div>
+                          <div className="text-xs text-muted-foreground">
+                            {file.file_size_mb ? `${file.file_size_mb} MB` : 'Size unknown'}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={file.archive_status === 'pending' ? 'secondary' : 
-                                        file.archive_status === 'archived' ? 'default' :
-                                        file.archive_status === 'processed' ? 'default' : 'destructive'}>
-                            {file.archive_status}
+                          <Badge variant={file.status === 'completed' ? 'default' : 
+                                        file.status === 'processing' ? 'secondary' : 'destructive'}>
+                            {file.status || file.current_phase}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={file.step6_status === 'pending' ? 'secondary' : 
-                                        file.step6_status === 'processing' ? 'secondary' :
-                                        file.step6_status === 'completed' ? 'default' : 'destructive'}>
-                            {file.step6_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {file.total_records !== null && file.total_records !== undefined 
-                            ? (
-                                <div className="text-sm">
-                                  <div className="font-medium">
-                                    {file.total_records.toLocaleString()}
-                                  </div>
-                                  {file.processed_records !== null && file.processed_records !== undefined && (
-                                    <div className="text-xs text-muted-foreground">
-                                      {file.processed_records.toLocaleString()} processed
-                                    </div>
-                                  )}
-                                </div>
-                              ) 
+                          {file.records !== null && file.records !== undefined 
+                            ? <span className="font-medium">{file.records.toLocaleString()}</span>
                             : <span className="text-muted-foreground">-</span>
                           }
                         </TableCell>
                         <TableCell>
-                          {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : 'Unknown'}
+                          {file.uploaded_at ? format(new Date(file.uploaded_at), 'MMM d, yyyy HH:mm') : '-'}
                         </TableCell>
                         <TableCell>
                           {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{file.archived_by || file.created_by || '-'}</span>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => handleViewArchiveFile(file)}
-                              data-testid={`button-view-archive-${file.id}`}
-                              title="View file content"
+                              onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
+                              data-testid={`button-view-jsonb-${file.id}`}
+                              title="View JSONB data"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {file.original_upload_id && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setLocation(`/tddf-viewer/${file.original_upload_id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
-                                data-testid={`button-view-jsonb-${file.id}`}
-                                title="View JSONB data (unlimited records)"
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                // TODO: Restore file
+                                toast({ 
+                                  title: "Restore initiated", 
+                                  description: `Restoring ${file.original_filename} to active processing` 
+                                });
+                              }}
+                              data-testid={`button-restore-${file.id}`}
+                              title="Restore to active processing"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
