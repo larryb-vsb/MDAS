@@ -1411,7 +1411,12 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   // Current processing state
   currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, hold, encoding, processing, completed, failed
   statusMessage: text("status_message"), // User-friendly status message for current phase
-  lastUpdated: timestamp("last_updated").defaultNow().notNull()
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  
+  // Archive tracking
+  isArchived: boolean("is_archived").default(false).notNull(), // Whether file has been archived
+  archivedAt: timestamp("archived_at"), // When file was marked as archived
+  archivedBy: text("archived_by") // Username who archived the file
 }, (table) => ({
   currentPhaseIdx: index("uploader_uploads_current_phase_idx").on(table.currentPhase),
   uploadStatusIdx: index("uploader_uploads_upload_status_idx").on(table.uploadStatus),
