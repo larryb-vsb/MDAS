@@ -418,7 +418,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sessionId: row.session_id,
         failedAt: row.failed_at,
         completedAt: row.completed_at,
-        startTime: row.start_time
+        startTime: row.start_time,
+        bhRecordCount: row.bh_record_count,
+        dtRecordCount: row.dt_record_count,
+        otherRecordCount: row.other_record_count
       }));
       
       // Return paginated response format when limit/offset is used
