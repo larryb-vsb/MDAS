@@ -1376,6 +1376,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get hierarchical JSONB data with batch-based pagination (5 batches per page)
+  app.get("/api/uploader/:id/jsonb-data-hierarchical", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { page = '1', recordType, merchantName, merchantAccountNumber } = req.query;
+      
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      const currentPage = parseInt(page as string);
+      const batchesPerPage = 5;
+      
+      console.log(`[HIERARCHICAL-PAGINATION] Upload ${id}, Page ${currentPage}`);
+      
+      // Step 1: Get all BH (Batch Header) records with filters
+      let bhQuery = `
+        SELECT 
+          id, record_type, line_number, raw_line, record_data, 
+          record_identifier, field_count, created_at
+        FROM ${tableName}
+        WHERE upload_id = $1 AND record_type = 'BH'
+      `;
+      const bhParams = [id];
+      let bhParamIndex = 2;
+      
+      // Add merchant filters to BH query if provided
+      if (merchantName) {
+        bhQuery += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${bhParamIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${bhParamIndex + 1}
+          OR record_data->'extractedFields'->>'merchantName' ILIKE $${bhParamIndex + 2}
+          OR raw_line ILIKE $${bhParamIndex + 3}
+        )`;
+        const searchPattern = `%${merchantName}%`;
+        bhParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        bhParamIndex += 4;
+      }
+      
+      if (merchantAccountNumber) {
+        bhQuery += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${bhParamIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${bhParamIndex + 1}
+        )`;
+        const accountPattern = `%${merchantAccountNumber}%`;
+        bhParams.push(accountPattern, accountPattern);
+        bhParamIndex += 2;
+      }
+      
+      bhQuery += ` ORDER BY line_number ASC`;
+      
+      const bhResult = await pool.query(bhQuery, bhParams);
+      const allBatches = bhResult.rows;
+      const totalBatches = allBatches.length;
+      
+      console.log(`[HIERARCHICAL-PAGINATION] Found ${totalBatches} total batches`);
+      
+      // Step 2: Paginate batches (5 per page)
+      const startIdx = (currentPage - 1) * batchesPerPage;
+      const endIdx = startIdx + batchesPerPage;
+      const batchesForPage = allBatches.slice(startIdx, endIdx);
+      
+      console.log(`[HIERARCHICAL-PAGINATION] Page ${currentPage}: Batches ${startIdx + 1}-${Math.min(endIdx, totalBatches)} of ${totalBatches}`);
+      
+      // Step 3: For each batch, fetch all related records
+      const hierarchicalData = [];
+      let totalRecordsInPage = 0;
+      
+      for (const bhRecord of batchesForPage) {
+        const bhLineNumber = bhRecord.line_number;
+        
+        // Find the next BH line number (or end of file) to determine batch boundary
+        const nextBhIdx = allBatches.findIndex(b => b.line_number === bhLineNumber) + 1;
+        const nextBhLineNumber = nextBhIdx < allBatches.length ? allBatches[nextBhIdx].line_number : 999999;
+        
+        // Fetch all records in this batch (between this BH and next BH)
+        let batchRecordsQuery = `
+          SELECT 
+            id, upload_id, record_type, line_number, raw_line,
+            record_data, record_identifier, field_count, created_at
+          FROM ${tableName}
+          WHERE upload_id = $1 
+            AND line_number >= $2 
+            AND line_number < $3
+        `;
+        const batchParams = [id, bhLineNumber, nextBhLineNumber];
+        
+        batchRecordsQuery += ` ORDER BY line_number ASC`;
+        
+        const batchRecordsResult = await pool.query(batchRecordsQuery, batchParams);
+        const batchRecords = batchRecordsResult.rows;
+        
+        // Transform records to match expected format
+        const transformedBatchRecords = batchRecords.map(row => {
+          let recordData = {};
+          try {
+            if (typeof row.record_data === 'string') {
+              recordData = JSON.parse(row.record_data);
+            } else if (typeof row.record_data === 'object' && row.record_data !== null) {
+              recordData = row.record_data;
+            }
+          } catch (parseError) {
+            recordData = {};
+          }
+          
+          let extractedFields = {};
+          if (recordData.extractedFields && typeof recordData.extractedFields === 'object') {
+            extractedFields = recordData.extractedFields;
+          } else if (Object.keys(recordData).length > 0) {
+            extractedFields = recordData;
+          }
+          
+          return {
+            id: row.id,
+            upload_id: row.upload_id,
+            record_type: row.record_type,
+            line_number: row.line_number || 0,
+            raw_line: row.raw_line || '',
+            extracted_fields: extractedFields,
+            record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
+            processing_time_ms: row.field_count || 0,
+            created_at: row.created_at
+          };
+        });
+        
+        hierarchicalData.push({
+          batchHeader: transformedBatchRecords.find(r => r.record_type === 'BH'),
+          allRecords: transformedBatchRecords,
+          recordCount: transformedBatchRecords.length
+        });
+        
+        totalRecordsInPage += transformedBatchRecords.length;
+      }
+      
+      console.log(`[HIERARCHICAL-PAGINATION] Returning ${hierarchicalData.length} batches with ${totalRecordsInPage} total records`);
+      
+      res.json({
+        batches: hierarchicalData,
+        pagination: {
+          currentPage: currentPage,
+          batchesPerPage: batchesPerPage,
+          totalBatches: totalBatches,
+          batchesInPage: hierarchicalData.length,
+          recordsInPage: totalRecordsInPage,
+          hasMore: endIdx < totalBatches,
+          totalPages: Math.ceil(totalBatches / batchesPerPage)
+        },
+        tableName: tableName
+      });
+    } catch (error: any) {
+      console.error('[HIERARCHICAL-PAGINATION] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Detect orphan files in object storage (files not registered in database)
   // Migration endpoint: Convert plain string processingNotes to JSON format
   app.post("/api/uploader/migrate-processing-notes", isAuthenticated, async (req, res) => {

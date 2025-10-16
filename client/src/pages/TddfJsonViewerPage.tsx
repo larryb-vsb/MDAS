@@ -529,11 +529,10 @@ export default function TddfJsonViewerPage() {
   const searchParams = new URLSearchParams(window.location.search);
   const isUnlimited = searchParams.get('unlimited') === 'true';
   
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1); // Changed to 1-based for hierarchical pagination
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
   const [merchantAccountFilter, setMerchantAccountFilter] = useState<string>('');
   const [terminalIdFilter, setTerminalIdFilter] = useState<string>('');
-  const [pageSize, setPageSize] = useState(isUnlimited ? 100000 : 10000); // Unlimited shows up to 100K records
   const [isReEncoding, setIsReEncoding] = useState(false);
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -543,42 +542,35 @@ export default function TddfJsonViewerPage() {
   // Merchant lookup for displaying merchant names
   const { getMerchantName } = useMerchantLookup();
 
+  // Use hierarchical pagination endpoint (no line limits - removed 10K limit!)
   const { data: jsonbData, isLoading, error, refetch } = useQuery({
-    queryKey: [isUnlimited ? '/api/tddf-api/records' : '/api/uploader', uploadId, 'jsonb-data', { 
-      limit: pageSize, 
-      offset: currentPage * pageSize,
-      recordType: selectedRecordType || undefined 
+    queryKey: ['/api/uploader', uploadId, 'jsonb-data-hierarchical', { 
+      page: currentPage,
+      merchantName: merchantAccountFilter || undefined
     }],
     queryFn: async () => {
-      console.log(`[TDDF-JSON-VIEWER] Fetching JSONB data for upload ${uploadId}, isUnlimited: ${isUnlimited}`);
+      console.log(`[TDDF-JSON-VIEWER] Fetching hierarchical data for upload ${uploadId}, page ${currentPage}`);
       
       const params = new URLSearchParams({
-        limit: pageSize.toString(),
-        offset: (currentPage * pageSize).toString()
+        page: currentPage.toString()
       });
       
-      if (selectedRecordType && selectedRecordType !== 'all') {
-        params.append('recordType', selectedRecordType);
+      // Note: recordType filtering is now client-side only to preserve batch atomicity
+      // Backend always returns complete batches (BH + all records)
+      
+      if (merchantAccountFilter && merchantAccountFilter.trim()) {
+        params.append('merchantName', merchantAccountFilter.trim());
       }
       
       try {
-        // Use different endpoints for archive vs regular files
-        const endpoint = isUnlimited 
-          ? `/api/tddf-api/records/${uploadId}?${params}`
-          : `/api/uploader/${uploadId}/jsonb-data?${params}`;
+        const endpoint = `/api/uploader/${uploadId}/jsonb-data-hierarchical?${params}`;
         
-        console.log(`[TDDF-JSON-VIEWER] Using endpoint: ${endpoint}`);
+        console.log(`[TDDF-JSON-VIEWER] Using hierarchical endpoint: ${endpoint}`);
         const result = await apiRequest(endpoint);
-        console.log(`[TDDF-JSON-VIEWER] Successfully fetched data:`, result);
+        console.log(`[TDDF-JSON-VIEWER] Successfully fetched ${result.pagination.batchesInPage} batches with ${result.pagination.recordsInPage} records`);
         return result;
       } catch (error: any) {
         console.error(`[TDDF-JSON-VIEWER] API Error:`, error);
-        
-        // For archive files, provide helpful error message when no JSONB data exists
-        if (isUnlimited && (error.message?.includes('500') || error.message?.includes('no records found') || error.message?.includes('Internal Server Error'))) {
-          throw new Error('JSONB data not available for this archive file. The Step 6 processing may not have completed successfully. Please contact support to re-process this archive file.');
-        }
-        
         throw error;
       }
     },
@@ -632,24 +624,25 @@ export default function TddfJsonViewerPage() {
     refetchOnWindowFocus: false
   });
 
-  const allRecords: JsonbRecord[] = (jsonbData as any)?.data || [];
+  // Extract records from hierarchical structure
+  const batches = (jsonbData as any)?.batches || [];
+  const allRecords: JsonbRecord[] = batches.flatMap((batch: any) => batch.allRecords);
+  const paginationInfo = (jsonbData as any)?.pagination;
+  const timingMetadata = null; // Timing metadata not available in hierarchical pagination
   
   const filteredRecords = allRecords.filter(record => {
-    // Record type filter
-    if (selectedRecordType && record.record_type !== selectedRecordType) {
-      return false;
-    }
+    // Note: Hierarchical pagination always returns complete batches (BH + all records)
+    // In tree view, we keep all records for proper hierarchy display
+    // In flat view, we apply filters for targeted display
     
-    // Merchant account filter
-    if (merchantAccountFilter && merchantAccountFilter.trim() !== '') {
-      const merchantAccountNumber = record.extracted_fields?.merchantAccountNumber;
-      if (!merchantAccountNumber || 
-          !merchantAccountNumber.toString().toLowerCase().includes(merchantAccountFilter.toLowerCase())) {
+    // Record type filter (only in flat view - tree view needs all records for hierarchy)
+    if (viewMode === 'flat' && selectedRecordType && selectedRecordType !== 'all') {
+      if (record.record_type !== selectedRecordType) {
         return false;
       }
     }
     
-    // Terminal ID filter
+    // Terminal ID filter (client-side)
     if (terminalIdFilter && terminalIdFilter.trim() !== '') {
       const terminalId = record.extracted_fields?.terminalId;
       if (!terminalId || 
@@ -662,40 +655,40 @@ export default function TddfJsonViewerPage() {
   });
   
   const records = filteredRecords;
-  const totalRecords = records.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-  const timingMetadata = (jsonbData as any)?.timingMetadata;
+  const totalRecords = paginationInfo?.recordsInPage || records.length;
+  const totalBatches = paginationInfo?.totalBatches || 0;
+  const batchesInPage = paginationInfo?.batchesInPage || 0;
 
   const handlePreviousPage = () => {
-    if (currentPage > 0) {
+    if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
   };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages - 1) {
+    if (paginationInfo?.hasMore) {
       setCurrentPage(currentPage + 1);
     }
   };
 
   const handleRecordTypeChange = (value: string) => {
     setSelectedRecordType(value === 'all' ? '' : value);
-    setCurrentPage(0); // Reset to first page when filtering
+    setCurrentPage(1); // Reset to first page when filtering
   };
 
   const handleMerchantAccountFilterChange = (value: string) => {
     setMerchantAccountFilter(value);
-    setCurrentPage(0); // Reset to first page when filtering
+    setCurrentPage(1); // Reset to first page when filtering
   };
 
   const clearMerchantAccountFilter = () => {
     setMerchantAccountFilter('');
-    setCurrentPage(0);
+    setCurrentPage(1);
   };
 
   const handleTerminalIdFilterChange = (value: string) => {
     setTerminalIdFilter(value);
-    setCurrentPage(0); // Reset to first page when filtering
+    setCurrentPage(1); // Reset to first page when filtering
   };
 
   const clearTerminalIdFilter = () => {
@@ -1201,36 +1194,22 @@ export default function TddfJsonViewerPage() {
               )}
             </div>
 
-            {/* Page Size Selector for Large Files */}
-            {totalRecords > 1000 && (
-              <Select value={pageSize.toString()} onValueChange={(value) => {
-                setPageSize(parseInt(value));
-                setCurrentPage(0);
-              }}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="200">200</SelectItem>
-                  <SelectItem value="500">500</SelectItem>
-                  <SelectItem value="1000">1000</SelectItem>
-                  <SelectItem value="2000">2000</SelectItem>
-                  <SelectItem value="5000">5000</SelectItem>
-                  <SelectItem value="10000">All (10K)</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            
+            {/* Hierarchical Batch Information */}
             <div className="text-sm text-gray-600">
-              {viewMode === 'tree' ? 'Hierarchical view' : 
-                `Showing ${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalRecords)} of ${totalRecords.toLocaleString()} records`}
-              {selectedRecordType && ` (${selectedRecordType} type)`}
-              {merchantAccountFilter && ` (Merchant: ${merchantAccountFilter})`}
-              {terminalIdFilter && ` (Terminal: ${terminalIdFilter})`}
-              {totalRecords > 10000 && (
-                <span className="ml-2 text-blue-600 font-medium">Large dataset - use filters and pagination</span>
+              {isLoading ? (
+                <span className="flex items-center gap-2 text-blue-600">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Loading batch data... {totalRecords > 0 ? `(${totalRecords} records)` : ''}
+                </span>
+              ) : paginationInfo ? (
+                <span>
+                  Batches {((currentPage - 1) * 5) + 1}-{((currentPage - 1) * 5) + batchesInPage} of {totalBatches.toLocaleString()} 
+                  <span className="text-gray-500 ml-2">({totalRecords.toLocaleString()} records)</span>
+                  {selectedRecordType && <span className="ml-2 text-blue-600">(Filtered: {selectedRecordType})</span>}
+                  {merchantAccountFilter && <span className="ml-2 text-blue-600">(Merchant: {merchantAccountFilter})</span>}
+                </span>
+              ) : (
+                <span>No hierarchical data available</span>
               )}
             </div>
           </div>
@@ -1270,70 +1249,53 @@ export default function TddfJsonViewerPage() {
               </Button>
             )}
             
-            {/* Enhanced Pagination for Large Datasets */}
-            {viewMode === 'flat' && (
+            {/* Hierarchical Pagination Controls */}
+            {paginationInfo && (
               <>
-                {/* First/Previous */}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setCurrentPage(0)}
-                  disabled={currentPage === 0}
-                  className="flex items-center gap-1"
-                >
-                  First
-                </Button>
+                {/* Previous Button */}
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={handlePreviousPage}
-                  disabled={currentPage === 0}
+                  disabled={currentPage === 1 || isLoading}
+                  className="flex items-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" />
+                  Previous
                 </Button>
                 
-                {/* Page Info with Jump */}
+                {/* Page Info */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm">Page</span>
                   <input
                     type="number"
                     min="1"
-                    max={totalPages}
-                    value={currentPage + 1}
+                    max={paginationInfo.totalPages}
+                    value={currentPage}
                     onChange={(e) => {
-                      const page = parseInt(e.target.value) - 1;
-                      if (page >= 0 && page < totalPages) {
+                      const page = parseInt(e.target.value);
+                      if (page >= 1 && page <= paginationInfo.totalPages) {
                         setCurrentPage(page);
                       }
                     }}
                     className="w-16 px-2 py-1 text-sm border rounded text-center"
+                    disabled={isLoading}
                   />
-                  <span className="text-sm">of {totalPages.toLocaleString()}</span>
+                  <span className="text-sm">of {paginationInfo.totalPages.toLocaleString()}</span>
                 </div>
                 
-                {/* Next/Last */}
+                {/* Next Button */}
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={handleNextPage}
-                  disabled={currentPage >= totalPages - 1}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setCurrentPage(totalPages - 1)}
-                  disabled={currentPage >= totalPages - 1}
+                  disabled={!paginationInfo.hasMore || isLoading}
                   className="flex items-center gap-1"
                 >
-                  Last
+                  Next
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </>
-            )}
-            
-            {viewMode === 'tree' && (
-              <span className="text-sm px-3">Hierarchical View</span>
             )}
           </div>
         </div>
