@@ -1143,6 +1143,23 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Archive sorting handler
+  const handleArchiveSort = (column: string) => {
+    if (archiveSortBy === column) {
+      setArchiveSortOrder(archiveSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setArchiveSortBy(column);
+      setArchiveSortOrder('asc');
+    }
+    setArchivePage(0); // Reset to first page when sorting changes
+  };
+
+  // Archive sort indicator
+  const getArchiveSortIndicator = (column: string) => {
+    if (archiveSortBy !== column) return null;
+    return archiveSortOrder === 'asc' ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />;
+  };
+
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
