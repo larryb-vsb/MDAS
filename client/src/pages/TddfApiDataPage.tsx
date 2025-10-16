@@ -3233,9 +3233,8 @@ export default function TddfApiDataPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={file.status === 'completed' ? 'default' : 
-                                        file.status === 'processing' ? 'secondary' : 'destructive'}>
-                            {file.status || file.current_phase}
+                          <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
+                            Archived
                           </Badge>
                         </TableCell>
                         <TableCell>
