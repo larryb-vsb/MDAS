@@ -2039,8 +2039,10 @@ class MMSWatcher {
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'failed',
       processingNotes: `Step 6 processing failed: ${errorMessage}`,
+      lastFailureReason: errorMessage, // Also populate last_failure_reason for better error tracking
       processingStatus: 'failed',
-      failedAt: new Date()
+      failedAt: new Date(),
+      statusMessage: `Failed: ${errorMessage}` // Update status message to show error
     });
     
     console.log(`[MMS-WATCHER] [AUTO-STEP6] ❌ Failed Step 6 processing: ${upload.filename} - ${errorMessage}`);

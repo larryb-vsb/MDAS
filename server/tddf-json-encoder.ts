@@ -496,26 +496,25 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     const recordsBeforeCleanup = parseInt(beforeCountResult.rows[0]?.count || '0', 10);
     
     // Remove duplicate records (keep newest based on MAX(id))
+    // Optimized: Single-pass deletion using CTE with ROW_NUMBER() window function
     const deleteResult = await batchPool.query(`
-      DELETE FROM ${tddfJsonbTable}
-      WHERE id IN (
-        SELECT t1.id
-        FROM ${tddfJsonbTable} t1
-        WHERE t1.raw_line_hash IN (
-          SELECT raw_line_hash
+      WITH duplicates_to_delete AS (
+        SELECT id
+        FROM (
+          SELECT 
+            id,
+            ROW_NUMBER() OVER (
+              PARTITION BY raw_line_hash 
+              ORDER BY id DESC
+            ) as row_num
           FROM ${tddfJsonbTable}
-          WHERE raw_line_hash IS NOT NULL
-          GROUP BY raw_line_hash
-          HAVING COUNT(*) > 1
-        )
-        AND t1.id NOT IN (
-          SELECT MAX(id) as max_id
-          FROM ${tddfJsonbTable}
-          WHERE raw_line_hash IS NOT NULL
-          GROUP BY raw_line_hash
-        )
+          WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
+        ) ranked
+        WHERE row_num > 1
       )
-    `);
+      DELETE FROM ${tddfJsonbTable}
+      WHERE id IN (SELECT id FROM duplicates_to_delete)
+    `, [upload.id]);
     
     const duplicatesRemoved = deleteResult.rowCount || 0;
     const recordsAfterCleanup = recordsBeforeCleanup - duplicatesRemoved;
