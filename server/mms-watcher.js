@@ -657,6 +657,10 @@ class MMSWatcher {
       }
     }
     
+    // Extract TDDF metadata (sequence number and processing time) from filename
+    const { parseTddfFilename } = await import('./filename-parser.js');
+    const tddfMetadata = parseTddfFilename(upload.filename);
+    
     // Update upload record with identification results
     const updateObject = {
       currentPhase: 'identified',
@@ -667,6 +671,8 @@ class MMSWatcher {
       hasHeaders: identification.hasHeaders,
       fileFormat: identification.format,
       businessDay: businessDay, // Set the extracted business day
+      fileSequenceNumber: tddfMetadata.file_sequence_number, // TDDF sequence (e.g., 830, 2400)
+      fileProcessingTime: tddfMetadata.file_processing_time, // TDDF processing time (e.g., HHMMSS)
       validationErrors: identification.validationErrors && identification.validationErrors.length > 0 
         ? JSON.stringify(identification.validationErrors)
         : null,
