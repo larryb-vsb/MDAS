@@ -829,119 +829,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Call the existing bulk-archive endpoint logic
+      // Simply mark files as archived using flags
       const username = (req.user as any)?.username || 'system';
-      const environment = NODE_ENV === 'development' ? 'dev' : 'prod';
-      const archivePrefix = `${environment}-tddf-archive`;
+      const validUploadIds = validFiles.map(f => f.uploadId);
       
-      const archivedFiles = [];
+      // Update archive flags for all valid files in one query
+      const updateQuery = `
+        UPDATE ${getTableName('uploader_uploads')}
+        SET 
+          is_archived = true,
+          archived_at = NOW(),
+          archived_by = $1
+        WHERE id = ANY($2)
+        RETURNING id, filename
+      `;
       
-      for (const { uploadId, filename } of validFiles) {
-        try {
-          const upload = await storage.getUploaderUploadById(uploadId);
-          if (!upload) continue;
-
-          // Start transaction for atomic archive operation
-          const client = await pool.connect();
-          try {
-            await client.query('BEGIN');
-            
-            const { businessDay, fileDate } = extractBusinessDayFromFilename(upload.filename);
-            
-            // Generate archive filename and path
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const archiveFilename = `${timestamp}_${upload.filename}`;
-            const archivePath = `${archivePrefix}/${archiveFilename}`;
-            
-            // Insert archive record
-            const insertQuery = `
-              INSERT INTO ${getTableName('tddf_archive')} (
-                archive_filename, original_filename, archive_path, original_upload_path,
-                file_size, file_hash, archive_status, step6_status,
-                business_day, file_date, original_upload_id,
-                metadata, created_by, updated_by
-              ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-              ) RETURNING *
-            `;
-            
-            const metadata = {
-              original_phase: upload.currentPhase,
-              archived_by: username,
-              archive_initiated_at: new Date().toISOString(),
-              manual_archive: true
-            };
-            
-            const archiveResult = await client.query(insertQuery, [
-              archiveFilename,
-              upload.filename,
-              archivePath,
-              `${environment}-uploader/${upload.filename}`,
-              upload.fileSize || 0,
-              `temp-hash-${Date.now()}`,
-              'pending',
-              'pending',
-              businessDay,
-              fileDate,
-              upload.id,
-              JSON.stringify(metadata),
-              username,
-              username
-            ]);
-            
-            const archiveFileId = archiveResult.rows[0].id;
-            const archivedAt = new Date();
-            
-            // Copy JSONB records to permanent archive storage
-            const copyRecordsQuery = `
-              INSERT INTO ${getTableName('tddf_archive_records')} (
-                upload_id, record_type, record_data, processing_status, created_at,
-                record_identifier, line_number, raw_line, field_count, original_filename,
-                file_processing_date, file_sequence_number, file_processing_time, file_system_id,
-                mainframe_process_data, merchant_account_number, raw_line_hash,
-                is_archived, archived_at, archive_file_id, processed_at
-              )
-              SELECT 
-                upload_id, record_type, record_data, processing_status, created_at,
-                record_identifier, line_number, raw_line, field_count, original_filename,
-                file_processing_date, file_sequence_number, file_processing_time, file_system_id,
-                mainframe_process_data, merchant_account_number, raw_line_hash,
-                true, $2, $3, processed_at
-              FROM ${getTableName('uploader_tddf_jsonb_records')}
-              WHERE upload_id = $1
-            `;
-            
-            const copyResult = await client.query(copyRecordsQuery, [upload.id, archivedAt, archiveFileId]);
-            
-            await client.query('COMMIT');
-            
-            archivedFiles.push({
-              uploadId,
-              filename,
-              archivePath,
-              recordCount: copyResult.rowCount
-            });
-            console.log(`[MANUAL-STEP7] Archived ${filename} with ${copyResult.rowCount} records`);
-            
-          } catch (error) {
-            await client.query('ROLLBACK');
-            console.error(`[MANUAL-STEP7] Error archiving ${filename}, transaction rolled back:`, error);
-            errors.push({
-              uploadId,
-              error: error instanceof Error ? error.message : "Archive failed"
-            });
-          } finally {
-            client.release();
-          }
-          
-        } catch (error) {
-          console.error(`[MANUAL-STEP7] Error processing ${uploadId}:`, error);
-          errors.push({
-            uploadId,
-            error: error instanceof Error ? error.message : "Unknown error"
-          });
-        }
-      }
+      const result = await pool.query(updateQuery, [username, validUploadIds]);
+      const archivedFiles = result.rows;
+      
+      console.log(`[MANUAL-STEP7] Marked ${archivedFiles.length} file(s) as archived`)
       
       console.log(`[MANUAL-STEP7] Completed: ${archivedFiles.length} archived, ${errors.length} errors`);
       
@@ -952,7 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorCount: errors.length,
         archivedFiles,
         errors,
-        message: `Successfully archived ${archivedFiles.length} file(s) to permanent storage, ${errors.length} errors`
+        message: `Marked ${archivedFiles.length} file(s) as archived, ${errors.length} errors`
       });
       
     } catch (error) {
