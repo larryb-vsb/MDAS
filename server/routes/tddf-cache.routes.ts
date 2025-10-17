@@ -902,30 +902,36 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`🔄 Found ${apiDataResult.rows.length} days with TDDF-API data in ${month}`);
       
       for (const dayData of apiDataResult.rows) {
-        // Insert rebuilt entry for this day with correct schema
+        const recordBreakdown = dayData.record_breakdown || {};
+        const bhRecords = parseInt(recordBreakdown['BH'] || '0');
+        const dtRecords = parseInt(recordBreakdown['DT'] || '0');
+        
+        // Insert rebuilt entry for this day with correct schema matching dev_tddf1_totals
         await pool.query(`
           INSERT INTO ${totalsTableName} (
-            processing_date, 
+            file_date, 
             total_files, 
             total_records, 
-            dt_transaction_amounts, 
-            bh_net_deposits,
-            record_breakdown,
-            last_updated,
+            total_transaction_amounts, 
+            total_net_deposits,
+            bh_records,
+            dt_records,
+            updated_at,
             created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
         `, [
           dayData.processing_date,
           parseInt(dayData.total_files || '0'),
           parseInt(dayData.total_records || '0'),
           parseFloat(dayData.dt_transaction_amounts || '0'),
           parseFloat(dayData.bh_net_deposits || '0'),
-          JSON.stringify(dayData.record_breakdown || {})
+          bhRecords,
+          dtRecords
         ]);
         
         rebuiltEntries++;
         
-        console.log(`✅ Rebuilt ${dayData.processing_date}: ${dayData.total_files} files, ${dayData.total_records} records, DT: $${parseFloat(dayData.dt_transaction_amounts || '0')}, BH: $${parseFloat(dayData.bh_net_deposits || '0')}`);
+        console.log(`✅ Rebuilt ${dayData.processing_date}: ${dayData.total_files} files, ${dayData.total_records} records, BH: ${bhRecords}, DT: ${dtRecords}, DT Amounts: $${parseFloat(dayData.dt_transaction_amounts || '0')}, BH Deposits: $${parseFloat(dayData.bh_net_deposits || '0')}`);
       }
       
       console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated from TDDF-API data`);
