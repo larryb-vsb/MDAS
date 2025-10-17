@@ -833,8 +833,9 @@ export function registerTddfCacheRoutes(app: Express) {
       // Environment-aware table naming
       const envPrefix = isDevelopment ? 'dev_' : '';
       const totalsTableName = `${envPrefix}tddf1_totals`;
+      const apiRecordsTableName = `${envPrefix}tddf_api_records`;
       
-      console.log(`🔄 Environment: ${environment}, Using totals table: ${totalsTableName}`);
+      console.log(`🔄 Environment: ${environment}, Using totals table: ${totalsTableName}, API records table: ${apiRecordsTableName}`);
       
       // Parse month to get date range
       const [year, monthNum] = month.split('-');
@@ -854,98 +855,89 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`🔄 Cleared existing entries for ${month}`);
       
-      // Get all file-based TDDF tables that have data for this month
-      const tablesResult = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name LIKE $1
-          AND table_name != $2
-        ORDER BY table_name
-      `, [`${envPrefix}tddf1_file_%`, totalsTableName]);
+      // Get aggregated data from TDDF-API records table, grouped by processing date
+      const apiDataResult = await pool.query(`
+        SELECT 
+          tddf_processing_date as processing_date,
+          COUNT(*) as total_records,
+          COUNT(DISTINCT file_id) as total_files,
+          COALESCE(SUM(CASE 
+            WHEN record_type = 'DT' 
+              AND extracted_fields->>'transactionAmount' IS NOT NULL
+              AND extracted_fields->>'transactionAmount' != ''
+            THEN CAST(extracted_fields->>'transactionAmount' AS DECIMAL)
+            ELSE 0 
+          END), 0) as dt_transaction_amounts,
+          COALESCE(SUM(CASE 
+            WHEN record_type = 'BH' 
+              AND extracted_fields->>'netDeposit' IS NOT NULL
+              AND extracted_fields->>'netDeposit' != ''
+            THEN CAST(extracted_fields->>'netDeposit' AS DECIMAL)
+            ELSE 0 
+          END), 0) as bh_net_deposits,
+          jsonb_object_agg(
+            COALESCE(record_type, 'UNK'), 
+            record_count
+          ) as record_breakdown
+        FROM (
+          SELECT 
+            tddf_processing_date,
+            file_id,
+            record_type,
+            extracted_fields,
+            COUNT(*) as record_count
+          FROM ${apiRecordsTableName}
+          WHERE tddf_processing_date >= $1 
+            AND tddf_processing_date <= $2
+          GROUP BY tddf_processing_date, file_id, record_type, extracted_fields
+        ) grouped_records
+        WHERE tddf_processing_date >= $1 
+          AND tddf_processing_date <= $2
+        GROUP BY tddf_processing_date
+        ORDER BY tddf_processing_date
+      `, [startDate, endDate]);
       
       let rebuiltEntries = 0;
       
-      for (const tableRow of tablesResult.rows) {
-        const tableName = tableRow.table_name;
+      console.log(`🔄 Found ${apiDataResult.rows.length} days with TDDF-API data in ${month}`);
+      
+      for (const dayData of apiDataResult.rows) {
+        // Insert rebuilt entry for this day with correct schema
+        await pool.query(`
+          INSERT INTO ${totalsTableName} (
+            processing_date, 
+            total_files, 
+            total_records, 
+            dt_transaction_amounts, 
+            bh_net_deposits,
+            record_breakdown,
+            last_updated,
+            created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        `, [
+          dayData.processing_date,
+          parseInt(dayData.total_files || '0'),
+          parseInt(dayData.total_records || '0'),
+          parseFloat(dayData.dt_transaction_amounts || '0'),
+          parseFloat(dayData.bh_net_deposits || '0'),
+          JSON.stringify(dayData.record_breakdown || {})
+        ]);
         
-        try {
-          // Extract date from table name since BH records have NULL transaction_date
-          const dateMatch = tableName.match(/(\d{2})(\d{2})(\d{4})/);
-          if (!dateMatch) {
-            console.warn(`Could not extract date from table name: ${tableName}`);
-            continue;
-          }
-          
-          const [, month_extracted, day_extracted, year_extracted] = dateMatch;
-          const fileDate = `${year_extracted}-${month_extracted}-${day_extracted}`;
-          
-          // Skip if this file doesn't belong to the target month
-          if (!fileDate.startsWith(month)) {
-            continue;
-          }
-          
-          // Get aggregated data using raw TDDF specification (matches PowerShell logic)
-          const tableInfoResult = await pool.query(`
-            SELECT 
-              $1 as processing_date,
-              COUNT(*) as total_records,
-              COALESCE(SUM(CASE 
-                WHEN record_type = 'DT' 
-                  AND LENGTH(raw_line) >= 103 
-                  AND SUBSTRING(raw_line, 93, 11) ~ '^[0-9]+$' 
-                THEN CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 100.0 
-                ELSE 0 
-              END), 0) as dt_transaction_amounts,
-              COALESCE(SUM(CASE 
-                WHEN record_type = 'BH' 
-                  AND LENGTH(raw_line) >= 83 
-                  AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$' 
-                THEN CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0 
-                ELSE 0 
-              END), 0) as bh_net_deposits,
-              COUNT(DISTINCT record_type) as record_types
-            FROM ${tableName}
-          `, [fileDate]);
-          
-          for (const dayData of tableInfoResult.rows) {
-            // Insert rebuilded entry for this day with correct schema
-            await pool.query(`
-              INSERT INTO ${totalsTableName} (
-                processing_date, 
-                total_files, 
-                total_records, 
-                dt_transaction_amounts, 
-                bh_net_deposits,
-                record_breakdown,
-                last_updated,
-                created_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-            `, [
-              dayData.processing_date,
-              1, // total_files (1 file per entry)
-              parseInt(dayData.total_records),
-              parseFloat(dayData.dt_transaction_amounts || '0'),
-              parseFloat(dayData.bh_net_deposits || '0'),
-              JSON.stringify({ rebuiltFrom: tableName, recordTypes: dayData.record_types })
-            ]);
-            
-            rebuiltEntries++;
-          }
-        } catch (tableError) {
-          console.warn(`Failed to process table ${tableName}:`, tableError);
-        }
+        rebuiltEntries++;
+        
+        console.log(`✅ Rebuilt ${dayData.processing_date}: ${dayData.total_files} files, ${dayData.total_records} records, DT: $${parseFloat(dayData.dt_transaction_amounts || '0')}, BH: $${parseFloat(dayData.bh_net_deposits || '0')}`);
       }
       
-      console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated`);
+      console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated from TDDF-API data`);
       
       res.json({
         success: true,
-        message: `TDDF1 totals cache rebuilt successfully for ${month}`,
+        message: `TDDF1 totals cache rebuilt successfully for ${month} from TDDF-API data`,
         stats: {
           month,
           rebuiltEntries,
-          dateRange: `${startDate} to ${endDate}`
+          dateRange: `${startDate} to ${endDate}`,
+          dataSource: 'TDDF-API records'
         }
       });
       
