@@ -1494,6 +1494,7 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   recordType: text("record_type").notNull(), // DT, BH, P1, P2, etc.
   lineNumber: integer("line_number").notNull(), // Original line number in file
   rawLine: text("raw_line").notNull(), // Original TDDF fixed-width line
+  rawLineHash: text("raw_line_hash"), // SHA-256 hash of first 52 chars for duplicate detection
   extractedFields: jsonb("extracted_fields").notNull(), // Parsed TDDF fields as JSONB
   recordIdentifier: text("record_identifier"), // Extracted record identifier for highlighting
   processingTimeMs: integer("processing_time_ms").default(0), // Processing duration
@@ -1514,7 +1515,9 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   tddfProcessingDateIdx: index("tddf_jsonb_processing_date_idx").on(table.tddfProcessingDate),
   // Indexes for universal timestamp fields
   parsedDatetimeIdx: index("tddf_jsonb_parsed_datetime_idx").on(table.parsedDatetime),
-  recordTimeSourceIdx: index("tddf_jsonb_record_time_source_idx").on(table.recordTimeSource)
+  recordTimeSourceIdx: index("tddf_jsonb_record_time_source_idx").on(table.recordTimeSource),
+  // Index for duplicate detection
+  rawLineHashIdx: index("tddf_jsonb_raw_line_hash_idx").on(table.rawLineHash)
 }));
 
 // Processing timing logs table for performance tracking
