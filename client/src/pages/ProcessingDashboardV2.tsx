@@ -125,14 +125,14 @@ export default function ProcessingDashboardV2() {
   };
 
   // Prepare chart data for upload phases
-  const phaseChartData = uploaderStats ? Object.entries(uploaderStats.byPhase).map(([phase, count]) => ({
+  const phaseChartData = uploaderStats?.byPhase ? Object.entries(uploaderStats.byPhase).map(([phase, count]) => ({
     phase: phase.charAt(0).toUpperCase() + phase.slice(1),
     count,
     color: getPhaseColor(phase)
   })) : [];
 
   // Prepare chart data for record types
-  const recordTypeChartData = jsonbStats ? Object.entries(jsonbStats.recordTypes).map(([type, count]) => ({
+  const recordTypeChartData = jsonbStats?.recordTypes ? Object.entries(jsonbStats.recordTypes).map(([type, count]) => ({
     type,
     count,
     color: getRecordTypeColor(type)
@@ -213,7 +213,7 @@ export default function ProcessingDashboardV2() {
               <TrendingUp className="h-4 w-4 text-orange-500" />
               <div>
                 <div className="text-lg font-bold text-orange-600">
-                  {jsonbStats?.processingTime.recordsPerSecond.toFixed(0) || 0}
+                  {jsonbStats?.processingTime?.recordsPerSecond?.toFixed(0) || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">Records/sec</div>
               </div>
@@ -294,15 +294,15 @@ export default function ProcessingDashboardV2() {
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Active Sessions</span>
-                <Badge variant="outline">{uploaderStats?.sessionStats.activeSessions || 0}</Badge>
+                <Badge variant="outline">{uploaderStats?.sessionStats?.activeSessions || 0}</Badge>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Completed Sessions</span>
-                <Badge variant="outline">{uploaderStats?.sessionStats.completedSessions || 0}</Badge>
+                <Badge variant="outline">{uploaderStats?.sessionStats?.completedSessions || 0}</Badge>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Avg Files/Session</span>
-                <Badge variant="outline">{uploaderStats?.sessionStats.avgFilesPerSession.toFixed(1) || '0.0'}</Badge>
+                <Badge variant="outline">{uploaderStats?.sessionStats?.avgFilesPerSession?.toFixed(1) || '0.0'}</Badge>
               </div>
               <div className="pt-2">
                 <div className="text-xs text-muted-foreground mb-1">Storage Utilization</div>
@@ -326,25 +326,25 @@ export default function ProcessingDashboardV2() {
               <div className="flex justify-between text-sm">
                 <span>Avg Processing Time</span>
                 <Badge variant="outline">
-                  {jsonbStats?.processingTime.avgTimePerFile.toFixed(2) || 0}s
+                  {jsonbStats?.processingTime?.avgTimePerFile?.toFixed(2) || 0}s
                 </Badge>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Total Processing Time</span>
                 <Badge variant="outline">
-                  {formatDuration(jsonbStats?.processingTime.totalProcessingTime || 0)}
+                  {formatDuration(jsonbStats?.processingTime?.totalProcessingTime || 0)}
                 </Badge>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Total File Size</span>
                 <Badge variant="outline">
-                  {formatFileSize(jsonbStats?.dataVolume.totalFileSize || 0)}
+                  {formatFileSize(jsonbStats?.dataVolume?.totalFileSize || 0)}
                 </Badge>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Total Lines Processed</span>
                 <Badge variant="outline">
-                  {jsonbStats?.dataVolume.totalLines.toLocaleString() || 0}
+                  {jsonbStats?.dataVolume?.totalLines?.toLocaleString() || 0}
                 </Badge>
               </div>
             </CardContent>
@@ -360,11 +360,11 @@ export default function ProcessingDashboardV2() {
                 <div className="flex justify-between text-sm">
                   <span>Cache Hit Rate</span>
                   <Badge variant="outline">
-                    {performanceMetrics?.queryPerformance.cacheHitRate.toFixed(1) || 0}%
+                    {performanceMetrics?.queryPerformance?.cacheHitRate?.toFixed(1) || 0}%
                   </Badge>
                 </div>
                 <Progress 
-                  value={performanceMetrics?.queryPerformance.cacheHitRate || 0} 
+                  value={performanceMetrics?.queryPerformance?.cacheHitRate || 0} 
                   className="h-2"
                 />
               </div>
@@ -372,21 +372,21 @@ export default function ProcessingDashboardV2() {
               <div className="flex justify-between text-sm">
                 <span>Avg Response Time</span>
                 <Badge variant="outline">
-                  {performanceMetrics?.queryPerformance.avgResponseTime.toFixed(0) || 0}ms
+                  {performanceMetrics?.queryPerformance?.avgResponseTime?.toFixed(0) || 0}ms
                 </Badge>
               </div>
               
               <div className="flex justify-between text-sm">
                 <span>Queries/Min</span>
                 <Badge variant="outline">
-                  {performanceMetrics?.queryPerformance.queriesPerMinute || 0}
+                  {performanceMetrics?.queryPerformance?.queriesPerMinute || 0}
                 </Badge>
               </div>
               
               <div className="flex justify-between text-sm">
                 <span>Active Connections</span>
                 <Badge variant="outline">
-                  {performanceMetrics?.systemHealth.activeConnections || 0}
+                  {performanceMetrics?.systemHealth?.activeConnections || 0}
                 </Badge>
               </div>
             </CardContent>
