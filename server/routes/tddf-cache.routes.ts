@@ -865,32 +865,19 @@ export function registerTddfCacheRoutes(app: Express) {
             WHEN record_type = 'DT' 
               AND extracted_fields->>'transactionAmount' IS NOT NULL
               AND extracted_fields->>'transactionAmount' != ''
-            THEN CAST(extracted_fields->>'transactionAmount' AS DECIMAL)
+            THEN (extracted_fields->>'transactionAmount')::numeric
             ELSE 0 
           END), 0) as dt_transaction_amounts,
           COALESCE(SUM(CASE 
             WHEN record_type = 'BH' 
               AND extracted_fields->>'netDeposit' IS NOT NULL
               AND extracted_fields->>'netDeposit' != ''
-            THEN CAST(extracted_fields->>'netDeposit' AS DECIMAL)
+            THEN (extracted_fields->>'netDeposit')::numeric
             ELSE 0 
           END), 0) as bh_net_deposits,
-          jsonb_object_agg(
-            COALESCE(record_type, 'UNK'), 
-            record_count
-          ) as record_breakdown
-        FROM (
-          SELECT 
-            tddf_processing_date,
-            file_id,
-            record_type,
-            extracted_fields,
-            COUNT(*) as record_count
-          FROM ${apiRecordsTableName}
-          WHERE tddf_processing_date >= $1 
-            AND tddf_processing_date <= $2
-          GROUP BY tddf_processing_date, file_id, record_type, extracted_fields
-        ) grouped_records
+          COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records
+        FROM ${apiRecordsTableName}
         WHERE tddf_processing_date >= $1 
           AND tddf_processing_date <= $2
         GROUP BY tddf_processing_date
@@ -902,9 +889,8 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`🔄 Found ${apiDataResult.rows.length} days with TDDF-API data in ${month}`);
       
       for (const dayData of apiDataResult.rows) {
-        const recordBreakdown = dayData.record_breakdown || {};
-        const bhRecords = parseInt(recordBreakdown['BH'] || '0');
-        const dtRecords = parseInt(recordBreakdown['DT'] || '0');
+        const bhRecords = parseInt(dayData.bh_records || '0');
+        const dtRecords = parseInt(dayData.dt_records || '0');
         
         // Insert rebuilt entry for this day with correct schema matching dev_tddf1_totals
         await pool.query(`
@@ -931,7 +917,7 @@ export function registerTddfCacheRoutes(app: Express) {
         
         rebuiltEntries++;
         
-        console.log(`✅ Rebuilt ${dayData.processing_date}: ${dayData.total_files} files, ${dayData.total_records} records, BH: ${bhRecords}, DT: ${dtRecords}, DT Amounts: $${parseFloat(dayData.dt_transaction_amounts || '0')}, BH Deposits: $${parseFloat(dayData.bh_net_deposits || '0')}`);
+        console.log(`✅ Rebuilt ${dayData.processing_date}: ${dayData.total_files} files, ${dayData.total_records} records, BH: ${bhRecords}, DT: ${dtRecords}, DT Amounts: $${parseFloat(dayData.dt_transaction_amounts || '0').toFixed(2)}, BH Deposits: $${parseFloat(dayData.bh_net_deposits || '0').toFixed(2)}`);
       }
       
       console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated from TDDF-API data`);
