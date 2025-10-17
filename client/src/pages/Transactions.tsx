@@ -120,7 +120,8 @@ function extractMerchantAccountNumber(record: any): string | null {
   let merchantAccountNumber = record.parsed_data?.merchantAccountNumber || 
                               record.record_data?.merchantAccountNumber ||
                               record.parsed_data?.merchant_account_number ||
-                              record.record_data?.merchant_account_number;
+                              record.record_data?.merchant_account_number ||
+                              record.jsonb_data?.merchantAccountNumber;
   
   if (!merchantAccountNumber && (record.record_type === 'BH' || record.record_type === '10')) {
     merchantAccountNumber = record.parsed_data?.acquirerBin || 
@@ -129,13 +130,9 @@ function extractMerchantAccountNumber(record: any): string | null {
                            record.record_data?.AcquirerBIN;
   }
   
-  // Normalize account number by removing leading zeros and padding to 16 digits
-  if (merchantAccountNumber) {
-    const cleaned = merchantAccountNumber.toString().replace(/^0+/, '');
-    merchantAccountNumber = cleaned.padStart(16, '0');
-  }
-  
-  return merchantAccountNumber;
+  // Return as-is - the TDDF format with leading zero (16 digits)
+  // getMerchantName() will handle the normalization for lookup
+  return merchantAccountNumber ? merchantAccountNumber.toString() : null;
 }
 
 function extractTransactionDate(record: any): string | null {
@@ -155,6 +152,15 @@ function extractTransactionDate(record: any): string | null {
     }
   }
   return null;
+}
+
+function extractTerminalId(record: any): string | null {
+  return record.jsonb_data?.terminalId ||
+         record.parsed_data?.terminalId ||
+         record.record_data?.terminalId ||
+         record.parsed_data?.TerminalId ||
+         record.record_data?.TerminalId ||
+         null;
 }
 
 function extractTransactionAmount(record: any): number | null {
@@ -1085,7 +1091,7 @@ function MccTddfTransactionsTab() {
                     const transactionDate = extractTransactionDate(record);
                     const transactionAmount = extractTransactionAmount(record);
                     const cardType = extractCardType(record);
-                    const terminalId = record.jsonb_data?.terminalId;
+                    const terminalId = extractTerminalId(record);
                     
                     // Truncate filename for display
                     const displayFilename = record.filename && record.filename.length > 35 
