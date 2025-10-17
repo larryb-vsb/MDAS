@@ -55,7 +55,7 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **Schema Versioning**: A database-based system tracks schema changes, ensures synchronization, and prevents deployment issues.
 - **Hybrid Storage System**: Stores raw line data in object storage and structured data in the database for cost efficiency and fast queries.
 - **Self-Repairing Cache System**: Automatically creates missing TDDF1 totals tables and handles cache rebuild failures.
-- **TDDF1 Cache Data Source**: TDDF1 dashboard cache system sources totals from TDDF-API data (dev_tddf_api_records) using extracted_fields JSONB for BH netDeposit and DT transactionAmount aggregation, grouped by tddf_processing_date.
+- **TDDF1 Cache Data Source**: TDDF1 dashboard cache system sources totals from TDDF uploader data (dev_tddf_jsonb) using extracted_fields JSONB for BH netDeposit and DT transactionAmount aggregation, grouped by tddf_processing_date.
 - **Enhanced Auto 4-5 Retry System**: Implemented comprehensive retry logic and conflict handling for the Auto 4-5 processing pipeline.
 - **Shared TDDF Resource Architecture**: Provides unified components and utilities for consistent data handling and reduced duplication.
 - **TDDF Enhanced Metadata System**: Comprehensive filename parsing and metadata extraction for TDDF files, enriching JSONB table with metadata.

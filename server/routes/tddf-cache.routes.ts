@@ -833,9 +833,9 @@ export function registerTddfCacheRoutes(app: Express) {
       // Environment-aware table naming
       const envPrefix = isDevelopment ? 'dev_' : '';
       const totalsTableName = `${envPrefix}tddf1_totals`;
-      const apiRecordsTableName = `${envPrefix}tddf_api_records`;
+      const tddfjsonbTableName = `${envPrefix}tddf_jsonb`; // Use uploader table, not API table
       
-      console.log(`🔄 Environment: ${environment}, Using totals table: ${totalsTableName}, API records table: ${apiRecordsTableName}`);
+      console.log(`🔄 Environment: ${environment}, Using totals table: ${totalsTableName}, TDDF JSONB table: ${tddfjsonbTableName}`);
       
       // Parse month to get date range
       const [year, monthNum] = month.split('-');
@@ -855,12 +855,12 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`🔄 Cleared existing entries for ${month}`);
       
-      // Get aggregated data from TDDF-API records table, grouped by processing date
-      const apiDataResult = await pool.query(`
+      // Get aggregated data from TDDF JSONB (uploader) table, grouped by processing date
+      const tddfjsonbDataResult = await pool.query(`
         SELECT 
-          tddf_processing_date as processing_date,
+          DATE(tddf_processing_date) as processing_date,
           COUNT(*) as total_records,
-          COUNT(DISTINCT file_id) as total_files,
+          COUNT(DISTINCT upload_id) as total_files,
           COALESCE(SUM(CASE 
             WHEN record_type = 'DT' 
               AND extracted_fields->>'transactionAmount' IS NOT NULL
@@ -877,18 +877,18 @@ export function registerTddfCacheRoutes(app: Express) {
           END), 0) as bh_net_deposits,
           COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
           COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records
-        FROM ${apiRecordsTableName}
-        WHERE tddf_processing_date >= $1 
-          AND tddf_processing_date <= $2
-        GROUP BY tddf_processing_date
-        ORDER BY tddf_processing_date
+        FROM ${tddfjsonbTableName}
+        WHERE DATE(tddf_processing_date) >= $1::date 
+          AND DATE(tddf_processing_date) <= $2::date
+        GROUP BY DATE(tddf_processing_date)
+        ORDER BY DATE(tddf_processing_date)
       `, [startDate, endDate]);
       
       let rebuiltEntries = 0;
       
-      console.log(`🔄 Found ${apiDataResult.rows.length} days with TDDF-API data in ${month}`);
+      console.log(`🔄 Found ${tddfjsonbDataResult.rows.length} days with TDDF uploader data in ${month}`);
       
-      for (const dayData of apiDataResult.rows) {
+      for (const dayData of tddfjsonbDataResult.rows) {
         const bhRecords = parseInt(dayData.bh_records || '0');
         const dtRecords = parseInt(dayData.dt_records || '0');
         
@@ -920,16 +920,16 @@ export function registerTddfCacheRoutes(app: Express) {
         console.log(`✅ Rebuilt ${dayData.processing_date}: ${dayData.total_files} files, ${dayData.total_records} records, BH: ${bhRecords}, DT: ${dtRecords}, DT Amounts: $${parseFloat(dayData.dt_transaction_amounts || '0').toFixed(2)}, BH Deposits: $${parseFloat(dayData.bh_net_deposits || '0').toFixed(2)}`);
       }
       
-      console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated from TDDF-API data`);
+      console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated from TDDF uploader data`);
       
       res.json({
         success: true,
-        message: `TDDF1 totals cache rebuilt successfully for ${month} from TDDF-API data`,
+        message: `TDDF1 totals cache rebuilt successfully for ${month} from TDDF uploader data`,
         stats: {
           month,
           rebuiltEntries,
           dateRange: `${startDate} to ${endDate}`,
-          dataSource: 'TDDF-API records'
+          dataSource: 'TDDF uploader (dev_tddf_jsonb)'
         }
       });
       
