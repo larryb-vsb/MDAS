@@ -1831,19 +1831,18 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordsParamIndex++;
       }
       
-      // Add merchant_account filtering (handle both padded and unpadded formats)
+      // Add merchant_account filtering (normalize to 16-digit format)
       if (merchant_account) {
         const merchantAcct = merchant_account as string;
-        // Pad to 17 digits with leading zero if needed (format: 0XXXXXXXXXXXXXXXX)
-        const paddedMerchantAcct = merchantAcct.padStart(17, '0');
+        // Normalize: strip leading zeros then pad to exactly 16 digits
+        const normalizedMerchantAcct = merchantAcct.replace(/^0+/, '').padStart(16, '0');
         
-        // Match against both formats to handle variations
-        summaryWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${summaryParamIndex} OR r.record_data->>'merchantAccountNumber' = $${summaryParamIndex + 1})`);
-        recordsWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${recordsParamIndex} OR r.record_data->>'merchantAccountNumber' = $${recordsParamIndex + 1})`);
-        summaryParams.push(merchantAcct, paddedMerchantAcct);
-        recordsParams.push(merchantAcct, paddedMerchantAcct);
-        summaryParamIndex += 2;
-        recordsParamIndex += 2;
+        summaryWhereConditions.push(`r.record_data->>'merchantAccountNumber' = $${summaryParamIndex}`);
+        recordsWhereConditions.push(`r.record_data->>'merchantAccountNumber' = $${recordsParamIndex}`);
+        summaryParams.push(normalizedMerchantAcct);
+        recordsParams.push(normalizedMerchantAcct);
+        summaryParamIndex++;
+        recordsParamIndex++;
       }
       
       // Add date filtering (using text comparison since YYYY-MM-DD sorts correctly)
