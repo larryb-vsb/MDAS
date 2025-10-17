@@ -1831,14 +1831,19 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordsParamIndex++;
       }
       
-      // Add merchant_account filtering (16-digit padded merchant ID)
+      // Add merchant_account filtering (handle both padded and unpadded formats)
       if (merchant_account) {
-        summaryWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${summaryParamIndex})`);
-        recordsWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${recordsParamIndex})`);
-        summaryParams.push(merchant_account as string);
-        recordsParams.push(merchant_account as string);
-        summaryParamIndex++;
-        recordsParamIndex++;
+        const merchantAcct = merchant_account as string;
+        // Pad to 17 digits with leading zero if needed (format: 0XXXXXXXXXXXXXXXX)
+        const paddedMerchantAcct = merchantAcct.padStart(17, '0');
+        
+        // Match against both formats to handle variations
+        summaryWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${summaryParamIndex} OR r.record_data->>'merchantAccountNumber' = $${summaryParamIndex + 1})`);
+        recordsWhereConditions.push(`(r.record_data->>'merchantAccountNumber' = $${recordsParamIndex} OR r.record_data->>'merchantAccountNumber' = $${recordsParamIndex + 1})`);
+        summaryParams.push(merchantAcct, paddedMerchantAcct);
+        recordsParams.push(merchantAcct, paddedMerchantAcct);
+        summaryParamIndex += 2;
+        recordsParamIndex += 2;
       }
       
       // Add date filtering (using text comparison since YYYY-MM-DD sorts correctly)
