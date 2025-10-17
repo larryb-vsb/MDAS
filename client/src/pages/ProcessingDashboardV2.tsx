@@ -201,7 +201,7 @@ export default function ProcessingDashboardV2() {
               <FileJson className="h-4 w-4 text-purple-500" />
               <div>
                 <div className="text-lg font-bold text-purple-600">
-                  {jsonbStats?.totalRecords.toLocaleString() || 0}
+                  {jsonbStats?.totalRecords?.toLocaleString() || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">JSONB Records</div>
               </div>
@@ -403,7 +403,7 @@ export default function ProcessingDashboardV2() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {performanceMetrics?.recentActivity.map((activity, index) => (
+              {performanceMetrics?.recentActivity?.map((activity, index) => (
                 <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
                   <div className="flex-1">
                     <div className="font-medium">{activity.action}</div>
@@ -412,7 +412,7 @@ export default function ProcessingDashboardV2() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium">{activity.recordCount.toLocaleString()} records</div>
+                    <div className="font-medium">{activity.recordCount?.toLocaleString() || 0} records</div>
                     <div className="text-xs text-muted-foreground">{activity.processingTime}ms</div>
                   </div>
                 </div>
