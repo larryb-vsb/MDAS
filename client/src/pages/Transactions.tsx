@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard, ChevronDown, ChevronRight } from "lucide-react";
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -1060,7 +1060,7 @@ function MccTddfTransactionsTab() {
         </CardContent>
       </Card>
 
-      {/* Table */}
+      {/* Grid View (matching TDDF JSON viewer layout) */}
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
@@ -1075,124 +1075,121 @@ function MccTddfTransactionsTab() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead className="w-20">Type</TableHead>
-                    <TableHead>Transaction Details</TableHead>
-                    <TableHead className="w-40">File</TableHead>
-                    <TableHead className="w-16">Line</TableHead>
-                    <TableHead className="w-32">Business Day</TableHead>
-                    <TableHead className="w-24">Scheduled Slot</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.data && data.data.length > 0 ? (
-                    data.data.map((record) => {
-                      const isExpanded = expandedRows.has(record.id);
-                      const merchantAccountNumber = extractMerchantAccountNumber(record);
-                      const merchantName = getMerchantName(merchantAccountNumber);
-                      const transactionDate = extractTransactionDate(record);
-                      const transactionAmount = extractTransactionAmount(record);
-                      const cardType = extractCardType(record);
-                      
-                      return (
-                        <>
-                          <TableRow 
-                            key={record.id} 
-                            data-testid={`row-dt-${record.id}`}
-                            className="cursor-pointer hover:bg-gray-50"
-                            onClick={() => toggleRow(record.id)}
-                          >
-                            <TableCell>
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-gray-500" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-gray-500" />
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Badge 
-                                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                                  data-testid={`badge-dt-${record.id}`}
-                                >
-                                  DT
-                                </Badge>
-                                {cardType && (
-                                  <span 
-                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
-                                    data-testid={`badge-card-type-${cardType.toLowerCase()}`}
-                                  >
-                                    <CreditCard className="h-3 w-3" />
-                                    {getCardTypeBadges(cardType).label}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-md">
-                              <div className="flex items-center gap-3 text-sm">
-                                {merchantAccountNumber && (
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-blue-600">
-                                      {merchantAccountNumber}
-                                    </span>
-                                    {merchantName && (
-                                      <span className="text-xs font-semibold text-green-600">
-                                        {merchantName}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                                
-                                {(transactionDate || transactionAmount !== null) && (
-                                  <div className="ml-auto flex items-center gap-3">
-                                    {transactionDate && (
-                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <CalendarIcon className="h-4 w-4" />
-                                        {transactionDate}
-                                      </span>
-                                    )}
-                                    {transactionAmount !== null && (
-                                      <span className="font-medium text-gray-700">
-                                        ${Number(transactionAmount).toFixed(2)}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate text-sm" title={record.filename}>
-                              {record.filename || 'Unknown'}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
-                            <TableCell className="text-sm">
-                              {record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'N/A'}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {record.scheduledSlotLabel || 'N/A'}
-                            </TableCell>
-                          </TableRow>
-                          {isExpanded && (
-                            <TableRow key={`${record.id}-details`}>
-                              <TableCell colSpan={7} className="p-0">
-                                <DtDetailView record={record} merchantName={merchantName} />
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                        No DT records found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              {/* Header Row */}
+              <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
+                <div>Type</div>
+                <div>Merchant Account</div>
+                <div>Date</div>
+                <div>Amount</div>
+                <div>Merchant Name</div>
+                <div>Terminal</div>
+                <div>Card Type</div>
+                <div>Actions</div>
+              </div>
+
+              {/* Data Rows */}
+              <div>
+                {data?.data && data.data.length > 0 ? (
+                  data.data.map((record) => {
+                    const isExpanded = expandedRows.has(record.id);
+                    const merchantAccountNumber = extractMerchantAccountNumber(record);
+                    const merchantName = getMerchantName(merchantAccountNumber);
+                    const transactionDate = extractTransactionDate(record);
+                    const transactionAmount = extractTransactionAmount(record);
+                    const cardType = extractCardType(record);
+                    const terminalId = record.jsonb_data?.terminalId;
+                    
+                    return (
+                      <div key={record.id}>
+                        {/* Main Row */}
+                        <div 
+                          className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm cursor-pointer hover:bg-gray-50"
+                          onClick={() => toggleRow(record.id)}
+                          data-testid={`row-dt-${record.id}`}
+                        >
+                          {/* Type (with chevron) */}
+                          <div className="flex items-center gap-1">
+                            <Badge 
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                              data-testid={`badge-dt-${record.id}`}
+                            >
+                              DT
+                            </Badge>
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            )}
+                          </div>
+
+                          {/* Merchant Account */}
+                          <div className="font-mono text-xs">
+                            {merchantAccountNumber || '-'}
+                          </div>
+
+                          {/* Date */}
+                          <div>
+                            {transactionDate || '-'}
+                          </div>
+
+                          {/* Amount */}
+                          <div className="font-mono">
+                            {transactionAmount !== null ? `$${Number(transactionAmount).toFixed(2)}` : '-'}
+                          </div>
+
+                          {/* Merchant Name */}
+                          <div className="truncate">
+                            {merchantName || '-'}
+                          </div>
+
+                          {/* Terminal ID */}
+                          <div className="font-mono text-xs">
+                            {terminalId || '-'}
+                          </div>
+
+                          {/* Card Type */}
+                          <div>
+                            {cardType ? (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${getCardTypeBadges(cardType).className}`}
+                                data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                              >
+                                {getCardTypeBadges(cardType).label}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex items-center gap-1"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Expanded Detail View */}
+                        {isExpanded && (
+                          <div className="border-t bg-gray-50">
+                            <DtDetailView record={record} merchantName={merchantName} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No DT records found
+                  </div>
+                )}
+              </div>
 
               {/* Pagination */}
               {data && totalPages > 1 && (
