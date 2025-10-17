@@ -1075,19 +1075,7 @@ function MccTddfTransactionsTab() {
             </div>
           ) : (
             <>
-              {/* Header Row */}
-              <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
-                <div>Type</div>
-                <div>Merchant Account</div>
-                <div>Date</div>
-                <div>Amount</div>
-                <div>Merchant Name</div>
-                <div>Terminal</div>
-                <div>Card Type</div>
-                <div>Actions</div>
-              </div>
-
-              {/* Data Rows */}
+              {/* Compact Inline Rows (no header) */}
               <div>
                 {data?.data && data.data.length > 0 ? (
                   data.data.map((record) => {
@@ -1099,80 +1087,105 @@ function MccTddfTransactionsTab() {
                     const cardType = extractCardType(record);
                     const terminalId = record.jsonb_data?.terminalId;
                     
+                    // Truncate filename for display
+                    const displayFilename = record.filename && record.filename.length > 35 
+                      ? `${record.filename.substring(0, 32)}...` 
+                      : record.filename || 'Unknown';
+                    
                     return (
                       <div key={record.id}>
-                        {/* Main Row */}
+                        {/* Compact Inline Row */}
                         <div 
-                          className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm cursor-pointer hover:bg-gray-50"
+                          className="px-4 py-2 border-t cursor-pointer hover:bg-gray-50 flex items-center gap-2 text-sm"
                           onClick={() => toggleRow(record.id)}
                           data-testid={`row-dt-${record.id}`}
                         >
-                          {/* Type (with chevron) */}
-                          <div className="flex items-center gap-1">
+                          {/* Chevron */}
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          )}
+                          
+                          {/* DT Badge */}
+                          <Badge 
+                            className="bg-blue-500 hover:bg-blue-600 text-white flex-shrink-0"
+                            data-testid={`badge-dt-${record.id}`}
+                          >
+                            DT
+                          </Badge>
+
+                          {/* Card Type Badge */}
+                          {cardType && (
                             <Badge 
-                              className="bg-blue-500 hover:bg-blue-600 text-white"
-                              data-testid={`badge-dt-${record.id}`}
+                              variant="outline" 
+                              className={`text-xs flex-shrink-0 ${getCardTypeBadges(cardType).className}`}
+                              data-testid={`badge-card-type-${cardType.toLowerCase()}`}
                             >
-                              DT
+                              {getCardTypeBadges(cardType).label}
                             </Badge>
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-gray-500" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-gray-500" />
-                            )}
+                          )}
+
+                          {/* Transaction Title */}
+                          <span className="font-medium text-gray-700 flex-shrink-0">
+                            Detail Transaction
+                          </span>
+
+                          {/* Line Number */}
+                          <span className="text-sm font-mono text-muted-foreground flex-shrink-0">
+                            Line {record.line_number || 'N/A'}
+                          </span>
+
+                          {/* Merchant Account with icon */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <CreditCard className="h-4 w-4 text-blue-600" />
+                            <span className="font-mono text-xs text-blue-600 font-bold">
+                              {merchantAccountNumber || '-'}
+                            </span>
                           </div>
 
-                          {/* Merchant Account */}
-                          <div className="font-mono text-xs">
-                            {merchantAccountNumber || '-'}
-                          </div>
-
-                          {/* Date */}
-                          <div>
-                            {transactionDate || '-'}
-                          </div>
-
-                          {/* Amount */}
-                          <div className="font-mono">
-                            {transactionAmount !== null ? `$${Number(transactionAmount).toFixed(2)}` : '-'}
-                          </div>
-
-                          {/* Merchant Name */}
-                          <div className="truncate">
-                            {merchantName || '-'}
-                          </div>
-
-                          {/* Terminal ID */}
-                          <div className="font-mono text-xs">
-                            {terminalId || '-'}
-                          </div>
-
-                          {/* Card Type */}
-                          <div>
-                            {cardType ? (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${getCardTypeBadges(cardType).className}`}
-                                data-testid={`badge-card-type-${cardType.toLowerCase()}`}
-                              >
-                                {getCardTypeBadges(cardType).label}
+                          {/* Merchant Name with icon */}
+                          {merchantName && (
+                            <div className="flex items-center gap-1 truncate">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs flex-shrink-0">
+                                {merchantName}
                               </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </div>
+                            </div>
+                          )}
 
-                          {/* Actions */}
-                          <div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="flex items-center gap-1"
-                            >
-                              <Eye className="w-4 h-4" />
-                              View
-                            </Button>
-                          </div>
+                          {/* Amount with icon */}
+                          {transactionAmount !== null && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-green-600 font-medium">💰</span>
+                              <span className="font-mono text-sm">
+                                ${Number(transactionAmount).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Date with icon */}
+                          {transactionDate && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <CalendarIcon className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm">{transactionDate}</span>
+                            </div>
+                          )}
+
+                          {/* Terminal ID with icon */}
+                          {terminalId && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-purple-600 text-xs">🖥️</span>
+                              <span className="font-mono text-xs">{terminalId}</span>
+                            </div>
+                          )}
+
+                          {/* Filename (truncated) */}
+                          <span 
+                            className="text-xs text-gray-500 ml-auto flex-shrink-0" 
+                            title={record.filename || 'Unknown'}
+                          >
+                            {displayFilename}
+                          </span>
                         </div>
 
                         {/* Expanded Detail View */}
