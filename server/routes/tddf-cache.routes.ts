@@ -1172,11 +1172,13 @@ export function registerTddfCacheRoutes(app: Express) {
       // Query the pre-cache totals table for the specific date
       const totalsResult = await pool.query(`
         SELECT 
-          processing_date,
+          file_date,
           total_records,
-          bh_net_deposits,
-          dt_transaction_amounts,
-          record_breakdown,
+          total_net_deposits as bh_net_deposits,
+          total_transaction_amounts as dt_transaction_amounts,
+          total_files,
+          bh_records,
+          dt_records,
           created_at,
           id
         FROM ${totalsTableName}
