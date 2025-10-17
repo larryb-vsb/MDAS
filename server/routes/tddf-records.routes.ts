@@ -2455,52 +2455,52 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       console.log('[DT-LATEST-DEBUG] Query params:', { batchDate, merchantAccount, cardType, limit, offset });
       
-      const environment = process.env.NODE_ENV || 'development';
-      const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      // Use MASTER table (dev_tddf_jsonb) with deduplicated data instead of TRANSITORY table
+      const jsonbTableName = getTableName('tddf_jsonb');
       
       // Build WHERE clause conditions
       const conditions: string[] = ["r.record_type = 'DT'"];
       const params: any[] = [];
       let paramIndex = 1;
       
-      // Filter by merchant account (16-digit, stored in JSONB)
+      // Filter by merchant account (16-digit, stored in JSONB extracted_fields)
       if (merchantAccount && String(merchantAccount).trim()) {
-        conditions.push(`r.record_data->>'merchantAccountNumber' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'merchantAccountNumber' = $${paramIndex}`);
         params.push(String(merchantAccount).trim());
         paramIndex++;
       }
       
       // Filter by association number (JSONB field)
       if (associationNumber && String(associationNumber).trim()) {
-        conditions.push(`r.record_data->>'associationNumber' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'associationNumber' = $${paramIndex}`);
         params.push(String(associationNumber).trim());
         paramIndex++;
       }
       
       // Filter by group number (JSONB field)
       if (groupNumber && String(groupNumber).trim()) {
-        conditions.push(`r.record_data->>'groupNumber' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'groupNumber' = $${paramIndex}`);
         params.push(String(groupNumber).trim());
         paramIndex++;
       }
       
       // Filter by terminal ID (JSONB field)
       if (terminalId && String(terminalId).trim()) {
-        conditions.push(`r.record_data->>'terminalId' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'terminalId' = $${paramIndex}`);
         params.push(String(terminalId).trim());
         paramIndex++;
       }
       
       // Filter by transaction date (DT records use transactionDate, not batchDate)
       if (batchDate && String(batchDate).trim()) {
-        conditions.push(`r.record_data->>'transactionDate' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'transactionDate' = $${paramIndex}`);
         params.push(String(batchDate).trim()); // Exact match for ISO date format
         paramIndex++;
       }
       
       // Filter by card type (JSONB field)
       if (cardType && String(cardType).trim() && cardType !== 'all') {
-        conditions.push(`r.record_data->>'cardType' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'cardType' = $${paramIndex}`);
         params.push(String(cardType).trim());
         paramIndex++;
       }
@@ -2514,7 +2514,6 @@ export function registerTddfRecordsRoutes(app: Express) {
       const countResult = await pool.query(`
         SELECT COUNT(*) as total
         FROM ${jsonbTableName} r
-        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         WHERE ${whereClause}
       `, params);
       const totalRecords = parseInt(countResult.rows[0].total);
@@ -2530,17 +2529,13 @@ export function registerTddfRecordsRoutes(app: Express) {
           r.record_type,
           r.line_number,
           r.raw_line as raw_data,
-          r.record_data as parsed_data,
+          r.extracted_fields as parsed_data,
+          r.tddf_processing_datetime,
           r.created_at,
-          u.filename,
-          u.business_day,
-          u.encoding_time_ms,
-          u.started_at,
-          u.completed_at
+          r.filename
         FROM ${jsonbTableName} r
-        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         WHERE ${whereClause}
-        ORDER BY u.created_at DESC, r.line_number ASC
+        ORDER BY r.created_at DESC, r.line_number ASC
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `, dataParams);
       
@@ -2564,17 +2559,12 @@ export function registerTddfRecordsRoutes(app: Express) {
           }
         }
         
-        // Fallback to encoding time
-        if (file_processing_time === 'N/A' && record.encoding_time_ms !== null) {
-          if (record.encoding_time_ms < 1000) {
-            file_processing_time = `${record.encoding_time_ms}ms`;
-          } else {
-            file_processing_time = `${(record.encoding_time_ms / 1000).toFixed(2)}s`;
-          }
-        }
+        // Add business_day from filename for compatibility
+        const { businessDay } = extractBusinessDayFromFilename(record.filename);
         
         return {
           ...record,
+          business_day: businessDay ? businessDay.toISOString() : null,
           file_processing_time,
           scheduledSlot,
           scheduledSlotLabel,
