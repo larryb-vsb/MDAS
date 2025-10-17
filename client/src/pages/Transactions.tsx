@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard, ChevronDown, ChevronRight, Eye } from "lucide-react";
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard, ChevronDown, ChevronRight, Eye, Check, ChevronsUpDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -22,6 +22,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -765,11 +778,16 @@ function MccTddfTransactionsTab() {
   // Filter states
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [merchantAccount, setMerchantAccount] = useState<string>("");
+  const [merchantName, setMerchantName] = useState<string>("");
   const [associationNumber, setAssociationNumber] = useState<string>("");
   const [groupNumber, setGroupNumber] = useState<string>("");
   const [terminalId, setTerminalId] = useState<string>("");
   const [cardType, setCardType] = useState<string>("all");
   const [filtersApplied, setFiltersApplied] = useState(false);
+  const [merchantComboboxOpen, setMerchantComboboxOpen] = useState(false);
+  
+  // Merchant options from loaded data (post-load calculation)
+  const [merchantOptions, setMerchantOptions] = useState<Array<{account: string, name: string, display: string}>>([]);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -821,6 +839,44 @@ function MccTddfTransactionsTab() {
       setMerchantLookup(lookupData);
     }
   }, [lookupData]);
+
+  // Extract unique merchants from loaded data (post-load calculation)
+  useEffect(() => {
+    if (data?.data && merchantLookup && Object.keys(merchantLookup).length > 0) {
+      const uniqueAccounts = new Set<string>();
+      const merchantOptionsMap = new Map<string, {account: string, name: string, display: string}>();
+      
+      // Extract unique merchant accounts from loaded records
+      data.data.forEach(record => {
+        const accountNumber = extractMerchantAccountNumber(record);
+        if (accountNumber) {
+          const normalizedAccount = accountNumber.startsWith('0') 
+            ? accountNumber.substring(1) 
+            : accountNumber;
+          uniqueAccounts.add(normalizedAccount);
+        }
+      });
+      
+      // Build merchant options with names
+      uniqueAccounts.forEach(account => {
+        const name = merchantLookup[account];
+        if (name) {
+          merchantOptionsMap.set(account, {
+            account: account,
+            name: name,
+            display: `${name} (${account})`
+          });
+        }
+      });
+      
+      // Sort by merchant name
+      const sortedOptions = Array.from(merchantOptionsMap.values()).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+      
+      setMerchantOptions(sortedOptions);
+    }
+  }, [data?.data, merchantLookup]);
 
   const getMerchantName = (merchantAccount: string | null): string | null => {
     if (!merchantAccount) return null;
@@ -880,6 +936,7 @@ function MccTddfTransactionsTab() {
   const handleClearFilters = () => {
     setSelectedDate(null);
     setMerchantAccount("");
+    setMerchantName("");
     setAssociationNumber("");
     setGroupNumber("");
     setTerminalId("");
@@ -893,12 +950,13 @@ function MccTddfTransactionsTab() {
     const hasFilters = 
       selectedDate !== null ||
       merchantAccount.trim() !== "" ||
+      merchantName.trim() !== "" ||
       associationNumber.trim() !== "" ||
       groupNumber.trim() !== "" ||
       terminalId.trim() !== "" ||
       (cardType !== "all" && cardType !== "");
     setFiltersApplied(hasFilters);
-  }, [selectedDate, merchantAccount, associationNumber, groupNumber, terminalId, cardType]);
+  }, [selectedDate, merchantAccount, merchantName, associationNumber, groupNumber, terminalId, cardType]);
 
   // Calculate total pages
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
@@ -983,11 +1041,65 @@ function MccTddfTransactionsTab() {
 
             {/* Filter Inputs */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Merchant Name Filter - Auto-populates account */}
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-24">Merchant Name:</label>
+                <Popover open={merchantComboboxOpen} onOpenChange={setMerchantComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={merchantComboboxOpen}
+                      className="flex-1 justify-between"
+                      data-testid="combobox-merchant-name"
+                    >
+                      {merchantName || "Select merchant..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search merchant..." />
+                      <CommandList>
+                        <CommandEmpty>No merchant found.</CommandEmpty>
+                        <CommandGroup>
+                          {merchantOptions.map((merchant) => (
+                            <CommandItem
+                              key={merchant.account}
+                              value={merchant.display}
+                              onSelect={() => {
+                                setMerchantName(merchant.display);
+                                setMerchantAccount(merchant.account);
+                                setMerchantComboboxOpen(false);
+                                setPage(1);
+                              }}
+                              data-testid={`merchant-option-${merchant.account}`}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  merchantName === merchant.display ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {merchant.display}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700 min-w-24">Merchant Acct:</label>
                 <Input
                   value={merchantAccount}
-                  onChange={(e) => setMerchantAccount(e.target.value)}
+                  onChange={(e) => {
+                    setMerchantAccount(e.target.value);
+                    // Clear merchant name if manually editing account
+                    if (merchantName) setMerchantName("");
+                  }}
                   placeholder="16-digit account number"
                   className="flex-1"
                   data-testid="input-merchant-account"
