@@ -1074,6 +1074,9 @@ function MccTddfTransactionsTab() {
                                   setMerchantName(merchant.display);
                                   // Convert back to 16-digit TDDF format for filtering (add leading zero)
                                   const tddfAccount = merchant.account.padStart(16, '0');
+                                  console.log('[MERCHANT-SELECT] Selected:', merchant.display);
+                                  console.log('[MERCHANT-SELECT] 15-digit account:', merchant.account, 'length:', merchant.account.length);
+                                  console.log('[MERCHANT-SELECT] 16-digit padded:', tddfAccount, 'length:', tddfAccount.length);
                                   setMerchantAccount(tddfAccount);
                                   setPage(1);
                                 }
