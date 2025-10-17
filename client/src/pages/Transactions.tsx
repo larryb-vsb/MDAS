@@ -1163,7 +1163,7 @@ function MccTddfTransactionsTab() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="truncate text-sm" title={record.filename}>
+                            <TableCell className="max-w-[200px] truncate text-sm" title={record.filename}>
                               {record.filename || 'Unknown'}
                             </TableCell>
                             <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
