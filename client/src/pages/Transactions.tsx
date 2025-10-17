@@ -1067,19 +1067,12 @@ function MccTddfTransactionsTab() {
                             <CommandItem
                               key={merchant.account}
                               value={merchant.display}
-                              onSelect={(currentValue) => {
-                                // currentValue is lowercased by Command, compare with merchant.display.toLowerCase()
-                                const isSelected = currentValue === merchant.display.toLowerCase();
-                                if (isSelected || currentValue === merchant.display) {
-                                  setMerchantName(merchant.display);
-                                  // Convert back to 16-digit TDDF format for filtering (add leading zero)
-                                  const tddfAccount = merchant.account.padStart(16, '0');
-                                  console.log('[MERCHANT-SELECT] Selected:', merchant.display);
-                                  console.log('[MERCHANT-SELECT] 15-digit account:', merchant.account, 'length:', merchant.account.length);
-                                  console.log('[MERCHANT-SELECT] 16-digit padded:', tddfAccount, 'length:', tddfAccount.length);
-                                  setMerchantAccount(tddfAccount);
-                                  setPage(1);
-                                }
+                              onSelect={() => {
+                                setMerchantName(merchant.display);
+                                // Convert back to 16-digit TDDF format for filtering (add leading zero)
+                                const tddfAccount = merchant.account.padStart(16, '0');
+                                setMerchantAccount(tddfAccount);
+                                setPage(1);
                                 setMerchantComboboxOpen(false);
                               }}
                               data-testid={`merchant-option-${merchant.account}`}
