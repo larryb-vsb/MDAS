@@ -801,9 +801,11 @@ function MccTddfTransactionsTab() {
     queryKey: [buildQueryUrl()],
   });
 
-  // Fetch merchant lookup data
+  // Fetch merchant lookup data (with credentials for auth)
   const { data: lookupData } = useQuery<Record<string, string>>({
     queryKey: ['/api/merchants/lookup-map'],
+    queryFn: () => fetch('/api/merchants/lookup-map', { credentials: 'include' }).then(res => res.json()),
+    staleTime: 30 * 60 * 1000, // Cache for 30 minutes
     enabled: (data?.data?.length ?? 0) > 0,
   });
 
@@ -816,7 +818,15 @@ function MccTddfTransactionsTab() {
 
   const getMerchantName = (merchantAccount: string | null): string | null => {
     if (!merchantAccount) return null;
-    return merchantLookup[merchantAccount] || null;
+    
+    // TDDF format: 16 digits with leading zero (e.g., "0675900000138461")
+    // Merchant table: 15 digits (e.g., "675900000138461")
+    // Remove leading zero if present to match merchant table format
+    const normalizedAccount = merchantAccount.startsWith('0') 
+      ? merchantAccount.substring(1)
+      : merchantAccount;
+    
+    return merchantLookup[normalizedAccount] || null;
   };
 
   // Handle refresh
