@@ -1067,11 +1067,17 @@ function MccTddfTransactionsTab() {
                             <CommandItem
                               key={merchant.account}
                               value={merchant.display}
-                              onSelect={() => {
-                                setMerchantName(merchant.display);
-                                setMerchantAccount(merchant.account);
+                              onSelect={(currentValue) => {
+                                // currentValue is lowercased by Command, compare with merchant.display.toLowerCase()
+                                const isSelected = currentValue === merchant.display.toLowerCase();
+                                if (isSelected || currentValue === merchant.display) {
+                                  setMerchantName(merchant.display);
+                                  // Convert back to 16-digit TDDF format for filtering (add leading zero)
+                                  const tddfAccount = merchant.account.padStart(16, '0');
+                                  setMerchantAccount(tddfAccount);
+                                  setPage(1);
+                                }
                                 setMerchantComboboxOpen(false);
-                                setPage(1);
                               }}
                               data-testid={`merchant-option-${merchant.account}`}
                             >
