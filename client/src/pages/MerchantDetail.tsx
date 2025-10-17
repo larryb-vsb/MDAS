@@ -757,7 +757,7 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
                         )}
                         {netDeposit && (
                           <span className="font-medium text-gray-700" data-testid="bh-net-deposit">
-                            {formatCurrency(netDeposit / 100)}
+                            {formatCurrency(netDeposit)}
                           </span>
                         )}
                       </div>
