@@ -37,10 +37,11 @@ export default function MerchantFilters({
         </div>
         <Input
           type="text"
-          placeholder="Search by merchant name or ID/MID..."
+          placeholder="Search by merchant name, ID/MID, or EIN/Fed Tax ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10 pr-4 py-2 w-full max-w-md border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+          data-testid="input-merchant-search"
         />
       </div>
       

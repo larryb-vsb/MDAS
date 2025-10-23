@@ -1341,7 +1341,9 @@ export class DatabaseStorage implements IStorage {
           LOWER(name) LIKE $${baseParamIndex + 1}
           OR LOWER(id) LIKE $${baseParamIndex + 2}
           OR LOWER(client_mid) LIKE $${baseParamIndex + 3}
+          OR LOWER(federal_tax_id) LIKE $${baseParamIndex + 4}
         )`);
+        queryParams.push(`%${searchTerm.toLowerCase()}%`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
