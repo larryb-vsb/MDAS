@@ -1325,101 +1325,59 @@ export function registerTddfCacheRoutes(app: Express) {
 
   // ==================== STATISTICS & MONITORING ROUTES (10 routes) ====================
 
-  // TDDF1 Dashboard Stats - File-based TDDF statistics
+  // TDDF1 Dashboard Stats - Using MASTER table (dev_tddf_jsonb) instead of file-based tables
   app.get("/api/tddf1/stats", isAuthenticated, async (req, res) => {
     try {
-      console.log("📊 Getting TDDF1 stats");
+      console.log("📊 Getting TDDF1 stats from MASTER table");
       
-      // Detect environment and use appropriate naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
+      // Use MASTER table for clean, deduplicated data
+      const masterTableName = getTableName('tddf_jsonb');
+      console.log(`📊 Querying MASTER table: ${masterTableName}`);
       
-      // Environment-aware table naming
-      const envPrefix = isDevelopment ? 'dev_' : '';
-      const tablePrefix = `${envPrefix}tddf1_`;
+      // Get aggregated stats from master table using extracted_fields JSONB
+      const statsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(DISTINCT upload_id) as total_files,
+          COUNT(DISTINCT DATE(extracted_fields->>'batchDate')) as active_dates,
+          COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN record_type = 'P1' THEN 1 END) as p1_records,
+          COUNT(CASE WHEN record_type = 'P2' THEN 1 END) as p2_records,
+          COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as total_net_deposits,
+          COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as total_transaction_amounts,
+          MAX(created_at) as last_processed
+        FROM ${masterTableName}
+      `);
       
-      console.log(`📊 Environment: ${environment}, Using TDDF1 tables with prefix: ${tablePrefix}`);
+      const summary = statsResult.rows[0];
+      const totalRecords = parseInt(summary.total_records) || 0;
+      const totalFiles = parseInt(summary.total_files) || 0;
+      const totalTransactionValue = parseFloat(summary.total_transaction_amounts) || 0;
+      const activeDates = parseInt(summary.active_dates) || 0;
       
-      // Check if pre-cache totals table exists
-      const totalsTableName = `${tablePrefix}totals`;
-      const totalsTableExists = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-            AND table_name = $1
-        )
-      `, [totalsTableName]);
+      // Build record type breakdown
+      const recordTypeBreakdown: Record<string, number> = {
+        'BH': parseInt(summary.bh_records) || 0,
+        'DT': parseInt(summary.dt_records) || 0,
+        'P1': parseInt(summary.p1_records) || 0,
+        'P2': parseInt(summary.p2_records) || 0
+      };
       
-      if (totalsTableExists.rows[0].exists) {
-        console.log("📊 Found tddf1_totals table, getting cached stats");
-      } else {
-        console.log("📊 No tddf1_totals table found, returning empty stats");
-        
-        return res.json({
-          totalFiles: 0,
-          totalRecords: 0,
-          totalTransactionValue: 0,
-          recordTypeBreakdown: {},
-          activeTables: [],
-          lastProcessedDate: null,
-          cached: true,
-          cacheSource: 'empty state - table not found',
-          cacheDate: new Date().toISOString()
-        });
-      }
+      console.log(`📊 MASTER table stats: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeDates} active dates`);
+      console.log(`📊 Record breakdown: BH=${recordTypeBreakdown.BH}, DT=${recordTypeBreakdown.DT}, P1=${recordTypeBreakdown.P1}, P2=${recordTypeBreakdown.P2}`);
       
-      if (totalsTableExists.rows[0].exists) {
-        // Get aggregated stats from the pre-cache totals table  
-        const totalsResult = await pool.query(`
-          SELECT 
-            COUNT(*) as total_files,
-            SUM(total_records) as total_records,
-            SUM(COALESCE(total_transaction_amounts, 0)) as total_authorizations,
-            SUM(COALESCE(total_net_deposits, 0)) as total_net_deposits,
-            COUNT(DISTINCT file_date) as active_tables,
-            MAX(updated_at) as last_updated
-          FROM ${totalsTableName}
-        `);
-        
-        if (totalsResult.rows.length > 0) {
-          const summary = totalsResult.rows[0];
-          const totalFiles = parseInt(summary.total_files) || 0;
-          const totalRecords = parseInt(summary.total_records) || 0;
-          const totalTransactionValue = parseFloat(summary.total_authorizations) || 0;
-          const activeTables = parseInt(summary.active_tables) || 0;
-          
-          // Create simple record type breakdown based on our data structure
-          const recordTypeBreakdown: Record<string, number> = {
-            'BH': totalFiles, // One BH record per file
-            'DT': Math.max(0, totalRecords - totalFiles) // Remaining records are DT
-          };
-          
-          console.log(`📊 Serving cached stats: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeTables} active tables`);
-          
-          return res.json({
-            totalFiles: totalFiles,
-            totalRecords: totalRecords,
-            totalTransactionValue: totalTransactionValue,
-            recordTypeBreakdown: recordTypeBreakdown,
-            activeTables: activeTables,
-            lastProcessedDate: summary.last_updated,
-            cached: true,
-            cacheSource: 'pre-cache totals aggregation',
-            cacheDate: new Date().toISOString()
-          });
-        }
-      }
-      
-      // Return empty stats if nothing found
       return res.json({
-        totalFiles: 0,
-        totalRecords: 0,
-        totalTransactionValue: 0,
-        recordTypeBreakdown: {},
-        activeTables: [],
-        lastProcessedDate: null,
+        totalFiles: totalFiles,
+        totalRecords: totalRecords,
+        totalTransactionValue: totalTransactionValue,
+        recordTypeBreakdown: recordTypeBreakdown,
+        activeTables: activeDates,
+        lastProcessedDate: summary.last_processed,
         cached: false,
-        lastUpdated: new Date().toISOString()
+        dataSource: 'master_table',
+        tableName: masterTableName,
+        cacheDate: new Date().toISOString()
       });
     } catch (error) {
       console.error("Error getting TDDF1 stats:", error);
