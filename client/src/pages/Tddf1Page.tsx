@@ -444,7 +444,7 @@ function Tddf1Page() {
           x: 120,
           y: 80,
           color: 'bg-gradient-to-br from-blue-400 to-blue-600',
-          value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
+          value: `$${((dayBreakdown.totalTransactionValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
           label: 'Auth',
           isDragging: false
         },
@@ -851,7 +851,7 @@ function Tddf1Page() {
             </CardHeader>
             <CardContent className="pt-0 p-2">
               <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {dayLoading ? "..." : `$${((dayBreakdown?.transactionAmountsValue ?? 0) / 1000000).toFixed(2)}M`}
+                {dayLoading ? "..." : `$${((dayBreakdown?.totalTransactionValue ?? 0) / 1000000).toFixed(2)}M`}
               </div>
             </CardContent>
           </Card>
@@ -964,7 +964,7 @@ function Tddf1Page() {
                             if (type === 'DT') {
                               // Use new specific fields if available, fallback to old fields
                               const authCount = dayBreakdown.authorizationCount ?? displayCount ?? 0;
-                              const transactionAmount = (dayBreakdown.authorizationTotal ?? dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0);
+                              const transactionAmount = (dayBreakdown.authorizationTotal ?? dayBreakdown.totalTransactionValue ?? dayBreakdown.transactionValue ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
