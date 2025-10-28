@@ -1270,17 +1270,64 @@ export function registerTddfCacheRoutes(app: Express) {
 
   // ==================== STATISTICS & MONITORING ROUTES (10 routes) ====================
 
-  // TDDF1 Dashboard Stats - Using MASTER table (dev_tddf_jsonb) instead of file-based tables
+  // TDDF1 Dashboard Stats - Using CACHE (dev_tddf1_totals) with MASTER table fallback
   app.get("/api/tddf1/stats", isAuthenticated, async (req, res) => {
     try {
-      console.log("📊 Getting TDDF1 stats from MASTER table");
+      console.log("📊 Getting TDDF1 stats from CACHE with master fallback");
       
-      // Use MASTER table for clean, deduplicated data
+      const totalsTableName = getTableName('tddf1_totals');
       const masterTableName = getTableName('tddf_jsonb');
-      console.log(`📊 Querying MASTER table: ${masterTableName}`);
       
-      // Get aggregated stats from master table using extracted_fields JSONB
-      // Filter out invalid batchDate values (must be valid ISO date format YYYY-MM-DD)
+      // Try reading from cache first (fast path)
+      const cacheResult = await pool.query(`
+        SELECT 
+          COUNT(DISTINCT file_date) as active_dates,
+          SUM(total_files) as total_files,
+          SUM(total_records) as total_records,
+          SUM(total_transaction_amounts) as total_transaction_amounts,
+          SUM(total_net_deposits) as total_net_deposits,
+          SUM(bh_records) as bh_records,
+          SUM(dt_records) as dt_records,
+          MAX(updated_at) as last_processed
+        FROM ${totalsTableName}
+      `);
+      
+      const cacheData = cacheResult.rows[0];
+      const hasCacheData = parseInt(cacheData.total_records || '0') > 0;
+      
+      if (hasCacheData) {
+        // Cache hit - return aggregated cache data
+        const totalRecords = parseInt(cacheData.total_records) || 0;
+        const totalFiles = parseInt(cacheData.total_files) || 0;
+        const totalTransactionValue = parseFloat(cacheData.total_transaction_amounts) || 0;
+        const activeDates = parseInt(cacheData.active_dates) || 0;
+        
+        const recordTypeBreakdown: Record<string, number> = {
+          'BH': parseInt(cacheData.bh_records) || 0,
+          'DT': parseInt(cacheData.dt_records) || 0,
+          'P1': 0, // Not tracked in cache
+          'P2': 0  // Not tracked in cache
+        };
+        
+        console.log(`📊 ✅ CACHE HIT: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeDates} active dates`);
+        
+        return res.json({
+          totalFiles: totalFiles,
+          totalRecords: totalRecords,
+          totalTransactionValue: totalTransactionValue,
+          recordTypeBreakdown: recordTypeBreakdown,
+          activeTables: activeDates,
+          lastProcessedDate: cacheData.last_processed,
+          cached: true,
+          dataSource: 'pre_cache',
+          tableName: totalsTableName,
+          cacheDate: new Date().toISOString()
+        });
+      }
+      
+      // Cache miss - fall back to master table
+      console.log(`📊 Cache empty, falling back to MASTER table: ${masterTableName}`);
+      
       const statsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
@@ -1305,7 +1352,6 @@ export function registerTddfCacheRoutes(app: Express) {
       const totalTransactionValue = parseFloat(summary.total_transaction_amounts) || 0;
       const activeDates = parseInt(summary.active_dates) || 0;
       
-      // Build record type breakdown
       const recordTypeBreakdown: Record<string, number> = {
         'BH': parseInt(summary.bh_records) || 0,
         'DT': parseInt(summary.dt_records) || 0,
@@ -1313,8 +1359,7 @@ export function registerTddfCacheRoutes(app: Express) {
         'P2': parseInt(summary.p2_records) || 0
       };
       
-      console.log(`📊 MASTER table stats: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeDates} active dates`);
-      console.log(`📊 Record breakdown: BH=${recordTypeBreakdown.BH}, DT=${recordTypeBreakdown.DT}, P1=${recordTypeBreakdown.P1}, P2=${recordTypeBreakdown.P2}`);
+      console.log(`📊 MASTER fallback: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeDates} active dates`);
       
       return res.json({
         totalFiles: totalFiles,
