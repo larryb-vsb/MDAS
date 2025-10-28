@@ -1145,6 +1145,7 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`📅 Querying MASTER table: ${masterTableName}`);
       
       // Get aggregated stats for the specific date from master table
+      // Filter for valid dates only (ISO format YYYY-MM-DD)
       const statsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
@@ -1156,10 +1157,12 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposits,
           COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_amounts
         FROM ${masterTableName}
-        WHERE DATE(extracted_fields->>'batchDate') = $1
+        WHERE extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+          AND extracted_fields->>'batchDate' = $1
       `, [date]);
       
       // Get file list with record counts for the date
+      // Filter for valid dates only
       const filesResult = await pool.query(`
         SELECT 
           u.filename,
@@ -1167,7 +1170,8 @@ export function registerTddfCacheRoutes(app: Express) {
           COUNT(*) as record_count
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        WHERE DATE(r.extracted_fields->>'batchDate') = $1
+        WHERE r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+          AND r.extracted_fields->>'batchDate' = $1
         GROUP BY u.filename, u.id
         ORDER BY u.created_at DESC
       `, [date]);
@@ -1274,11 +1278,15 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`📊 Querying MASTER table: ${masterTableName}`);
       
       // Get aggregated stats from master table using extracted_fields JSONB
+      // Filter out invalid batchDate values (must be valid ISO date format YYYY-MM-DD)
       const statsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
           COUNT(DISTINCT upload_id) as total_files,
-          COUNT(DISTINCT DATE(extracted_fields->>'batchDate')) as active_dates,
+          COUNT(DISTINCT CASE 
+            WHEN extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' 
+            THEN extracted_fields->>'batchDate' 
+          END) as active_dates,
           COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
           COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
           COUNT(CASE WHEN record_type = 'P1' THEN 1 END) as p1_records,
