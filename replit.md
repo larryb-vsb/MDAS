@@ -1,84 +1,33 @@
-# Merchant Management System (MMS) - Compressed Architecture Guide
+# Merchant Management System (MMS)
 
 ## Overview
-The Merchant Management System (MMS) is a comprehensive web application for merchant relationship management, transaction processing, and business data analysis. It provides robust solutions for merchant management, transaction processing, file uploads, data analytics, and automated backup, designed for enterprise-scale operations to efficiently handle large datasets and deliver rapid responses.
+The Merchant Management System (MMS) is a comprehensive web application designed for merchant relationship management, transaction processing, and business data analysis. It offers robust solutions for enterprise-scale operations, including merchant management, transaction processing, file uploads, data analytics, and automated backup, built to efficiently handle large datasets and provide rapid responses.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
 Critical System Requirement: "Never re-fresh" policy - all auto-refresh functionality permanently disabled and verified working.
 
-## Test Credentials Management
-Admin and test credentials are managed via the `Test_Creds` Replit Secret for security and consistency:
-
-### Secret Format
-The `Test_Creds` secret must be a JSON object:
-```json
-{
-  "username": "admin",
-  "password": "your_password_here"
-}
-```
-
-### Implementation
-- **Admin User Initialization**: On startup, `database-helpers.ts` reads `Test_Creds` to create/update the admin user with credentials from the secret
-- **Test Endpoints**: Login test endpoints (`/api/auth/test-login`) use `Test_Creds` for default test credentials
-- **Fallback**: If `Test_Creds` is missing or malformed, the system falls back to default credentials (username: `admin`, password: `admin123`)
-- **Security**: Credentials are never hardcoded in source files - always stored securely in Replit Secrets
-
-### Updating Credentials
-1. Go to Replit Secrets panel
-2. Update the `Test_Creds` secret with new JSON credentials
-3. Restart the application to apply changes
-
 ## System Architecture
-MMS employs a modern client-server architecture with a focus on performance, scalability, and maintainability.
+MMS employs a modern client-server architecture focusing on performance, scalability, and maintainability.
 
 ### UI/UX Decisions
-The UI/UX prioritizes a modern, professional, and intuitive experience using TailwindCSS and shadcn/ui. Key decisions include:
-- **Consistent Design**: Utilizes shared components and a unified aesthetic for a cohesive user experience.
-- **Responsive Layouts**: Ensures comprehensive mobile optimization and touch-friendly interfaces across all key pages.
-- **Intuitive Interactions**: Incorporates features like interactive heat maps, comprehensive sorting, clear progress indicators, and color-coded status displays.
-- **PDF Reporting System**: Generates monthly PDF reports for TDDF1 data with professional layouts and key metrics.
-- **Dynamic Merchant Demographics**: Implements MCC schema-driven forms with flexible refresh options and paginated data display for TSYS Risk & Configuration Fields.
+The UI/UX prioritizes a modern, professional, and intuitive experience using TailwindCSS and shadcn/ui. Key aspects include consistent design, responsive layouts, intuitive interactions (e.g., interactive heat maps, sorting, progress indicators, color-coded status), a PDF reporting system, and dynamic MCC schema-driven forms for TSYS Risk & Configuration Fields.
 
 ### Technical Implementations
 - **Frontend**: React-based Single Page Application (SPA) with TypeScript.
 - **Backend**: RESTful Express.js API.
 - **Database**: PostgreSQL with Drizzle ORM.
-- **Unified Cache System**: Features a universal "never expire" cache, month-by-month refresh, and persistent configuration to optimize query responses.
-- **Dynamic Aggregation**: Implements intelligent performance tiers for large datasets with progressive loading indicators.
-- **File Processing Pipeline**: A robust, automated 5-stage pipeline supporting large files (40MB+) and various formats (CSV, TSV, JSON, TDDF) with metadata capture and failed file recovery.
-- **TDDF Processing Architecture**: Utilizes a switch-based system for efficient handling of various record types, ensuring comprehensive field extraction and transactional integrity.
-- **Concurrency Control**: Employs database-level locking to prevent race conditions and enable multi-node deployments.
-- **Environment Isolation**: Achieves separation between development and production environments at the table level within the same database instance using dynamic table naming.
-- **Schema Versioning**: A database-based system tracks schema changes, ensures synchronization, and prevents deployment issues.
-- **Hybrid Storage System**: Stores raw line data in object storage and structured data in the database for cost efficiency and fast queries.
-- **Self-Repairing Cache System**: Automatically creates missing TDDF1 totals tables and handles cache rebuild failures.
-- **TDDF1 Hybrid Pre-Cache Architecture**: TDDF1 dashboard uses hybrid cache system for optimal performance: (1) Pre-cache table (dev_tddf1_totals) stores daily aggregated totals (total_files, total_records, total_transaction_amounts, total_net_deposits, bh_records, dt_records) sourced from master table (dev_tddf_jsonb), (2) Dashboard endpoints (stats, day-breakdown) check cache first for fast response, fall back to master table if cache missing, (3) Manual rebuild via `/api/tddf1/rebuild-totals-cache?month=YYYY-MM` clears month and re-aggregates from master table using `extracted_fields->>'batchDate'` with regex validation (`~ '^\\d{4}-\\d{2}-\\d{2}'`) to prevent PostgreSQL casting errors, (4) Response includes cache indicators: `cached: true/false` and `dataSource: 'pre_cache'|'master_table'` for transparency. Architecture provides instant dashboard loads via cache while maintaining master table as reliable fallback and single source of truth.
-- **Enhanced Auto 4-5 Retry System**: Implemented comprehensive retry logic and conflict handling for the Auto 4-5 processing pipeline.
-- **Shared TDDF Resource Architecture**: Provides unified components and utilities for consistent data handling and reduced duplication.
-- **TDDF Enhanced Metadata System**: Comprehensive filename parsing and metadata extraction for TDDF files, enriching JSONB table with metadata.
-- **TDDF Records Pre-Cache by Year**: Comprehensive pre-cache system for TDDF record tabs with dedicated tables, "never expire" policy, and manual refresh controls.
-- **Enhanced Batch Relations with G2 Records**: Supports comprehensive BH → DT → G2 relationship display, including geographic/location data.
-- **Cross-Environment Storage Management**: Allows viewing and scanning files from both dev-uploader/ and prod-uploader/ storage locations via a dropdown interface.
-- **Startup TDDF Cache Validation**: Automatic validation and creation of missing TDDF cache tables during application startup.
-- **Production Self-Correcting Database**: Comprehensive production database health validation with automatic table creation and user provisioning.
-- **Editable MCC Schema Configuration**: Redesigned MCC Schema table for full CRUD operations on TSYS merchant detail field configuration with a comprehensive UI.
-- **TSYS Merchant Status System**: Comprehensive TSYS merchant status code mapping system with dual-field architecture for consistent UI display.
-- **Modular Route Architecture**: Reorganized monolithic `routes.ts` into modular, maintainable route files for improved maintainability, faster navigation, and reduced merge conflicts.
-- **TDDF Merchant Name Lookup**: Enhanced TDDF viewer with asynchronous merchant name lookup functionality across all view modes, including account number normalization.
-- **Independent Step 6 Processing Interval**: Auto Step 6 now runs on its own 60-second interval (independent from Auto 4-5), queries database setting before each run, and automatically processes encoded TDDF files to completion when enabled.
-- **TDDF JSONB Query Performance Optimization**: Implemented high-performance indexes on JSONB fields (merchantAccountNumber, batchDate) achieving 93% query speedup (980ms → 64ms) for merchant batch filtering. Uses text-based date comparisons to leverage indexes while maintaining ISO-8601 format compatibility.
-- **Single-Day Batch View with Navigation**: Merchant Detail Batches tab now uses single-day date picker with Previous/Next navigation buttons (← →) instead of date range selector. Uses timezone-safe date parsing with `parseISO` and `addDays`/`subDays` from date-fns to prevent day-skipping across timezones. Backend supports `batch_date` parameter for exact-match filtering while maintaining backward compatibility with date range queries.
-- **Duplicate File Upload Prevention**: Line-level deduplication system using SHA-256 hash of first 52 characters (sequence + record type + bank + merchant + association + group). Post-insert validation strategy with bulk insert followed by single cleanup query using MAX(id) to retain newest records and delete older duplicates. UI displays "validating" status phase (teal badge) during duplicate cleanup.
-- **File Processing Status Messages**: Added `status_message` column to uploader_uploads table for user-friendly status messages during processing phases (e.g., "Validating & removing duplicates...", "Completed: X records, Y duplicates removed").
-- **Enhanced DT Record Display in Raw Data View**: DT records in Raw tab Flat View now display formatted business information (merchant name, account number, transaction date, and amount) alongside badges, matching the BH record display pattern for improved readability and data visibility.
-- **MCC/TDDF Transactions Tab with Enhanced UX**: Standalone Transactions page (`/transactions`) with dual-tab interface: ACH Transactions (existing ACH data with sorting, pagination, search) and MCC/TDDF tab displaying DT records from TDDF processing system. MCC/TDDF tab features: (1) Full pagination support (10/25/50/100 per page, default 10) with limit/offset parameters, (2) Click-to-expand row functionality showing detailed DT record view with chevron indicators, (3) Blue header card matching TDDF viewer design displaying merchant account, name, transaction date, and amount, (4) Dual-tab detail view with Fields tab (three-column grid of all DT fields) and Raw tab (dark background with green monospace text showing raw TDDF line data and character count), (5) Card type badges, merchant account/name lookup, and file metadata. Backend endpoint `/api/tddf-records/dt-latest` supports pagination with environment-aware table selection and merchant name resolution via `/api/merchants/lookup-map`.
-- **TDDF Transaction Filtering System**: Comprehensive database-level filtering for MCC/TDDF Transactions tab enabling efficient querying of 583K+ DT records. Filter capabilities: (1) Merchant Account (16-digit exact match on JSONB merchantAccountNumber), (2) Association Number (JSONB associationNumber), (3) Group Number (JSONB groupNumber), (4) Terminal ID (JSONB terminalId), (5) Single-day date picker with Previous/Next navigation (← →) matching batch view pattern (JSONB batchDate), (6) Card Type selector (VD/VC/MD/MC/AX/DS/DI/JC on JSONB cardType). Backend applies filters using parameterized JSONB queries (`->>` operator) BEFORE counting and pagination for performance. Frontend displays "Showing X filtered records" vs "X DT records" with Clear Filters button appearing when filters active. Defaults to today's date on initial load. Filter state maintained during pagination. Performance optimization reduces query scope from 583K records to ~10-100 relevant records through database-level WHERE clause filtering.
-- **Flag-Based TDDF Archive System**: Simplified archive management using flag-based architecture instead of separate archive tables. Archive workflow: (1) Manual Step 7 sets `isArchived=true` flag in uploader_uploads table, preserving all data in master table (dev_tddf_jsonb), (2) `/api/uploader` endpoint filters OUT archived files (WHERE isArchived=false OR NULL) to show only active processing files, (3) `/api/tddf-archive` endpoint queries uploader_uploads WHERE isArchived=true to display archived files with proper column mapping (encoding_complete → step6_completed_at), (4) Restore functionality (`/api/uploader/restore-archived`) sets isArchived=false to return files to active processing. UI provides "TDDF Archive Management" section with filtering, selection checkboxes, individual restore buttons (blue RotateCcw icon), and bulk "Restore Selected" action. Data remains permanently in master table - archive is organizational only, allowing seamless file restoration without data migration.
-- **Archive Sorting & Pagination System**: Comprehensive sorting and pagination for Archive Management section matching Processed Files functionality. Sortable columns: Original Filename, Records, Uploaded Date, Archived Date with visual chevron indicators (up/down). Click column headers to toggle sort order (asc ↔ desc). Pagination controls: items per page selector (10/25/50/100, default 25), Previous/Next navigation buttons, and status display showing "X-Y of Z" range. Backend `/api/tddf-archive` supports sortBy, sortOrder, limit, offset parameters with SQL-injection-safe column mapping. Smart reset behavior: changing sort column or items per page automatically resets to page 1. Pagination controls only visible when archived files exist.
-- **TDDF1 Master Table Migration**: Migrated TDDF1 dashboard from file-based monthly tables (dev_tddf1_file_YYYYMM) to unified master table architecture (dev_tddf_jsonb). Dashboard endpoints (`/api/tddf1/stats`, `/api/tddf1/day-breakdown`, `/api/tddf1/recent-activity`) now query master table using extracted_fields JSONB for BH netDeposit and DT transactionAmount aggregation. Added regex validation (`~ '^\\d{4}-\\d{2}-\\d{2}'`) to filter invalid batchDate values and prevent PostgreSQL date parsing errors. Migration provides cleaner data architecture, eliminates monthly table management complexity, and leverages existing JSONB expression indexes for optimal performance. Response contract maintained for frontend compatibility.
+- **Data Management**: Unified "never expire" cache, dynamic aggregation with performance tiers, and a hybrid storage system (object storage for raw data, database for structured data).
+- **File Processing**: Robust, automated 5-stage pipeline for large files (CSV, TSV, JSON, TDDF) with metadata capture and failed file recovery. TDDF processing uses a switch-based system for record types.
+- **Concurrency & Isolation**: Database-level locking for race condition prevention, environment isolation at the table level using dynamic naming, and a database-based schema versioning system.
+- **Self-Healing & Optimization**: Self-repairing cache system, TDDF1 hybrid pre-cache architecture for dashboard performance, and enhanced auto-retry systems.
+- **TDDF Specifics**: Shared TDDF resource architecture, enhanced metadata system, comprehensive pre-cache for record tabs, and improved BH → DT → G2 relationship display.
+- **Operational Features**: Cross-environment storage management, startup TDDF cache validation, production self-correcting database, and editable MCC schema configuration.
+- **Modular Design**: Modular route architecture for maintainability.
+- **Performance & UX Enhancements**: TDDF JSONB query performance optimization via indexing, single-day batch view with navigation, duplicate file upload prevention with line-level deduplication, enhanced file processing status messages, improved DT record display, and an MCC/TDDF Transactions tab with comprehensive filtering, pagination, and detailed views.
+- **Archiving**: Flag-based TDDF archive system allowing seamless restoration without data migration, with comprehensive sorting and pagination.
+- **TDDF1 Migration**: TDDF1 dashboard migrated to a unified master table architecture for cleaner data management and optimal performance.
 
 ## External Dependencies
 
