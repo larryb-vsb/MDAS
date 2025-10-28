@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon, Building2, X } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon, Building2, X, Table as TableIcon } from "lucide-react";
 import { format, addDays, subDays, isToday, getDay } from "date-fns";
 import { isNonProcessingDay, isFederalHoliday } from "@/lib/federal-holidays";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tddf1MerchantVolumeTab } from "@/components/Tddf1MerchantVolumeTab";
 
 import { cn } from "@/lib/utils";
@@ -737,10 +738,14 @@ function Tddf1Page() {
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Daily Overview
+            </TabsTrigger>
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <TableIcon className="h-4 w-4" />
+              Table View
             </TabsTrigger>
             <TabsTrigger value="merchants" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
@@ -1381,6 +1386,111 @@ function Tddf1Page() {
         </Card>
 
 
+          </TabsContent>
+
+          {/* Table View Tab Content */}
+          <TabsContent value="table" className="space-y-2 sm:space-y-4">
+            <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+              <CardHeader>
+                <CardTitle className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                  <TableIcon className="h-5 w-5" />
+                  Record Type Breakdown - {format(selectedDate, 'MMM d, yyyy')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dayLoading ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">Loading data...</div>
+                ) : dayBreakdown ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className={isDarkMode ? 'border-gray-700' : 'border-gray-200'}>
+                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Record Type</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Count</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Percentage</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Amount</TableHead>
+                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Description</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const recordTypeConfig: Record<string, { label: string; description: string; color: string }> = {
+                            'BH': { label: 'BH', description: 'Batch Header', color: 'text-blue-600' },
+                            'DT': { label: 'DT', description: 'Detail Transaction', color: 'text-green-600' },
+                            'G2': { label: 'G2', description: 'Geographic Data', color: 'text-purple-600' },
+                            'E1': { label: 'E1', description: 'Extension 1', color: 'text-orange-600' },
+                            'P1': { label: 'P1', description: 'Purchasing Card 1', color: 'text-cyan-600' },
+                            'P2': { label: 'P2', description: 'Purchasing Card 2', color: 'text-pink-600' },
+                            'DR': { label: 'DR', description: 'Detail Reversal', color: 'text-red-600' },
+                            'AD': { label: 'AD', description: 'Adjustment', color: 'text-indigo-600' }
+                          };
+
+                          const recordTypes = dayBreakdown.recordTypes || {};
+                          const totalRecords = dayBreakdown.totalRecords || 0;
+                          
+                          return Object.keys(recordTypeConfig)
+                            .filter(type => recordTypes[type])
+                            .map(type => {
+                              const count = recordTypes[type] || 0;
+                              const percentage = totalRecords > 0 ? ((count / totalRecords) * 100).toFixed(1) : '0.0';
+                              const config = recordTypeConfig[type];
+                              
+                              let amount = '-';
+                              if (type === 'BH' && dayBreakdown.netDeposits) {
+                                amount = `$${(dayBreakdown.netDeposits / 1000000).toFixed(2)}M`;
+                              } else if (type === 'DT' && dayBreakdown.totalTransactionValue) {
+                                amount = `$${(dayBreakdown.totalTransactionValue / 1000000).toFixed(2)}M`;
+                              }
+
+                              return (
+                                <TableRow 
+                                  key={type}
+                                  className={`${isDarkMode ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-200 hover:bg-gray-50'} transition-colors`}
+                                >
+                                  <TableCell className="font-medium">
+                                    <Badge variant="outline" className={`${config.color} border-current`}>
+                                      {config.label}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {count.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {percentage}%
+                                  </TableCell>
+                                  <TableCell className={`text-right font-mono font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                    {amount}
+                                  </TableCell>
+                                  <TableCell className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {config.description}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            });
+                        })()}
+                        <TableRow className={`border-t-2 font-bold ${isDarkMode ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-100'}`}>
+                          <TableCell className={isDarkMode ? 'text-gray-100' : 'text-gray-900'}>TOTAL</TableCell>
+                          <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                            {dayBreakdown.totalRecords.toLocaleString()}
+                          </TableCell>
+                          <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                            100.0%
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            -
+                          </TableCell>
+                          <TableCell className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {dayBreakdown.fileCount} file(s)
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500 text-sm">No data available for this date</div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Merchant Volume Tab Content */}
