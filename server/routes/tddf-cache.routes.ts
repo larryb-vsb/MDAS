@@ -855,35 +855,66 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`🔄 Cleared existing entries for ${month}`);
       
-      // Get aggregated data from TDDF JSONB (uploader) table, grouped by batchDate
-      // Filter for valid ISO dates only to prevent parsing errors
+      // Get aggregated data from TDDF JSONB (uploader) table
+      // BH records grouped by batchDate, DT records grouped by transactionDate
+      // Filter for valid ISO dates only to prevent parsing errors and NULL dates
       const tddfjsonbDataResult = await pool.query(`
         SELECT 
-          extracted_fields->>'batchDate' as processing_date,
-          COUNT(*) as total_records,
+          date_key as processing_date,
+          SUM(total_records) as total_records,
           COUNT(DISTINCT upload_id) as total_files,
-          COALESCE(SUM(CASE 
-            WHEN record_type = 'DT' 
-              AND extracted_fields->>'transactionAmount' IS NOT NULL
-              AND extracted_fields->>'transactionAmount' != ''
-            THEN (extracted_fields->>'transactionAmount')::numeric
-            ELSE 0 
-          END), 0) as dt_transaction_amounts,
-          COALESCE(SUM(CASE 
-            WHEN record_type = 'BH' 
-              AND extracted_fields->>'netDeposit' IS NOT NULL
-              AND extracted_fields->>'netDeposit' != ''
-            THEN (extracted_fields->>'netDeposit')::numeric
-            ELSE 0 
-          END), 0) as bh_net_deposits,
-          COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
-          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records
-        FROM ${tddfjsonbTableName}
-        WHERE extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
-          AND extracted_fields->>'batchDate' >= $1
-          AND extracted_fields->>'batchDate' <= $2
-        GROUP BY extracted_fields->>'batchDate'
-        ORDER BY extracted_fields->>'batchDate'
+          SUM(dt_transaction_amounts) as dt_transaction_amounts,
+          SUM(bh_net_deposits) as bh_net_deposits,
+          SUM(bh_records) as bh_records,
+          SUM(dt_records) as dt_records
+        FROM (
+          SELECT 
+            extracted_fields->>'batchDate' as date_key,
+            upload_id,
+            COUNT(*) as total_records,
+            COALESCE(SUM(CASE 
+              WHEN extracted_fields->>'netDeposit' IS NOT NULL 
+                AND extracted_fields->>'netDeposit' != '' 
+              THEN (extracted_fields->>'netDeposit')::numeric 
+              ELSE 0 
+            END), 0) as bh_net_deposits,
+            COUNT(*) as bh_records,
+            0 as dt_records,
+            0::numeric as dt_transaction_amounts
+          FROM ${tddfjsonbTableName}
+          WHERE record_type = 'BH'
+            AND extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            AND extracted_fields->>'batchDate' IS NOT NULL
+            AND extracted_fields->>'batchDate' >= $1
+            AND extracted_fields->>'batchDate' <= $2
+          GROUP BY extracted_fields->>'batchDate', upload_id
+          
+          UNION ALL
+          
+          SELECT 
+            extracted_fields->>'transactionDate' as date_key,
+            upload_id,
+            COUNT(*) as total_records,
+            0::numeric as bh_net_deposits,
+            0 as bh_records,
+            COUNT(*) as dt_records,
+            COALESCE(SUM(CASE 
+              WHEN extracted_fields->>'transactionAmount' IS NOT NULL 
+                AND extracted_fields->>'transactionAmount' != '' 
+              THEN (extracted_fields->>'transactionAmount')::numeric 
+              ELSE 0 
+            END), 0) as dt_transaction_amounts
+          FROM ${tddfjsonbTableName}
+          WHERE record_type = 'DT'
+            AND extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            AND extracted_fields->>'transactionDate' IS NOT NULL
+            AND extracted_fields->>'transactionDate' >= $1
+            AND extracted_fields->>'transactionDate' <= $2
+          GROUP BY extracted_fields->>'transactionDate', upload_id
+        ) combined
+        WHERE date_key IS NOT NULL
+        GROUP BY date_key
+        ORDER BY date_key
       `, [startDate, endDate]);
       
       let rebuiltEntries = 0;
@@ -1168,7 +1199,11 @@ export function registerTddfCacheRoutes(app: Express) {
             COUNT(*) as record_count
           FROM ${masterTableName} r
           JOIN ${uploaderTableName} u ON r.upload_id = u.id
-          WHERE r.extracted_fields->>'batchDate' = $1
+          WHERE (
+            (r.record_type = 'BH' AND r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'batchDate' = $1)
+            OR
+            (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'transactionDate' = $1)
+          )
           GROUP BY u.filename, u.id
           ORDER BY u.created_at DESC
         `, [date]);
@@ -1230,8 +1265,11 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposits,
           COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_amounts
         FROM ${masterTableName}
-        WHERE extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
-          AND extracted_fields->>'batchDate' = $1
+        WHERE (
+          (record_type = 'BH' AND extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND extracted_fields->>'batchDate' = $1)
+          OR
+          (record_type = 'DT' AND extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND extracted_fields->>'transactionDate' = $1)
+        )
       `, [date]);
       
       const filesResult = await pool.query(`
@@ -1241,8 +1279,11 @@ export function registerTddfCacheRoutes(app: Express) {
           COUNT(*) as record_count
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        WHERE r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
-          AND r.extracted_fields->>'batchDate' = $1
+        WHERE (
+          (r.record_type = 'BH' AND r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'batchDate' = $1)
+          OR
+          (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' = $1)
+        )
         GROUP BY u.filename, u.id
         ORDER BY u.created_at DESC
       `, [date]);

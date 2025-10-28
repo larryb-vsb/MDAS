@@ -839,7 +839,7 @@ function Tddf1Page() {
             </CardHeader>
             <CardContent className="pt-0 p-2">
               <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {dayLoading ? "..." : `$${((dayBreakdown?.netDepositsValue ?? 0) / 1000000).toFixed(2)}M`}
+                {dayLoading ? "..." : `$${((dayBreakdown?.netDeposits ?? 0) / 1000000).toFixed(2)}M`}
               </div>
             </CardContent>
           </Card>
