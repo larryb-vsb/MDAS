@@ -28,6 +28,7 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **Performance & UX Enhancements**: TDDF JSONB query performance optimization via indexing, single-day batch view with navigation, duplicate file upload prevention with line-level deduplication, enhanced file processing status messages, improved DT record display, and an MCC/TDDF Transactions tab with comprehensive filtering, pagination, and detailed views.
 - **Archiving**: Flag-based TDDF archive system allowing seamless restoration without data migration, with comprehensive sorting and pagination.
 - **TDDF1 Migration**: TDDF1 dashboard migrated to a unified master table architecture for cleaner data management and optimal performance.
+- **TDDF1 Dashboard Bug Fixes (Oct 2025)**: Fixed critical frontend-backend field name mismatches causing $0.00M display issues. Frontend now correctly uses `totalTransactionValue` (for authorizations) and `netDeposits` (for deposits) matching backend API responses. Updated 3 display locations: Authorizations card, bubble chart, and DT record totals. DT records correctly measured by transactionDate field, BH records by batchDate.
 
 ## External Dependencies
 
