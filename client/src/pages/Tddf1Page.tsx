@@ -45,6 +45,8 @@ interface Tddf1DayBreakdown {
   totalRecords: number;
   recordTypes: Record<string, number>;
   transactionValue: number;
+  totalTransactionValue?: number;  // Primary field from backend
+  netDeposits?: number;  // Primary field from backend
   netDepositsValue?: number;
   transactionAmountsValue?: number;
   totalNetDepositBH?: number;
