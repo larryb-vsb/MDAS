@@ -1324,57 +1324,45 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Recent Activity - Latest processed files (first occurrence)
+  // TDDF1 Recent Activity - Using MASTER table (dev_tddf_jsonb) for recent files
   app.get("/api/tddf1/recent-activity", isAuthenticated, async (req, res) => {
     try {
-      console.log("📋 Getting TDDF1 recent activity");
+      console.log("📋 Getting TDDF1 recent activity from MASTER table");
       
-      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
-      const tablePrefix = 'tddf1_';
+      // Use MASTER table for clean, deduplicated data
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderTableName = getTableName('uploader_uploads');
       
-      console.log(`📋 Using standard TDDF1 tables with prefix: ${tablePrefix}`);
+      console.log(`📋 Querying MASTER table: ${masterTableName}`);
       
-      // Get recent file tables - check both standard naming and legacy prod_ naming
-      const recentTablesResult = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND (table_name LIKE $1 OR table_name LIKE $2)
-        ORDER BY table_name DESC
+      // Get recent files with record counts from master table
+      const recentActivityResult = await pool.query(`
+        SELECT 
+          u.id,
+          u.filename as file_name,
+          u.created_at as processed_at,
+          u.current_phase as status,
+          COUNT(*) as record_count
+        FROM ${masterTableName} r
+        JOIN ${uploaderTableName} u ON r.upload_id = u.id
+        WHERE u.final_file_type = 'tddf' 
+          OR u.detected_file_type = 'tddf' 
+          OR u.filename LIKE '%.TSYSO'
+        GROUP BY u.id, u.filename, u.created_at, u.current_phase
+        ORDER BY u.created_at DESC
         LIMIT 10
-      `, [`${tablePrefix}file_%`, `prod_${tablePrefix}file_%`]);
+      `);
       
-      const recentActivity: any[] = [];
+      const recentActivity = recentActivityResult.rows.map(row => ({
+        id: row.id.toString(),
+        fileName: row.file_name,
+        recordCount: parseInt(row.record_count),
+        processedAt: row.processed_at,
+        status: row.status || 'encoded',
+        tableName: masterTableName
+      }));
       
-      for (const tableRow of recentTablesResult.rows) {
-        try {
-          const tableName = tableRow.table_name;
-          const activityResult = await pool.query(`
-            SELECT 
-              source_filename,
-              COUNT(*) as record_count,
-              MIN(parsed_datetime) as processed_at
-            FROM ${tableName}
-            WHERE source_filename IS NOT NULL
-            GROUP BY source_filename
-            LIMIT 1
-          `);
-          
-          if (activityResult.rows.length > 0) {
-            const row = activityResult.rows[0];
-            recentActivity.push({
-              id: tableName,
-              fileName: row.source_filename,
-              recordCount: parseInt(row.record_count),
-              processedAt: row.processed_at || new Date().toISOString(),
-              status: 'encoded',
-              tableName: tableName
-            });
-          }
-        } catch (error) {
-          console.warn(`Error querying recent activity for ${tableRow.table_name}:`, error);
-        }
-      }
+      console.log(`📋 Found ${recentActivity.length} recent files in MASTER table`);
       
       res.json(recentActivity);
     } catch (error) {
