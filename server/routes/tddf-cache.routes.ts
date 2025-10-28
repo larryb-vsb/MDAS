@@ -1134,20 +1134,91 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Daily Breakdown - Using MASTER table (dev_tddf_jsonb) for deduplicated data
+  // TDDF1 Daily Breakdown - Using CACHE (dev_tddf1_totals) with MASTER table fallback
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
     try {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
-      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date} from MASTER table`);
+      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date} from CACHE with master fallback`);
       
-      // Use MASTER table for clean, deduplicated data
+      const totalsTableName = getTableName('tddf1_totals');
       const masterTableName = getTableName('tddf_jsonb');
       const uploaderTableName = getTableName('uploader_uploads');
       
-      console.log(`📅 Querying MASTER table: ${masterTableName}`);
+      // Try reading from cache first (fast path)
+      const cacheResult = await pool.query(`
+        SELECT 
+          total_files,
+          total_records,
+          total_transaction_amounts,
+          total_net_deposits,
+          bh_records,
+          dt_records
+        FROM ${totalsTableName}
+        WHERE file_date = $1
+      `, [date]);
       
-      // Get aggregated stats for the specific date from master table
-      // Filter for valid dates only (ISO format YYYY-MM-DD)
+      if (cacheResult.rows.length > 0) {
+        // Cache hit - get file list from master table for completeness
+        const cacheData = cacheResult.rows[0];
+        
+        const filesResult = await pool.query(`
+          SELECT 
+            u.filename,
+            u.id as upload_id,
+            COUNT(*) as record_count
+          FROM ${masterTableName} r
+          JOIN ${uploaderTableName} u ON r.upload_id = u.id
+          WHERE r.extracted_fields->>'batchDate' = $1
+          GROUP BY u.filename, u.id
+          ORDER BY u.created_at DESC
+        `, [date]);
+        
+        const filesProcessed = filesResult.rows.map(f => ({
+          fileName: f.filename,
+          tableName: totalsTableName,
+          recordCount: parseInt(f.record_count)
+        }));
+        
+        const totalRecords = parseInt(cacheData.total_records) || 0;
+        const fileCount = parseInt(cacheData.total_files) || 0;
+        const netDepositsTotal = parseFloat(cacheData.total_net_deposits) || 0;
+        const transactionAmountsTotal = parseFloat(cacheData.total_transaction_amounts) || 0;
+        
+        const recordTypes: Record<string, number> = {
+          'BH': parseInt(cacheData.bh_records) || 0,
+          'DT': parseInt(cacheData.dt_records) || 0,
+          'P1': 0, // Not tracked in cache
+          'P2': 0  // Not tracked in cache
+        };
+        
+        console.log(`📅 ✅ CACHE HIT for ${date}: ${fileCount} files, ${totalRecords} records`);
+        console.log(`📅 BH records: ${recordTypes['BH']}, Net Deposits: $${netDepositsTotal.toFixed(2)}`);
+        console.log(`📅 DT records: ${recordTypes['DT']}, Transaction Amounts: $${transactionAmountsTotal.toFixed(2)}`);
+        
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+        res.set('ETag', `"${date}-${Date.now()}"`);
+        
+        return res.json({
+          totalRecords,
+          fileCount,
+          totalTransactionValue: transactionAmountsTotal,
+          netDeposits: netDepositsTotal,
+          recordTypeBreakdown: recordTypes,
+          date: date,
+          files: filesProcessed,
+          tables: [totalsTableName],
+          filesProcessed: filesProcessed,
+          cached: true,
+          dataSource: 'pre_cache',
+          timestamp: Date.now()
+        });
+      }
+      
+      // Cache miss - fall back to master table
+      console.log(`📅 Cache miss for ${date}, falling back to MASTER table: ${masterTableName}`);
+      
       const statsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
@@ -1163,8 +1234,6 @@ export function registerTddfCacheRoutes(app: Express) {
           AND extracted_fields->>'batchDate' = $1
       `, [date]);
       
-      // Get file list with record counts for the date
-      // Filter for valid dates only
       const filesResult = await pool.query(`
         SELECT 
           u.filename,
@@ -1184,7 +1253,6 @@ export function registerTddfCacheRoutes(app: Express) {
       const netDepositsTotal = parseFloat(summary.net_deposits) || 0;
       const transactionAmountsTotal = parseFloat(summary.transaction_amounts) || 0;
       
-      // Build record type breakdown
       const recordTypes: Record<string, number> = {
         'BH': parseInt(summary.bh_records) || 0,
         'DT': parseInt(summary.dt_records) || 0,
@@ -1192,14 +1260,20 @@ export function registerTddfCacheRoutes(app: Express) {
         'P2': parseInt(summary.p2_records) || 0
       };
       
-      // Format files list
       const filesProcessed = filesResult.rows.map(f => ({
         fileName: f.filename,
         tableName: masterTableName,
         recordCount: parseInt(f.record_count)
       }));
       
-      const responseData = {
+      console.log(`📅 MASTER fallback for ${date}: BH=${recordTypes['BH']}, DT=${recordTypes['DT']}, Net Deposits=$${netDepositsTotal.toFixed(2)}`);
+      
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+      res.set('ETag', `"${date}-${Date.now()}"`);
+      
+      res.json({
         totalRecords,
         fileCount,
         totalTransactionValue: transactionAmountsTotal,
@@ -1212,19 +1286,7 @@ export function registerTddfCacheRoutes(app: Express) {
         cached: false,
         dataSource: 'master_table',
         timestamp: Date.now()
-      };
-      
-      // Debug logging for BH/DT breakdown
-      console.log(`📅 [DAILY-BREAKDOWN] BH (Batch) records: ${recordTypes['BH']}, Net Deposits: $${netDepositsTotal.toFixed(2)}`);
-      console.log(`📅 [DAILY-BREAKDOWN] DT (Authorization) records: ${recordTypes['DT']}, Transaction Amounts: $${transactionAmountsTotal.toFixed(2)}`);
-      
-      // Force no caching
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-      res.set('Pragma', 'no-cache');
-      res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
-      res.set('ETag', `"${date}-${Date.now()}"`);
-      
-      res.json(responseData);
+      });
     } catch (error) {
       console.error("Error getting TDDF1 day breakdown:", error);
       res.status(500).json({ error: "Failed to get day breakdown" });
