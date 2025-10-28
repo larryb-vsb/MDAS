@@ -29,6 +29,7 @@ The UI/UX prioritizes a modern, professional, and intuitive experience using Tai
 - **Archiving**: Flag-based TDDF archive system allowing seamless restoration without data migration, with comprehensive sorting and pagination.
 - **TDDF1 Migration**: TDDF1 dashboard migrated to a unified master table architecture for cleaner data management and optimal performance.
 - **TDDF1 Dashboard Bug Fixes (Oct 2025)**: Fixed critical frontend-backend field name mismatches causing $0.00M display issues. Frontend now correctly uses `totalTransactionValue` (for authorizations) and `netDeposits` (for deposits) matching backend API responses. Updated 3 display locations: Authorizations card, bubble chart, and DT record totals. DT records correctly measured by transactionDate field, BH records by batchDate.
+- **TDDF1 Table View Tab**: Added comprehensive table view tab to TDDF1 dashboard providing structured breakdown of record types. Displays record type (BH, DT, G2, E1, P1, P2, DR, AD) with count, percentage of total, transaction amounts (for DT records), net deposits (for BH records), and descriptions. Table features color-coded badges, monospaced fonts for numbers, hover effects, and a summary row showing totals and file count. Complements existing bubble chart visualization with detailed tabular data presentation.
 
 ## External Dependencies
 
