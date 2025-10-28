@@ -396,6 +396,27 @@ function Tddf1Page() {
     enabled: !!selectedDateStr,
   });
 
+  // Multi-day breakdown query for table view
+  const { data: multiDayData, isLoading: multiDayLoading } = useQuery<{
+    dailyData: Array<{
+      date: string;
+      totalRecords: number;
+      fileCount: number;
+      totalTransactionValue: number;
+      netDeposits: number;
+      recordTypes: Record<string, number>;
+    }>;
+    startDate: string;
+    endDate: string;
+    dataSource: string;
+  }>({
+    queryKey: ['/api/tddf1/multi-day-breakdown', selectedDateStr],
+    queryFn: () => {
+      return fetch(`/api/tddf1/multi-day-breakdown?days=30&endDate=${selectedDateStr}`).then(res => res.json());
+    },
+    enabled: !!selectedDateStr,
+  });
+
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
     queryKey: ['/api/tddf1/recent-activity'],
   });
@@ -1394,100 +1415,70 @@ function Tddf1Page() {
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                   <TableIcon className="h-5 w-5" />
-                  Record Type Breakdown - {format(selectedDate, 'MMM d, yyyy')}
+                  Daily Breakdown - Last 30 Days
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {dayLoading ? (
+                {multiDayLoading ? (
                   <div className="text-center py-8 text-gray-500 text-sm">Loading data...</div>
-                ) : dayBreakdown ? (
+                ) : multiDayData?.dailyData && multiDayData.dailyData.length > 0 ? (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow className={isDarkMode ? 'border-gray-700' : 'border-gray-200'}>
-                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Record Type</TableHead>
-                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Count</TableHead>
-                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Percentage</TableHead>
-                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Amount</TableHead>
-                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Description</TableHead>
+                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Date</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>BH</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>DT</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Total Records</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Files</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Net Deposits</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Auth Value</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(() => {
-                          const recordTypeConfig: Record<string, { label: string; description: string; color: string }> = {
-                            'BH': { label: 'BH', description: 'Batch Header', color: 'text-blue-600' },
-                            'DT': { label: 'DT', description: 'Detail Transaction', color: 'text-green-600' },
-                            'G2': { label: 'G2', description: 'Geographic Data', color: 'text-purple-600' },
-                            'E1': { label: 'E1', description: 'Extension 1', color: 'text-orange-600' },
-                            'P1': { label: 'P1', description: 'Purchasing Card 1', color: 'text-cyan-600' },
-                            'P2': { label: 'P2', description: 'Purchasing Card 2', color: 'text-pink-600' },
-                            'DR': { label: 'DR', description: 'Detail Reversal', color: 'text-red-600' },
-                            'AD': { label: 'AD', description: 'Adjustment', color: 'text-indigo-600' }
-                          };
-
-                          const recordTypes = dayBreakdown.recordTypes || {};
-                          const totalRecords = dayBreakdown.totalRecords || 0;
-                          
-                          return Object.keys(recordTypeConfig)
-                            .filter(type => recordTypes[type])
-                            .map(type => {
-                              const count = recordTypes[type] || 0;
-                              const percentage = totalRecords > 0 ? ((count / totalRecords) * 100).toFixed(1) : '0.0';
-                              const config = recordTypeConfig[type];
-                              
-                              let amount = '-';
-                              if (type === 'BH' && dayBreakdown.netDeposits) {
-                                amount = `$${(dayBreakdown.netDeposits / 1000000).toFixed(2)}M`;
-                              } else if (type === 'DT' && dayBreakdown.totalTransactionValue) {
-                                amount = `$${(dayBreakdown.totalTransactionValue / 1000000).toFixed(2)}M`;
-                              }
-
-                              return (
-                                <TableRow 
-                                  key={type}
-                                  className={`${isDarkMode ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-200 hover:bg-gray-50'} transition-colors`}
-                                >
-                                  <TableCell className="font-medium">
-                                    <Badge variant="outline" className={`${config.color} border-current`}>
-                                      {config.label}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {count.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {percentage}%
-                                  </TableCell>
-                                  <TableCell className={`text-right font-mono font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                                    {amount}
-                                  </TableCell>
-                                  <TableCell className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {config.description}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            });
-                        })()}
-                        <TableRow className={`border-t-2 font-bold ${isDarkMode ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-100'}`}>
-                          <TableCell className={isDarkMode ? 'text-gray-100' : 'text-gray-900'}>TOTAL</TableCell>
-                          <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                            {dayBreakdown.totalRecords.toLocaleString()}
-                          </TableCell>
-                          <TableCell className={`text-right font-mono ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                            100.0%
-                          </TableCell>
-                          <TableCell className={`text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            -
-                          </TableCell>
-                          <TableCell className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {dayBreakdown.fileCount} file(s)
-                          </TableCell>
-                        </TableRow>
+                        {multiDayData.dailyData.map((day) => {
+                          const isSelectedDate = day.date === selectedDateStr;
+                          return (
+                            <TableRow 
+                              key={day.date}
+                              className={`${isDarkMode ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-200 hover:bg-gray-50'} ${isSelectedDate ? (isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50') : ''} transition-colors cursor-pointer`}
+                              onClick={() => setSelectedDate(new Date(day.date))}
+                              data-testid={`row-day-${day.date}`}
+                            >
+                              <TableCell className={`font-medium ${isSelectedDate ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                                {format(new Date(day.date), 'MMM d, yyyy')}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                {(day.recordTypes?.BH || 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                {(day.recordTypes?.DT || 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                {day.totalRecords.toLocaleString()}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {day.fileCount}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono text-blue-600 dark:text-blue-400`}>
+                                ${(day.netDeposits / 1000000).toFixed(2)}M
+                              </TableCell>
+                              <TableCell className={`text-right font-mono text-green-600 dark:text-green-400`}>
+                                ${(day.totalTransactionValue / 1000000).toFixed(2)}M
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
+                    <div className={`mt-4 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                      <p>📊 Data source: {multiDayData.dataSource === 'pre_cache' ? 'Cache (fast)' : 'Master table (complete)'}</p>
+                      <p>📅 Date range: {format(new Date(multiDayData.startDate), 'MMM d, yyyy')} - {format(new Date(multiDayData.endDate), 'MMM d, yyyy')}</p>
+                      <p>💡 Click any row to view that day's details in the Daily Overview tab</p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500 text-sm">No data available for this date</div>
+                  <div className="text-center py-8 text-gray-500 text-sm">No data available for the last 30 days</div>
                 )}
               </CardContent>
             </Card>

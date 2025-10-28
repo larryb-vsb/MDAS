@@ -1334,6 +1334,165 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
+  // TDDF1 Multi-Day Breakdown - Returns data for multiple days from CACHE with MASTER fallback
+  app.get("/api/tddf1/multi-day-breakdown", isAuthenticated, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30; // Default to last 30 days
+      const endDate = req.query.endDate as string || new Date().toISOString().split('T')[0];
+      
+      console.log(`📅 Getting TDDF1 multi-day breakdown for last ${days} days ending ${endDate}`);
+      
+      const totalsTableName = getTableName('tddf1_totals');
+      const masterTableName = getTableName('tddf_jsonb');
+      
+      // Calculate start date
+      const end = new Date(endDate);
+      const start = new Date(end);
+      start.setDate(start.getDate() - days + 1);
+      const startDate = start.toISOString().split('T')[0];
+      
+      // Try cache first
+      const cacheResult = await pool.query(`
+        SELECT 
+          file_date,
+          total_files,
+          total_records,
+          total_transaction_amounts,
+          total_net_deposits,
+          bh_records,
+          dt_records
+        FROM ${totalsTableName}
+        WHERE file_date >= $1 AND file_date <= $2
+        ORDER BY file_date DESC
+      `, [startDate, endDate]);
+      
+      if (cacheResult.rows.length > 0) {
+        // Cache hit - format the data
+        const dailyData = cacheResult.rows.map((row: any) => ({
+          date: row.file_date,
+          totalRecords: parseInt(row.total_records) || 0,
+          fileCount: parseInt(row.total_files) || 0,
+          totalTransactionValue: parseFloat(row.total_transaction_amounts) || 0,
+          netDeposits: parseFloat(row.total_net_deposits) || 0,
+          recordTypes: {
+            'BH': parseInt(row.bh_records) || 0,
+            'DT': parseInt(row.dt_records) || 0,
+            'G2': 0,
+            'E1': 0,
+            'P1': 0,
+            'P2': 0,
+            'DR': 0,
+            'AD': 0
+          }
+        }));
+        
+        console.log(`📅 ✅ CACHE HIT: Retrieved ${dailyData.length} days of data from cache`);
+        
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+        
+        return res.json({
+          dailyData,
+          startDate,
+          endDate,
+          dataSource: 'pre_cache',
+          timestamp: Date.now()
+        });
+      }
+      
+      // Cache miss - fall back to master table (slower but complete)
+      console.log(`📅 Cache miss, falling back to MASTER table for date range ${startDate} to ${endDate}`);
+      
+      const masterResult = await pool.query(`
+        WITH daily_stats AS (
+          SELECT 
+            CASE 
+              WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+              WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+            END as date,
+            record_type,
+            COUNT(*) as count,
+            COUNT(DISTINCT upload_id) as file_count,
+            COALESCE(SUM(CASE 
+              WHEN record_type = 'BH' AND extracted_fields->>'netDeposit' ~ '^-?[0-9]+(\\.[0-9]+)?$' 
+              THEN (extracted_fields->>'netDeposit')::decimal 
+              ELSE 0 
+            END), 0) as net_deposits,
+            COALESCE(SUM(CASE 
+              WHEN record_type = 'DT' AND extracted_fields->>'transactionAmount' ~ '^-?[0-9]+(\\.[0-9]+)?$' 
+              THEN (extracted_fields->>'transactionAmount')::decimal 
+              ELSE 0 
+            END), 0) as transaction_amounts
+          FROM ${masterTableName}
+          WHERE (
+            (record_type = 'BH' AND extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' 
+             AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+            OR
+            (record_type = 'DT' AND extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' 
+             AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+            OR
+            (record_type IN ('G2', 'E1', 'P1', 'P2', 'DR', 'AD'))
+          )
+          GROUP BY date, record_type
+        )
+        SELECT 
+          date,
+          SUM(count) as total_records,
+          MAX(file_count) as file_count,
+          SUM(CASE WHEN record_type = 'BH' THEN count ELSE 0 END) as bh_records,
+          SUM(CASE WHEN record_type = 'DT' THEN count ELSE 0 END) as dt_records,
+          SUM(CASE WHEN record_type = 'G2' THEN count ELSE 0 END) as g2_records,
+          SUM(CASE WHEN record_type = 'E1' THEN count ELSE 0 END) as e1_records,
+          SUM(CASE WHEN record_type = 'P1' THEN count ELSE 0 END) as p1_records,
+          SUM(CASE WHEN record_type = 'P2' THEN count ELSE 0 END) as p2_records,
+          SUM(CASE WHEN record_type = 'DR' THEN count ELSE 0 END) as dr_records,
+          SUM(CASE WHEN record_type = 'AD' THEN count ELSE 0 END) as ad_records,
+          SUM(net_deposits) as net_deposits,
+          SUM(transaction_amounts) as transaction_amounts
+        FROM daily_stats
+        WHERE date IS NOT NULL
+        GROUP BY date
+        ORDER BY date DESC
+      `, [startDate, endDate]);
+      
+      const dailyData = masterResult.rows.map((row: any) => ({
+        date: row.date,
+        totalRecords: parseInt(row.total_records) || 0,
+        fileCount: parseInt(row.file_count) || 0,
+        totalTransactionValue: parseFloat(row.transaction_amounts) || 0,
+        netDeposits: parseFloat(row.net_deposits) || 0,
+        recordTypes: {
+          'BH': parseInt(row.bh_records) || 0,
+          'DT': parseInt(row.dt_records) || 0,
+          'G2': parseInt(row.g2_records) || 0,
+          'E1': parseInt(row.e1_records) || 0,
+          'P1': parseInt(row.p1_records) || 0,
+          'P2': parseInt(row.p2_records) || 0,
+          'DR': parseInt(row.dr_records) || 0,
+          'AD': parseInt(row.ad_records) || 0
+        }
+      }));
+      
+      console.log(`📅 MASTER fallback: Retrieved ${dailyData.length} days of data`);
+      
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+      
+      res.json({
+        dailyData,
+        startDate,
+        endDate,
+        dataSource: 'master_table',
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error("Error getting TDDF1 multi-day breakdown:", error);
+      res.status(500).json({ error: "Failed to get multi-day breakdown" });
+    }
+  });
+
   // Settings endpoint for TDDF JSON record counts
   app.get("/api/settings/tddf-json-record-counts", isAuthenticated, async (req, res) => {
     try {
