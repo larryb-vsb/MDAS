@@ -1132,146 +1132,85 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Daily Breakdown - Enhanced daily statistics using pre-cache totals
+  // TDDF1 Daily Breakdown - Using MASTER table (dev_tddf_jsonb) for deduplicated data
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
     try {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
-      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
+      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date} from MASTER table`);
       
-      // Detect environment and use appropriate naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
+      // Use MASTER table for clean, deduplicated data
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderTableName = getTableName('uploader_uploads');
       
-      // Environment-aware table naming
-      const envPrefix = isDevelopment ? 'dev_' : '';
-      const totalsTableName = `${envPrefix}tddf1_totals`;
+      console.log(`📅 Querying MASTER table: ${masterTableName}`);
       
-      console.log(`📅 Environment: ${environment}, Using TDDF1 totals table: ${totalsTableName}`);
-      
-      // Check if totals table exists first
-      const tableExistsResult = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-            AND table_name = $1
-        )
-      `, [totalsTableName]);
-      
-      if (!tableExistsResult.rows[0].exists) {
-        console.log("📅 No tddf1_totals table found, returning empty day breakdown");
-        return res.json({
-          totalRecords: 0,
-          fileCount: 0,
-          totalTransactionValue: 0,
-          recordTypeBreakdown: {},
-          files: [],
-          date: date
-        });
-      }
-      
-      // Query the pre-cache totals table for the specific date
-      const totalsResult = await pool.query(`
+      // Get aggregated stats for the specific date from master table
+      const statsResult = await pool.query(`
         SELECT 
-          file_date,
-          total_records,
-          total_net_deposits as bh_net_deposits,
-          total_transaction_amounts as dt_transaction_amounts,
-          total_files,
-          bh_records,
-          dt_records,
-          created_at,
-          id
-        FROM ${totalsTableName}
-        WHERE file_date = $1
-        ORDER BY created_at DESC
+          COUNT(*) as total_records,
+          COUNT(DISTINCT upload_id) as file_count,
+          COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN record_type = 'P1' THEN 1 END) as p1_records,
+          COUNT(CASE WHEN record_type = 'P2' THEN 1 END) as p2_records,
+          COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposits,
+          COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_amounts
+        FROM ${masterTableName}
+        WHERE DATE(extracted_fields->>'batchDate') = $1
       `, [date]);
       
-      let totalRecords = 0;
-      let netDepositsTotal = 0;
-      let transactionAmountsTotal = 0;
-      const recordTypes: Record<string, number> = {};
-      const filesProcessed: Array<{
-        fileName: string;
-        tableName: string;
-        recordCount: number;
-      }> = [];
+      // Get file list with record counts for the date
+      const filesResult = await pool.query(`
+        SELECT 
+          u.filename,
+          u.id as upload_id,
+          COUNT(*) as record_count
+        FROM ${masterTableName} r
+        JOIN ${uploaderTableName} u ON r.upload_id = u.id
+        WHERE DATE(r.extracted_fields->>'batchDate') = $1
+        GROUP BY u.filename, u.id
+        ORDER BY u.created_at DESC
+      `, [date]);
       
-      // Process cached totals data - show each file entry separately
-      for (const row of totalsResult.rows) {
-        const records = parseInt(row.total_records) || 0;
-        const netDeposits = parseFloat(row.bh_net_deposits) || 0;
-        const transactionAmounts = parseFloat(row.dt_transaction_amounts) || 0;
-        const breakdown = typeof row.record_breakdown === 'string' 
-          ? JSON.parse(row.record_breakdown) 
-          : row.record_breakdown;
-        
-        totalRecords += records;
-        netDepositsTotal += netDeposits;
-        transactionAmountsTotal += transactionAmounts;
-        
-        // Get actual BH and DT record counts from the TDDF1 table
-        if (breakdown && breakdown.rebuiltFrom) {
-          try {
-            const recordCountsResult = await pool.query(`
-              SELECT 
-                record_type,
-                COUNT(*) as count
-              FROM ${breakdown.rebuiltFrom}
-              WHERE record_type IN ('BH', 'DT')
-              GROUP BY record_type
-            `);
-            
-            // Add to record types breakdown
-            for (const countRow of recordCountsResult.rows) {
-              recordTypes[countRow.record_type] = (recordTypes[countRow.record_type] || 0) + parseInt(countRow.count);
-            }
-          } catch (recordCountError) {
-            console.log(`⚠️ Could not get record counts for table ${breakdown.rebuiltFrom}:`, (recordCountError as Error).message);
-          }
-        }
-        
-        // Extract actual TSYSO filename from rebuiltFrom table reference
-        let actualFilename = `File #${row.id || filesProcessed.length + 1}`;
-        if (breakdown && breakdown.rebuiltFrom) {
-          // Extract filename from table name like "dev_tddf1_file_vermntsb_6759_tddf_2400_08012025_011442"
-          const tableMatch = breakdown.rebuiltFrom.match(/dev_tddf1_file_(.+)$/);
-          if (tableMatch) {
-            // Convert table suffix back to TSYSO filename format
-            const tableSuffix = tableMatch[1];
-            // Split by underscore and reconstruct with dots, keeping the structure intact
-            const parts = tableSuffix.split('_');
-            if (parts.length >= 6) {
-              // Format: vermntsb_6759_tddf_2400_08012025_011442 -> VERMNTSB.6759_TDDF_2400_08012025_011442.TSYSO
-              actualFilename = `${parts[0].toUpperCase()}.${parts[1]}_${parts[2].toUpperCase()}_${parts[3]}_${parts[4]}_${parts[5]}.TSYSO`;
-            }
-          }
-        }
-        
-        filesProcessed.push({
-          fileName: actualFilename,
-          tableName: breakdown?.rebuiltFrom || '',
-          recordCount: records
-        });
-      }
+      const summary = statsResult.rows[0];
+      const totalRecords = parseInt(summary.total_records) || 0;
+      const fileCount = parseInt(summary.file_count) || 0;
+      const netDepositsTotal = parseFloat(summary.net_deposits) || 0;
+      const transactionAmountsTotal = parseFloat(summary.transaction_amounts) || 0;
+      
+      // Build record type breakdown
+      const recordTypes: Record<string, number> = {
+        'BH': parseInt(summary.bh_records) || 0,
+        'DT': parseInt(summary.dt_records) || 0,
+        'P1': parseInt(summary.p1_records) || 0,
+        'P2': parseInt(summary.p2_records) || 0
+      };
+      
+      // Format files list
+      const filesProcessed = filesResult.rows.map(f => ({
+        fileName: f.filename,
+        tableName: masterTableName,
+        recordCount: parseInt(f.record_count)
+      }));
       
       const responseData = {
         totalRecords,
-        fileCount: filesProcessed.length,
+        fileCount,
         totalTransactionValue: transactionAmountsTotal,
         netDeposits: netDepositsTotal,
         recordTypeBreakdown: recordTypes,
         date: date,
         files: filesProcessed,
-        tables: filesProcessed.map(f => f.tableName),
+        tables: [masterTableName],
         filesProcessed: filesProcessed,
-        cached: true,
-        cacheSource: 'pre-cache totals table',
-        timestamp: Date.now() // Force unique responses
+        cached: false,
+        dataSource: 'master_table',
+        timestamp: Date.now()
       };
       
       // Debug logging for BH/DT breakdown
-      console.log(`📅 [DAILY-BREAKDOWN] BH (Batch) records: ${recordTypes['BH'] || 0}, Net Deposits: $${netDepositsTotal.toFixed(2)}`);
-      console.log(`📅 [DAILY-BREAKDOWN] DT (Authorization) records: ${recordTypes['DT'] || 0}, Transaction Amounts: $${transactionAmountsTotal.toFixed(2)}`);
+      console.log(`📅 [DAILY-BREAKDOWN] BH (Batch) records: ${recordTypes['BH']}, Net Deposits: $${netDepositsTotal.toFixed(2)}`);
+      console.log(`📅 [DAILY-BREAKDOWN] DT (Authorization) records: ${recordTypes['DT']}, Transaction Amounts: $${transactionAmountsTotal.toFixed(2)}`);
       
       // Force no caching
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
