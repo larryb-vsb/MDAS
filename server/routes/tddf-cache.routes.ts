@@ -855,10 +855,11 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`🔄 Cleared existing entries for ${month}`);
       
-      // Get aggregated data from TDDF JSONB (uploader) table, grouped by processing date
+      // Get aggregated data from TDDF JSONB (uploader) table, grouped by batchDate
+      // Filter for valid ISO dates only to prevent parsing errors
       const tddfjsonbDataResult = await pool.query(`
         SELECT 
-          DATE(tddf_processing_date) as processing_date,
+          extracted_fields->>'batchDate' as processing_date,
           COUNT(*) as total_records,
           COUNT(DISTINCT upload_id) as total_files,
           COALESCE(SUM(CASE 
@@ -878,10 +879,11 @@ export function registerTddfCacheRoutes(app: Express) {
           COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
           COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records
         FROM ${tddfjsonbTableName}
-        WHERE DATE(tddf_processing_date) >= $1::date 
-          AND DATE(tddf_processing_date) <= $2::date
-        GROUP BY DATE(tddf_processing_date)
-        ORDER BY DATE(tddf_processing_date)
+        WHERE extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+          AND extracted_fields->>'batchDate' >= $1
+          AND extracted_fields->>'batchDate' <= $2
+        GROUP BY extracted_fields->>'batchDate'
+        ORDER BY extracted_fields->>'batchDate'
       `, [startDate, endDate]);
       
       let rebuiltEntries = 0;
