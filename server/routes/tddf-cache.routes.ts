@@ -1508,7 +1508,7 @@ export function registerTddfCacheRoutes(app: Express) {
           u.id as upload_id,
           u.filename,
           u.start_time,
-          u.upload_complete,
+          u.uploaded_at,
           u.encoding_complete,
           u.file_size,
           u.business_day,
@@ -1538,7 +1538,7 @@ export function registerTddfCacheRoutes(app: Express) {
           OR
           (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'transactionDate' = $1)
         )
-        GROUP BY u.id, u.filename, u.start_time, u.upload_complete, u.encoding_complete, u.file_size, u.business_day
+        GROUP BY u.id, u.filename, u.start_time, u.uploaded_at, u.encoding_complete, u.file_size, u.business_day
         ORDER BY u.start_time DESC
       `, [date]);
       
@@ -1546,7 +1546,7 @@ export function registerTddfCacheRoutes(app: Express) {
         uploadId: f.upload_id,
         filename: f.filename,
         uploadTime: f.start_time,
-        uploadComplete: f.upload_complete,
+        uploadComplete: f.uploaded_at,
         encodingComplete: f.encoding_complete,
         fileSize: f.file_size,
         businessDay: f.business_day,
