@@ -24,7 +24,7 @@ export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
-  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | 'termNumber' | null>(null);
+  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | 'termNumber' | 'vNumber' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedTerminals, setSelectedTerminals] = useState<number[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -77,6 +77,21 @@ export default function TerminalsPage() {
           // Convert to numbers if they're numeric, otherwise compare as strings
           const aNum = parseInt(aValue, 10);
           const bNum = parseInt(bValue, 10);
+          
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            const comparison = aNum - bNum;
+            return sortDirection === 'asc' ? comparison : -comparison;
+          } else {
+            const comparison = aValue.localeCompare(bValue);
+            return sortDirection === 'asc' ? comparison : -comparison;
+          }
+        } else if (sortField === 'vNumber') {
+          const aValue = a.vNumber || '';
+          const bValue = b.vNumber || '';
+          
+          // VAR numbers are in format V1234567, extract numeric part for comparison
+          const aNum = parseInt(aValue.replace('V', ''), 10);
+          const bNum = parseInt(bValue.replace('V', ''), 10);
           
           if (!isNaN(aNum) && !isNaN(bNum)) {
             const comparison = aNum - bNum;
@@ -145,7 +160,7 @@ export default function TerminalsPage() {
     }
   };
 
-  const handleSort = (field: 'lastActivity' | 'lastUpdate' | 'termNumber') => {
+  const handleSort = (field: 'lastActivity' | 'lastUpdate' | 'termNumber' | 'vNumber') => {
     if (sortField === field) {
       // Toggle direction or clear sort
       if (sortDirection === 'desc') {
@@ -162,7 +177,7 @@ export default function TerminalsPage() {
     setCurrentPage(1);
   };
 
-  const getSortIcon = (field: 'lastActivity' | 'lastUpdate' | 'termNumber') => {
+  const getSortIcon = (field: 'lastActivity' | 'lastUpdate' | 'termNumber' | 'vNumber') => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
     }
@@ -520,7 +535,15 @@ export default function TerminalsPage() {
                         aria-label="Select all terminals"
                       />
                     </TableHead>
-                    <TableHead>VAR Number</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('vNumber')}
+                    >
+                      <div className="flex items-center">
+                        VAR Number
+                        {getSortIcon('vNumber')}
+                      </div>
+                    </TableHead>
                     <TableHead>DBA Name</TableHead>
                     <TableHead>POS Merchant #</TableHead>
                     <TableHead 
