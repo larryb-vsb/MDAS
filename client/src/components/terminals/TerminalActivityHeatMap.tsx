@@ -26,6 +26,9 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
+  
+  console.log('[HEATMAP DEBUG] Component mounted with terminalId:', terminalId);
+  console.log('[HEATMAP DEBUG] Current date:', currentDate.getFullYear(), currentDate.getMonth());
 
   // Fetch activity data for current month
   const { data: activityResponse, isLoading } = useQuery({
@@ -33,16 +36,21 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
     queryFn: async () => {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
-      const response = await fetch(`/api/tddf/activity-heatmap?terminal_id=${terminalId}&year=${year}&month=${month}`, {
+      const url = `/api/tddf/activity-heatmap?terminal_id=${terminalId}&year=${year}&month=${month}`;
+      console.log('[HEATMAP DEBUG] Fetching data from:', url);
+      const response = await fetch(url, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch activity data');
-      return response.json();
+      const data = await response.json();
+      console.log('[HEATMAP DEBUG] API response:', data);
+      return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const activityData = activityResponse || [];
+  console.log('[HEATMAP DEBUG] Activity data:', activityData.length, 'records');
 
   // Process data for calendar view
   const { calendarDays, maxCount, totalTransactions, monthStart, monthEnd } = React.useMemo(() => {
