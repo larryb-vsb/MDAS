@@ -244,24 +244,32 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
             {weeks.map((week, weekIndex) => (
               <div key={weekIndex} className="grid grid-cols-7 gap-0.5 min-w-full">
                 {week.map((day, dayIndex) => {
+                  // Only show current month days - leave empty space for others
+                  if (!day.isCurrentMonth) {
+                    return (
+                      <div
+                        key={dayIndex}
+                        className="h-8 aspect-square"
+                      />
+                    );
+                  }
+                  
                   const isSelected = selectedDate === day.date;
                   const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
                   const isToday = new Date().toISOString().split('T')[0] === day.date;
                   
-                  // Show all days but hide non-current month with lower opacity
                   return (
                     <button
                       key={dayIndex}
-                      onClick={() => day.isCurrentMonth && onDateSelect && onDateSelect(day.date)}
-                      disabled={!day.isCurrentMonth}
+                      onClick={() => onDateSelect && onDateSelect(day.date)}
                       className={`
                         relative h-8 aspect-square rounded border border-gray-300 
                         transition-all duration-150 group
                         flex items-center justify-center
                         ${bgColor}
-                        ${isToday && day.isCurrentMonth ? 'ring-2 ring-blue-500' : ''}
+                        ${isToday ? 'ring-2 ring-blue-500' : ''}
                         ${isSelected ? 'ring-2 ring-orange-500' : ''}
-                        ${!day.isCurrentMonth ? 'opacity-30 cursor-default' : 'cursor-pointer'}
+                        cursor-pointer
                       `}
                       title={`${monthNames[day.month]} ${day.dayOfMonth}: ${day.count} transactions`}
                       data-testid={`heatmap-day-${day.date}`}
@@ -269,20 +277,17 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                       {/* Day number */}
                       <span className={`
                         text-[11px] font-semibold
-                        ${day.count > 0 && day.isCurrentMonth ? 'text-white' : 'text-gray-700'}
-                        ${!day.isCurrentMonth ? 'text-gray-400' : ''}
+                        ${day.count > 0 ? 'text-white' : 'text-gray-700'}
                       `}>
                         {day.dayOfMonth}
                       </span>
                       
                       {/* Tooltip on hover */}
-                      {day.isCurrentMonth && (
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-                          <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
-                          <div className="text-gray-300">{day.count} transactions</div>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                        </div>
-                      )}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                        <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
+                        <div className="text-gray-300">{day.count} transactions</div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
                     </button>
                   );
                 })}
