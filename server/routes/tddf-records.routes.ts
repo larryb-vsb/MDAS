@@ -207,7 +207,13 @@ export function registerTddfRecordsRoutes(app: Express) {
     try {
       // @ENVIRONMENT-CRITICAL - TDDF record lookup with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
-      const recordId = parseInt(req.params.id);
+      
+      // Validate that ID is numeric to avoid route conflicts
+      const recordId = parseInt(req.params.id, 10);
+      if (isNaN(recordId)) {
+        return res.status(400).json({ error: "Invalid TDDF record ID - must be numeric" });
+      }
+      
       const tddfRecordsTableName = getTableName('tddf_records');
       
       const recordResult = await pool.query(`
