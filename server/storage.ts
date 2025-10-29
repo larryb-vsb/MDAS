@@ -8124,6 +8124,7 @@ export class DatabaseStorage implements IStorage {
   async getSubMerchantTerminalsByMerchant(merchantId: string): Promise<SubMerchantTerminal[]> {
     // @ENVIRONMENT-CRITICAL - Terminal lookup by merchant using pos_merchant_number
     // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    // Handles leading zeros in pos_merchant_number by comparing trimmed values
     const terminalsTableName = getTableName('api_terminals');
     
     const result = await pool.query(`
@@ -8142,7 +8143,7 @@ export class DatabaseStorage implements IStorage {
         t.v_number as terminal_v_number,
         t.dba_name as terminal_dba_name
       FROM ${terminalsTableName} t
-      WHERE t.pos_merchant_number = $1
+      WHERE LTRIM(t.pos_merchant_number, '0') = LTRIM($1, '0')
       ORDER BY t.created_at DESC
     `, [merchantId]);
     return result.rows;
