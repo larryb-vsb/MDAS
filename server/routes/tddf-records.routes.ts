@@ -475,17 +475,32 @@ export function registerTddfRecordsRoutes(app: Express) {
   });
 
   // Get TDDF JSONB records by terminal ID (VAR number mapping)
+  // Supports multiple Terminal IDs - checks both "7" and "0" prefixes for VAR number matching
   app.get("/api/tddf/by-terminal/:terminalId", isAuthenticated, async (req, res) => {
     try {
       const terminalId = req.params.terminalId;
-      console.log(`[TDDF TERMINAL] Fetching TDDF JSONB records for Terminal ID: ${terminalId}`);
+      
+      // Extract base VAR number (remove prefix) and generate both possible Terminal IDs
+      // VAR V5640198 → check both 75640198 AND 05640198
+      let terminalIds = [terminalId];
+      if (terminalId.startsWith('7')) {
+        const baseNumber = terminalId.substring(1);
+        const altTerminalId = '0' + baseNumber;
+        terminalIds.push(altTerminalId);
+      } else if (terminalId.startsWith('0')) {
+        const baseNumber = terminalId.substring(1);
+        const altTerminalId = '7' + baseNumber;
+        terminalIds.push(altTerminalId);
+      }
+      
+      console.log(`[TDDF TERMINAL] Fetching TDDF JSONB records for Terminal IDs: ${terminalIds.join(', ')}`);
       
       // @ENVIRONMENT-CRITICAL - TDDF JSONB terminal records with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      // Query TDDF JSONB records where Terminal ID field matches the extracted terminal ID from VAR
-      // Uses JSONB extracted_fields for terminal ID matching
+      // Query TDDF JSONB records where Terminal ID field matches any of the Terminal IDs
+      // Uses JSONB extracted_fields for terminal ID matching with IN clause
       const recordsResult = await pool.query(`
         SELECT 
           id,
@@ -498,9 +513,9 @@ export function registerTddfRecordsRoutes(app: Express) {
           created_at
         FROM ${tddfJsonbTableName} 
         WHERE record_type = 'DT'
-        AND extracted_fields->>'terminalId' = $1 
+        AND extracted_fields->>'terminalId' = ANY($1::text[])
         ORDER BY (extracted_fields->>'transactionDate')::date DESC, id DESC
-      `, [terminalId]);
+      `, [terminalIds]);
       const records = recordsResult.rows;
       
       console.log(`[TDDF TERMINAL] Found ${records.length} TDDF JSONB records for Terminal ID ${terminalId}`);

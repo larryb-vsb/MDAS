@@ -68,8 +68,22 @@ export function registerTddfCacheRoutes(app: Express) {
       const params: any[] = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
       
       if (terminalId && terminalId !== 'undefined' && terminalId !== 'null') {
-        query += ` AND extracted_fields->>'terminalId' = $3`;
-        params.push(terminalId);
+        // Generate both Terminal IDs (with "7" and "0" prefixes) for VAR number matching
+        // VAR V5640198 → check both 75640198 AND 05640198
+        let terminalIds = [terminalId];
+        if (terminalId.startsWith('7')) {
+          const baseNumber = terminalId.substring(1);
+          const altTerminalId = '0' + baseNumber;
+          terminalIds.push(altTerminalId);
+        } else if (terminalId.startsWith('0')) {
+          const baseNumber = terminalId.substring(1);
+          const altTerminalId = '7' + baseNumber;
+          terminalIds.push(altTerminalId);
+        }
+        
+        console.log(`[TDDF ACTIVITY HEATMAP] Checking Terminal IDs: ${terminalIds.join(', ')}`);
+        query += ` AND extracted_fields->>'terminalId' = ANY($3::text[])`;
+        params.push(terminalIds);
       }
       
       query += `
