@@ -8130,18 +8130,18 @@ export class DatabaseStorage implements IStorage {
     const result = await pool.query(`
       SELECT 
         t.id,
-        t.v_number as d_number,
-        t.dba_name as device_name,
-        t.pos_merchant_number as merchant_id,
-        t.id as terminal_id,
-        'direct' as match_type,
-        100.0 as match_confidence,
-        true as is_active,
-        t.created_at as matched_at,
-        t.created_at,
-        t.updated_at,
-        t.v_number as terminal_v_number,
-        t.dba_name as terminal_dba_name
+        t.v_number as "dNumber",
+        t.dba_name as "deviceName",
+        t.pos_merchant_number as "merchantId",
+        t.id as "terminalId",
+        'direct' as "matchType",
+        100.0 as "matchConfidence",
+        true as "isActive",
+        t.created_at as "createdAt",
+        t.created_at as "matchedAt",
+        t.updated_at as "updatedAt",
+        t.v_number as "terminalVNumber",
+        t.dba_name as "terminalDbaName"
       FROM ${terminalsTableName} t
       WHERE LTRIM(t.pos_merchant_number, '0') = LTRIM($1, '0')
       ORDER BY t.created_at DESC
