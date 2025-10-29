@@ -177,12 +177,12 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   }
 
   return (
-    <div className="bg-white rounded border border-gray-200 p-2 mb-3">
+    <div className="bg-white rounded border border-gray-200 p-3 mb-3">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold text-gray-900">{title}</h3>
       </div>
 
-      <div className="bg-gray-50 rounded p-1">
+      <div className="bg-gray-50 rounded p-2">
         {/* Month Navigation */}
         <div className="flex justify-between items-center mb-1">
           <div className="flex items-center gap-0.5">
@@ -228,67 +228,62 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
           </div>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="space-y-px overflow-x-auto">
+        {/* Calendar Grid - Compact GitHub-style heat map */}
+        <div className="overflow-x-auto">
           {/* Day headers */}
-          <div className="grid grid-cols-7 gap-px mb-px min-w-full">
+          <div className="grid grid-cols-7 gap-0.5 mb-0.5 min-w-full">
             {dayNames.map((day) => (
-              <div key={day} className="text-center text-[8px] sm:text-[9px] font-semibold text-gray-600 py-0.5">
+              <div key={day} className="text-center text-[7px] font-semibold text-gray-600 py-px">
                 {day.substring(0, 1)}
               </div>
             ))}
           </div>
 
-          {/* Calendar days */}
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 gap-px min-w-full">
-              {week.map((day, dayIndex) => {
-                const isSelected = selectedDate === day.date;
-                const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
-                const isToday = new Date().toISOString().split('T')[0] === day.date;
-                
-                return (
-                  <button
-                    key={dayIndex}
-                    onClick={() => day.isCurrentMonth && onDateSelect && onDateSelect(day.date)}
-                    className={`
-                      relative h-9 aspect-square rounded-sm border transition-all duration-200
-                      ${bgColor}
-                      ${day.isCurrentMonth ? 'border-gray-300' : 'border-gray-200'}
-                      ${isToday ? 'ring-1 ring-blue-400' : ''}
-                      flex flex-col items-center justify-center
-                      group
-                    `}
-                    title={`${day.date}: ${day.count} transactions`}
-                    data-testid={`heatmap-day-${day.date}`}
-                  >
-                    {/* Day number */}
-                    <span className={`
-                      text-[9px] font-medium leading-none
-                      ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                      ${day.count > 0 && day.isCurrentMonth ? 'text-white' : ''}
-                    `}>
-                      {day.dayOfMonth}
-                    </span>
-                    
-                    {/* Transaction count (only show if > 0 and current month) */}
-                    {day.count > 0 && day.isCurrentMonth && (
-                      <span className="text-[7px] text-white font-medium mt-px leading-none">
-                        {day.count}
-                      </span>
-                    )}
-
-                    {/* Tooltip on hover */}
-                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-10 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                      <div className="font-medium">{monthNames[day.month]} {day.dayOfMonth}</div>
-                      <div>{day.count} transactions</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          {/* Calendar days - Compact squares */}
+          <div className="space-y-0.5">
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="grid grid-cols-7 gap-0.5 min-w-full">
+                {week.map((day, dayIndex) => {
+                  const isSelected = selectedDate === day.date;
+                  const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
+                  const isToday = new Date().toISOString().split('T')[0] === day.date;
+                  
+                  // Only show current month days
+                  if (!day.isCurrentMonth) {
+                    return (
+                      <div
+                        key={dayIndex}
+                        className="h-5 aspect-square bg-transparent"
+                      />
+                    );
+                  }
+                  
+                  return (
+                    <button
+                      key={dayIndex}
+                      onClick={() => onDateSelect && onDateSelect(day.date)}
+                      className={`
+                        relative h-5 aspect-square rounded-[2px] border border-gray-300 
+                        transition-all duration-150 group
+                        ${bgColor}
+                        ${isToday ? 'ring-1 ring-blue-500' : ''}
+                        ${isSelected ? 'ring-2 ring-orange-500' : ''}
+                      `}
+                      title={`${monthNames[day.month]} ${day.dayOfMonth}: ${day.count} transactions`}
+                      data-testid={`heatmap-day-${day.date}`}
+                    >
+                      {/* Tooltip on hover */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                        <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
+                        <div className="text-gray-300">{day.count} transactions</div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Legend */}
