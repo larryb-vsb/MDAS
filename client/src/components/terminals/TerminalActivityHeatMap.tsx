@@ -52,7 +52,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   const activityData = activityResponse || [];
   console.log('[HEATMAP DEBUG] Activity data:', activityData.length, 'records');
 
-  // Process data for calendar view
+  // Process data for calendar view - ONLY current month days
   const { calendarDays, maxCount, totalTransactions, monthStart, monthEnd } = React.useMemo(() => {
     // Create a map of date to count
     const dataByDate: Record<string, number> = {};
@@ -66,40 +66,31 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
     // Calculate max count for intensity
     const maxCount = Math.max(...Object.values(dataByDate), 1);
     
-    // Get first and last day of current month
+    // Get first and last day of current month ONLY
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
     
-    // Get the first Sunday of the calendar (might be in previous month)
-    const firstCalendarDay = new Date(monthStart);
-    firstCalendarDay.setDate(firstCalendarDay.getDate() - firstCalendarDay.getDay());
-    
-    // Get the last Saturday of the calendar (might be in next month)
-    const lastCalendarDay = new Date(monthEnd);
-    lastCalendarDay.setDate(lastCalendarDay.getDate() + (6 - lastCalendarDay.getDay()));
-    
-    // Generate calendar grid
+    // Generate ONLY current month days (1 through last day of month)
     const calendarDays = [];
-    let currentDay = new Date(firstCalendarDay);
+    const firstDayOfWeek = monthStart.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
-    while (currentDay <= lastCalendarDay) {
+    for (let day = 1; day <= monthEnd.getDate(); day++) {
+      const currentDay = new Date(year, month, day);
       const dateKey = currentDay.toISOString().split('T')[0];
       const count = dataByDate[dateKey] || 0;
-      const isCurrentMonth = currentDay.getMonth() === month;
       
       calendarDays.push({
         date: dateKey,
         count: count,
-        dateObj: new Date(currentDay),
-        dayOfMonth: currentDay.getDate(),
-        month: currentDay.getMonth(),
-        year: currentDay.getFullYear(),
-        isCurrentMonth: isCurrentMonth
+        dateObj: currentDay,
+        dayOfMonth: day,
+        month: month,
+        year: year,
+        isCurrentMonth: true,
+        gridColumn: day === 1 ? firstDayOfWeek + 1 : undefined // Position first day correctly
       });
-      
-      currentDay.setDate(currentDay.getDate() + 1);
     }
 
     const totalTransactions = Object.values(dataByDate).reduce((sum, count) => sum + count, 0);
@@ -138,7 +129,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
     setIsRefreshing(true);
     try {
       await queryClient.invalidateQueries({
-        queryKey: [`/api/tddf/activity-heatmap`, terminalId]
+        queryKey: [`/api/tddf/activity-heatmap`, terminalId, currentDate.getFullYear(), currentDate.getMonth()]
       });
     } finally {
       setIsRefreshing(false);
@@ -176,12 +167,6 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
         </div>
       </div>
     );
-  }
-
-  // Group days into weeks
-  const weeks = [];
-  for (let i = 0; i < calendarDays.length; i += 7) {
-    weeks.push(calendarDays.slice(i, i + 7));
   }
 
   return (
@@ -239,68 +224,55 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
         {/* Calendar Grid - Compact GitHub-style heat map */}
         <div className="overflow-x-auto">
           {/* Day headers */}
-          <div className="grid grid-cols-7 gap-0.5 mb-0.5 min-w-full">
+          <div className="grid grid-cols-7 gap-1 mb-1">
             {dayNames.map((day) => (
-              <div key={day} className="text-center text-[7px] font-semibold text-gray-600 py-px">
+              <div key={day} className="text-center text-[9px] font-medium text-gray-600">
                 {day.substring(0, 1)}
               </div>
             ))}
           </div>
 
-          {/* Calendar days - Compact squares */}
-          <div className="space-y-0.5">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="grid grid-cols-7 gap-0.5 min-w-full">
-                {week.map((day, dayIndex) => {
-                  // Only show current month days - leave empty space for others
-                  if (!day.isCurrentMonth) {
-                    return (
-                      <div
-                        key={dayIndex}
-                        className="h-8 aspect-square"
-                      />
-                    );
-                  }
+          {/* Calendar days - Single grid showing ONLY current month */}
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((day, index) => {
+              const isSelected = selectedDate === day.date;
+              const bgColor = getBackgroundColor(day.count, isSelected, true);
+              const isToday = new Date().toISOString().split('T')[0] === day.date;
+              
+              return (
+                <button
+                  key={day.date}
+                  onClick={() => onDateSelect && onDateSelect(day.date)}
+                  style={day.gridColumn ? { gridColumnStart: day.gridColumn } : undefined}
+                  className={`
+                    relative h-8 w-8 rounded border border-gray-300 
+                    transition-all duration-150 group
+                    flex items-center justify-center
+                    ${bgColor}
+                    ${isToday ? 'ring-2 ring-blue-500' : ''}
+                    ${isSelected ? 'ring-2 ring-orange-500' : ''}
+                    cursor-pointer
+                  `}
+                  title={`${monthNames[day.month]} ${day.dayOfMonth}: ${day.count} transactions`}
+                  data-testid={`heatmap-day-${day.date}`}
+                >
+                  {/* Day number */}
+                  <span className={`
+                    text-[10px] font-semibold
+                    ${day.count > 0 ? 'text-white' : 'text-gray-700'}
+                  `}>
+                    {day.dayOfMonth}
+                  </span>
                   
-                  const isSelected = selectedDate === day.date;
-                  const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
-                  const isToday = new Date().toISOString().split('T')[0] === day.date;
-                  
-                  return (
-                    <button
-                      key={dayIndex}
-                      onClick={() => onDateSelect && onDateSelect(day.date)}
-                      className={`
-                        relative h-8 aspect-square rounded border border-gray-300 
-                        transition-all duration-150 group
-                        flex items-center justify-center
-                        ${bgColor}
-                        ${isToday ? 'ring-2 ring-blue-500' : ''}
-                        ${isSelected ? 'ring-2 ring-orange-500' : ''}
-                        cursor-pointer
-                      `}
-                      title={`${monthNames[day.month]} ${day.dayOfMonth}: ${day.count} transactions`}
-                      data-testid={`heatmap-day-${day.date}`}
-                    >
-                      {/* Day number */}
-                      <span className={`
-                        text-[11px] font-semibold
-                        ${day.count > 0 ? 'text-white' : 'text-gray-700'}
-                      `}>
-                        {day.dayOfMonth}
-                      </span>
-                      
-                      {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-                        <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
-                        <div className="text-gray-300">{day.count} transactions</div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+                  {/* Tooltip on hover */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                    <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
+                    <div className="text-gray-300">{day.count} transactions</div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
