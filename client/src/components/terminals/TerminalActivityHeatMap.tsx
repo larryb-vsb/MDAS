@@ -27,11 +27,13 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch activity data for last 30 days
+  // Fetch activity data for current month
   const { data: activityResponse, isLoading } = useQuery({
-    queryKey: [`/api/tddf/activity-heatmap`, terminalId],
+    queryKey: [`/api/tddf/activity-heatmap`, terminalId, currentDate.getFullYear(), currentDate.getMonth()],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf/activity-heatmap?terminal_id=${terminalId}`, {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const response = await fetch(`/api/tddf/activity-heatmap?terminal_id=${terminalId}&year=${year}&month=${month}`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch activity data');
@@ -175,40 +177,35 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2">
-        <div>
-          <div className="flex items-center gap-2 mb-1 sm:mb-2">
-            <h3 className="text-sm sm:text-lg font-semibold text-gray-900">{title}</h3>
-          </div>
-          <p className="text-xs sm:text-sm text-gray-600">{description}</p>
-        </div>
+    <div className="bg-white rounded border border-gray-200 p-2 mb-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold text-gray-900">{title}</h3>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
+      <div className="bg-gray-50 rounded p-1">
         {/* Month Navigation */}
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-1">
+        <div className="flex justify-between items-center mb-1">
+          <div className="flex items-center gap-0.5">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigateMonth('prev')}
-              className="h-5 w-5 p-0"
+              className="h-4 w-4 p-0"
               data-testid="button-prev-month"
             >
-              <ChevronLeft className="h-3 w-3" />
+              <ChevronLeft className="h-2.5 w-2.5" />
             </Button>
-            <span className="font-semibold text-xs min-w-[100px] text-center">
+            <span className="font-semibold text-[10px] min-w-[80px] text-center">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigateMonth('next')}
-              className="h-5 w-5 p-0"
+              className="h-4 w-4 p-0"
               data-testid="button-next-month"
             >
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className="h-2.5 w-2.5" />
             </Button>
             
             <Button
@@ -216,25 +213,25 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
               size="sm"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="ml-2 h-5 px-1.5 text-[10px]"
+              className="ml-1 h-4 px-1 text-[9px]"
               data-testid="button-refresh-heatmap"
             >
-              <RefreshCw className={`h-2.5 w-2.5 mr-0.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-2 w-2 mr-0.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
           
-          <div className="text-[10px] text-gray-600">
+          <div className="text-[9px] text-gray-600">
             <span className="font-medium">{totalTransactions}</span> txns
-            <span className="mx-1">•</span>
+            <span className="mx-0.5">•</span>
             <span>Peak: <span className="font-medium">{maxCount}</span></span>
           </div>
         </div>
 
         {/* Calendar Grid */}
-        <div className="space-y-0.5 overflow-x-auto">
+        <div className="space-y-px overflow-x-auto">
           {/* Day headers */}
-          <div className="grid grid-cols-7 gap-0.5 mb-0.5 min-w-full">
+          <div className="grid grid-cols-7 gap-px mb-px min-w-full">
             {dayNames.map((day) => (
               <div key={day} className="text-center text-[8px] sm:text-[9px] font-semibold text-gray-600 py-0.5">
                 {day.substring(0, 1)}
@@ -244,7 +241,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
 
           {/* Calendar days */}
           {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 gap-0.5 min-w-full">
+            <div key={weekIndex} className="grid grid-cols-7 gap-px min-w-full">
               {week.map((day, dayIndex) => {
                 const isSelected = selectedDate === day.date;
                 const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
@@ -255,7 +252,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                     key={dayIndex}
                     onClick={() => day.isCurrentMonth && onDateSelect && onDateSelect(day.date)}
                     className={`
-                      relative h-7 sm:h-8 aspect-square rounded-sm border transition-all duration-200
+                      relative h-9 aspect-square rounded-sm border transition-all duration-200
                       ${bgColor}
                       ${day.isCurrentMonth ? 'border-gray-300' : 'border-gray-200'}
                       ${isToday ? 'ring-1 ring-blue-400' : ''}
@@ -312,7 +309,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
           </div>
           
           <div className="text-[8px] text-gray-500">
-            Last 30 days
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </div>
         </div>
       </div>

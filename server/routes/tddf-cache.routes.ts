@@ -24,16 +24,17 @@ export function registerTddfCacheRoutes(app: Express) {
   app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
     try {
       const terminalId = req.query.terminal_id as string;
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const month = parseInt(req.query.month as string) || new Date().getMonth();
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      // Calculate date range for last 30 days
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      // Calculate date range for the entire month
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0); // Last day of month
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for last 30 days${terminalId ? `, terminal: ${terminalId}` : ''}`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for ${year}-${month + 1}${terminalId ? `, terminal: ${terminalId}` : ''}`);
       
-      // Build query with 30-day filter and optional terminal filter
+      // Build query with month filter and optional terminal filter
       let query = `
         SELECT 
           DATE((extracted_fields->>'transactionDate')::date) as transaction_date,
@@ -57,7 +58,7 @@ export function registerTddfCacheRoutes(app: Express) {
       
       const activityData = await pool.query(query, params);
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for last 30 days${terminalId ? ` (terminal: ${terminalId})` : ''} from JSONB`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for ${year}-${month + 1}${terminalId ? ` (terminal: ${terminalId})` : ''} from JSONB`);
       
       // Format response to match expected interface
       const formattedData = activityData.rows.map((row: any) => ({
