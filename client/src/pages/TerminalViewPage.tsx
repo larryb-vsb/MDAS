@@ -473,11 +473,13 @@ export default function TerminalViewPage() {
         </div>
 
         {/* Terminal Activity Heat Map - Using Terminal-Specific Component */}
-        <TerminalActivityHeatMap 
-          terminalId={terminalIdFromVar?.toString() || ''}
-          onDateSelect={(date: string) => setSelectedDate(date)}
-          selectedDate={selectedDate}
-        />
+        {terminalIdFromVar && (
+          <TerminalActivityHeatMap 
+            terminalId={terminalIdFromVar}
+            onDateSelect={(date: string) => setSelectedDate(date)}
+            selectedDate={selectedDate}
+          />
+        )}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="transactions" className="space-y-4">

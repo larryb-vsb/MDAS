@@ -175,17 +175,17 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div className="flex items-center gap-2 mb-1 sm:mb-2">
+            <h3 className="text-sm sm:text-lg font-semibold text-gray-900">{title}</h3>
           </div>
-          <p className="text-sm text-gray-600">{description}</p>
+          <p className="text-xs sm:text-sm text-gray-600">{description}</p>
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-2">
+      <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
         {/* Month Navigation */}
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-1">
