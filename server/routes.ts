@@ -243,8 +243,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Phase D: TDDF Routes
   registerTddfFilesRoutes(app);
-  registerTddfRecordsRoutes(app);
-  registerTddfCacheRoutes(app);
+  registerTddfCacheRoutes(app);      // Register specific routes FIRST (before :id parameter)
+  registerTddfRecordsRoutes(app);    // Register parameter routes LAST (/:id catch-all)
   
   // Get Replit Object Storage configuration status with optional prefix override
   app.get("/api/uploader/storage-config", isAuthenticated, async (req, res) => {
