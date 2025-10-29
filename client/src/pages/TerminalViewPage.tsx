@@ -140,7 +140,7 @@ export default function TerminalViewPage() {
 
   // Extract Terminal ID from VAR Number for TDDF linking
   // VAR V8357055 maps to Terminal ID 78357055 (add "7" prefix after removing "V")
-  const terminalIdFromVar = terminal?.vNumber ? '7' + terminal.vNumber.replace('V', '') : null;
+  const terminalIdFromVar = terminal?.vNumber ? '7' + terminal.vNumber.trim().replace('V', '').trim() : null;
   
   // Fetch TDDF transactions linked to this terminal via Terminal ID field
   const { data: tddfTransactions = [], isLoading: tddfLoading } = useQuery({

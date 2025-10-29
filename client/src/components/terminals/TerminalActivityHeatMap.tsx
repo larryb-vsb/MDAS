@@ -23,12 +23,17 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   title = "Terminal Activity Heat Map",
   description = "Daily transaction volume over time - darker squares indicate more transactions"
 }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Always initialize with fresh current date (October 2025 = month index 9)
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    console.log('[HEATMAP INIT] Initializing with date:', now.toISOString(), 'Month index:', now.getMonth(), '('+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()]+')');
+    return now;
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
   
-  console.log('[HEATMAP DEBUG] Component mounted with terminalId:', terminalId);
-  console.log('[HEATMAP DEBUG] Current date:', currentDate.getFullYear(), currentDate.getMonth());
+  console.log('[HEATMAP DEBUG] Component render - terminalId:', terminalId);
+  console.log('[HEATMAP DEBUG] Current date state:', currentDate.toISOString(), 'Month:', currentDate.getMonth(), '('+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][currentDate.getMonth()]+')');
 
   // Fetch activity data for current month
   const { data: activityResponse, isLoading } = useQuery({
