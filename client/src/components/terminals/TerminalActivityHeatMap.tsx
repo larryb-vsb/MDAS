@@ -243,7 +243,14 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                 return (
                   <button
                     key={day.date}
-                    onClick={() => onDateSelect && onDateSelect(day.date)}
+                    onClick={() => {
+                      console.log('[HEATMAP CLICK] Date clicked:', day.date);
+                      console.log('[HEATMAP CLICK] onDateSelect exists:', !!onDateSelect);
+                      if (onDateSelect) {
+                        onDateSelect(day.date);
+                        console.log('[HEATMAP CLICK] onDateSelect called with:', day.date);
+                      }
+                    }}
                     style={day.gridColumn ? { gridColumnStart: day.gridColumn } : undefined}
                     className={`
                       relative h-12 w-12 rounded border-2 border-gray-300 

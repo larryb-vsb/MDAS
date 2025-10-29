@@ -172,13 +172,46 @@ export default function TerminalViewPage() {
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = tddfTransactions || [];
     
+    console.log('[TERMINAL PAGE] Filtering transactions - selectedDate:', selectedDate);
+    console.log('[TERMINAL PAGE] Total transactions before filter:', filtered.length);
+    
     // Apply date filter if a date is selected
     if (selectedDate) {
-      filtered = filtered.filter(transaction => {
-        const transactionDate = new Date(transaction.transactionDate);
-        const filterDate = new Date(selectedDate);
-        return transactionDate.toDateString() === filterDate.toDateString();
+      // Normalize selected date to YYYY-MM-DD format
+      const normalizedSelectedDate = selectedDate.split('T')[0]; // In case it has time
+      console.log('[TERMINAL PAGE] Normalized selected date:', normalizedSelectedDate);
+      
+      // Log a sample transaction to see its structure
+      if (filtered.length > 0) {
+        console.log('[TERMINAL PAGE] Sample transaction structure:', {
+          keys: Object.keys(filtered[0]),
+          transactionDate: filtered[0].transactionDate,
+          date: filtered[0].date,
+          transactionAmount: filtered[0].transactionAmount
+        });
+      }
+      
+      filtered = filtered.filter((transaction: any, index: number) => {
+        // Extract date part from transaction date (handles both "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ss" formats)
+        const transactionDateStr = transaction.transactionDate 
+          ? String(transaction.transactionDate).split('T')[0] 
+          : '';
+        
+        const matches = transactionDateStr === normalizedSelectedDate;
+        
+        // Log first 3 transactions to see what's happening
+        if (index < 3) {
+          console.log(`[TERMINAL PAGE] Transaction ${index}:`, {
+            transactionDate: transaction.transactionDate,
+            transactionDateStr,
+            normalizedSelectedDate,
+            matches
+          });
+        }
+        
+        return matches;
       });
+      console.log('[TERMINAL PAGE] Transactions after filter:', filtered.length);
     }
     
     // Apply sorting

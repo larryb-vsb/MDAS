@@ -500,7 +500,6 @@ export function registerTddfRecordsRoutes(app: Express) {
         WHERE record_type = 'DT'
         AND extracted_fields->>'terminalId' = $1 
         ORDER BY (extracted_fields->>'transactionDate')::date DESC, id DESC
-        LIMIT 100
       `, [terminalId]);
       const records = recordsResult.rows;
       
