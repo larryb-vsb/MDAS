@@ -396,6 +396,32 @@ function Tddf1Page() {
     enabled: !!selectedDateStr,
   });
 
+  // Files by date query for table view
+  const { data: filesByDate, isLoading: filesLoading } = useQuery<{
+    date: string;
+    fileCount: number;
+    files: Array<{
+      uploadId: string;
+      filename: string;
+      uploadTime: string;
+      uploadComplete: string | null;
+      encodingComplete: string | null;
+      fileSize: number | null;
+      businessDay: string | null;
+      totalRecords: number;
+      recordTypeCounts: Record<string, number>;
+      netDeposits: number;
+      transactionAmounts: number;
+    }>;
+    timestamp: number;
+  }>({
+    queryKey: ['/api/tddf1/files-by-date', selectedDateStr],
+    queryFn: () => {
+      return fetch(`/api/tddf1/files-by-date?date=${selectedDateStr}`).then(res => res.json());
+    },
+    enabled: !!selectedDateStr,
+  });
+
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
     queryKey: ['/api/tddf1/recent-activity'],
   });
@@ -1489,6 +1515,91 @@ function Tddf1Page() {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500 text-sm">No data available for this date</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Files List Card */}
+            <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+              <CardHeader>
+                <CardTitle className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                  <FileText className="h-5 w-5" />
+                  Files Processed - {format(selectedDate, 'MMM d, yyyy')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {filesLoading ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">Loading files...</div>
+                ) : filesByDate && filesByDate.files.length > 0 ? (
+                  <div className="space-y-3">
+                    {filesByDate.files.map((file, index) => (
+                      <div 
+                        key={file.uploadId}
+                        className={`p-4 rounded-lg border transition-colors ${
+                          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-white border-gray-200 hover:bg-gray-50'
+                        }`}
+                        data-testid={`file-card-${index}`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-mono text-sm font-semibold truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                              {file.filename}
+                            </div>
+                            <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Uploaded: {format(new Date(file.uploadTime), 'MMM d, yyyy h:mm a')}
+                            </div>
+                            {file.fileSize && (
+                              <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                Size: {(file.fileSize / 1024).toFixed(1)} KB
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge variant="outline" className={isDarkMode ? 'text-blue-400 border-blue-600' : 'text-blue-600 border-blue-400'}>
+                              {file.totalRecords.toLocaleString()} records
+                            </Badge>
+                            {file.transactionAmounts > 0 && (
+                              <div className={`text-xs font-mono ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                                ${(file.transactionAmounts / 1000000).toFixed(2)}M
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Record type breakdown for this file */}
+                        <div className="mt-3 pt-3 border-t border-gray-600 dark:border-gray-700">
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(file.recordTypeCounts)
+                              .filter(([_, count]) => count > 0)
+                              .map(([type, count]) => {
+                                const colors: Record<string, string> = {
+                                  'BH': 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
+                                  'DT': 'bg-green-500/20 text-green-600 dark:text-green-400',
+                                  'G2': 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
+                                  'E1': 'bg-orange-500/20 text-orange-600 dark:text-orange-400',
+                                  'P1': 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',
+                                  'P2': 'bg-pink-500/20 text-pink-600 dark:text-pink-400',
+                                  'DR': 'bg-red-500/20 text-red-600 dark:text-red-400',
+                                  'AD': 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                                };
+                                const colorClass = colors[type] || 'bg-gray-500/20 text-gray-600';
+                                
+                                return (
+                                  <span 
+                                    key={type}
+                                    className={`px-2 py-1 rounded text-xs font-mono ${colorClass}`}
+                                  >
+                                    {type}: {count.toLocaleString()}
+                                  </span>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500 text-sm">No files found for this date</div>
                 )}
               </CardContent>
             </Card>
