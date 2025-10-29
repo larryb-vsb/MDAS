@@ -27,15 +27,21 @@ export function registerTddfCacheRoutes(app: Express) {
       const yearParam = req.query.year as string;
       const monthParam = req.query.month as string;
       
+      console.log('[TDDF ACTIVITY HEATMAP] Raw params:', { terminalId, yearParam, monthParam });
+      
       // Validate and parse year
-      const year = yearParam ? parseInt(yearParam) : new Date().getFullYear();
+      const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
+      console.log('[TDDF ACTIVITY HEATMAP] Parsed year:', year, 'isNaN:', isNaN(year));
       if (isNaN(year)) {
+        console.error('[TDDF ACTIVITY HEATMAP] Invalid year - returning 400');
         return res.status(400).json({ error: 'Invalid year parameter' });
       }
       
       // Validate and parse month (JavaScript 0-indexed)
-      const month = monthParam ? parseInt(monthParam) : new Date().getMonth();
+      const month = monthParam ? parseInt(monthParam, 10) : new Date().getMonth();
+      console.log('[TDDF ACTIVITY HEATMAP] Parsed month:', month, 'isNaN:', isNaN(month));
       if (isNaN(month) || month < 0 || month > 11) {
+        console.error('[TDDF ACTIVITY HEATMAP] Invalid month - returning 400');
         return res.status(400).json({ error: 'Invalid month parameter (must be 0-11)' });
       }
       
@@ -70,6 +76,7 @@ export function registerTddfCacheRoutes(app: Express) {
         GROUP BY DATE((extracted_fields->>'transactionDate')::date)
         ORDER BY DATE((extracted_fields->>'transactionDate')::date)`;
       
+      console.log('[TDDF ACTIVITY HEATMAP] Executing query with params:', params);
       const activityData = await pool.query(query, params);
       
       console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for ${year}-${month + 1}${terminalId ? ` (terminal: ${terminalId})` : ''} from JSONB`);
@@ -83,7 +90,7 @@ export function registerTddfCacheRoutes(app: Express) {
       
       res.json(formattedData);
     } catch (error) {
-      console.error('Error fetching TDDF activity heatmap data:', error);
+      console.error('[TDDF ACTIVITY HEATMAP] Error fetching data:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch TDDF activity data" 
       });
