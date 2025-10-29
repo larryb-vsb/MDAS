@@ -1493,6 +1493,92 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
+  // TDDF1 Files by Date - Returns detailed file information for a specific date
+  app.get("/api/tddf1/files-by-date", isAuthenticated, async (req, res) => {
+    try {
+      const date = req.query.date as string || new Date().toISOString().split('T')[0];
+      console.log(`📁 Getting file details for date: ${date}`);
+      
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Query for file details including upload metadata
+      const filesResult = await pool.query(`
+        SELECT 
+          u.id as upload_id,
+          u.filename,
+          u.start_time,
+          u.upload_complete,
+          u.encoding_complete,
+          u.file_size,
+          u.business_day,
+          COUNT(*) as record_count,
+          COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_count,
+          COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_count,
+          COUNT(CASE WHEN r.record_type = 'G2' THEN 1 END) as g2_count,
+          COUNT(CASE WHEN r.record_type = 'E1' THEN 1 END) as e1_count,
+          COUNT(CASE WHEN r.record_type = 'P1' THEN 1 END) as p1_count,
+          COUNT(CASE WHEN r.record_type = 'P2' THEN 1 END) as p2_count,
+          COUNT(CASE WHEN r.record_type = 'DR' THEN 1 END) as dr_count,
+          COUNT(CASE WHEN r.record_type = 'AD' THEN 1 END) as ad_count,
+          SUM(CASE 
+            WHEN r.record_type = 'BH' AND r.extracted_fields->>'netDeposit' IS NOT NULL AND r.extracted_fields->>'netDeposit' != ''
+            THEN (r.extracted_fields->>'netDeposit')::numeric 
+            ELSE 0 
+          END) as net_deposits,
+          SUM(CASE 
+            WHEN r.record_type = 'DT' AND r.extracted_fields->>'transactionAmount' IS NOT NULL AND r.extracted_fields->>'transactionAmount' != ''
+            THEN (r.extracted_fields->>'transactionAmount')::numeric 
+            ELSE 0 
+          END) as transaction_amounts
+        FROM ${masterTableName} r
+        JOIN ${uploaderTableName} u ON r.upload_id = u.id
+        WHERE (
+          (r.record_type = 'BH' AND r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'batchDate' = $1)
+          OR
+          (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'transactionDate' = $1)
+        )
+        GROUP BY u.id, u.filename, u.start_time, u.upload_complete, u.encoding_complete, u.file_size, u.business_day
+        ORDER BY u.start_time DESC
+      `, [date]);
+      
+      const files = filesResult.rows.map(f => ({
+        uploadId: f.upload_id,
+        filename: f.filename,
+        uploadTime: f.start_time,
+        uploadComplete: f.upload_complete,
+        encodingComplete: f.encoding_complete,
+        fileSize: f.file_size,
+        businessDay: f.business_day,
+        totalRecords: parseInt(f.record_count) || 0,
+        recordTypeCounts: {
+          BH: parseInt(f.bh_count) || 0,
+          DT: parseInt(f.dt_count) || 0,
+          G2: parseInt(f.g2_count) || 0,
+          E1: parseInt(f.e1_count) || 0,
+          P1: parseInt(f.p1_count) || 0,
+          P2: parseInt(f.p2_count) || 0,
+          DR: parseInt(f.dr_count) || 0,
+          AD: parseInt(f.ad_count) || 0
+        },
+        netDeposits: parseFloat(f.net_deposits) || 0,
+        transactionAmounts: parseFloat(f.transaction_amounts) || 0
+      }));
+      
+      console.log(`📁 Found ${files.length} files for ${date}`);
+      
+      res.json({
+        date,
+        fileCount: files.length,
+        files,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error("Error getting files by date:", error);
+      res.status(500).json({ error: "Failed to get files by date" });
+    }
+  });
+
   // Settings endpoint for TDDF JSON record counts
   app.get("/api/settings/tddf-json-record-counts", isAuthenticated, async (req, res) => {
     try {
