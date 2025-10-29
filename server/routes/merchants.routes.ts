@@ -153,7 +153,7 @@ export function registerMerchantRoutes(app: Express) {
     }
   });
   
-  // Get merchant details by ID
+  // Get merchant details by ID with TDDF transaction statistics
   app.get("/api/merchants/:id", async (req, res) => {
     try {
       const merchantId = req.params.id;
@@ -163,6 +163,63 @@ export function registerMerchantRoutes(app: Express) {
       
       if (!merchantDetails) {
         return res.status(404).json({ error: `Merchant with ID ${merchantId} not found` });
+      }
+      
+      // Enhance with TDDF transaction statistics
+      try {
+        const tddfJsonbTableName = getTableName('tddf_jsonb');
+        const terminalsTableName = getTableName('terminals');
+        
+        // Find all terminals for this merchant to build Terminal ID list
+        const terminalsResult = await pool.query(`
+          SELECT v_number
+          FROM ${terminalsTableName}
+          WHERE pos_merchant_number = $1
+        `, [merchantId]);
+        
+        // Generate Terminal IDs with both "7" and "0" prefixes from VAR numbers
+        const terminalIds: string[] = [];
+        terminalsResult.rows.forEach(row => {
+          const baseVarNumber = row.v_number.replace('V', '').trim();
+          terminalIds.push('7' + baseVarNumber);
+          terminalIds.push('0' + baseVarNumber);
+        });
+        
+        if (terminalIds.length > 0) {
+          console.log(`[MERCHANT-DETAILS] Querying TDDF for merchant ${merchantId} with ${terminalIds.length} terminal IDs`);
+          
+          // Query TDDF transaction statistics for last 30 days
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          
+          const tddfStatsResult = await pool.query(`
+            SELECT 
+              COUNT(*) as transaction_count,
+              SUM((extracted_fields->>'transactionAmount')::decimal) as total_revenue
+            FROM ${tddfJsonbTableName}
+            WHERE record_type = 'DT'
+              AND extracted_fields->>'terminalId' = ANY($1::text[])
+              AND (extracted_fields->>'transactionDate')::date >= $2::date
+          `, [terminalIds, thirtyDaysAgo.toISOString().split('T')[0]]);
+          
+          const tddfStats = tddfStatsResult.rows[0];
+          const tddfTransactionCount = parseInt(tddfStats.transaction_count || '0');
+          const tddfRevenue = parseFloat(tddfStats.total_revenue || '0');
+          
+          // Add TDDF stats to monthly stats
+          if (merchantDetails.analytics && merchantDetails.analytics.monthlyStats) {
+            const existingTransactions = merchantDetails.analytics.monthlyStats.transactions || 0;
+            const existingRevenue = parseFloat(merchantDetails.analytics.monthlyStats.revenue || '0');
+            
+            merchantDetails.analytics.monthlyStats.transactions = existingTransactions + tddfTransactionCount;
+            merchantDetails.analytics.monthlyStats.revenue = (existingRevenue + tddfRevenue).toFixed(2);
+            
+            console.log(`[MERCHANT-DETAILS] Enhanced stats: ${tddfTransactionCount} TDDF transactions, $${tddfRevenue.toFixed(2)} revenue`);
+          }
+        }
+      } catch (tddfError) {
+        console.error('[MERCHANT-DETAILS] Error fetching TDDF stats:', tddfError);
+        // Continue without TDDF stats if there's an error
       }
       
       res.json(merchantDetails);

@@ -1753,8 +1753,7 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
-  // TDDF1 merchant terminals
-  // NOTE: This route appears twice - handling terminal data for merchant view
+  // TDDF1 merchant terminals - Get terminals for a merchant with TDDF transaction aggregates
   app.get("/api/tddf1/merchant-terminals", isAuthenticated, async (req, res) => {
     try {
       const { merchantId, processingDate } = req.query;
@@ -1763,14 +1762,77 @@ export function registerTddfRecordsRoutes(app: Express) {
         return res.status(400).json({ error: "merchantId and processingDate are required" });
       }
       
-      console.log(`[MERCHANT-TERMINALS] Getting terminal data for: ${merchantId} on ${processingDate}`);
+      console.log(`[MERCHANT-TERMINALS] Getting terminal data for merchant: ${merchantId} on ${processingDate}`);
       
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const terminalsTableName = getTableName('terminals');
       
-      // Implementation truncated for brevity - full implementation in original routes.ts
-      res.json({ terminals: [] });
+      // Step 1: Find all terminals matching the merchant's POS Merchant Number
+      const terminalsResult = await pool.query(`
+        SELECT 
+          id,
+          v_number as "vNumber",
+          pos_merchant_number as "posMerchantNumber",
+          dba_name as "dbaName",
+          status,
+          mcc
+        FROM ${terminalsTableName}
+        WHERE pos_merchant_number = $1
+      `, [merchantId]);
+      
+      const terminals = terminalsResult.rows;
+      console.log(`[MERCHANT-TERMINALS] Found ${terminals.length} terminals for merchant ${merchantId}`);
+      
+      if (terminals.length === 0) {
+        return res.json({ terminals: [] });
+      }
+      
+      // Step 2: For each terminal, aggregate TDDF transaction data with dual Terminal ID lookup
+      const terminalSummaries = [];
+      
+      for (const terminal of terminals) {
+        // Generate both Terminal IDs (with "7" and "0" prefixes) from VAR number
+        const baseVarNumber = terminal.vNumber.replace('V', '').trim();
+        const terminalIds = ['7' + baseVarNumber, '0' + baseVarNumber];
+        
+        console.log(`[MERCHANT-TERMINALS] Querying TDDF for terminal ${terminal.vNumber} (IDs: ${terminalIds.join(', ')})`);
+        
+        // Query TDDF DT records for this terminal on the processing date
+        const statsResult = await pool.query(`
+          SELECT 
+            COUNT(*) as transaction_count,
+            SUM((extracted_fields->>'transactionAmount')::decimal) as total_amount,
+            array_agg(DISTINCT extracted_fields->>'cardType') FILTER (WHERE extracted_fields->>'cardType' IS NOT NULL) as card_types,
+            array_agg(DISTINCT extracted_fields->>'mccCode') FILTER (WHERE extracted_fields->>'mccCode' IS NOT NULL) as mcc_codes,
+            MIN((extracted_fields->>'transactionDate')::date) as first_seen,
+            MAX((extracted_fields->>'transactionDate')::date) as last_seen
+          FROM ${tddfJsonbTableName}
+          WHERE record_type = 'DT'
+            AND extracted_fields->>'terminalId' = ANY($1::text[])
+            AND (extracted_fields->>'transactionDate')::date = $2::date
+        `, [terminalIds, processingDate]);
+        
+        const stats = statsResult.rows[0];
+        const transactionCount = parseInt(stats.transaction_count || '0');
+        
+        // Only include terminals with transactions on this date
+        if (transactionCount > 0) {
+          terminalSummaries.push({
+            terminalId: '7' + baseVarNumber, // Use "7" prefix as canonical
+            vNumber: terminal.vNumber,
+            dbaName: terminal.dbaName,
+            transactionCount: transactionCount,
+            totalAmount: parseFloat(stats.total_amount || '0'),
+            cardTypes: stats.card_types || [],
+            mccCodes: stats.mcc_codes || [],
+            firstSeen: stats.first_seen,
+            lastSeen: stats.last_seen
+          });
+        }
+      }
+      
+      console.log(`[MERCHANT-TERMINALS] Returning ${terminalSummaries.length} terminals with transaction data`);
+      res.json({ terminals: terminalSummaries });
     } catch (error: any) {
       console.error('[MERCHANT-TERMINALS] Error:', error);
       res.status(500).json({ error: error.message });
