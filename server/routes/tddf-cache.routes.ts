@@ -24,8 +24,21 @@ export function registerTddfCacheRoutes(app: Express) {
   app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
     try {
       const terminalId = req.query.terminal_id as string;
-      const year = parseInt(req.query.year as string) || new Date().getFullYear();
-      const month = parseInt(req.query.month as string) || new Date().getMonth();
+      const yearParam = req.query.year as string;
+      const monthParam = req.query.month as string;
+      
+      // Validate and parse year
+      const year = yearParam ? parseInt(yearParam) : new Date().getFullYear();
+      if (isNaN(year)) {
+        return res.status(400).json({ error: 'Invalid year parameter' });
+      }
+      
+      // Validate and parse month (JavaScript 0-indexed)
+      const month = monthParam ? parseInt(monthParam) : new Date().getMonth();
+      if (isNaN(month) || month < 0 || month > 11) {
+        return res.status(400).json({ error: 'Invalid month parameter (must be 0-11)' });
+      }
+      
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
       // Calculate date range for the entire month
@@ -33,6 +46,7 @@ export function registerTddfCacheRoutes(app: Express) {
       const endDate = new Date(year, month + 1, 0); // Last day of month
       
       console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for ${year}-${month + 1}${terminalId ? `, terminal: ${terminalId}` : ''}`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
       
       // Build query with month filter and optional terminal filter
       let query = `
@@ -45,9 +59,9 @@ export function registerTddfCacheRoutes(app: Express) {
           AND (extracted_fields->>'transactionDate')::date <= $2
           AND extracted_fields->>'transactionDate' IS NOT NULL`;
       
-      const params = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
+      const params: any[] = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
       
-      if (terminalId) {
+      if (terminalId && terminalId !== 'undefined' && terminalId !== 'null') {
         query += ` AND extracted_fields->>'terminalId' = $3`;
         params.push(terminalId);
       }

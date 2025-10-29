@@ -224,16 +224,16 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
         {/* Calendar Grid - Compact GitHub-style heat map */}
         <div className="overflow-x-auto">
           {/* Day headers */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
+          <div className="grid grid-cols-7 gap-2 mb-2">
             {dayNames.map((day) => (
-              <div key={day} className="text-center text-[9px] font-medium text-gray-600">
+              <div key={day} className="text-center text-xs font-semibold text-gray-600 w-12">
                 {day.substring(0, 1)}
               </div>
             ))}
           </div>
 
           {/* Calendar days - Single grid showing ONLY current month */}
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-2">
             {calendarDays.map((day, index) => {
               const isSelected = selectedDate === day.date;
               const bgColor = getBackgroundColor(day.count, isSelected, true);
@@ -245,7 +245,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                   onClick={() => onDateSelect && onDateSelect(day.date)}
                   style={day.gridColumn ? { gridColumnStart: day.gridColumn } : undefined}
                   className={`
-                    relative h-8 w-8 rounded border border-gray-300 
+                    relative h-12 w-12 rounded border-2 border-gray-300 
                     transition-all duration-150 group
                     flex items-center justify-center
                     ${bgColor}
@@ -258,14 +258,14 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                 >
                   {/* Day number */}
                   <span className={`
-                    text-[10px] font-semibold
+                    text-sm font-bold
                     ${day.count > 0 ? 'text-white' : 'text-gray-700'}
                   `}>
                     {day.dayOfMonth}
                   </span>
                   
                   {/* Tooltip on hover */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-xs rounded px-3 py-1.5 whitespace-nowrap pointer-events-none shadow-lg">
                     <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
                     <div className="text-gray-300">{day.count} transactions</div>
                     <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
