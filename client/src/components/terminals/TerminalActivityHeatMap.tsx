@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ActivityData {
@@ -23,10 +23,11 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
   title = "Terminal Activity Heat Map",
   description = "Daily transaction volume over time - darker squares indicate more transactions"
 }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch activity data for last 30 days (no year parameter needed)
+  // Fetch activity data for last 30 days
   const { data: activityResponse, isLoading } = useQuery({
     queryKey: [`/api/tddf/activity-heatmap`, terminalId],
     queryFn: async () => {
@@ -41,8 +42,8 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
 
   const activityData = activityResponse || [];
 
-  // Process data for 30-day heat map
-  const { days, maxCount, totalTransactions } = React.useMemo(() => {
+  // Process data for calendar view
+  const { calendarDays, maxCount, totalTransactions, monthStart, monthEnd } = React.useMemo(() => {
     // Create a map of date to count
     const dataByDate: Record<string, number> = {};
     activityData.forEach((item: ActivityData) => {
@@ -55,39 +56,55 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
     // Calculate max count for intensity
     const maxCount = Math.max(...Object.values(dataByDate), 1);
     
-    // Generate last 30 days
-    const days = [];
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 29); // 30 days total including today
+    // Get first and last day of current month
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
     
-    let currentDate = new Date(startDate);
+    // Get the first Sunday of the calendar (might be in previous month)
+    const firstCalendarDay = new Date(monthStart);
+    firstCalendarDay.setDate(firstCalendarDay.getDate() - firstCalendarDay.getDay());
     
-    for (let i = 0; i < 30; i++) {
-      const dateKey = currentDate.toISOString().split('T')[0];
+    // Get the last Saturday of the calendar (might be in next month)
+    const lastCalendarDay = new Date(monthEnd);
+    lastCalendarDay.setDate(lastCalendarDay.getDate() + (6 - lastCalendarDay.getDay()));
+    
+    // Generate calendar grid
+    const calendarDays = [];
+    let currentDay = new Date(firstCalendarDay);
+    
+    while (currentDay <= lastCalendarDay) {
+      const dateKey = currentDay.toISOString().split('T')[0];
       const count = dataByDate[dateKey] || 0;
+      const isCurrentMonth = currentDay.getMonth() === month;
       
-      days.push({
+      calendarDays.push({
         date: dateKey,
         count: count,
-        dateObj: new Date(currentDate),
-        dayOfWeek: currentDate.getDay(),
-        dayOfMonth: currentDate.getDate(),
-        month: currentDate.getMonth()
+        dateObj: new Date(currentDay),
+        dayOfMonth: currentDay.getDate(),
+        month: currentDay.getMonth(),
+        year: currentDay.getFullYear(),
+        isCurrentMonth: isCurrentMonth
       });
       
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDay.setDate(currentDay.getDate() + 1);
     }
 
     const totalTransactions = Object.values(dataByDate).reduce((sum, count) => sum + count, 0);
 
-    return { days, maxCount, totalTransactions };
-  }, [activityData]);
+    return { calendarDays, maxCount, totalTransactions, monthStart, monthEnd };
+  }, [activityData, currentDate]);
 
   // Get background color for a day square
-  const getBackgroundColor = (count: number, isSelected: boolean) => {
+  const getBackgroundColor = (count: number, isSelected: boolean, isCurrentMonth: boolean) => {
     if (isSelected) {
       return 'bg-orange-500 hover:bg-orange-600 ring-2 ring-orange-600 ring-offset-1';
+    }
+    
+    if (!isCurrentMonth) {
+      return 'bg-gray-50 hover:bg-gray-100 opacity-40';
     }
     
     if (count === 0) {
@@ -117,8 +134,20 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
     }
   };
 
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      return newDate;
+    });
+  };
+
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   if (isLoading) {
     return (
@@ -130,12 +159,18 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
           </div>
         </div>
         <div className="bg-gray-50 rounded-lg p-6">
-          <div className="flex justify-center items-center h-32">
+          <div className="flex justify-center items-center h-64">
             <div className="text-gray-500">Loading heat map...</div>
           </div>
         </div>
       </div>
     );
+  }
+
+  // Group days into weeks
+  const weeks = [];
+  for (let i = 0; i < calendarDays.length; i += 7) {
+    weeks.push(calendarDays.slice(i, i + 7));
   }
 
   return (
@@ -150,51 +185,101 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
       </div>
 
       <div className="bg-gray-50 rounded-lg p-6">
-        {/* Header with stats and refresh */}
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Last 30 Days</span>
-              <span className="mx-2">•</span>
-              <span className="font-medium">{totalTransactions}</span> transactions
-              <span className="mx-2">•</span>
-              <span>Peak day: <span className="font-medium">{maxCount}</span> transactions</span>
-            </div>
+        {/* Month Navigation */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigateMonth('prev')}
+              className="h-8 w-8 p-0"
+              data-testid="button-prev-month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="font-semibold text-lg min-w-[180px] text-center">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigateMonth('next')}
+              className="h-8 w-8 p-0"
+              data-testid="button-next-month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="ml-4 h-8 px-3 text-xs"
+              data-testid="button-refresh-heatmap"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="h-8 px-3 text-xs"
-            data-testid="button-refresh-heatmap"
-          >
-            <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">{totalTransactions}</span> transactions
+            <span className="mx-2">•</span>
+            <span>Peak day: <span className="font-medium">{maxCount}</span> transactions</span>
+          </div>
         </div>
 
-        {/* 30-day strip visualization */}
-        <div className="space-y-3">
-          {/* Day squares */}
-          <div className="flex gap-1 overflow-x-auto pb-2">
-            {days.map((day, index) => {
-              const isSelected = selectedDate === day.date;
-              const bgColor = getBackgroundColor(day.count, isSelected);
-              
-              return (
-                <div key={index} className="flex-shrink-0">
+        {/* Calendar Grid */}
+        <div className="space-y-2">
+          {/* Day headers */}
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {dayNames.map((day) => (
+              <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar days */}
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-2">
+              {week.map((day, dayIndex) => {
+                const isSelected = selectedDate === day.date;
+                const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
+                const isToday = new Date().toISOString().split('T')[0] === day.date;
+                
+                return (
                   <button
-                    onClick={() => onDateSelect && onDateSelect(day.date)}
+                    key={dayIndex}
+                    onClick={() => day.isCurrentMonth && onDateSelect && onDateSelect(day.date)}
                     className={`
-                      w-10 h-10 rounded border border-gray-200 transition-all duration-200
+                      relative aspect-square rounded-lg border transition-all duration-200
                       ${bgColor}
-                      flex items-center justify-center
-                      relative group
+                      ${day.isCurrentMonth ? 'border-gray-300' : 'border-gray-200'}
+                      ${isToday ? 'ring-2 ring-blue-400' : ''}
+                      flex flex-col items-center justify-center
+                      group
                     `}
                     title={`${day.date}: ${day.count} transactions`}
                     data-testid={`heatmap-day-${day.date}`}
                   >
+                    {/* Day number */}
+                    <span className={`
+                      text-sm font-medium
+                      ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
+                      ${day.count > 0 && day.isCurrentMonth ? 'text-white' : ''}
+                    `}>
+                      {day.dayOfMonth}
+                    </span>
+                    
+                    {/* Transaction count (only show if > 0 and current month) */}
+                    {day.count > 0 && day.isCurrentMonth && (
+                      <span className="text-[10px] text-white font-medium mt-0.5">
+                        {day.count}
+                      </span>
+                    )}
+
                     {/* Tooltip on hover */}
                     <div className="absolute bottom-full mb-2 hidden group-hover:block z-10 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
                       <div className="font-medium">{monthNames[day.month]} {day.dayOfMonth}</div>
@@ -202,40 +287,31 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </button>
-                  
-                  {/* Day of week label below */}
-                  <div className="text-[10px] text-gray-400 text-center mt-1 font-medium">
-                    {dayNames[day.dayOfWeek].substring(0, 1)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
 
-          {/* Legend */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-2 text-xs text-gray-600">
-              <span>Less</span>
-              <div className="flex gap-1">
-                <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-green-100 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-green-400 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-green-600 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-blue-500 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-blue-700 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-purple-600 border border-gray-200 rounded"></div>
-                <div className="w-4 h-4 bg-purple-800 border border-gray-200 rounded"></div>
-              </div>
-              <span>More</span>
+        {/* Legend */}
+        <div className="flex items-center justify-between pt-6 mt-6 border-t border-gray-200">
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <span>Less</span>
+            <div className="flex gap-1">
+              <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-green-100 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-green-400 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-green-600 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-blue-500 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-blue-700 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-purple-600 border border-gray-300 rounded"></div>
+              <div className="w-4 h-4 bg-purple-800 border border-gray-300 rounded"></div>
             </div>
-            
-            <div className="text-xs text-gray-500">
-              {days.length > 0 && (
-                <>
-                  {monthNames[days[0].month]} {days[0].dayOfMonth} - {monthNames[days[days.length - 1].month]} {days[days.length - 1].dayOfMonth}
-                </>
-              )}
-            </div>
+            <span>More</span>
+          </div>
+          
+          <div className="text-xs text-gray-500">
+            Showing data from last 30 days
           </div>
         </div>
       </div>
