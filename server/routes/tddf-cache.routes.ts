@@ -23,26 +23,31 @@ export function registerTddfCacheRoutes(app: Express) {
   // Get TDDF activity data for heat map (DT records only) - JSONB version
   app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
     try {
-      const year = parseInt(req.query.year as string) || new Date().getFullYear();
       const terminalId = req.query.terminal_id as string;
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for year: ${year}${terminalId ? `, terminal: ${terminalId}` : ''}`);
+      // Calculate date range for last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
       
-      // Build query with optional terminal filter
+      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for last 30 days${terminalId ? `, terminal: ${terminalId}` : ''}`);
+      
+      // Build query with 30-day filter and optional terminal filter
       let query = `
         SELECT 
           DATE((extracted_fields->>'transactionDate')::date) as transaction_date,
           COUNT(*) as transaction_count
         FROM ${tddfJsonbTableName}
         WHERE record_type = 'DT'
-          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
+          AND (extracted_fields->>'transactionDate')::date >= $1
+          AND (extracted_fields->>'transactionDate')::date <= $2
           AND extracted_fields->>'transactionDate' IS NOT NULL`;
       
-      const params = [year];
+      const params = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
       
       if (terminalId) {
-        query += ` AND extracted_fields->>'terminalId' = $2`;
+        query += ` AND extracted_fields->>'terminalId' = $3`;
         params.push(terminalId);
       }
       
@@ -52,7 +57,7 @@ export function registerTddfCacheRoutes(app: Express) {
       
       const activityData = await pool.query(query, params);
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for year ${year}${terminalId ? ` (terminal: ${terminalId})` : ''} from JSONB`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for last 30 days${terminalId ? ` (terminal: ${terminalId})` : ''} from JSONB`);
       
       // Format response to match expected interface
       const formattedData = activityData.rows.map((row: any) => ({

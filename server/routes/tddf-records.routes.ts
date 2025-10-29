@@ -489,8 +489,7 @@ export function registerTddfRecordsRoutes(app: Express) {
           line_number,
           raw_line,
           extracted_fields,
-          created_at,
-          updated_at
+          created_at
         FROM ${tddfJsonbTableName} 
         WHERE record_type = 'DT'
         AND extracted_fields->>'terminalId' = $1 
@@ -526,7 +525,6 @@ export function registerTddfRecordsRoutes(app: Express) {
           transactionTypeIdentifier: fields.transactionTypeIdentifier || fields.transaction_type_identifier,
           mmsRawLine: record.raw_line, // Raw TDDF line data for details modal
           createdAt: record.created_at,
-          updatedAt: record.updated_at,
           // Aliases for heat map and table compatibility
           amount: fields.transactionAmount || fields.transaction_amount,
           date: fields.transactionDate || fields.transaction_date
