@@ -1753,7 +1753,7 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
-  // TDDF1 merchant terminals - Get terminals for a merchant with TDDF transaction aggregates
+  // TDDF1 merchant terminals - Get terminals directly from TDDF with transaction aggregates
   app.get("/api/tddf1/merchant-terminals", isAuthenticated, async (req, res) => {
     try {
       const { merchantId, processingDate } = req.query;
@@ -1765,70 +1765,81 @@ export function registerTddfRecordsRoutes(app: Express) {
       console.log(`[MERCHANT-TERMINALS] Getting terminal data for merchant: ${merchantId} on ${processingDate}`);
       
       const tddfJsonbTableName = getTableName('tddf_jsonb');
-      const terminalsTableName = getTableName('terminals');
+      const apiTerminalsTableName = getTableName('api_terminals');
       
-      // Step 1: Find all terminals matching the merchant's POS Merchant Number
-      const terminalsResult = await pool.query(`
+      // Step 1: Query TDDF directly for terminals with transactions on this date
+      // Handle merchant IDs with/without leading "0" (e.g., "675900000187849" and "0675900000187849")
+      const merchantIdVariants = [
+        merchantId as string,
+        '0' + (merchantId as string),
+        (merchantId as string).replace(/^0+/, '') // Remove leading zeros
+      ];
+      
+      console.log(`[MERCHANT-TERMINALS] Querying TDDF for merchant variants: ${merchantIdVariants.join(', ')}`);
+      
+      const tddfResult = await pool.query(`
         SELECT 
-          id,
-          v_number as "vNumber",
-          pos_merchant_number as "posMerchantNumber",
-          dba_name as "dbaName",
-          status,
-          mcc
-        FROM ${terminalsTableName}
-        WHERE pos_merchant_number = $1
-      `, [merchantId]);
+          extracted_fields->>'terminalId' as terminal_id,
+          COUNT(*) as transaction_count,
+          SUM((extracted_fields->>'transactionAmount')::decimal) as total_amount,
+          array_agg(DISTINCT extracted_fields->>'cardType') FILTER (WHERE extracted_fields->>'cardType' IS NOT NULL) as card_types,
+          array_agg(DISTINCT extracted_fields->>'mccCode') FILTER (WHERE extracted_fields->>'mccCode' IS NOT NULL) as mcc_codes,
+          MIN((extracted_fields->>'transactionDate')::date) as first_seen,
+          MAX((extracted_fields->>'transactionDate')::date) as last_seen
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'merchantAccountNumber' = ANY($1::text[])
+          AND (extracted_fields->>'transactionDate')::date = $2::date
+        GROUP BY extracted_fields->>'terminalId'
+      `, [merchantIdVariants, processingDate]);
       
-      const terminals = terminalsResult.rows;
-      console.log(`[MERCHANT-TERMINALS] Found ${terminals.length} terminals for merchant ${merchantId}`);
+      console.log(`[MERCHANT-TERMINALS] Found ${tddfResult.rows.length} terminals with transactions on ${processingDate}`);
       
-      if (terminals.length === 0) {
+      if (tddfResult.rows.length === 0) {
         return res.json({ terminals: [] });
       }
       
-      // Step 2: For each terminal, aggregate TDDF transaction data with dual Terminal ID lookup
+      // Step 2: Enrich terminal data from api_terminals table if available
       const terminalSummaries = [];
       
-      for (const terminal of terminals) {
-        // Generate both Terminal IDs (with "7" and "0" prefixes) from VAR number
-        const baseVarNumber = terminal.vNumber.replace('V', '').trim();
-        const terminalIds = ['7' + baseVarNumber, '0' + baseVarNumber];
+      for (const row of tddfResult.rows) {
+        const terminalId = row.terminal_id;
+        if (!terminalId) continue;
         
-        console.log(`[MERCHANT-TERMINALS] Querying TDDF for terminal ${terminal.vNumber} (IDs: ${terminalIds.join(', ')})`);
+        // Try to find matching terminal in api_terminals table
+        // Convert Terminal ID to VAR number format (e.g., "05640198" -> "V5640198")
+        const baseNumber = terminalId.replace(/^[07]/, ''); // Remove leading 0 or 7
+        const vNumber = 'V' + baseNumber;
         
-        // Query TDDF DT records for this terminal on the processing date
-        const statsResult = await pool.query(`
-          SELECT 
-            COUNT(*) as transaction_count,
-            SUM((extracted_fields->>'transactionAmount')::decimal) as total_amount,
-            array_agg(DISTINCT extracted_fields->>'cardType') FILTER (WHERE extracted_fields->>'cardType' IS NOT NULL) as card_types,
-            array_agg(DISTINCT extracted_fields->>'mccCode') FILTER (WHERE extracted_fields->>'mccCode' IS NOT NULL) as mcc_codes,
-            MIN((extracted_fields->>'transactionDate')::date) as first_seen,
-            MAX((extracted_fields->>'transactionDate')::date) as last_seen
-          FROM ${tddfJsonbTableName}
-          WHERE record_type = 'DT'
-            AND extracted_fields->>'terminalId' = ANY($1::text[])
-            AND (extracted_fields->>'transactionDate')::date = $2::date
-        `, [terminalIds, processingDate]);
-        
-        const stats = statsResult.rows[0];
-        const transactionCount = parseInt(stats.transaction_count || '0');
-        
-        // Only include terminals with transactions on this date
-        if (transactionCount > 0) {
-          terminalSummaries.push({
-            terminalId: '7' + baseVarNumber, // Use "7" prefix as canonical
-            vNumber: terminal.vNumber,
-            dbaName: terminal.dbaName,
-            transactionCount: transactionCount,
-            totalAmount: parseFloat(stats.total_amount || '0'),
-            cardTypes: stats.card_types || [],
-            mccCodes: stats.mcc_codes || [],
-            firstSeen: stats.first_seen,
-            lastSeen: stats.last_seen
-          });
+        let terminalInfo = null;
+        try {
+          const terminalResult = await pool.query(`
+            SELECT v_number, dba_name, status, mcc
+            FROM ${apiTerminalsTableName}
+            WHERE v_number = $1
+            LIMIT 1
+          `, [vNumber]);
+          
+          if (terminalResult.rows.length > 0) {
+            terminalInfo = terminalResult.rows[0];
+          }
+        } catch (err) {
+          console.log(`[MERCHANT-TERMINALS] Could not query api_terminals: ${err}`);
         }
+        
+        terminalSummaries.push({
+          terminalId: terminalId,
+          vNumber: terminalInfo?.v_number || vNumber,
+          dbaName: terminalInfo?.dba_name || null,
+          status: terminalInfo?.status || null,
+          mcc: terminalInfo?.mcc || (row.mcc_codes && row.mcc_codes.length > 0 ? row.mcc_codes[0] : null),
+          transactionCount: parseInt(row.transaction_count || '0'),
+          totalAmount: parseFloat(row.total_amount || '0'),
+          cardTypes: row.card_types || [],
+          mccCodes: row.mcc_codes || [],
+          firstSeen: row.first_seen,
+          lastSeen: row.last_seen
+        });
       }
       
       console.log(`[MERCHANT-TERMINALS] Returning ${terminalSummaries.length} terminals with transaction data`);

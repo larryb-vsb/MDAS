@@ -71,8 +71,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { SubMerchantTerminals } from '@/components/merchants/SubMerchantTerminals';
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw, Loader2, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw, Loader2, ChevronDown, Calendar as CalendarIcon, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { format, subDays, addDays, parseISO } from 'date-fns';
 import { useMerchantLookup } from '@/hooks/useMerchantLookup';
 
@@ -850,6 +851,143 @@ function MerchantBatchesTab({ merchantId }: { merchantId: string }) {
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// TDDF Terminals Section Component
+interface TddfTerminal {
+  terminalId: string;
+  vNumber: string;
+  dbaName: string | null;
+  status: string | null;
+  mcc: string | null;
+  transactionCount: number;
+  totalAmount: number;
+  cardTypes: string[];
+  mccCodes: string[];
+  firstSeen: string;
+  lastSeen: string;
+}
+
+function TddfTerminalsSection({ merchantId }: { merchantId: string }) {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Fetch TDDF terminals for this merchant
+  const { data: terminalsData, isLoading } = useQuery<{ terminals: TddfTerminal[] }>({
+    queryKey: ['/api/tddf1/merchant-terminals', merchantId, selectedDate],
+    queryFn: async () => {
+      const response = await fetch(`/api/tddf1/merchant-terminals?merchantId=${merchantId}&processingDate=${selectedDate}`);
+      if (!response.ok) throw new Error('Failed to fetch TDDF terminals');
+      return response.json();
+    },
+    enabled: !!merchantId && !!selectedDate
+  });
+
+  const terminals = terminalsData?.terminals || [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              TDDF Terminals with Transactions
+            </CardTitle>
+            <CardDescription>
+              Terminals from TDDF transaction data for the selected date
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="tddf-date" className="text-sm">Date:</Label>
+            <Input
+              id="tddf-date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-40"
+              data-testid="input-tddf-terminal-date"
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="text-gray-500">Loading terminals...</div>
+          </div>
+        ) : terminals.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-20" />
+            <p>No TDDF terminals found with transactions on {selectedDate}</p>
+            <p className="text-sm mt-1">Try selecting a different date</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>V Number</TableHead>
+                <TableHead>DBA Name</TableHead>
+                <TableHead>Terminal ID</TableHead>
+                <TableHead className="text-right">Transactions</TableHead>
+                <TableHead className="text-right">Total Amount</TableHead>
+                <TableHead>Card Types</TableHead>
+                <TableHead>MCC Codes</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {terminals.map((terminal) => (
+                <TableRow key={terminal.terminalId} data-testid={`row-terminal-${terminal.terminalId}`}>
+                  <TableCell className="font-medium">{terminal.vNumber}</TableCell>
+                  <TableCell>{terminal.dbaName || '-'}</TableCell>
+                  <TableCell className="font-mono text-sm">{terminal.terminalId}</TableCell>
+                  <TableCell className="text-right">{terminal.transactionCount.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">${terminal.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {terminal.cardTypes.slice(0, 3).map((cardType, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {cardType}
+                        </Badge>
+                      ))}
+                      {terminal.cardTypes.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{terminal.cardTypes.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {terminal.mccCodes.slice(0, 2).map((mcc, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {mcc}
+                        </Badge>
+                      ))}
+                      {terminal.mccCodes.length > 2 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{terminal.mccCodes.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {terminal.status ? (
+                      <Badge variant={terminal.status === 'Active' ? 'default' : 'secondary'}>
+                        {terminal.status}
+                      </Badge>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>
@@ -1837,10 +1975,13 @@ export default function MerchantDetail() {
 
         {/* Terminals Tab */}
         <TabsContent value="terminals">
-          <SubMerchantTerminals 
-            merchantId={id!} 
-            merchantName={data?.merchant.name}
-          />
+          <TddfTerminalsSection merchantId={id!} />
+          <div className="mt-6">
+            <SubMerchantTerminals 
+              merchantId={id!} 
+              merchantName={data?.merchant.name}
+            />
+          </div>
         </TabsContent>
 
         {/* Batches Tab */}
