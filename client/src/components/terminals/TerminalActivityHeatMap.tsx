@@ -232,11 +232,11 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
         </div>
 
         {/* Calendar Grid */}
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 overflow-x-auto">
           {/* Day headers */}
-          <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+          <div className="grid grid-cols-7 gap-0.5 mb-0.5 min-w-full">
             {dayNames.map((day) => (
-              <div key={day} className="text-center text-[8px] font-semibold text-gray-600 py-0.5">
+              <div key={day} className="text-center text-[8px] sm:text-[9px] font-semibold text-gray-600 py-0.5">
                 {day.substring(0, 1)}
               </div>
             ))}
@@ -244,7 +244,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
 
           {/* Calendar days */}
           {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 gap-0.5">
+            <div key={weekIndex} className="grid grid-cols-7 gap-0.5 min-w-full">
               {week.map((day, dayIndex) => {
                 const isSelected = selectedDate === day.date;
                 const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
@@ -255,7 +255,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                     key={dayIndex}
                     onClick={() => day.isCurrentMonth && onDateSelect && onDateSelect(day.date)}
                     className={`
-                      relative h-7 w-full rounded-sm border transition-all duration-200
+                      relative h-7 sm:h-8 aspect-square rounded-sm border transition-all duration-200
                       ${bgColor}
                       ${day.isCurrentMonth ? 'border-gray-300' : 'border-gray-200'}
                       ${isToday ? 'ring-1 ring-blue-400' : ''}
