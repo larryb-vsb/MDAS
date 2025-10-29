@@ -8122,16 +8122,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubMerchantTerminalsByMerchant(merchantId: string): Promise<SubMerchantTerminal[]> {
-    // @ENVIRONMENT-CRITICAL - SubMerchantTerminals lookup by merchant
+    // @ENVIRONMENT-CRITICAL - Terminal lookup by merchant using pos_merchant_number
     // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    const terminalsTableName = getTableName('api_terminals');
     
     const result = await pool.query(`
-      SELECT smt.*, t.v_number as terminal_v_number, t.dba_name as terminal_dba_name
-      FROM ${subMerchantTerminalsTableName} smt
-      LEFT JOIN ${getTableName('terminals')} t ON smt.terminal_id = t.id
-      WHERE smt.merchant_id = $1 AND smt.is_active = true
-      ORDER BY smt.match_score DESC NULLS LAST, smt.created_at DESC
+      SELECT 
+        t.id,
+        t.v_number as d_number,
+        t.dba_name as device_name,
+        t.pos_merchant_number as merchant_id,
+        t.id as terminal_id,
+        'direct' as match_type,
+        100.0 as match_confidence,
+        true as is_active,
+        t.created_at as matched_at,
+        t.created_at,
+        t.updated_at,
+        t.v_number as terminal_v_number,
+        t.dba_name as terminal_dba_name
+      FROM ${terminalsTableName} t
+      WHERE t.pos_merchant_number = $1
+      ORDER BY t.created_at DESC
     `, [merchantId]);
     return result.rows;
   }
