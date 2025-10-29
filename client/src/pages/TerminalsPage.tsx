@@ -212,10 +212,14 @@ export default function TerminalsPage() {
         body: {}
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
+      const message = data.imported || data.updated 
+        ? `Imported ${data.imported || 0} new terminals, updated ${data.updated || 0} existing terminals`
+        : `Processed ${data.totalRows || 0} rows from ${data.filename || 'file'}`;
+      
       toast({
         title: "Terminal Import Complete",
-        description: "Successfully imported terminals",
+        description: message,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
     },

@@ -3347,11 +3347,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
       console.log(`📋 [SIMPLE-TERMINAL-IMPORT] Headers: ${headers.join(', ')}`);
       
-      // Find required columns
-      const vNumberCol = headers.findIndex(h => h === 'V Number' || h === 'Terminal #');
-      const posCol = headers.findIndex(h => h === 'POS Merchant #');
-      const dbaCol = headers.findIndex(h => h === 'DBA Name');
-      const mccCol = headers.findIndex(h => h === 'PRR MCC' || h === 'Terminal Visa MCC');
+      // Find required columns with flexible matching
+      const vNumberCol = headers.findIndex(h => h === 'V Number' || h === 'Terminal #' || h === 'VAR Number');
+      const posCol = headers.findIndex(h => h === 'POS Merchant #' || h === 'POS Merchant' || h === 'Merchant #');
+      const dbaCol = headers.findIndex(h => h === 'DBA Name' || h === 'DBA' || h === 'Merchant Name');
+      const mccCol = headers.findIndex(h => h === 'PRR MCC' || h === 'Terminal Visa MCC' || h === 'MCC');
       
       if (vNumberCol === -1 || posCol === -1) {
         return res.status(400).json({ 
