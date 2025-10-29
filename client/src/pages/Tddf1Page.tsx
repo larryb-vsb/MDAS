@@ -1530,7 +1530,7 @@ function Tddf1Page() {
               <CardContent>
                 {filesLoading ? (
                   <div className="text-center py-8 text-gray-500 text-sm">Loading files...</div>
-                ) : filesByDate && filesByDate.files.length > 0 ? (
+                ) : filesByDate?.files && filesByDate.files.length > 0 ? (
                   <div className="space-y-3">
                     {filesByDate.files.map((file, index) => (
                       <div 
