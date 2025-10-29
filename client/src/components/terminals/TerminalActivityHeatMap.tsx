@@ -248,36 +248,41 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
                   const bgColor = getBackgroundColor(day.count, isSelected, day.isCurrentMonth);
                   const isToday = new Date().toISOString().split('T')[0] === day.date;
                   
-                  // Only show current month days
-                  if (!day.isCurrentMonth) {
-                    return (
-                      <div
-                        key={dayIndex}
-                        className="h-5 aspect-square bg-transparent"
-                      />
-                    );
-                  }
-                  
+                  // Show all days but hide non-current month with lower opacity
                   return (
                     <button
                       key={dayIndex}
-                      onClick={() => onDateSelect && onDateSelect(day.date)}
+                      onClick={() => day.isCurrentMonth && onDateSelect && onDateSelect(day.date)}
+                      disabled={!day.isCurrentMonth}
                       className={`
-                        relative h-5 aspect-square rounded-[2px] border border-gray-300 
+                        relative h-8 aspect-square rounded border border-gray-300 
                         transition-all duration-150 group
+                        flex items-center justify-center
                         ${bgColor}
-                        ${isToday ? 'ring-1 ring-blue-500' : ''}
+                        ${isToday && day.isCurrentMonth ? 'ring-2 ring-blue-500' : ''}
                         ${isSelected ? 'ring-2 ring-orange-500' : ''}
+                        ${!day.isCurrentMonth ? 'opacity-30 cursor-default' : 'cursor-pointer'}
                       `}
                       title={`${monthNames[day.month]} ${day.dayOfMonth}: ${day.count} transactions`}
                       data-testid={`heatmap-day-${day.date}`}
                     >
+                      {/* Day number */}
+                      <span className={`
+                        text-[11px] font-semibold
+                        ${day.count > 0 && day.isCurrentMonth ? 'text-white' : 'text-gray-700'}
+                        ${!day.isCurrentMonth ? 'text-gray-400' : ''}
+                      `}>
+                        {day.dayOfMonth}
+                      </span>
+                      
                       {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-                        <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
-                        <div className="text-gray-300">{day.count} transactions</div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                      </div>
+                      {day.isCurrentMonth && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                          <div className="font-semibold">{monthNames[day.month]} {day.dayOfMonth}</div>
+                          <div className="text-gray-300">{day.count} transactions</div>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
