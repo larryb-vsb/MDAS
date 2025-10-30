@@ -2274,12 +2274,29 @@ function Tddf1Page() {
               className={`transition-colors ${isDarkMode ? "bg-gray-900 border-gray-600" : "bg-gray-50 border-gray-300"}`}
             >
               <CardHeader>
-                <CardTitle
-                  className={`flex items-center gap-2 transition-colors ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
-                >
-                  <FileText className="h-5 w-5" />
-                  Files - {format(selectedDate, "MMM d, yyyy")}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle
+                    className={`flex items-center gap-2 transition-colors ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
+                  >
+                    <FileText className="h-5 w-5" />
+                    Files - {format(selectedDate, "MMM d, yyyy")}
+                  </CardTitle>
+                  {filesByDate?.files && filesByDate.files.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const filenames = filesByDate.files.map(f => f.filename).join(',');
+                        setLocation(`/tddf-api?tab=rawData&filenames=${encodeURIComponent(filenames)}`);
+                      }}
+                      className={isDarkMode ? "border-blue-600 text-blue-400 hover:bg-blue-900/20" : "border-blue-600 text-blue-600 hover:bg-blue-50"}
+                      data-testid="analyze-raw-data-button"
+                    >
+                      <Database className="h-4 w-4 mr-2" />
+                      Analyze in Raw Data
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <Tabs value={filesTab} onValueChange={setFilesTab} className="w-full">
