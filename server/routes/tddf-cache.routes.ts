@@ -5,6 +5,7 @@ import { getTableName } from "../table-config";
 import { isAuthenticated } from "./middleware";
 import { sql } from "drizzle-orm";
 import { HeatMapCacheBuilder } from "../services/heat-map-cache-builder";
+import { parseTddfFilename } from "../utils/tddfFilename";
 
 // Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {
@@ -1569,14 +1570,26 @@ export function registerTddfCacheRoutes(app: Express) {
       // Query for file details including upload metadata
       // Filter by PRIMARY batch date (from BH records) to show files where the main business day <= selected date
       // This prevents future-dated files from appearing just because they contain late transactions
+      // Also get date ranges for each file to show in UI
       const filesResult = await pool.query(`
         WITH file_batch_dates AS (
           SELECT DISTINCT
             upload_id,
-            MIN(extracted_fields->>'batchDate') as primary_batch_date
+            MIN(extracted_fields->>'batchDate') as primary_batch_date,
+            MAX(extracted_fields->>'batchDate') as max_batch_date
           FROM ${masterTableName}
           WHERE record_type = 'BH'
             AND extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+          GROUP BY upload_id
+        ),
+        file_transaction_dates AS (
+          SELECT DISTINCT
+            upload_id,
+            MIN(extracted_fields->>'transactionDate') as min_transaction_date,
+            MAX(extracted_fields->>'transactionDate') as max_transaction_date
+          FROM ${masterTableName}
+          WHERE record_type = 'DT'
+            AND extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
           GROUP BY upload_id
         )
         SELECT 
@@ -1587,6 +1600,10 @@ export function registerTddfCacheRoutes(app: Express) {
           u.encoding_complete,
           u.file_size,
           u.business_day,
+          fbd.primary_batch_date,
+          fbd.max_batch_date,
+          ftd.min_transaction_date,
+          ftd.max_transaction_date,
           COUNT(*) as record_count,
           COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_count,
           COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_count,
@@ -1609,33 +1626,51 @@ export function registerTddfCacheRoutes(app: Express) {
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
         JOIN file_batch_dates fbd ON r.upload_id = fbd.upload_id
+        LEFT JOIN file_transaction_dates ftd ON r.upload_id = ftd.upload_id
         WHERE fbd.primary_batch_date <= $1
-        GROUP BY u.id, u.filename, u.start_time, u.uploaded_at, u.encoding_complete, u.file_size, u.business_day
+        GROUP BY u.id, u.filename, u.start_time, u.uploaded_at, u.encoding_complete, u.file_size, u.business_day,
+                 fbd.primary_batch_date, fbd.max_batch_date, ftd.min_transaction_date, ftd.max_transaction_date
         ORDER BY u.start_time DESC
       `, [date]);
       
-      const files = filesResult.rows.map(f => ({
-        uploadId: f.upload_id,
-        filename: f.filename,
-        uploadTime: f.start_time,
-        uploadComplete: f.uploaded_at,
-        encodingComplete: f.encoding_complete,
-        fileSize: f.file_size,
-        businessDay: f.business_day,
-        totalRecords: parseInt(f.record_count) || 0,
-        recordTypeCounts: {
-          BH: parseInt(f.bh_count) || 0,
-          DT: parseInt(f.dt_count) || 0,
-          G2: parseInt(f.g2_count) || 0,
-          E1: parseInt(f.e1_count) || 0,
-          P1: parseInt(f.p1_count) || 0,
-          P2: parseInt(f.p2_count) || 0,
-          DR: parseInt(f.dr_count) || 0,
-          AD: parseInt(f.ad_count) || 0
-        },
-        netDeposits: parseFloat(f.net_deposits) || 0,
-        transactionAmounts: parseFloat(f.transaction_amounts) || 0
-      }));
+      const files = filesResult.rows.map(f => {
+        // Parse filename to extract scheduled slot and filename date
+        const parsed = parseTddfFilename(f.filename);
+        
+        return {
+          uploadId: f.upload_id,
+          filename: f.filename,
+          uploadTime: f.start_time,
+          uploadComplete: f.uploaded_at,
+          encodingComplete: f.encoding_complete,
+          fileSize: f.file_size,
+          businessDay: f.business_day,
+          // Date information from records
+          primaryBatchDate: f.primary_batch_date,
+          maxBatchDate: f.max_batch_date,
+          minTransactionDate: f.min_transaction_date,
+          maxTransactionDate: f.max_transaction_date,
+          // Parsed filename information
+          scheduledSlot: parsed.scheduledSlotLabel,
+          scheduledSlotRaw: parsed.scheduledSlotRaw,
+          filenameDate: parsed.scheduledDateTime ? parsed.scheduledDateTime.toISOString().split('T')[0] : null,
+          actualProcessTime: parsed.actualDateTime ? parsed.actualDateTime.toISOString() : null,
+          processingDelaySeconds: parsed.processingDelaySeconds,
+          totalRecords: parseInt(f.record_count) || 0,
+          recordTypeCounts: {
+            BH: parseInt(f.bh_count) || 0,
+            DT: parseInt(f.dt_count) || 0,
+            G2: parseInt(f.g2_count) || 0,
+            E1: parseInt(f.e1_count) || 0,
+            P1: parseInt(f.p1_count) || 0,
+            P2: parseInt(f.p2_count) || 0,
+            DR: parseInt(f.dr_count) || 0,
+            AD: parseInt(f.ad_count) || 0
+          },
+          netDeposits: parseFloat(f.net_deposits) || 0,
+          transactionAmounts: parseFloat(f.transaction_amounts) || 0
+        };
+      });
       
       console.log(`📁 Found ${files.length} files for ${date}`);
       
