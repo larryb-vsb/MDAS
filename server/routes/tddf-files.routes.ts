@@ -2366,4 +2366,100 @@ export function registerTddfFilesRoutes(app: Express) {
       });
     }
   });
+
+  // Global filename search - searches both uploads and archive tables
+  app.get("/api/tddf-api/search-filename", isAuthenticated, async (req, res) => {
+    try {
+      const { search } = req.query;
+      
+      if (!search || typeof search !== 'string' || search.trim().length === 0) {
+        return res.status(400).json({ 
+          error: 'Search query is required',
+          message: 'Please provide a filename or partial filename to search for'
+        });
+      }
+
+      const searchTerm = `%${search.trim()}%`;
+      const uploadsTableName = getTableName('uploader_uploads');
+      const archiveTableName = getTableName('tddf_archive');
+
+      console.log(`[FILENAME-SEARCH] Searching for: "${search}" in uploads and archive tables`);
+
+      // Search in uploads table
+      const uploadsResult = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          current_phase,
+          upload_status,
+          start_time,
+          uploaded_at,
+          completed_at,
+          file_size,
+          line_count,
+          final_file_type,
+          bh_record_count,
+          dt_record_count,
+          other_record_count,
+          is_archived,
+          storage_path
+        FROM ${uploadsTableName}
+        WHERE filename ILIKE $1
+        ORDER BY start_time DESC
+        LIMIT 50
+      `, [searchTerm]);
+
+      // Search in archive table
+      const archiveResult = await pool.query(`
+        SELECT 
+          id,
+          original_filename as filename,
+          step6_status as current_phase,
+          'archived' as upload_status,
+          archived_at as start_time,
+          archived_at,
+          NULL as completed_at,
+          file_size,
+          NULL as line_count,
+          NULL as final_file_type,
+          NULL as bh_record_count,
+          NULL as dt_record_count,
+          NULL as other_record_count,
+          true as is_archived,
+          archive_path as storage_path,
+          created_by as archived_by
+        FROM ${archiveTableName}
+        WHERE original_filename ILIKE $1
+        ORDER BY archived_at DESC
+        LIMIT 50
+      `, [searchTerm]);
+
+      const uploadsCount = uploadsResult.rows.length;
+      const archiveCount = archiveResult.rows.length;
+      const totalCount = uploadsCount + archiveCount;
+
+      console.log(`[FILENAME-SEARCH] Found ${uploadsCount} in uploads, ${archiveCount} in archive`);
+
+      res.json({
+        success: true,
+        searchTerm: search,
+        results: {
+          uploads: uploadsResult.rows,
+          archive: archiveResult.rows
+        },
+        summary: {
+          totalResults: totalCount,
+          uploadsCount,
+          archiveCount
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[FILENAME-SEARCH] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to search for filename',
+        message: error.message 
+      });
+    }
+  });
 }

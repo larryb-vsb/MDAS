@@ -640,6 +640,11 @@ export default function TddfApiDataPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(100);
   
+  // Global filename search state
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+  const [performSearch, setPerformSearch] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   // Separate pagination state for uploaded files section
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
   const [uploadsItemsPerPage, setUploadsItemsPerPage] = useState(5);
@@ -825,6 +830,28 @@ export default function TddfApiDataPage() {
   });
   
   const archivedFiles = archiveData?.files || [];
+
+  // Global filename search query
+  const { data: searchResults, isLoading: isSearching, refetch: refetchSearch } = useQuery({
+    queryKey: ['/api/tddf-api/search-filename', globalSearchTerm],
+    queryFn: async () => {
+      if (!globalSearchTerm.trim()) {
+        return { success: false, results: { uploads: [], archive: [] }, summary: { totalResults: 0, uploadsCount: 0, archiveCount: 0 } };
+      }
+      const params = new URLSearchParams();
+      params.set('search', globalSearchTerm);
+      const response = await fetch(`/api/tddf-api/search-filename?${params}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to search for filename');
+      }
+      return response.json();
+    },
+    enabled: performSearch && globalSearchTerm.trim().length > 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
+  });
 
   // Fetch uploader files
   const { data: uploadsResponse, isLoading: uploadsLoading } = useQuery({
@@ -1497,6 +1524,197 @@ export default function TddfApiDataPage() {
           {files.length} Files | {schemas.length} Schemas | {apiKeys.length} API Keys
         </Badge>
       </div>
+
+      {/* Global Filename Search */}
+      <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-blue-600" />
+            Global Filename Search
+          </CardTitle>
+          <CardDescription>
+            Search for files in both active uploads and archive. Try full name like "VERMNTSB.6759_TDDF_830_10022025_083400.TSYSO" or partial match like "10022025"
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search Input */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Enter filename or partial match (e.g., 10022025)"
+                value={globalSearchTerm}
+                onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && globalSearchTerm.trim()) {
+                    setPerformSearch(true);
+                    setShowSearchResults(true);
+                    refetchSearch();
+                  }
+                }}
+                className="text-base"
+                data-testid="input-global-search"
+              />
+            </div>
+            <Button
+              onClick={() => {
+                if (globalSearchTerm.trim()) {
+                  setPerformSearch(true);
+                  setShowSearchResults(true);
+                  refetchSearch();
+                }
+              }}
+              disabled={!globalSearchTerm.trim() || isSearching}
+              data-testid="button-global-search"
+            >
+              {isSearching ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </>
+              )}
+            </Button>
+            {showSearchResults && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setGlobalSearchTerm('');
+                  setPerformSearch(false);
+                  setShowSearchResults(false);
+                }}
+                data-testid="button-clear-search"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {/* Search Results */}
+          {showSearchResults && searchResults && (
+            <div className="space-y-4 mt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Search Results</h3>
+                <Badge variant="secondary">
+                  {searchResults.summary?.totalResults || 0} total results
+                </Badge>
+              </div>
+
+              {searchResults.summary?.totalResults === 0 ? (
+                <div className="text-center py-8 text-muted-foreground bg-white dark:bg-gray-900 rounded-lg border">
+                  <Search className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg font-medium">No files found</p>
+                  <p className="text-sm">Try searching with a different filename or partial match</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Uploads Results */}
+                  {searchResults.results?.uploads?.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-green-600" />
+                        <h4 className="font-semibold text-green-700 dark:text-green-400">
+                          Active Uploads ({searchResults.summary?.uploadsCount || 0})
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {searchResults.results.uploads.map((file: any) => (
+                          <Card key={file.id} className="bg-white dark:bg-gray-900">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate" title={file.filename}>
+                                    {file.filename}
+                                  </p>
+                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {file.start_time ? format(new Date(file.start_time), 'MMM d, yyyy h:mm a') : 'N/A'}
+                                    </span>
+                                    {file.file_size && (
+                                      <span>{formatFileSize(file.file_size)}</span>
+                                    )}
+                                    {(file.bh_record_count || file.dt_record_count) && (
+                                      <span>
+                                        BH: {file.bh_record_count || 0} | DT: {file.dt_record_count || 0}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={file.upload_status === 'completed' ? 'default' : 'secondary'}>
+                                    {file.current_phase || 'unknown'}
+                                  </Badge>
+                                  {file.is_archived && (
+                                    <Badge variant="outline" className="bg-gray-100">Archived</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Archive Results */}
+                  {searchResults.results?.archive?.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Database className="h-4 w-4 text-purple-600" />
+                        <h4 className="font-semibold text-purple-700 dark:text-purple-400">
+                          Archived Files ({searchResults.summary?.archiveCount || 0})
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {searchResults.results.archive.map((file: any) => (
+                          <Card key={file.id} className="bg-white dark:bg-gray-900">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate" title={file.filename}>
+                                    {file.filename}
+                                  </p>
+                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy h:mm a') : 'N/A'}
+                                    </span>
+                                    {file.file_size && (
+                                      <span>{formatFileSize(file.file_size)}</span>
+                                    )}
+                                    {(file.bh_record_count || file.dt_record_count) && (
+                                      <span>
+                                        BH: {file.bh_record_count || 0} | DT: {file.dt_record_count || 0}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                    Archived
+                                  </Badge>
+                                  {file.archived_by && (
+                                    <span className="text-xs text-muted-foreground">by {file.archived_by}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-9">
