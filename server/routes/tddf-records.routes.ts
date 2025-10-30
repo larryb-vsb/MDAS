@@ -1882,7 +1882,9 @@ export function registerTddfRecordsRoutes(app: Express) {
         recordType, 
         search,
         filename,
-        merchant_account
+        merchant_account,
+        sortBy = 'line_number',
+        sortOrder = 'asc'
       } = req.query;
       
       // Build WHERE conditions separately for summary and records queries
@@ -1986,6 +1988,19 @@ export function registerTddfRecordsRoutes(app: Express) {
       const recordsWhereClause = recordsWhereConditions.length > 0 ? 
         `WHERE ${recordsWhereConditions.join(' AND ')}` : '';
       
+      // Build dynamic ORDER BY clause
+      const sortColumnMap: Record<string, string> = {
+        'record_type': 'r.record_type',
+        'line_number': 'r.line_number',
+        'filename': 'u.filename',
+        'business_day': 'u.created_at',
+        'scheduled_slot': 'u.created_at' // Fallback to business_day for scheduled slot
+      };
+      
+      const sortColumn = sortColumnMap[sortBy as string] || 'r.line_number';
+      const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
+      const orderByClause = `ORDER BY ${sortColumn} ${sortDirection}, r.line_number ASC`;
+      
       // Get summary statistics from uploader TDDF records (environment-specific table)
       const environment = process.env.NODE_ENV || 'development';
       const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
@@ -2020,7 +2035,7 @@ export function registerTddfRecordsRoutes(app: Express) {
         FROM ${jsonbTableName} r
         JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
         ${recordsWhereClause}
-        ORDER BY u.created_at DESC, r.line_number ASC
+        ${orderByClause}
         LIMIT $${recordsParamIndex} OFFSET $${recordsParamIndex + 1}
       `, finalRecordsParams);
       

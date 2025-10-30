@@ -1385,6 +1385,10 @@ function RawDataTab({
   // Selection state for bulk operations
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
+  
+  // Sorting state
+  const [sortBy, setSortBy] = useState<string>('line_number');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Global filename filtering state (now passed from main component)
   
@@ -1394,6 +1398,39 @@ function RawDataTab({
       setShowRecords(true);
     }
   }, [globalFilenameFilter]);
+  
+  // Handle column header click for sorting
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      // Toggle sort order if same column
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+    setCurrentPage(0); // Reset to first page when sorting changes
+  };
+  
+  // Sortable header component
+  const SortableHeader = ({ column, label, className = '' }: { column: string; label: string; className?: string }) => {
+    const isSorted = sortBy === column;
+    return (
+      <TableHead 
+        className={cn("cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800", className)}
+        onClick={() => handleSort(column)}
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isSorted && (
+            sortOrder === 'asc' ? 
+              <ChevronUp className="h-4 w-4" /> : 
+              <ChevronDown className="h-4 w-4" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
   
   // Pagination options
   const pageSizeOptions = [
@@ -1725,12 +1762,16 @@ function RawDataTab({
       offset: currentPage * pageSize,
       recordType: recordType === 'all' ? undefined : recordType,
       search: searchQuery || undefined,
-      filename: globalFilenameFilter || undefined
+      filename: globalFilenameFilter || undefined,
+      sortBy,
+      sortOrder
     }],
     queryFn: async () => {
       const params = new URLSearchParams({
         limit: pageSize.toString(),
-        offset: (currentPage * pageSize).toString()
+        offset: (currentPage * pageSize).toString(),
+        sortBy: sortBy,
+        sortOrder: sortOrder
       });
       
       if (recordType !== 'all') {
@@ -2055,12 +2096,12 @@ function RawDataTab({
                             data-testid="checkbox-select-all"
                           />
                         </TableHead>
-                        <TableHead className="w-20">Type</TableHead>
+                        <SortableHeader column="record_type" label="Type" className="w-20" />
                         <TableHead>Content</TableHead>
-                        <TableHead className="w-40">File</TableHead>
-                        <TableHead className="w-16">Line</TableHead>
-                        <TableHead className="w-32">Business Day</TableHead>
-                        <TableHead className="w-24">Scheduled Slot</TableHead>
+                        <SortableHeader column="filename" label="File" className="w-40" />
+                        <SortableHeader column="line_number" label="Line" className="w-16" />
+                        <SortableHeader column="business_day" label="Business Day" className="w-32" />
+                        <SortableHeader column="scheduled_slot" label="Scheduled Slot" className="w-24" />
                         <TableHead className="w-16">View</TableHead>
                       </TableRow>
                     </TableHeader>
