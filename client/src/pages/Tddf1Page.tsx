@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/table";
 import { Tddf1MerchantVolumeTab } from "@/components/Tddf1MerchantVolumeTab";
 
-import { cn } from "@/lib/utils";
+import { cn, formatCompactCurrency } from "@/lib/utils";
 
 interface Tddf1Stats {
   totalFiles: number;
@@ -1077,7 +1077,7 @@ function Tddf1Page() {
                   >
                     {dayLoading
                       ? "..."
-                      : `$${((dayBreakdown?.netDeposits ?? 0) / 1000000).toFixed(2)}M`}
+                      : formatCompactCurrency(dayBreakdown?.netDeposits ?? 0)}
                   </div>
                 </CardContent>
               </Card>
@@ -1099,7 +1099,7 @@ function Tddf1Page() {
                   >
                     {dayLoading
                       ? "..."
-                      : `$${((dayBreakdown?.totalTransactionValue ?? 0) / 1000000).toFixed(2)}M`}
+                      : formatCompactCurrency(dayBreakdown?.totalTransactionValue ?? 0)}
                   </div>
                 </CardContent>
               </Card>
