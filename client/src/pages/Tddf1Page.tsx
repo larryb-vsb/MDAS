@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/table";
 import { Tddf1MerchantVolumeTab } from "@/components/Tddf1MerchantVolumeTab";
 
-import { cn, formatCompactCurrency } from "@/lib/utils";
+import { cn, formatCompactCurrency, parseTddfFilename, formatProcessingTime } from "@/lib/utils";
 
 interface Tddf1Stats {
   totalFiles: number;
@@ -438,6 +438,7 @@ function Tddf1Page() {
   const [showProgressTracking, setShowProgressTracking] = useState(false);
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [filesTab, setFilesTab] = useState<string>("dataFiles");
   const [focusedMerchant, setFocusedMerchant] = useState<{
     id: string;
     name: string;
@@ -2268,7 +2269,7 @@ function Tddf1Page() {
               </CardContent>
             </Card>
 
-            {/* Files List Card */}
+            {/* Files List Card with Tabs */}
             <Card
               className={`transition-colors ${isDarkMode ? "bg-gray-900 border-gray-600" : "bg-gray-50 border-gray-300"}`}
             >
@@ -2277,110 +2278,369 @@ function Tddf1Page() {
                   className={`flex items-center gap-2 transition-colors ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
                 >
                   <FileText className="h-5 w-5" />
-                  Files Processed - {format(selectedDate, "MMM d, yyyy")}
+                  Files - {format(selectedDate, "MMM d, yyyy")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {filesLoading ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    Loading files...
-                  </div>
-                ) : filesByDate?.files && filesByDate.files.length > 0 ? (
-                  <div className="space-y-3">
-                    {filesByDate.files.map((file, index) => (
-                      <div
-                        key={file.uploadId}
-                        className={`p-4 rounded-lg border transition-colors ${
-                          isDarkMode
-                            ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
-                            : "bg-white border-gray-200 hover:bg-gray-50"
-                        }`}
-                        data-testid={`file-card-${index}`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div
-                              className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
-                            >
-                              {file.filename}
-                            </div>
-                            <div
-                              className={`text-xs mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}
-                            >
-                              Uploaded:{" "}
-                              {format(
-                                new Date(file.uploadTime),
-                                "MMM d, yyyy h:mm a",
-                              )}
-                            </div>
-                            {file.fileSize && (
-                              <div
-                                className={`text-xs mt-0.5 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
-                              >
-                                Size: {(file.fileSize / 1024).toFixed(1)} KB
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <Badge
-                              variant="outline"
-                              className={
-                                isDarkMode
-                                  ? "text-blue-400 border-blue-600"
-                                  : "text-blue-600 border-blue-400"
-                              }
-                            >
-                              {file.totalRecords.toLocaleString()} records
-                            </Badge>
-                            {file.transactionAmounts > 0 && (
-                              <div
-                                className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
-                              >
-                                {formatCompactCurrency(file.transactionAmounts)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                <Tabs value={filesTab} onValueChange={setFilesTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="dataFiles">Data Files</TabsTrigger>
+                    <TabsTrigger value="filesProcessed">Files Processed</TabsTrigger>
+                  </TabsList>
 
-                        {/* Record type breakdown for this file */}
-                        <div className="mt-3 pt-3 border-t border-gray-600 dark:border-gray-700">
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(file.recordTypeCounts)
-                              .filter(([_, count]) => count > 0)
-                              .map(([type, count]) => {
-                                const colors: Record<string, string> = {
-                                  BH: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
-                                  DT: "bg-green-500/20 text-green-600 dark:text-green-400",
-                                  G2: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
-                                  E1: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
-                                  P1: "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
-                                  P2: "bg-pink-500/20 text-pink-600 dark:text-pink-400",
-                                  DR: "bg-red-500/20 text-red-600 dark:text-red-400",
-                                  AD: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400",
-                                };
-                                const colorClass =
-                                  colors[type] ||
-                                  "bg-gray-500/20 text-gray-600";
-
-                                return (
-                                  <span
-                                    key={type}
-                                    className={`px-2 py-1 rounded text-xs font-mono ${colorClass}`}
-                                  >
-                                    {type}: {count.toLocaleString()}
-                                  </span>
-                                );
-                              })}
-                          </div>
-                        </div>
+                  {/* Data Files Tab - Shows files by batch date */}
+                  <TabsContent value="dataFiles">
+                    {filesLoading ? (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        Loading files...
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    No files found for this date
-                  </div>
-                )}
+                    ) : filesByDate?.files && filesByDate.files.length > 0 ? (
+                      (() => {
+                        const filesWithParsedData = filesByDate.files.map(file => ({
+                          ...file,
+                          parsed: parseTddfFilename(file.filename)
+                        }));
+
+                        const batch0830 = filesWithParsedData.filter(f => f.parsed.scheduledSlotRaw === '830');
+                        const batch2400 = filesWithParsedData.filter(f => f.parsed.scheduledSlotRaw === '2400');
+
+                        return (
+                          <div className="space-y-6">
+                            {batch0830.length > 0 && (
+                              <div>
+                                <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                                  08:30 Batch ({batch0830.length} file{batch0830.length !== 1 ? 's' : ''})
+                                </h3>
+                                <div className="space-y-3">
+                                  {batch0830.map((file, index) => (
+                                    <div
+                                      key={file.uploadId}
+                                      className={`p-4 rounded-lg border transition-colors ${
+                                        isDarkMode
+                                          ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+                                          : "bg-white border-gray-200 hover:bg-gray-50"
+                                      }`}
+                                      data-testid={`data-file-830-${index}`}
+                                    >
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div
+                                            className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
+                                          >
+                                            {file.filename}
+                                          </div>
+                                          <div className="flex gap-3 mt-1 text-xs">
+                                            <div className={isDarkMode ? "text-blue-400" : "text-blue-600"}>
+                                              Batch: {file.parsed.scheduledSlotLabel}
+                                            </div>
+                                            {file.parsed.actualDateTime && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                Processed: {format(file.parsed.actualDateTime, "HH:mm:ss")}
+                                              </div>
+                                            )}
+                                            {file.parsed.processingDelaySeconds !== null && (
+                                              <div className={isDarkMode ? "text-gray-500" : "text-gray-500"}>
+                                                Delay: {formatProcessingTime(file.parsed.processingDelaySeconds)}
+                                              </div>
+                                            )}
+                                          </div>
+                                          {file.fileSize && (
+                                            <div
+                                              className={`text-xs mt-0.5 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
+                                            >
+                                              Size: {(file.fileSize / 1024).toFixed(1)} KB
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              isDarkMode
+                                                ? "text-blue-400 border-blue-600"
+                                                : "text-blue-600 border-blue-400"
+                                            }
+                                          >
+                                            {file.totalRecords.toLocaleString()} records
+                                          </Badge>
+                                          {file.transactionAmounts > 0 && (
+                                            <div
+                                              className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
+                                            >
+                                              {formatCompactCurrency(file.transactionAmounts)}
+                                            </div>
+                                          )}
+                                          {file.netDeposits > 0 && (
+                                            <div
+                                              className={`text-xs font-mono ${isDarkMode ? "text-purple-400" : "text-purple-600"}`}
+                                            >
+                                              Net: {formatCompactCurrency(file.netDeposits)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Record type breakdown */}
+                                      <div className="mt-3 pt-3 border-t border-gray-600 dark:border-gray-700">
+                                        <div className="flex flex-wrap gap-2">
+                                          {Object.entries(file.recordTypeCounts)
+                                            .filter(([_, count]) => count > 0)
+                                            .map(([type, count]) => {
+                                              const colors: Record<string, string> = {
+                                                BH: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+                                                DT: "bg-green-500/20 text-green-600 dark:text-green-400",
+                                                G2: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
+                                                E1: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
+                                                P1: "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
+                                                P2: "bg-pink-500/20 text-pink-600 dark:text-pink-400",
+                                                DR: "bg-red-500/20 text-red-600 dark:text-red-400",
+                                                AD: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400",
+                                              };
+                                              const colorClass =
+                                                colors[type] ||
+                                                "bg-gray-500/20 text-gray-600";
+
+                                              return (
+                                                <span
+                                                  key={type}
+                                                  className={`px-2 py-1 rounded text-xs font-mono ${colorClass}`}
+                                                >
+                                                  {type}: {count.toLocaleString()}
+                                                </span>
+                                              );
+                                            })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {batch2400.length > 0 && (
+                              <div>
+                                <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                                  24:00 Batch ({batch2400.length} file{batch2400.length !== 1 ? 's' : ''})
+                                </h3>
+                                <div className="space-y-3">
+                                  {batch2400.map((file, index) => (
+                                    <div
+                                      key={file.uploadId}
+                                      className={`p-4 rounded-lg border transition-colors ${
+                                        isDarkMode
+                                          ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+                                          : "bg-white border-gray-200 hover:bg-gray-50"
+                                      }`}
+                                      data-testid={`data-file-2400-${index}`}
+                                    >
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div
+                                            className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
+                                          >
+                                            {file.filename}
+                                          </div>
+                                          <div className="flex gap-3 mt-1 text-xs">
+                                            <div className={isDarkMode ? "text-blue-400" : "text-blue-600"}>
+                                              Batch: {file.parsed.scheduledSlotLabel}
+                                            </div>
+                                            {file.parsed.actualDateTime && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                Processed: {format(file.parsed.actualDateTime, "HH:mm:ss")}
+                                              </div>
+                                            )}
+                                            {file.parsed.processingDelaySeconds !== null && (
+                                              <div className={isDarkMode ? "text-gray-500" : "text-gray-500"}>
+                                                Delay: {formatProcessingTime(file.parsed.processingDelaySeconds)}
+                                              </div>
+                                            )}
+                                          </div>
+                                          {file.fileSize && (
+                                            <div
+                                              className={`text-xs mt-0.5 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
+                                            >
+                                              Size: {(file.fileSize / 1024).toFixed(1)} KB
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              isDarkMode
+                                                ? "text-blue-400 border-blue-600"
+                                                : "text-blue-600 border-blue-400"
+                                            }
+                                          >
+                                            {file.totalRecords.toLocaleString()} records
+                                          </Badge>
+                                          {file.transactionAmounts > 0 && (
+                                            <div
+                                              className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
+                                            >
+                                              {formatCompactCurrency(file.transactionAmounts)}
+                                            </div>
+                                          )}
+                                          {file.netDeposits > 0 && (
+                                            <div
+                                              className={`text-xs font-mono ${isDarkMode ? "text-purple-400" : "text-purple-600"}`}
+                                            >
+                                              Net: {formatCompactCurrency(file.netDeposits)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Record type breakdown */}
+                                      <div className="mt-3 pt-3 border-t border-gray-600 dark:border-gray-700">
+                                        <div className="flex flex-wrap gap-2">
+                                          {Object.entries(file.recordTypeCounts)
+                                            .filter(([_, count]) => count > 0)
+                                            .map(([type, count]) => {
+                                              const colors: Record<string, string> = {
+                                                BH: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+                                                DT: "bg-green-500/20 text-green-600 dark:text-green-400",
+                                                G2: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
+                                                E1: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
+                                                P1: "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
+                                                P2: "bg-pink-500/20 text-pink-600 dark:text-pink-400",
+                                                DR: "bg-red-500/20 text-red-600 dark:text-red-400",
+                                                AD: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400",
+                                              };
+                                              const colorClass =
+                                                colors[type] ||
+                                                "bg-gray-500/20 text-gray-600";
+
+                                              return (
+                                                <span
+                                                  key={type}
+                                                  className={`px-2 py-1 rounded text-xs font-mono ${colorClass}`}
+                                                >
+                                                  {type}: {count.toLocaleString()}
+                                                </span>
+                                              );
+                                            })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        No data files found for this date
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Files Processed Tab - Shows files uploaded on this date */}
+                  <TabsContent value="filesProcessed">
+                    {filesLoading ? (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        Loading files...
+                      </div>
+                    ) : filesByDate?.files && filesByDate.files.length > 0 ? (
+                      <div className="space-y-3">
+                        {filesByDate.files.map((file, index) => (
+                          <div
+                            key={file.uploadId}
+                            className={`p-4 rounded-lg border transition-colors ${
+                              isDarkMode
+                                ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+                                : "bg-white border-gray-200 hover:bg-gray-50"
+                            }`}
+                            data-testid={`file-card-${index}`}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div
+                                  className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
+                                >
+                                  {file.filename}
+                                </div>
+                                <div
+                                  className={`text-xs mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}
+                                >
+                                  Uploaded:{" "}
+                                  {format(
+                                    new Date(file.uploadTime),
+                                    "MMM d, yyyy h:mm a",
+                                  )}
+                                </div>
+                                {file.fileSize && (
+                                  <div
+                                    className={`text-xs mt-0.5 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
+                                  >
+                                    Size: {(file.fileSize / 1024).toFixed(1)} KB
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    isDarkMode
+                                      ? "text-blue-400 border-blue-600"
+                                      : "text-blue-600 border-blue-400"
+                                  }
+                                >
+                                  {file.totalRecords.toLocaleString()} records
+                                </Badge>
+                                {file.transactionAmounts > 0 && (
+                                  <div
+                                    className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
+                                  >
+                                    {formatCompactCurrency(file.transactionAmounts)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Record type breakdown for this file */}
+                            <div className="mt-3 pt-3 border-t border-gray-600 dark:border-gray-700">
+                              <div className="flex flex-wrap gap-2">
+                                {Object.entries(file.recordTypeCounts)
+                                  .filter(([_, count]) => count > 0)
+                                  .map(([type, count]) => {
+                                    const colors: Record<string, string> = {
+                                      BH: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+                                      DT: "bg-green-500/20 text-green-600 dark:text-green-400",
+                                      G2: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
+                                      E1: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
+                                      P1: "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
+                                      P2: "bg-pink-500/20 text-pink-600 dark:text-pink-400",
+                                      DR: "bg-red-500/20 text-red-600 dark:text-red-400",
+                                      AD: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400",
+                                    };
+                                    const colorClass =
+                                      colors[type] ||
+                                      "bg-gray-500/20 text-gray-600";
+
+                                    return (
+                                      <span
+                                        key={type}
+                                        className={`px-2 py-1 rounded text-xs font-mono ${colorClass}`}
+                                      >
+                                        {type}: {count.toLocaleString()}
+                                      </span>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        No files found for this date
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </TabsContent>
