@@ -141,6 +141,168 @@ export function registerMerchantRoutes(app: Express) {
     }
   });
 
+  // Export transactions to CSV
+  app.get("/api/exports/transactions/download", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const merchantId = req.query.merchantId as string | undefined;
+      
+      const csvFilePath = await storage.exportTransactionsToCSV(
+        merchantId,
+        startDate,
+        endDate
+      );
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_transactions',
+        entityType: 'transactions',
+        entityId: `export_${Date.now()}`,
+        notes: `Transactions export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `transactions_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      res.status(500).json({
+        error: "Failed to export transactions to CSV"
+      });
+    }
+  });
+
+  // Export batch summary to CSV
+  app.get("/api/exports/batch-summary/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+      
+      const csvFilePath = await storage.exportBatchSummaryToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_batch_summary',
+        entityType: 'batch_summary',
+        entityId: `export_${Date.now()}`,
+        notes: `Batch summary export for date ${targetDate}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `batch_summary_${targetDate.replace(/[:.]/g, '-')}_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting batch summary:", error);
+      res.status(500).json({
+        error: "Failed to export batch summary to CSV"
+      });
+    }
+  });
+
+  // Export all data for a date (ZIP file with multiple CSVs)
+  app.get("/api/exports/all-data/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+      
+      const result = await storage.exportAllDataForDateToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_all_data',
+        entityType: 'all_data',
+        entityId: `export_${Date.now()}`,
+        notes: `All data export (ZIP) for date ${targetDate}`
+      });
+      
+      // Set download headers for ZIP file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `all_data_export_${targetDate.replace(/[:.]/g, '-')}_${timestamp}.zip`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'application/zip');
+      
+      // Stream the ZIP file to client
+      const fileStream = fs.createReadStream(result.zipPath);
+      fileStream.pipe(res);
+      
+      // Clean up the files after sending
+      fileStream.on('end', () => {
+        // Delete the ZIP file
+        fs.unlink(result.zipPath, (err) => {
+          if (err) console.error(`Error deleting temporary ZIP file: ${result.zipPath}`, err);
+        });
+        
+        // Delete individual CSV files
+        result.filePaths.forEach(filePath => {
+          fs.unlink(filePath, (err) => {
+            if (err) console.error(`Error deleting temporary CSV file: ${filePath}`, err);
+          });
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting all data:", error);
+      res.status(500).json({
+        error: "Failed to export all data to ZIP"
+      });
+    }
+  });
+
+  // Get export history
+  app.get("/api/exports/history", async (req, res) => {
+    try {
+      // For now, return empty array since we're not persisting export history
+      // In the future, this could query a database table tracking past exports
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching export history:", error);
+      res.status(500).json({
+        error: "Failed to fetch export history"
+      });
+    }
+  });
+
   // Download merchant demographics export
   app.get("/api/export/merchants", async (req, res) => {
     try {
