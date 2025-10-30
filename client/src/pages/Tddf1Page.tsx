@@ -499,6 +499,15 @@ function Tddf1Page() {
       encodingComplete: string | null;
       fileSize: number | null;
       businessDay: string | null;
+      primaryBatchDate: string | null;
+      maxBatchDate: string | null;
+      minTransactionDate: string | null;
+      maxTransactionDate: string | null;
+      scheduledSlot: string | null;
+      scheduledSlotRaw: string | null;
+      filenameDate: string | null;
+      actualProcessTime: string | null;
+      processingDelaySeconds: number | null;
       totalRecords: number;
       recordTypeCounts: Record<string, number>;
       netDeposits: number;
@@ -2361,9 +2370,31 @@ function Tddf1Page() {
                                               </div>
                                             )}
                                           </div>
+                                          
+                                          {/* Key Dates Display */}
+                                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                            {file.filenameDate && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                <span className="font-semibold">Filename Date:</span> {format(new Date(file.filenameDate), "MMM d, yyyy")}
+                                              </div>
+                                            )}
+                                            {file.primaryBatchDate && (
+                                              <div className={`${file.filenameDate !== file.primaryBatchDate ? (isDarkMode ? "text-yellow-400" : "text-yellow-600") : (isDarkMode ? "text-green-400" : "text-green-600")}`}>
+                                                <span className="font-semibold">Batch Date:</span> {format(new Date(file.primaryBatchDate), "MMM d, yyyy")}
+                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && ` - ${format(new Date(file.maxBatchDate), "MMM d")}`}
+                                              </div>
+                                            )}
+                                            {file.minTransactionDate && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                <span className="font-semibold">Txn Dates:</span> {format(new Date(file.minTransactionDate), "MMM d, yyyy")}
+                                                {file.maxTransactionDate && file.maxTransactionDate !== file.minTransactionDate && ` - ${format(new Date(file.maxTransactionDate), "MMM d")}`}
+                                              </div>
+                                            )}
+                                          </div>
+                                          
                                           {file.fileSize && (
                                             <div
-                                              className={`text-xs mt-0.5 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
+                                              className={`text-xs mt-1 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
                                             >
                                               Size: {(file.fileSize / 1024).toFixed(1)} KB
                                             </div>
@@ -2472,9 +2503,31 @@ function Tddf1Page() {
                                               </div>
                                             )}
                                           </div>
+                                          
+                                          {/* Key Dates Display */}
+                                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                            {file.filenameDate && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                <span className="font-semibold">Filename Date:</span> {format(new Date(file.filenameDate), "MMM d, yyyy")}
+                                              </div>
+                                            )}
+                                            {file.primaryBatchDate && (
+                                              <div className={`${file.filenameDate !== file.primaryBatchDate ? (isDarkMode ? "text-yellow-400" : "text-yellow-600") : (isDarkMode ? "text-green-400" : "text-green-600")}`}>
+                                                <span className="font-semibold">Batch Date:</span> {format(new Date(file.primaryBatchDate), "MMM d, yyyy")}
+                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && ` - ${format(new Date(file.maxBatchDate), "MMM d")}`}
+                                              </div>
+                                            )}
+                                            {file.minTransactionDate && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                <span className="font-semibold">Txn Dates:</span> {format(new Date(file.minTransactionDate), "MMM d, yyyy")}
+                                                {file.maxTransactionDate && file.maxTransactionDate !== file.minTransactionDate && ` - ${format(new Date(file.maxTransactionDate), "MMM d")}`}
+                                              </div>
+                                            )}
+                                          </div>
+                                          
                                           {file.fileSize && (
                                             <div
-                                              className={`text-xs mt-0.5 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
+                                              className={`text-xs mt-1 ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}
                                             >
                                               Size: {(file.fileSize / 1024).toFixed(1)} KB
                                             </div>
