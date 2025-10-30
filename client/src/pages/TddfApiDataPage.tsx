@@ -2100,7 +2100,8 @@ function RawDataTab({
                         <TableHead>Content</TableHead>
                         <SortableHeader column="filename" label="File" className="w-40" />
                         <SortableHeader column="line_number" label="Line" className="w-16" />
-                        <SortableHeader column="business_day" label="Business Day" className="w-32" />
+                        <SortableHeader column="transaction_date" label="Transaction Date" className="w-32" />
+                        <SortableHeader column="batch_date" label="Batch Date" className="w-32" />
                         <SortableHeader column="scheduled_slot" label="Scheduled Slot" className="w-24" />
                         <TableHead className="w-16">View</TableHead>
                       </TableRow>
@@ -2233,8 +2234,24 @@ function RawDataTab({
                         </TableCell>
                         <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
                         <TableCell className="text-sm">
-                          {record.file_processing_date ? format(new Date(record.file_processing_date), 'MMM d, yyyy') : 
-                           record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
+                          {(() => {
+                            const transactionDate = extractTransactionDate(record);
+                            return transactionDate ? (
+                              <span className="text-blue-600 font-medium">{transactionDate}</span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {(() => {
+                            const batchDate = extractBatchDate(record);
+                            return batchDate ? (
+                              <span className="text-green-600 font-medium">{batchDate}</span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="font-mono text-sm">
                           {record.scheduledSlotLabel ? (
@@ -2258,7 +2275,7 @@ function RawDataTab({
                       </TableRow>,
                       expandedRecord === record.id && (
                         <TableRow key={`${record.id}-detail`}>
-                          <TableCell colSpan={8} className="p-0">
+                          <TableCell colSpan={9} className="p-0">
                             <div className="border-t bg-muted/30 p-4">
                               <RecordDetailView record={record} />
                             </div>

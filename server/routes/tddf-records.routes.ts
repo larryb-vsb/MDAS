@@ -1993,8 +1993,9 @@ export function registerTddfRecordsRoutes(app: Express) {
         'record_type': 'r.record_type',
         'line_number': 'r.line_number',
         'filename': 'u.filename',
-        'business_day': 'u.created_at',
-        'scheduled_slot': 'u.created_at' // Fallback to business_day for scheduled slot
+        'transaction_date': "r.record_data->>'transactionDate'",
+        'batch_date': "r.record_data->>'batchDate'",
+        'scheduled_slot': 'u.created_at'
       };
       
       const sortColumn = sortColumnMap[sortBy as string] || 'r.line_number';
