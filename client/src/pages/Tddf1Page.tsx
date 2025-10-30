@@ -571,7 +571,7 @@ function Tddf1Page() {
         },
         {
           id: "auth",
-          x: 120,
+          x: 240,
           y: 80,
           color: "bg-gradient-to-br from-blue-400 to-blue-600",
           value: formatCompactCurrency(dayBreakdown.totalTransactionValue ?? dayBreakdown.transactionValue ?? 0),
@@ -580,7 +580,7 @@ function Tddf1Page() {
         },
         {
           id: "deposits",
-          x: 240,
+          x: 120,
           y: 80,
           color: "bg-gradient-to-br from-green-400 to-green-600",
           value: formatCompactCurrency(dayBreakdown.netDeposits ?? 0),
