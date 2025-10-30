@@ -51,8 +51,6 @@ export default function OrphanTerminalViewPage() {
   
   const getBackUrl = () => {
     switch (referrer) {
-      case 'mms-merchants':
-        return '/mms-merchants';
       case 'tddf':
         return '/tddf';
       default:
@@ -62,8 +60,6 @@ export default function OrphanTerminalViewPage() {
   
   const getBackLabel = () => {
     switch (referrer) {
-      case 'mms-merchants':
-        return 'Back to MMS Merchants';
       case 'tddf':
         return 'Back to TDDF Records';
       default:
