@@ -297,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Main uploader files list with pagination support
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
     try {
-      const { phase, sessionId, limit, offset, environment } = req.query;
+      const { phase, sessionId, limit, offset, environment, filename } = req.query;
       
       // Support cross-environment viewing: use specific table if environment is specified
       let tableName = getTableName('uploader_uploads'); // Default to current environment
@@ -330,6 +330,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           countParams.push(sessionId);
         }
         
+        if (filename && typeof filename === 'string' && filename.trim().length > 0) {
+          countConditions.push(`COALESCE(filename, '') ILIKE $${countParams.length + 1}`);
+          countParams.push(`%${filename.trim()}%`);
+        }
+        
         if (countConditions.length > 0) {
           countQuery += ` WHERE ${countConditions.join(' AND ')}`;
         }
@@ -353,6 +358,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (sessionId) {
           conditions.push(`session_id = $${params.length + 1}`);
           params.push(sessionId);
+        }
+        
+        if (filename && typeof filename === 'string' && filename.trim().length > 0) {
+          conditions.push(`COALESCE(filename, '') ILIKE $${params.length + 1}`);
+          params.push(`%${filename.trim()}%`);
         }
         
         if (conditions.length > 0) {
