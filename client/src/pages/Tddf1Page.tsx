@@ -2335,11 +2335,8 @@ function Tddf1Page() {
                           parsed: parseTddfFilename(file.filename)
                         }));
 
-                        // Filter to only show files where filename date matches selected date
-                        const filteredFiles = filesWithParsedData.filter(f => f.filenameDate === selectedDateStr);
-
-                        const batch0830 = filteredFiles.filter(f => f.parsed.scheduledSlotRaw === '830');
-                        const batch2400 = filteredFiles.filter(f => f.parsed.scheduledSlotRaw === '2400');
+                        const batch0830 = filesWithParsedData.filter(f => f.parsed.scheduledSlotRaw === '830');
+                        const batch2400 = filesWithParsedData.filter(f => f.parsed.scheduledSlotRaw === '2400');
 
                         return (
                           <div className="space-y-6">
