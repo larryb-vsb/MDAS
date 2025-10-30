@@ -1388,6 +1388,13 @@ function RawDataTab({
 
   // Global filename filtering state (now passed from main component)
   
+  // Auto-enable showRecords when globalFilenameFilter is applied (e.g., from TDDF1 navigation)
+  useEffect(() => {
+    if (globalFilenameFilter) {
+      setShowRecords(true);
+    }
+  }, [globalFilenameFilter]);
+  
   // Pagination options
   const pageSizeOptions = [
     { value: 10, label: '10' },
