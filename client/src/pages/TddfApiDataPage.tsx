@@ -465,6 +465,1804 @@ interface WarningResetResponse {
   message: string;
 }
 
+// Raw Data Tab Component
+// Tree View Display Component
+interface TreeViewDisplayProps {
+  records: any[];
+  expandedBatches: Set<string>;
+  expandedTransactions: Set<string>;
+  onToggleBatch: (index: number) => void;
+  onToggleTransaction: (batchIndex: number, transactionIndex: number) => void;
+  getRecordTypeBadgeColor: (type: string) => string;
+  getRecordTypeName: (type: string) => string;
+  formatFieldValue: (key: string, value: any) => string;
+  groupRecordsHierarchically: (records: any[]) => any[];
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
+}
+
+function TreeViewDisplay({ 
+  records, 
+  expandedBatches, 
+  expandedTransactions, 
+  onToggleBatch, 
+  onToggleTransaction, 
+  getRecordTypeBadgeColor, 
+  getRecordTypeName, 
+  formatFieldValue, 
+  groupRecordsHierarchically,
+  getMerchantName
+}: TreeViewDisplayProps) {
+  const hierarchicalData = groupRecordsHierarchically(records);
+
+  return (
+    <div className="space-y-3">
+      {hierarchicalData.map((batch, batchIndex) => {
+        const batchKey = `batch-${batchIndex}`;
+        const isExpanded = expandedBatches.has(batchKey);
+        
+        return (
+          <Card key={batchIndex} className="border-l-4 border-l-green-500">
+            {/* Batch Header */}
+            <CardHeader className="pb-2">
+              <div 
+                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
+                onClick={() => onToggleBatch(batchIndex)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-600" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                )}
+                
+                {batch.batchHeader ? (
+                  <>
+                    <Badge className={`text-white ${getRecordTypeBadgeColor(batch.batchHeader.record_type)}`}>
+                      {batch.batchHeader.record_type}
+                    </Badge>
+                    <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
+                    <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
+                    
+                    {/* Merchant Account Number and Name for BH records */}
+                    {(() => {
+                      const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
+                      const merchantName = getMerchantName(merchantAccountNumber);
+                      return merchantAccountNumber ? (
+                        <div className="flex flex-col">
+                          <span 
+                            className="text-sm font-bold text-blue-600"
+                            data-testid="bh-merchant-account-number"
+                          >
+                            • {merchantAccountNumber}
+                          </span>
+                          {merchantName && (
+                            <span className="text-xs font-semibold text-green-600 ml-3">
+                              {merchantName}
+                            </span>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {/* Batch Date and Net Deposit for BH records */}
+                    {(() => {
+                      const batchDate = extractBatchDate(batch.batchHeader);
+                      const netDeposit = batch.batchHeader.parsed_data?.netDeposit || batch.batchHeader.record_data?.netDeposit;
+                      return (batchDate || netDeposit) ? (
+                        <div className="ml-auto flex items-center gap-3">
+                          {batchDate && (
+                            <span className="flex items-center gap-1 text-blue-600 font-medium">
+                              <CalendarIcon className="h-4 w-4" />
+                              {batchDate}
+                            </span>
+                          )}
+                          {netDeposit && (
+                            <span className="font-medium text-gray-700">
+                              ${Number(netDeposit).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    <Badge className="bg-gray-500 text-white">Batch</Badge>
+                    <span className="font-medium">Implicit Batch {batchIndex + 1}</span>
+                  </>
+                )}
+                
+                {!batch.batchHeader && (
+                  <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                    <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
+                    {batch.trailer && <span>• Has Trailer</span>}
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+
+            {/* Expanded Batch Content */}
+            {isExpanded && (
+              <CardContent className="pt-0">
+                {/* Batch Header Details */}
+                {batch.batchHeader && (
+                  <div className="mb-4 ml-6">
+                    <RecordDetailView record={batch.batchHeader} />
+                  </div>
+                )}
+
+                {/* Transactions */}
+                <div className="space-y-2 ml-6">
+                  {batch.transactions.map((transaction: any, transactionIndex: number) => {
+                    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
+                    const isTransactionExpanded = expandedTransactions.has(transactionKey);
+                    
+                    return (
+                      <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
+                        <CardHeader className="pb-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
+                            onClick={() => onToggleTransaction(batchIndex, transactionIndex)}
+                          >
+                            {isTransactionExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-600" />
+                            )}
+                            
+                            <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
+                              {transaction.dtRecord.record_type}
+                            </Badge>
+                            
+                            {/* Card Type Badge for DT records in tree view header */}
+                            {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
+                              const cardType = extractCardType(transaction.dtRecord);
+                              
+                              return cardType ? (
+                                <span 
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                >
+                                  <CreditCard className="h-3 w-3" />
+                                  {getCardTypeBadges(cardType).label}
+                                </span>
+                              ) : null;
+                            })()}
+                            
+                            <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
+                            <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
+                            
+                            {/* Merchant Account Number and Name for DT records */}
+                            {(() => {
+                              const merchantAccountNumber = extractMerchantAccountNumber(transaction.dtRecord);
+                              const merchantName = getMerchantName(merchantAccountNumber);
+                              return merchantAccountNumber ? (
+                                <div className="flex flex-col">
+                                  <span 
+                                    className="text-sm font-bold text-blue-600"
+                                    data-testid="dt-merchant-account-number"
+                                  >
+                                    • {merchantAccountNumber}
+                                  </span>
+                                  {merchantName && (
+                                    <span className="text-xs font-semibold text-green-600 ml-3">
+                                      {merchantName}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : null;
+                            })()}
+                            
+                            {/* Transaction Date and Amount for DT records - always show on right */}
+                            <div className="ml-auto flex items-center gap-3">
+                              {/* Transaction Date and Amount */}
+                              {(() => {
+                                const transactionDate = extractTransactionDate(transaction.dtRecord);
+                                const transactionAmount = extractTransactionAmount(transaction.dtRecord);
+                                return (transactionDate || transactionAmount !== null) ? (
+                                  <div className="flex items-center gap-3">
+                                    {transactionDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {transactionDate}
+                                      </span>
+                                    )}
+                                    {transactionAmount !== null && (
+                                      <span className="font-medium text-gray-700">
+                                        ${Number(transactionAmount).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              {/* Extensions */}
+                              {transaction.extensions.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-gray-600">{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
+                                  <div className="flex gap-1">
+                                    {transaction.extensions.slice(0, 3).map((ext: any, i: number) => (
+                                      <Badge key={i} variant="outline" className={`text-xs ${getRecordTypeBadgeColor(ext.record_type)} text-white`}>
+                                        {ext.record_type}
+                                      </Badge>
+                                    ))}
+                                    {transaction.extensions.length > 3 && (
+                                      <Badge variant="outline" className="text-xs">+{transaction.extensions.length - 3}</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        {/* Expanded Transaction Content */}
+                        {isTransactionExpanded && (
+                          <CardContent className="pt-0">
+                            {/* DT Record Details */}
+                            <div className="mb-3">
+                              <RecordDetailView record={transaction.dtRecord} />
+                            </div>
+
+                            {/* Extension Records */}
+                            {transaction.extensions.length > 0 && (
+                              <div className="ml-4 space-y-2">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">Extensions:</h4>
+                                {transaction.extensions.map((extension: any, extIndex: number) => (
+                                  <div key={extIndex} className="ml-2">
+                                    <RecordDetailView record={extension} />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Trailer */}
+                {batch.trailer && (
+                  <div className="mt-4 ml-6">
+                    <Card className="border-l-4 border-l-red-500 bg-red-50/30">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
+                            {batch.trailer.record_type}
+                          </Badge>
+                          <span className="font-medium">{getRecordTypeName(batch.trailer.record_type)}</span>
+                          <span className="text-sm text-gray-600">Line {batch.trailer.line_number}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <RecordDetailView record={batch.trailer} />
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// Record Detail View Component
+function RecordDetailView({ record }: { record: any }) {
+  const [activeTab, setActiveTab] = useState<'fields' | 'raw'>('fields');
+  
+  // Parse TDDF record data
+  const parsedData = record.parsed_data || {};
+  const rawData = record.raw_data || '';
+  
+  // Define field order for BH records (batchId moved to end)
+  const BH_FIELD_ORDER = [
+    'sequenceNumber',
+    'entryRunNumber',
+    'sequenceWithinRun',
+    'recordIdentifier',
+    'bankNumber',
+    'merchantAccountNumber',
+    'associationNumber',
+    'groupNumber',
+    'transactionCode',
+    'batchDate',
+    'batchJulianDate',
+    'netDeposit',
+    'rejectReason',
+    'merchantReferenceNum',
+    'batchHeaderCarryIndicator',
+    'associationNumberBatch',
+    'merchantBankNumber',
+    'debitCreditIndicator',
+    'achPostingDate',
+    'batchId' // Moved to end
+  ];
+  
+  // Sort fields based on record type
+  const sortedEntries = record.record_type === 'BH' 
+    ? Object.entries(parsedData).sort(([keyA], [keyB]) => {
+        const indexA = BH_FIELD_ORDER.indexOf(keyA);
+        const indexB = BH_FIELD_ORDER.indexOf(keyB);
+        
+        // If field not in order array, put it at the end
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        
+        return indexA - indexB;
+      })
+    : Object.entries(parsedData);
+  
+  return (
+    <div className="w-full">
+      <div className="mb-4">
+        <h4 className="text-lg font-semibold mb-2">
+          {record.record_type} Record Details
+          <span className="ml-2 text-sm text-muted-foreground">Line {record.line_number}</span>
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-muted-foreground">File:</span>
+            <p className="truncate" title={record.filename}>{record.filename || 'Unknown'}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Line Number:</span>
+            <p>{record.line_number || 'Unknown'}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Business Date:</span>
+            <p>{record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Record ID:</span>
+            <p>{record.id}</p>
+          </div>
+        </div>
+      </div>
+      
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'fields' | 'raw')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="fields" data-testid="tab-fields">Parsed Fields</TabsTrigger>
+          <TabsTrigger value="raw" data-testid="tab-raw">Raw Data</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="fields" className="mt-4">
+          <div className="space-y-2">
+            {Object.keys(parsedData).length > 0 ? (
+              sortedEntries.map(([key, value]) => (
+                <div key={key} className="flex justify-between items-start py-2 border-b border-border/40">
+                  <span className="font-medium text-sm capitalize">{key.replace(/_/g, ' ')}:</span>
+                  <span className="text-sm text-muted-foreground ml-4 text-right max-w-md break-all">
+                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-sm">No parsed fields available for this record.</p>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="raw" className="mt-4">
+          <div className="bg-muted/30 p-4 rounded-md">
+            <pre className="text-xs font-mono whitespace-pre-wrap break-all">{rawData}</pre>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// File View Display Component
+interface FileViewDisplayProps {
+  records: any[];
+  expandedFiles: Set<string>;
+  expandedFileBatches: Set<string>;
+  expandedFileTransactions: Set<string>;
+  onToggleFile: (filename: string) => void;
+  onToggleFileBatch: (filename: string, batchIndex: number) => void;
+  onToggleFileTransaction: (filename: string, batchIndex: number, transactionIndex: number) => void;
+  getRecordTypeBadgeColor: (type: string) => string;
+  getRecordTypeName: (type: string) => string;
+  formatFieldValue: (key: string, value: any) => string;
+  groupRecordsByFiles: (records: any[]) => any[];
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
+}
+
+function FileViewDisplay({ 
+  records, 
+  expandedFiles,
+  expandedFileBatches,
+  expandedFileTransactions,
+  onToggleFile,
+  onToggleFileBatch,
+  onToggleFileTransaction,
+  getRecordTypeBadgeColor, 
+  getRecordTypeName, 
+  formatFieldValue, 
+  groupRecordsByFiles,
+  getMerchantName
+}: FileViewDisplayProps) {
+  const fileGroups = groupRecordsByFiles(records);
+
+  return (
+    <div className="space-y-4">
+      {fileGroups.map((fileGroup, fileIndex) => {
+        const isFileExpanded = expandedFiles.has(fileGroup.filename);
+        
+        return (
+          <Card key={fileIndex} className="border-l-4 border-l-blue-600">
+            {/* File Header */}
+            <CardHeader className="pb-3">
+              <div 
+                className="flex items-center gap-3 cursor-pointer hover:bg-blue-50 -m-3 p-3 rounded"
+                onClick={() => onToggleFile(fileGroup.filename)}
+              >
+                {isFileExpanded ? (
+                  <ChevronDown className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                )}
+                
+                <FileText className="w-5 h-5 text-blue-600" />
+                <span className="font-semibold text-blue-900">{fileGroup.filename}</span>
+                
+                <div className="ml-auto flex items-center gap-4 text-sm">
+                  <Badge variant="outline" className="bg-green-50 border-green-200 text-green-800">
+                    {fileGroup.recordCounts.bh} BH
+                  </Badge>
+                  <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-800">
+                    {fileGroup.recordCounts.dt} DT  
+                  </Badge>
+                  <span className="text-gray-600">
+                    {fileGroup.recordCounts.total} total records
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+
+            {/* Expanded File Content */}
+            {isFileExpanded && (
+              <CardContent className="pt-0">
+                <div className="space-y-3 ml-8">
+                  {fileGroup.batches.map((batch: any, batchIndex: number) => {
+                    const batchKey = `${fileGroup.filename}-batch-${batchIndex}`;
+                    const isBatchExpanded = expandedFileBatches.has(batchKey);
+                    
+                    return (
+                      <Card key={batchIndex} className="border-l-4 border-l-green-500">
+                        {/* Batch Header */}
+                        <CardHeader className="pb-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
+                            onClick={() => onToggleFileBatch(fileGroup.filename, batchIndex)}
+                          >
+                            {isBatchExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-600" />
+                            )}
+                            
+                            {batch.batchHeader ? (
+                              <>
+                                <Badge className={`text-white ${getRecordTypeBadgeColor(batch.batchHeader.record_type)}`}>
+                                  {batch.batchHeader.record_type}
+                                </Badge>
+                                <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
+                                <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
+                                
+                                {/* Merchant Account Number and Name for BH records */}
+                                {(() => {
+                                  const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
+                                  const merchantName = getMerchantName(merchantAccountNumber);
+                                  return merchantAccountNumber ? (
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-blue-600">
+                                        • {merchantAccountNumber}
+                                      </span>
+                                      {merchantName && (
+                                        <span className="text-xs font-semibold text-green-600 ml-3">
+                                          {merchantName}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : null;
+                                })()}
+                              </>
+                            ) : (
+                              <>
+                                <Badge className="bg-gray-500 text-white">Batch</Badge>
+                                <span className="font-medium">Implicit Batch {batchIndex + 1}</span>
+                              </>
+                            )}
+                            
+                            <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                              <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
+                              {batch.trailer && <span>• Has Trailer</span>}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        {/* Expanded Batch Content */}
+                        {isBatchExpanded && (
+                          <CardContent className="pt-0">
+                            {/* Batch Header Details */}
+                            {batch.batchHeader && (
+                              <div className="mb-4 ml-6">
+                                <RecordDetailView record={batch.batchHeader} />
+                              </div>
+                            )}
+
+                            {/* Transactions */}
+                            <div className="space-y-2 ml-6">
+                              {batch.transactions.map((transaction: any, transactionIndex: number) => {
+                                const transactionKey = `${fileGroup.filename}-transaction-${batchIndex}-${transactionIndex}`;
+                                const isTransactionExpanded = expandedFileTransactions.has(transactionKey);
+                                
+                                return (
+                                  <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
+                                    <CardHeader className="pb-2">
+                                      <div 
+                                        className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
+                                        onClick={() => onToggleFileTransaction(fileGroup.filename, batchIndex, transactionIndex)}
+                                      >
+                                        {isTransactionExpanded ? (
+                                          <ChevronDown className="w-4 h-4 text-gray-600" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4 text-gray-600" />
+                                        )}
+                                        
+                                        <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
+                                          {transaction.dtRecord.record_type}
+                                        </Badge>
+                                        
+                                        {/* Card Type Badge for DT records */}
+                                        {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
+                                          const cardType = extractCardType(transaction.dtRecord);
+                                          const cardBadge = cardType ? getCardTypeBadges(cardType) : null;
+                                          
+                                          return cardBadge ? (
+                                            <Badge variant="outline" className={cardBadge.className}>
+                                              {cardBadge.label}
+                                            </Badge>
+                                          ) : null;
+                                        })()}
+                                        
+                                        <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
+                                        <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
+                                        
+                                        <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                                          {transaction.extensions.length > 0 && (
+                                            <span>{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </CardHeader>
+
+                                    {/* Expanded Transaction Content */}
+                                    {isTransactionExpanded && (
+                                      <CardContent className="pt-0">
+                                        {/* Transaction Details */}
+                                        <div className="mb-4 ml-6">
+                                          <RecordDetailView record={transaction.dtRecord} />
+                                        </div>
+                                        
+                                        {/* Extensions */}
+                                        {transaction.extensions.length > 0 && (
+                                          <div className="space-y-2 ml-6">
+                                            {transaction.extensions.map((extension: any, extensionIndex: number) => (
+                                              <Card key={extensionIndex} className="border-l-4 border-l-purple-500 bg-purple-50/30">
+                                                <CardHeader className="pb-2">
+                                                  <div className="flex items-center gap-2">
+                                                    <Badge className={`text-white ${getRecordTypeBadgeColor(extension.record_type)}`}>
+                                                      {extension.record_type}
+                                                    </Badge>
+                                                    <span className="font-medium">{getRecordTypeName(extension.record_type)}</span>
+                                                    <span className="text-sm text-gray-600">Line {extension.line_number}</span>
+                                                  </div>
+                                                </CardHeader>
+                                                <CardContent className="pt-0">
+                                                  <RecordDetailView record={extension} />
+                                                </CardContent>
+                                              </Card>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </CardContent>
+                                    )}
+                                  </Card>
+                                );
+                              })}
+                            </div>
+
+                            {/* Trailer */}
+                            {batch.trailer && (
+                              <div className="mt-4 ml-6">
+                                <Card className="border-l-4 border-l-red-500 bg-red-50/30">
+                                  <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
+                                        {batch.trailer.record_type}
+                                      </Badge>
+                                      <span className="font-medium">{getRecordTypeName(batch.trailer.record_type)}</span>
+                                      <span className="text-sm text-gray-600">Line {batch.trailer.line_number}</span>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent className="pt-0">
+                                    <RecordDetailView record={batch.trailer} />
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            )}
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// Archive Data Tab Component
+function ArchiveDataTab() {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+  const [recordType, setRecordType] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [archiveFileId, setArchiveFileId] = useState<string>('');
+  
+  // Fetch archive records
+  const { data: archiveData, isLoading } = useQuery<{
+    data: any[];
+    summary: { totalRecords: number; bhRecords: number; dtRecords: number; totalArchiveFiles: number };
+    pagination: { limit: number; offset: number; total: number };
+  }>({
+    queryKey: ['/api/tddf-api/all-archive-records', { 
+      limit: pageSize, 
+      offset: currentPage * pageSize, 
+      recordType: recordType !== 'all' ? recordType : undefined,
+      search: searchQuery || undefined,
+      archiveFileId: archiveFileId || undefined
+    }],
+    refetchInterval: false,
+    staleTime: 60000
+  });
+
+  const records = archiveData?.data || [];
+  const summary = archiveData?.summary || { totalRecords: 0, bhRecords: 0, dtRecords: 0, totalArchiveFiles: 0 };
+  const pagination = archiveData?.pagination || { limit: pageSize, offset: 0, total: 0 };
+  const totalPages = Math.ceil(pagination.total / pageSize);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">BH Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">DT Records</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Archive Files</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalArchiveFiles.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Record Type</Label>
+              <Select value={recordType} onValueChange={setRecordType}>
+                <SelectTrigger data-testid="select-record-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="BH">BH (Batch Header)</SelectItem>
+                  <SelectItem value="DT">DT (Transaction)</SelectItem>
+                  <SelectItem value="BT">BT (Batch Trailer)</SelectItem>
+                  <SelectItem value="FH">FH (File Header)</SelectItem>
+                  <SelectItem value="FT">FT (File Trailer)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Search</Label>
+              <Input
+                placeholder="Search records..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Archive File ID</Label>
+              <Input
+                placeholder="Filter by archive file ID..."
+                value={archiveFileId}
+                onChange={(e) => setArchiveFileId(e.target.value)}
+                data-testid="input-archive-file-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Page Size</Label>
+              <Select value={pageSize.toString()} onValueChange={(v) => {
+                setPageSize(parseInt(v));
+                setCurrentPage(0);
+              }}>
+                <SelectTrigger data-testid="select-page-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="1000">1K</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Records Table */}
+      <Card>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : records.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No archive records found
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Record Type</TableHead>
+                    <TableHead>Line #</TableHead>
+                    <TableHead>Merchant Account</TableHead>
+                    <TableHead>Archive File</TableHead>
+                    <TableHead>Original Filename</TableHead>
+                    <TableHead>Archived At</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {records.map((record: any) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <Badge>{record.record_type}</Badge>
+                      </TableCell>
+                      <TableCell>{record.line_number}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {record.merchant_account_number || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {record.archive_filename || record.archive_file_id}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {record.original_filename || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {record.archived_at ? format(new Date(record.archived_at), "MMM d, yyyy HH:mm") : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" data-testid={`button-view-${record.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, pagination.total)} of {pagination.total.toLocaleString()} records
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(0)}
+                    disabled={currentPage === 0}
+                    data-testid="button-first-page"
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                    disabled={currentPage === 0}
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    data-testid="button-next-page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages - 1)}
+                    disabled={currentPage >= totalPages - 1}
+                    data-testid="button-last-page"
+                  >
+                    Last
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function RawDataTab({ 
+  globalFilenameFilter, 
+  setGlobalFilenameFilter,
+  viewMode,
+  setViewMode,
+  getMerchantName
+}: { 
+  globalFilenameFilter: string; 
+  setGlobalFilenameFilter: (filename: string) => void; 
+  viewMode: 'tree' | 'flat' | 'file';
+  setViewMode: (mode: 'tree' | 'flat' | 'file') => void;
+  getMerchantName: (merchantAccountNumber: string | null) => string | null;
+}) {
+  const { toast } = useToast();
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+  const [recordType, setRecordType] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showRecords, setShowRecords] = useState(false);
+  const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
+  
+  // Tree view state
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
+  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+  
+  // File view state
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [expandedFileBatches, setExpandedFileBatches] = useState<Set<string>>(new Set());
+  const [expandedFileTransactions, setExpandedFileTransactions] = useState<Set<string>>(new Set());
+  
+  // File filtering state (now using global state)
+  // const [rawDataFilenameFilter, setRawDataFilenameFilter] = useState<string>(''); // Moved to global state
+  
+  // Selection state for bulk operations
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
+  const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
+
+  // Global filename filtering state (now passed from main component)
+  
+  // Pagination options
+  const pageSizeOptions = [
+    { value: 10, label: '10' },
+    { value: 100, label: '100' },
+    { value: 500, label: '500' },
+    { value: 1000, label: '1K' },
+    { value: 3000, label: '3K' },
+    { value: 5000, label: '5K' },
+    { value: 10000, label: '10K' },
+    { value: 25000, label: '25K' },
+    { value: 50000, label: '50K' },
+    { value: 100000, label: '100K' },
+    { value: 150000, label: '150K' }
+  ];
+
+  // Tree view supporting functions
+  const getRecordTypeBadgeColor = (recordType: string) => {
+    switch (recordType) {
+      case '01': case 'BH': return 'bg-green-500 hover:bg-green-600';
+      case '47': case 'DT': return 'bg-blue-500 hover:bg-blue-600';
+      case '98': case 'TR': return 'bg-red-500 hover:bg-red-600';
+      case 'P1': return 'bg-purple-500 hover:bg-purple-600';
+      case 'P2': return 'bg-purple-600 hover:bg-purple-700';
+      case 'G2': return 'bg-indigo-500 hover:bg-indigo-600';
+      case 'A1': return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'E1': return 'bg-pink-500 hover:bg-pink-600';
+      case 'LG': return 'bg-teal-500 hover:bg-teal-600';
+      case '10': return 'bg-green-600 hover:bg-green-700';
+      default: return 'bg-gray-500 hover:bg-gray-600';
+    }
+  };
+
+  const getRecordTypeName = (recordType: string) => {
+    switch (recordType) {
+      case '01': case 'BH': return 'Batch Header';
+      case '10': return 'File Header';
+      case '47': case 'DT': return 'Detail Transaction';
+      case '98': case 'TR': return 'Trailer';
+      case 'G2': return 'Geographic Extension';
+      case 'A1': return 'Airline Extension';
+      case 'E1': return 'E-Commerce Extension';
+      case 'P1': return 'Purchasing Card';
+      case 'P2': return 'Purchasing Card Ext';
+      case 'LG': return 'Lodge/Hotel';
+      default: return `Record ${recordType}`;
+    }
+  };
+
+  const formatFieldValue = (key: string, value: any) => {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'string' && value.trim() === '') return '-';
+    
+    if (key === 'merchantAccountNumber' && value) {
+      return value.toString().trim();
+    }
+    
+    if (typeof value === 'number') {
+      if (key.toLowerCase().includes('amount') || key.toLowerCase().includes('fee')) {
+        return (value / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      }
+      return value.toLocaleString();
+    }
+    
+    if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleString();
+        }
+      } catch (e) {
+        // Not a valid date, return as string
+      }
+    }
+    
+    return value.toString();
+  };
+
+  // Group records into hierarchical structure
+  const groupRecordsHierarchically = (records: any[]) => {
+    console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
+    
+    const recordTypes = Array.from(new Set(records.map(r => r.record_type)));
+    console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
+    
+    const batches: Array<{
+      batchHeader: any | null;
+      transactions: Array<{
+        dtRecord: any;
+        extensions: any[];
+      }>;
+      trailer: any | null;
+    }> = [];
+
+    let currentBatch: any = null;
+    let currentTransaction: any = null;
+
+    for (const record of records) {
+      const recordType = record.record_type;
+
+      if (['01', 'BH', '10', '02'].includes(recordType)) {
+        if (currentBatch) {
+          batches.push(currentBatch);
+        }
+        currentBatch = {
+          batchHeader: record,
+          transactions: [],
+          trailer: null
+        };
+        currentTransaction = null;
+        console.log(`[TREE-VIEW] Started new batch with header record type ${recordType}`);
+      }
+      else if (['47', 'DT'].includes(recordType)) {
+        if (!currentBatch) {
+          currentBatch = {
+            batchHeader: null,
+            transactions: [],
+            trailer: null
+          };
+        }
+        currentTransaction = {
+          dtRecord: record,
+          extensions: []
+        };
+        currentBatch.transactions.push(currentTransaction);
+        console.log(`[TREE-VIEW] Added transaction record type ${recordType} to batch`);
+      }
+      else if (['98', 'TR', '99'].includes(recordType)) {
+        if (currentBatch) {
+          currentBatch.trailer = record;
+        }
+      }
+      else {
+        if (currentTransaction) {
+          currentTransaction.extensions.push(record);
+          console.log(`[TREE-VIEW] Added extension record type ${recordType} to current transaction`);
+        }
+      }
+    }
+
+    if (currentBatch) {
+      batches.push(currentBatch);
+    }
+
+    console.log(`[TREE-VIEW] Created ${batches.length} batches`);
+    return batches;
+  };
+
+  // Group records by files for file-centric view
+  const groupRecordsByFiles = (records: any[]) => {
+    console.log(`[FILE-VIEW] Grouping ${records.length} records by filename`);
+    
+    const fileGroups: Record<string, any[]> = {};
+    
+    // Group records by filename
+    for (const record of records) {
+      const filename = record.filename || 'Unknown';
+      if (!fileGroups[filename]) {
+        fileGroups[filename] = [];
+      }
+      fileGroups[filename].push(record);
+    }
+    
+    // Convert to array with file-centric structure
+    const files = Object.entries(fileGroups).map(([filename, fileRecords]) => {
+      console.log(`[FILE-VIEW] Processing file: ${filename} with ${fileRecords.length} records`);
+      
+      // Group records within this file hierarchically (batches → transactions)
+      const batches = groupRecordsHierarchically(fileRecords);
+      
+      // Count record types within this file
+      const bhRecords = fileRecords.filter(r => ['01', 'BH', '10', '02'].includes(r.record_type)).length;
+      const dtRecords = fileRecords.filter(r => ['47', 'DT'].includes(r.record_type)).length;
+      
+      return {
+        filename,
+        records: fileRecords,
+        batches,
+        recordCounts: {
+          total: fileRecords.length,
+          bh: bhRecords,
+          dt: dtRecords
+        }
+      };
+    });
+    
+    console.log(`[FILE-VIEW] Created ${files.length} file groups`);
+    return files;
+  };
+
+  // Toggle handlers
+  const toggleBatchExpansion = (batchIndex: number) => {
+    const batchKey = `batch-${batchIndex}`;
+    setExpandedBatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(batchKey)) {
+        newSet.delete(batchKey);
+      } else {
+        newSet.add(batchKey);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleTransactionExpansion = (batchIndex: number, transactionIndex: number) => {
+    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
+    setExpandedTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionKey)) {
+        newSet.delete(transactionKey);
+      } else {
+        newSet.add(transactionKey);
+      }
+      return newSet;
+    });
+  };
+
+  // File view toggle handlers
+  const toggleFileExpansion = (filename: string) => {
+    setExpandedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(filename)) {
+        newSet.delete(filename);
+      } else {
+        newSet.add(filename);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleFileBatchExpansion = (filename: string, batchIndex: number) => {
+    const batchKey = `${filename}-batch-${batchIndex}`;
+    setExpandedFileBatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(batchKey)) {
+        newSet.delete(batchKey);
+      } else {
+        newSet.add(batchKey);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleFileTransactionExpansion = (filename: string, batchIndex: number, transactionIndex: number) => {
+    const transactionKey = `${filename}-transaction-${batchIndex}-${transactionIndex}`;
+    setExpandedFileTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionKey)) {
+        newSet.delete(transactionKey);
+      } else {
+        newSet.add(transactionKey);
+      }
+      return newSet;
+    });
+  };
+
+  // Selection handlers for bulk operations
+  const handleSelectRecord = (recordId: number) => {
+    const newSelected = new Set(selectedRecords);
+    if (newSelected.has(recordId)) {
+      newSelected.delete(recordId);
+    } else {
+      newSelected.add(recordId);
+    }
+    setSelectedRecords(newSelected);
+    
+    // Update select all state
+    if (newSelected.size === 0) {
+      setIsSelectAllChecked(false);
+    } else if (newSelected.size === records.length) {
+      setIsSelectAllChecked(true);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (isSelectAllChecked || selectedRecords.size === records.length) {
+      // Deselect all
+      setSelectedRecords(new Set());
+      setIsSelectAllChecked(false);
+    } else {
+      // Select all visible records
+      const allRecordIds = new Set(records.map((record: any) => record.id) as number[]);
+      setSelectedRecords(allRecordIds);
+      setIsSelectAllChecked(true);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRecords.size === 0) {
+      toast({
+        title: "No Records Selected",
+        description: "Please select records to delete.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const recordIds = Array.from(selectedRecords);
+      await apiRequest('/api/tddf-api/records/bulk-delete', {
+        method: 'DELETE',
+        body: JSON.stringify({ recordIds }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      toast({
+        title: "Records Deleted",
+        description: `Successfully deleted ${recordIds.length} records.`,
+      });
+
+      // Clear selection and refetch data
+      setSelectedRecords(new Set());
+      setIsSelectAllChecked(false);
+      refetch();
+    } catch (error) {
+      console.error('Error deleting records:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete selected records. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Fetch raw data with React Query
+  const { data: rawData, isLoading, error, refetch } = useQuery({
+    queryKey: ['/api/tddf-api/all-records', { 
+      limit: pageSize, 
+      offset: currentPage * pageSize,
+      recordType: recordType === 'all' ? undefined : recordType,
+      search: searchQuery || undefined,
+      filename: globalFilenameFilter || undefined
+    }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: (currentPage * pageSize).toString()
+      });
+      
+      if (recordType !== 'all') {
+        params.append('recordType', recordType);
+      }
+      
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      
+      if (globalFilenameFilter) {
+        params.append('filename', globalFilenameFilter);
+      }
+      
+      return await apiRequest(`/api/tddf-api/all-records?${params}`);
+    },
+    enabled: showRecords,
+    refetchOnWindowFocus: false
+  });
+
+  const summary = (rawData as any)?.summary || {
+    totalRecords: 0,
+    bhRecords: 0,
+    dtRecords: 0,
+    totalFiles: 0
+  };
+
+  const records = (rawData as any)?.data || [];
+  const totalPages = (rawData as any)?.pagination?.total ? Math.ceil((rawData as any).pagination.total / pageSize) : 0;
+
+  const handleShowAllRecords = () => {
+    setShowRecords(true);
+    setCurrentPage(0);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(0);
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(0);
+    refetch();
+  };
+
+  const formatRecordContent = (record: any) => {
+    if (record.parsed_data && Object.keys(record.parsed_data).length > 0) {
+      return Object.entries(record.parsed_data)
+        .slice(0, 3) // Show first 3 parsed fields
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(' | ');
+    }
+    return record.raw_data ? record.raw_data.substring(0, 100) + '...' : 'No data';
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Filename Filter Indicator */}
+      {globalFilenameFilter && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-900">
+              Filtered by file: <code className="bg-white px-2 py-1 rounded text-xs">{globalFilenameFilter}</code>
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setGlobalFilenameFilter('')}
+              className="ml-auto h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+              title="Clear filename filter"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Cards - Matching the design from attached image */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">BH Records</p>
+                <p className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Batch Headers</p>
+              </div>
+              <Database className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">DT Records</p>
+                <p className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Detail Transactions</p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-purple-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">Total Records</p>
+                <p className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">All Types</p>
+              </div>
+              <Activity className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Controls Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Raw Data Controls</CardTitle>
+              <CardDescription>Configure pagination and filters for TDDF records</CardDescription>
+            </div>
+            {!showRecords && (
+              <Button 
+                onClick={handleShowAllRecords}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-testid="button-show-all-records"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Show All Records
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* Pagination Size */}
+            <div>
+              <Label>Records per page</Label>
+              <Select 
+                value={pageSize.toString()} 
+                onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label} records
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Record Type Filter */}
+            <div>
+              <Label>Record Type</Label>
+              <Select 
+                value={recordType} 
+                onValueChange={setRecordType}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="BH">BH - Batch Header</SelectItem>
+                  <SelectItem value="DT">DT - Detail Transaction</SelectItem>
+                  <SelectItem value="G2">G2 - Geographic Data</SelectItem>
+                  <SelectItem value="P1">P1 - Processing Data</SelectItem>
+                  <SelectItem value="E1">E1 - Enhanced Data</SelectItem>
+                  <SelectItem value="DR">DR - Detail Record</SelectItem>
+                  <SelectItem value="TR">TR - Trailer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* View Mode */}
+            <div>
+              <Label>View Mode</Label>
+              <Select 
+                value={viewMode} 
+                onValueChange={(value: 'tree' | 'flat' | 'file') => setViewMode(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="flat">Flat View</SelectItem>
+                  <SelectItem value="tree">Tree View</SelectItem>
+                  <SelectItem value="file">File View</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search */}
+            <div>
+              <Label>Search</Label>
+              <Input
+                placeholder="Search raw data..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+
+            {/* Search Button */}
+            <div className="flex items-end">
+              <Button onClick={handleSearch} variant="outline" className="w-full">
+                <Search className="mr-2 h-4 w-4" />
+                Search
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Records Table */}
+      {showRecords && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>TDDF Records ({records.length} of {(rawData as any)?.pagination?.total || 0})</CardTitle>
+                <CardDescription>Raw TDDF data with parsed fields</CardDescription>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0 || isLoading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                    disabled={currentPage >= totalPages - 1 || isLoading}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                Loading records...
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-600">
+                Error loading records: {error instanceof Error ? error.message : 'Unknown error'}
+              </div>
+            ) : records.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No records found matching your criteria
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Bulk Operation Controls */}
+                {selectedRecords.size > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        {selectedRecords.size} record{selectedRecords.size !== 1 ? 's' : ''} selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        disabled={selectedRecords.size === 0}
+                        data-testid="button-bulk-delete"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete Selected
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedRecords(new Set());
+                          setIsSelectAllChecked(false);
+                        }}
+                        data-testid="button-clear-selection"
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Flat View Display */}
+                {viewMode === 'flat' && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={isSelectAllChecked}
+                            onCheckedChange={handleSelectAll}
+                            data-testid="checkbox-select-all"
+                          />
+                        </TableHead>
+                        <TableHead className="w-20">Type</TableHead>
+                        <TableHead>Content</TableHead>
+                        <TableHead className="w-40">File</TableHead>
+                        <TableHead className="w-16">Line</TableHead>
+                        <TableHead className="w-32">Business Day</TableHead>
+                        <TableHead className="w-24">Scheduled Slot</TableHead>
+                        <TableHead className="w-16">View</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {records.map((record: any) => [
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRecords.has(record.id)}
+                            onCheckedChange={() => handleSelectRecord(record.id)}
+                            data-testid={`checkbox-record-${record.id}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : record.record_type === 'DT' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
+                              variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
+                            >
+                              {record.record_type}
+                            </Badge>
+                            {/* Show card type badge for DT records */}
+                            {(record.record_type === 'DT' || record.record_type === '47') && (() => {
+                              const cardType = extractCardType(record);
+                              
+                              return cardType ? (
+                                <span 
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
+                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
+                                >
+                                  <CreditCard className="h-3 w-3" />
+                                  {getCardTypeBadges(cardType).label}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-md">
+                          {record.record_type === 'BH' ? (
+                            <div className="flex items-center gap-3 text-sm">
+                              {/* Merchant Account and Name */}
+                              {(() => {
+                                const merchantAccountNumber = extractMerchantAccountNumber(record);
+                                const merchantName = getMerchantName(merchantAccountNumber);
+                                return merchantAccountNumber ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      {merchantAccountNumber}
+                                    </span>
+                                    {merchantName && (
+                                      <span className="text-xs font-semibold text-green-600">
+                                        {merchantName}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              {/* Batch Date and Net Deposit */}
+                              {(() => {
+                                const batchDate = extractBatchDate(record);
+                                const netDeposit = record.parsed_data?.netDeposit || record.record_data?.netDeposit;
+                                return (batchDate || netDeposit) ? (
+                                  <div className="ml-auto flex items-center gap-3">
+                                    {batchDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {batchDate}
+                                      </span>
+                                    )}
+                                    {netDeposit && (
+                                      <span className="font-medium text-gray-700">
+                                        ${Number(netDeposit).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
+                          ) : (record.record_type === 'DT' || record.record_type === '47') ? (
+                            <div className="flex items-center gap-3 text-sm">
+                              {/* Merchant Account and Name for DT records */}
+                              {(() => {
+                                const merchantAccountNumber = extractMerchantAccountNumber(record);
+                                const merchantName = getMerchantName(merchantAccountNumber);
+                                return merchantAccountNumber ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      {merchantAccountNumber}
+                                    </span>
+                                    {merchantName && (
+                                      <span className="text-xs font-semibold text-green-600">
+                                        {merchantName}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              {/* Transaction Date and Amount */}
+                              {(() => {
+                                const transactionDate = extractTransactionDate(record);
+                                const transactionAmount = extractTransactionAmount(record);
+                                return (transactionDate || transactionAmount !== null) ? (
+                                  <div className="ml-auto flex items-center gap-3">
+                                    {transactionDate && (
+                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {transactionDate}
+                                      </span>
+                                    )}
+                                    {transactionAmount !== null && (
+                                      <span className="font-medium text-gray-700">
+                                        ${Number(transactionAmount).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
+                          ) : (
+                            <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
+                              {formatRecordContent(record)}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="truncate text-sm" title={record.original_filename || record.filename}>
+                          {record.original_filename || record.filename || 'Unknown'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
+                        <TableCell className="text-sm">
+                          {record.file_processing_date ? format(new Date(record.file_processing_date), 'MMM d, yyyy') : 
+                           record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {record.scheduledSlotLabel ? (
+                            <Badge variant="outline" className="text-xs">
+                              {record.scheduledSlotLabel}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
+                            data-testid={`button-view-record-${record.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>,
+                      expandedRecord === record.id && (
+                        <TableRow key={`${record.id}-detail`}>
+                          <TableCell colSpan={8} className="p-0">
+                            <div className="border-t bg-muted/30 p-4">
+                              <RecordDetailView record={record} />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                      ]).flat().filter(Boolean)}
+                    </TableBody>
+                  </Table>
+                )}
+
+                {/* Tree View Display */}
+                {viewMode === 'tree' && (
+                  <TreeViewDisplay 
+                    records={records}
+                    expandedBatches={expandedBatches}
+                    expandedTransactions={expandedTransactions}
+                    onToggleBatch={toggleBatchExpansion}
+                    onToggleTransaction={toggleTransactionExpansion}
+                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
+                    getRecordTypeName={getRecordTypeName}
+                    formatFieldValue={formatFieldValue}
+                    groupRecordsHierarchically={groupRecordsHierarchically}
+                    getMerchantName={getMerchantName}
+                  />
+                )}
+
+                {/* File View Display */}
+                {viewMode === 'file' && (
+                  <FileViewDisplay 
+                    records={records}
+                    expandedFiles={expandedFiles}
+                    expandedFileBatches={expandedFileBatches}
+                    expandedFileTransactions={expandedFileTransactions}
+                    onToggleFile={toggleFileExpansion}
+                    onToggleFileBatch={toggleFileBatchExpansion}
+                    onToggleFileTransaction={toggleFileTransactionExpansion}
+                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
+                    getRecordTypeName={getRecordTypeName}
+                    formatFieldValue={formatFieldValue}
+                    groupRecordsByFiles={groupRecordsByFiles}
+                    getMerchantName={getMerchantName}
+                  />
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function TddfApiDataPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
@@ -4366,1801 +6164,4 @@ export default function TddfApiDataPage() {
   );
 }
 
-// Raw Data Tab Component
-// Tree View Display Component
-interface TreeViewDisplayProps {
-  records: any[];
-  expandedBatches: Set<string>;
-  expandedTransactions: Set<string>;
-  onToggleBatch: (index: number) => void;
-  onToggleTransaction: (batchIndex: number, transactionIndex: number) => void;
-  getRecordTypeBadgeColor: (type: string) => string;
-  getRecordTypeName: (type: string) => string;
-  formatFieldValue: (key: string, value: any) => string;
-  groupRecordsHierarchically: (records: any[]) => any[];
-  getMerchantName: (merchantAccountNumber: string | null) => string | null;
-}
-
-function TreeViewDisplay({ 
-  records, 
-  expandedBatches, 
-  expandedTransactions, 
-  onToggleBatch, 
-  onToggleTransaction, 
-  getRecordTypeBadgeColor, 
-  getRecordTypeName, 
-  formatFieldValue, 
-  groupRecordsHierarchically,
-  getMerchantName
-}: TreeViewDisplayProps) {
-  const hierarchicalData = groupRecordsHierarchically(records);
-
-  return (
-    <div className="space-y-3">
-      {hierarchicalData.map((batch, batchIndex) => {
-        const batchKey = `batch-${batchIndex}`;
-        const isExpanded = expandedBatches.has(batchKey);
-        
-        return (
-          <Card key={batchIndex} className="border-l-4 border-l-green-500">
-            {/* Batch Header */}
-            <CardHeader className="pb-2">
-              <div 
-                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
-                onClick={() => onToggleBatch(batchIndex)}
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-600" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-600" />
-                )}
-                
-                {batch.batchHeader ? (
-                  <>
-                    <Badge className={`text-white ${getRecordTypeBadgeColor(batch.batchHeader.record_type)}`}>
-                      {batch.batchHeader.record_type}
-                    </Badge>
-                    <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
-                    <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
-                    
-                    {/* Merchant Account Number and Name for BH records */}
-                    {(() => {
-                      const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
-                      const merchantName = getMerchantName(merchantAccountNumber);
-                      return merchantAccountNumber ? (
-                        <div className="flex flex-col">
-                          <span 
-                            className="text-sm font-bold text-blue-600"
-                            data-testid="bh-merchant-account-number"
-                          >
-                            • {merchantAccountNumber}
-                          </span>
-                          {merchantName && (
-                            <span className="text-xs font-semibold text-green-600 ml-3">
-                              {merchantName}
-                            </span>
-                          )}
-                        </div>
-                      ) : null;
-                    })()}
-                    
-                    {/* Batch Date and Net Deposit for BH records */}
-                    {(() => {
-                      const batchDate = extractBatchDate(batch.batchHeader);
-                      const netDeposit = batch.batchHeader.parsed_data?.netDeposit || batch.batchHeader.record_data?.netDeposit;
-                      return (batchDate || netDeposit) ? (
-                        <div className="ml-auto flex items-center gap-3">
-                          {batchDate && (
-                            <span className="flex items-center gap-1 text-blue-600 font-medium">
-                              <CalendarIcon className="h-4 w-4" />
-                              {batchDate}
-                            </span>
-                          )}
-                          {netDeposit && (
-                            <span className="font-medium text-gray-700">
-                              ${Number(netDeposit).toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      ) : null;
-                    })()}
-                  </>
-                ) : (
-                  <>
-                    <Badge className="bg-gray-500 text-white">Batch</Badge>
-                    <span className="font-medium">Implicit Batch {batchIndex + 1}</span>
-                  </>
-                )}
-                
-                {!batch.batchHeader && (
-                  <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
-                    <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
-                    {batch.trailer && <span>• Has Trailer</span>}
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-
-            {/* Expanded Batch Content */}
-            {isExpanded && (
-              <CardContent className="pt-0">
-                {/* Batch Header Details */}
-                {batch.batchHeader && (
-                  <div className="mb-4 ml-6">
-                    <RecordDetailView record={batch.batchHeader} />
-                  </div>
-                )}
-
-                {/* Transactions */}
-                <div className="space-y-2 ml-6">
-                  {batch.transactions.map((transaction: any, transactionIndex: number) => {
-                    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
-                    const isTransactionExpanded = expandedTransactions.has(transactionKey);
-                    
-                    return (
-                      <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
-                        <CardHeader className="pb-2">
-                          <div 
-                            className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
-                            onClick={() => onToggleTransaction(batchIndex, transactionIndex)}
-                          >
-                            {isTransactionExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-gray-600" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-600" />
-                            )}
-                            
-                            <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
-                              {transaction.dtRecord.record_type}
-                            </Badge>
-                            
-                            {/* Card Type Badge for DT records in tree view header */}
-                            {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
-                              const cardType = extractCardType(transaction.dtRecord);
-                              
-                              return cardType ? (
-                                <span 
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
-                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
-                                >
-                                  <CreditCard className="h-3 w-3" />
-                                  {getCardTypeBadges(cardType).label}
-                                </span>
-                              ) : null;
-                            })()}
-                            
-                            <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
-                            <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
-                            
-                            {/* Merchant Account Number and Name for DT records */}
-                            {(() => {
-                              const merchantAccountNumber = extractMerchantAccountNumber(transaction.dtRecord);
-                              const merchantName = getMerchantName(merchantAccountNumber);
-                              return merchantAccountNumber ? (
-                                <div className="flex flex-col">
-                                  <span 
-                                    className="text-sm font-bold text-blue-600"
-                                    data-testid="dt-merchant-account-number"
-                                  >
-                                    • {merchantAccountNumber}
-                                  </span>
-                                  {merchantName && (
-                                    <span className="text-xs font-semibold text-green-600 ml-3">
-                                      {merchantName}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : null;
-                            })()}
-                            
-                            {/* Transaction Date and Amount for DT records - always show on right */}
-                            <div className="ml-auto flex items-center gap-3">
-                              {/* Transaction Date and Amount */}
-                              {(() => {
-                                const transactionDate = extractTransactionDate(transaction.dtRecord);
-                                const transactionAmount = extractTransactionAmount(transaction.dtRecord);
-                                return (transactionDate || transactionAmount !== null) ? (
-                                  <div className="flex items-center gap-3">
-                                    {transactionDate && (
-                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <CalendarIcon className="h-4 w-4" />
-                                        {transactionDate}
-                                      </span>
-                                    )}
-                                    {transactionAmount !== null && (
-                                      <span className="font-medium text-gray-700">
-                                        ${Number(transactionAmount).toFixed(2)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              {/* Extensions */}
-                              {transaction.extensions.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-600">{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
-                                  <div className="flex gap-1">
-                                    {transaction.extensions.slice(0, 3).map((ext: any, i: number) => (
-                                      <Badge key={i} variant="outline" className={`text-xs ${getRecordTypeBadgeColor(ext.record_type)} text-white`}>
-                                        {ext.record_type}
-                                      </Badge>
-                                    ))}
-                                    {transaction.extensions.length > 3 && (
-                                      <Badge variant="outline" className="text-xs">+{transaction.extensions.length - 3}</Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CardHeader>
-
-                        {/* Expanded Transaction Content */}
-                        {isTransactionExpanded && (
-                          <CardContent className="pt-0">
-                            {/* DT Record Details */}
-                            <div className="mb-3">
-                              <RecordDetailView record={transaction.dtRecord} />
-                            </div>
-
-                            {/* Extension Records */}
-                            {transaction.extensions.length > 0 && (
-                              <div className="ml-4 space-y-2">
-                                <h4 className="text-sm font-medium text-gray-700 mb-2">Extensions:</h4>
-                                {transaction.extensions.map((extension: any, extIndex: number) => (
-                                  <div key={extIndex} className="ml-2">
-                                    <RecordDetailView record={extension} />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </CardContent>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {/* Trailer */}
-                {batch.trailer && (
-                  <div className="mt-4 ml-6">
-                    <Card className="border-l-4 border-l-red-500 bg-red-50/30">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
-                            {batch.trailer.record_type}
-                          </Badge>
-                          <span className="font-medium">{getRecordTypeName(batch.trailer.record_type)}</span>
-                          <span className="text-sm text-gray-600">Line {batch.trailer.line_number}</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <RecordDetailView record={batch.trailer} />
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-              </CardContent>
-            )}
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-// Record Detail View Component
-function RecordDetailView({ record }: { record: any }) {
-  const [activeTab, setActiveTab] = useState<'fields' | 'raw'>('fields');
-  
-  // Parse TDDF record data
-  const parsedData = record.parsed_data || {};
-  const rawData = record.raw_data || '';
-  
-  // Define field order for BH records (batchId moved to end)
-  const BH_FIELD_ORDER = [
-    'sequenceNumber',
-    'entryRunNumber',
-    'sequenceWithinRun',
-    'recordIdentifier',
-    'bankNumber',
-    'merchantAccountNumber',
-    'associationNumber',
-    'groupNumber',
-    'transactionCode',
-    'batchDate',
-    'batchJulianDate',
-    'netDeposit',
-    'rejectReason',
-    'merchantReferenceNum',
-    'batchHeaderCarryIndicator',
-    'associationNumberBatch',
-    'merchantBankNumber',
-    'debitCreditIndicator',
-    'achPostingDate',
-    'batchId' // Moved to end
-  ];
-  
-  // Sort fields based on record type
-  const sortedEntries = record.record_type === 'BH' 
-    ? Object.entries(parsedData).sort(([keyA], [keyB]) => {
-        const indexA = BH_FIELD_ORDER.indexOf(keyA);
-        const indexB = BH_FIELD_ORDER.indexOf(keyB);
-        
-        // If field not in order array, put it at the end
-        if (indexA === -1 && indexB === -1) return 0;
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        
-        return indexA - indexB;
-      })
-    : Object.entries(parsedData);
-  
-  return (
-    <div className="w-full">
-      <div className="mb-4">
-        <h4 className="text-lg font-semibold mb-2">
-          {record.record_type} Record Details
-          <span className="ml-2 text-sm text-muted-foreground">Line {record.line_number}</span>
-        </h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <span className="font-medium text-muted-foreground">File:</span>
-            <p className="truncate" title={record.filename}>{record.filename || 'Unknown'}</p>
-          </div>
-          <div>
-            <span className="font-medium text-muted-foreground">Line Number:</span>
-            <p>{record.line_number || 'Unknown'}</p>
-          </div>
-          <div>
-            <span className="font-medium text-muted-foreground">Business Date:</span>
-            <p>{record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}</p>
-          </div>
-          <div>
-            <span className="font-medium text-muted-foreground">Record ID:</span>
-            <p>{record.id}</p>
-          </div>
-        </div>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'fields' | 'raw')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="fields" data-testid="tab-fields">Parsed Fields</TabsTrigger>
-          <TabsTrigger value="raw" data-testid="tab-raw">Raw Data</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="fields" className="mt-4">
-          <div className="space-y-2">
-            {Object.keys(parsedData).length > 0 ? (
-              sortedEntries.map(([key, value]) => (
-                <div key={key} className="flex justify-between items-start py-2 border-b border-border/40">
-                  <span className="font-medium text-sm capitalize">{key.replace(/_/g, ' ')}:</span>
-                  <span className="text-sm text-muted-foreground ml-4 text-right max-w-md break-all">
-                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-sm">No parsed fields available for this record.</p>
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="raw" className="mt-4">
-          <div className="bg-muted/30 p-4 rounded-md">
-            <pre className="text-xs font-mono whitespace-pre-wrap break-all">{rawData}</pre>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-// File View Display Component
-interface FileViewDisplayProps {
-  records: any[];
-  expandedFiles: Set<string>;
-  expandedFileBatches: Set<string>;
-  expandedFileTransactions: Set<string>;
-  onToggleFile: (filename: string) => void;
-  onToggleFileBatch: (filename: string, batchIndex: number) => void;
-  onToggleFileTransaction: (filename: string, batchIndex: number, transactionIndex: number) => void;
-  getRecordTypeBadgeColor: (type: string) => string;
-  getRecordTypeName: (type: string) => string;
-  formatFieldValue: (key: string, value: any) => string;
-  groupRecordsByFiles: (records: any[]) => any[];
-  getMerchantName: (merchantAccountNumber: string | null) => string | null;
-}
-
-function FileViewDisplay({ 
-  records, 
-  expandedFiles,
-  expandedFileBatches,
-  expandedFileTransactions,
-  onToggleFile,
-  onToggleFileBatch,
-  onToggleFileTransaction,
-  getRecordTypeBadgeColor, 
-  getRecordTypeName, 
-  formatFieldValue, 
-  groupRecordsByFiles,
-  getMerchantName
-}: FileViewDisplayProps) {
-  const fileGroups = groupRecordsByFiles(records);
-
-  return (
-    <div className="space-y-4">
-      {fileGroups.map((fileGroup, fileIndex) => {
-        const isFileExpanded = expandedFiles.has(fileGroup.filename);
-        
-        return (
-          <Card key={fileIndex} className="border-l-4 border-l-blue-600">
-            {/* File Header */}
-            <CardHeader className="pb-3">
-              <div 
-                className="flex items-center gap-3 cursor-pointer hover:bg-blue-50 -m-3 p-3 rounded"
-                onClick={() => onToggleFile(fileGroup.filename)}
-              >
-                {isFileExpanded ? (
-                  <ChevronDown className="w-5 h-5 text-gray-600" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
-                )}
-                
-                <FileText className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">{fileGroup.filename}</span>
-                
-                <div className="ml-auto flex items-center gap-4 text-sm">
-                  <Badge variant="outline" className="bg-green-50 border-green-200 text-green-800">
-                    {fileGroup.recordCounts.bh} BH
-                  </Badge>
-                  <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-800">
-                    {fileGroup.recordCounts.dt} DT  
-                  </Badge>
-                  <span className="text-gray-600">
-                    {fileGroup.recordCounts.total} total records
-                  </span>
-                </div>
-              </div>
-            </CardHeader>
-
-            {/* Expanded File Content */}
-            {isFileExpanded && (
-              <CardContent className="pt-0">
-                <div className="space-y-3 ml-8">
-                  {fileGroup.batches.map((batch: any, batchIndex: number) => {
-                    const batchKey = `${fileGroup.filename}-batch-${batchIndex}`;
-                    const isBatchExpanded = expandedFileBatches.has(batchKey);
-                    
-                    return (
-                      <Card key={batchIndex} className="border-l-4 border-l-green-500">
-                        {/* Batch Header */}
-                        <CardHeader className="pb-2">
-                          <div 
-                            className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
-                            onClick={() => onToggleFileBatch(fileGroup.filename, batchIndex)}
-                          >
-                            {isBatchExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-gray-600" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-600" />
-                            )}
-                            
-                            {batch.batchHeader ? (
-                              <>
-                                <Badge className={`text-white ${getRecordTypeBadgeColor(batch.batchHeader.record_type)}`}>
-                                  {batch.batchHeader.record_type}
-                                </Badge>
-                                <span className="font-medium">{getRecordTypeName(batch.batchHeader.record_type)}</span>
-                                <span className="text-sm text-gray-600">Line {batch.batchHeader.line_number}</span>
-                                
-                                {/* Merchant Account Number and Name for BH records */}
-                                {(() => {
-                                  const merchantAccountNumber = extractMerchantAccountNumber(batch.batchHeader);
-                                  const merchantName = getMerchantName(merchantAccountNumber);
-                                  return merchantAccountNumber ? (
-                                    <div className="flex flex-col">
-                                      <span className="text-sm font-bold text-blue-600">
-                                        • {merchantAccountNumber}
-                                      </span>
-                                      {merchantName && (
-                                        <span className="text-xs font-semibold text-green-600 ml-3">
-                                          {merchantName}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : null;
-                                })()}
-                              </>
-                            ) : (
-                              <>
-                                <Badge className="bg-gray-500 text-white">Batch</Badge>
-                                <span className="font-medium">Implicit Batch {batchIndex + 1}</span>
-                              </>
-                            )}
-                            
-                            <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
-                              <span>{batch.transactions.length} transaction{batch.transactions.length !== 1 ? 's' : ''}</span>
-                              {batch.trailer && <span>• Has Trailer</span>}
-                            </div>
-                          </div>
-                        </CardHeader>
-
-                        {/* Expanded Batch Content */}
-                        {isBatchExpanded && (
-                          <CardContent className="pt-0">
-                            {/* Batch Header Details */}
-                            {batch.batchHeader && (
-                              <div className="mb-4 ml-6">
-                                <RecordDetailView record={batch.batchHeader} />
-                              </div>
-                            )}
-
-                            {/* Transactions */}
-                            <div className="space-y-2 ml-6">
-                              {batch.transactions.map((transaction: any, transactionIndex: number) => {
-                                const transactionKey = `${fileGroup.filename}-transaction-${batchIndex}-${transactionIndex}`;
-                                const isTransactionExpanded = expandedFileTransactions.has(transactionKey);
-                                
-                                return (
-                                  <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
-                                    <CardHeader className="pb-2">
-                                      <div 
-                                        className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
-                                        onClick={() => onToggleFileTransaction(fileGroup.filename, batchIndex, transactionIndex)}
-                                      >
-                                        {isTransactionExpanded ? (
-                                          <ChevronDown className="w-4 h-4 text-gray-600" />
-                                        ) : (
-                                          <ChevronRight className="w-4 h-4 text-gray-600" />
-                                        )}
-                                        
-                                        <Badge className={`text-white ${getRecordTypeBadgeColor(transaction.dtRecord.record_type)}`}>
-                                          {transaction.dtRecord.record_type}
-                                        </Badge>
-                                        
-                                        {/* Card Type Badge for DT records */}
-                                        {(transaction.dtRecord.record_type === 'DT' || transaction.dtRecord.record_type === '47') && (() => {
-                                          const cardType = extractCardType(transaction.dtRecord);
-                                          const cardBadge = cardType ? getCardTypeBadges(cardType) : null;
-                                          
-                                          return cardBadge ? (
-                                            <Badge variant="outline" className={cardBadge.className}>
-                                              {cardBadge.label}
-                                            </Badge>
-                                          ) : null;
-                                        })()}
-                                        
-                                        <span className="font-medium">{getRecordTypeName(transaction.dtRecord.record_type)}</span>
-                                        <span className="text-sm text-gray-600">Line {transaction.dtRecord.line_number}</span>
-                                        
-                                        <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
-                                          {transaction.extensions.length > 0 && (
-                                            <span>{transaction.extensions.length} extension{transaction.extensions.length !== 1 ? 's' : ''}</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </CardHeader>
-
-                                    {/* Expanded Transaction Content */}
-                                    {isTransactionExpanded && (
-                                      <CardContent className="pt-0">
-                                        {/* Transaction Details */}
-                                        <div className="mb-4 ml-6">
-                                          <RecordDetailView record={transaction.dtRecord} />
-                                        </div>
-                                        
-                                        {/* Extensions */}
-                                        {transaction.extensions.length > 0 && (
-                                          <div className="space-y-2 ml-6">
-                                            {transaction.extensions.map((extension: any, extensionIndex: number) => (
-                                              <Card key={extensionIndex} className="border-l-4 border-l-purple-500 bg-purple-50/30">
-                                                <CardHeader className="pb-2">
-                                                  <div className="flex items-center gap-2">
-                                                    <Badge className={`text-white ${getRecordTypeBadgeColor(extension.record_type)}`}>
-                                                      {extension.record_type}
-                                                    </Badge>
-                                                    <span className="font-medium">{getRecordTypeName(extension.record_type)}</span>
-                                                    <span className="text-sm text-gray-600">Line {extension.line_number}</span>
-                                                  </div>
-                                                </CardHeader>
-                                                <CardContent className="pt-0">
-                                                  <RecordDetailView record={extension} />
-                                                </CardContent>
-                                              </Card>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </CardContent>
-                                    )}
-                                  </Card>
-                                );
-                              })}
-                            </div>
-
-                            {/* Trailer */}
-                            {batch.trailer && (
-                              <div className="mt-4 ml-6">
-                                <Card className="border-l-4 border-l-red-500 bg-red-50/30">
-                                  <CardHeader className="pb-2">
-                                    <div className="flex items-center gap-2">
-                                      <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
-                                        {batch.trailer.record_type}
-                                      </Badge>
-                                      <span className="font-medium">{getRecordTypeName(batch.trailer.record_type)}</span>
-                                      <span className="text-sm text-gray-600">Line {batch.trailer.line_number}</span>
-                                    </div>
-                                  </CardHeader>
-                                  <CardContent className="pt-0">
-                                    <RecordDetailView record={batch.trailer} />
-                                  </CardContent>
-                                </Card>
-                              </div>
-                            )}
-                          </CardContent>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-// Archive Data Tab Component
-function ArchiveDataTab() {
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(100);
-  const [recordType, setRecordType] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [archiveFileId, setArchiveFileId] = useState<string>('');
-  
-  // Fetch archive records
-  const { data: archiveData, isLoading } = useQuery<{
-    data: any[];
-    summary: { totalRecords: number; bhRecords: number; dtRecords: number; totalArchiveFiles: number };
-    pagination: { limit: number; offset: number; total: number };
-  }>({
-    queryKey: ['/api/tddf-api/all-archive-records', { 
-      limit: pageSize, 
-      offset: currentPage * pageSize, 
-      recordType: recordType !== 'all' ? recordType : undefined,
-      search: searchQuery || undefined,
-      archiveFileId: archiveFileId || undefined
-    }],
-    refetchInterval: false,
-    staleTime: 60000
-  });
-
-  const records = archiveData?.data || [];
-  const summary = archiveData?.summary || { totalRecords: 0, bhRecords: 0, dtRecords: 0, totalArchiveFiles: 0 };
-  const pagination = archiveData?.pagination || { limit: pageSize, offset: 0, total: 0 };
-  const totalPages = Math.ceil(pagination.total / pageSize);
-
-  return (
-    <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">BH Records</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">DT Records</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Archive Files</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalArchiveFiles.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Record Type</Label>
-              <Select value={recordType} onValueChange={setRecordType}>
-                <SelectTrigger data-testid="select-record-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="BH">BH (Batch Header)</SelectItem>
-                  <SelectItem value="DT">DT (Transaction)</SelectItem>
-                  <SelectItem value="BT">BT (Batch Trailer)</SelectItem>
-                  <SelectItem value="FH">FH (File Header)</SelectItem>
-                  <SelectItem value="FT">FT (File Trailer)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Search</Label>
-              <Input
-                placeholder="Search records..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Archive File ID</Label>
-              <Input
-                placeholder="Filter by archive file ID..."
-                value={archiveFileId}
-                onChange={(e) => setArchiveFileId(e.target.value)}
-                data-testid="input-archive-file-id"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Page Size</Label>
-              <Select value={pageSize.toString()} onValueChange={(v) => {
-                setPageSize(parseInt(v));
-                setCurrentPage(0);
-              }}>
-                <SelectTrigger data-testid="select-page-size">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="500">500</SelectItem>
-                  <SelectItem value="1000">1K</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Records Table */}
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : records.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No archive records found
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Record Type</TableHead>
-                    <TableHead>Line #</TableHead>
-                    <TableHead>Merchant Account</TableHead>
-                    <TableHead>Archive File</TableHead>
-                    <TableHead>Original Filename</TableHead>
-                    <TableHead>Archived At</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {records.map((record: any) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <Badge>{record.record_type}</Badge>
-                      </TableCell>
-                      <TableCell>{record.line_number}</TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {record.merchant_account_number || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {record.archive_filename || record.archive_file_id}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {record.original_filename || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {record.archived_at ? format(new Date(record.archived_at), "MMM d, yyyy HH:mm") : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" data-testid={`button-view-${record.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Pagination */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, pagination.total)} of {pagination.total.toLocaleString()} records
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(0)}
-                    disabled={currentPage === 0}
-                    data-testid="button-first-page"
-                  >
-                    First
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                    disabled={currentPage === 0}
-                    data-testid="button-prev-page"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm">
-                    Page {currentPage + 1} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                    disabled={currentPage >= totalPages - 1}
-                    data-testid="button-next-page"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(totalPages - 1)}
-                    disabled={currentPage >= totalPages - 1}
-                    data-testid="button-last-page"
-                  >
-                    Last
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function RawDataTab({ 
-  globalFilenameFilter, 
-  setGlobalFilenameFilter,
-  viewMode,
-  setViewMode,
-  getMerchantName
-}: { 
-  globalFilenameFilter: string; 
-  setGlobalFilenameFilter: (filename: string) => void; 
-  viewMode: 'tree' | 'flat' | 'file';
-  setViewMode: (mode: 'tree' | 'flat' | 'file') => void;
-  getMerchantName: (merchantAccountNumber: string | null) => string | null;
-}) {
-  const { toast } = useToast();
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(100);
-  const [recordType, setRecordType] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showRecords, setShowRecords] = useState(false);
-  const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
-  
-  // Tree view state
-  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
-  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
-  
-  // File view state
-  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
-  const [expandedFileBatches, setExpandedFileBatches] = useState<Set<string>>(new Set());
-  const [expandedFileTransactions, setExpandedFileTransactions] = useState<Set<string>>(new Set());
-  
-  // File filtering state (now using global state)
-  // const [rawDataFilenameFilter, setRawDataFilenameFilter] = useState<string>(''); // Moved to global state
-  
-  // Selection state for bulk operations
-  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
-  const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
-
-  // Global filename filtering state (now passed from main component)
-  
-  // Pagination options
-  const pageSizeOptions = [
-    { value: 10, label: '10' },
-    { value: 100, label: '100' },
-    { value: 500, label: '500' },
-    { value: 1000, label: '1K' },
-    { value: 3000, label: '3K' },
-    { value: 5000, label: '5K' },
-    { value: 10000, label: '10K' },
-    { value: 25000, label: '25K' },
-    { value: 50000, label: '50K' },
-    { value: 100000, label: '100K' },
-    { value: 150000, label: '150K' }
-  ];
-
-  // Tree view supporting functions
-  const getRecordTypeBadgeColor = (recordType: string) => {
-    switch (recordType) {
-      case '01': case 'BH': return 'bg-green-500 hover:bg-green-600';
-      case '47': case 'DT': return 'bg-blue-500 hover:bg-blue-600';
-      case '98': case 'TR': return 'bg-red-500 hover:bg-red-600';
-      case 'P1': return 'bg-purple-500 hover:bg-purple-600';
-      case 'P2': return 'bg-purple-600 hover:bg-purple-700';
-      case 'G2': return 'bg-indigo-500 hover:bg-indigo-600';
-      case 'A1': return 'bg-yellow-500 hover:bg-yellow-600';
-      case 'E1': return 'bg-pink-500 hover:bg-pink-600';
-      case 'LG': return 'bg-teal-500 hover:bg-teal-600';
-      case '10': return 'bg-green-600 hover:bg-green-700';
-      default: return 'bg-gray-500 hover:bg-gray-600';
-    }
-  };
-
-  const getRecordTypeName = (recordType: string) => {
-    switch (recordType) {
-      case '01': case 'BH': return 'Batch Header';
-      case '10': return 'File Header';
-      case '47': case 'DT': return 'Detail Transaction';
-      case '98': case 'TR': return 'Trailer';
-      case 'G2': return 'Geographic Extension';
-      case 'A1': return 'Airline Extension';
-      case 'E1': return 'E-Commerce Extension';
-      case 'P1': return 'Purchasing Card';
-      case 'P2': return 'Purchasing Card Ext';
-      case 'LG': return 'Lodge/Hotel';
-      default: return `Record ${recordType}`;
-    }
-  };
-
-  const formatFieldValue = (key: string, value: any) => {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'string' && value.trim() === '') return '-';
-    
-    if (key === 'merchantAccountNumber' && value) {
-      return value.toString().trim();
-    }
-    
-    if (typeof value === 'number') {
-      if (key.toLowerCase().includes('amount') || key.toLowerCase().includes('fee')) {
-        return (value / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-      }
-      return value.toLocaleString();
-    }
-    
-    if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
-      try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleString();
-        }
-      } catch (e) {
-        // Not a valid date, return as string
-      }
-    }
-    
-    return value.toString();
-  };
-
-  // Group records into hierarchical structure
-  const groupRecordsHierarchically = (records: any[]) => {
-    console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
-    
-    const recordTypes = Array.from(new Set(records.map(r => r.record_type)));
-    console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
-    
-    const batches: Array<{
-      batchHeader: any | null;
-      transactions: Array<{
-        dtRecord: any;
-        extensions: any[];
-      }>;
-      trailer: any | null;
-    }> = [];
-
-    let currentBatch: any = null;
-    let currentTransaction: any = null;
-
-    for (const record of records) {
-      const recordType = record.record_type;
-
-      if (['01', 'BH', '10', '02'].includes(recordType)) {
-        if (currentBatch) {
-          batches.push(currentBatch);
-        }
-        currentBatch = {
-          batchHeader: record,
-          transactions: [],
-          trailer: null
-        };
-        currentTransaction = null;
-        console.log(`[TREE-VIEW] Started new batch with header record type ${recordType}`);
-      }
-      else if (['47', 'DT'].includes(recordType)) {
-        if (!currentBatch) {
-          currentBatch = {
-            batchHeader: null,
-            transactions: [],
-            trailer: null
-          };
-        }
-        currentTransaction = {
-          dtRecord: record,
-          extensions: []
-        };
-        currentBatch.transactions.push(currentTransaction);
-        console.log(`[TREE-VIEW] Added transaction record type ${recordType} to batch`);
-      }
-      else if (['98', 'TR', '99'].includes(recordType)) {
-        if (currentBatch) {
-          currentBatch.trailer = record;
-        }
-      }
-      else {
-        if (currentTransaction) {
-          currentTransaction.extensions.push(record);
-          console.log(`[TREE-VIEW] Added extension record type ${recordType} to current transaction`);
-        }
-      }
-    }
-
-    if (currentBatch) {
-      batches.push(currentBatch);
-    }
-
-    console.log(`[TREE-VIEW] Created ${batches.length} batches`);
-    return batches;
-  };
-
-  // Group records by files for file-centric view
-  const groupRecordsByFiles = (records: any[]) => {
-    console.log(`[FILE-VIEW] Grouping ${records.length} records by filename`);
-    
-    const fileGroups: Record<string, any[]> = {};
-    
-    // Group records by filename
-    for (const record of records) {
-      const filename = record.filename || 'Unknown';
-      if (!fileGroups[filename]) {
-        fileGroups[filename] = [];
-      }
-      fileGroups[filename].push(record);
-    }
-    
-    // Convert to array with file-centric structure
-    const files = Object.entries(fileGroups).map(([filename, fileRecords]) => {
-      console.log(`[FILE-VIEW] Processing file: ${filename} with ${fileRecords.length} records`);
-      
-      // Group records within this file hierarchically (batches → transactions)
-      const batches = groupRecordsHierarchically(fileRecords);
-      
-      // Count record types within this file
-      const bhRecords = fileRecords.filter(r => ['01', 'BH', '10', '02'].includes(r.record_type)).length;
-      const dtRecords = fileRecords.filter(r => ['47', 'DT'].includes(r.record_type)).length;
-      
-      return {
-        filename,
-        records: fileRecords,
-        batches,
-        recordCounts: {
-          total: fileRecords.length,
-          bh: bhRecords,
-          dt: dtRecords
-        }
-      };
-    });
-    
-    console.log(`[FILE-VIEW] Created ${files.length} file groups`);
-    return files;
-  };
-
-  // Toggle handlers
-  const toggleBatchExpansion = (batchIndex: number) => {
-    const batchKey = `batch-${batchIndex}`;
-    setExpandedBatches(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(batchKey)) {
-        newSet.delete(batchKey);
-      } else {
-        newSet.add(batchKey);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleTransactionExpansion = (batchIndex: number, transactionIndex: number) => {
-    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
-    setExpandedTransactions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(transactionKey)) {
-        newSet.delete(transactionKey);
-      } else {
-        newSet.add(transactionKey);
-      }
-      return newSet;
-    });
-  };
-
-  // File view toggle handlers
-  const toggleFileExpansion = (filename: string) => {
-    setExpandedFiles(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(filename)) {
-        newSet.delete(filename);
-      } else {
-        newSet.add(filename);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleFileBatchExpansion = (filename: string, batchIndex: number) => {
-    const batchKey = `${filename}-batch-${batchIndex}`;
-    setExpandedFileBatches(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(batchKey)) {
-        newSet.delete(batchKey);
-      } else {
-        newSet.add(batchKey);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleFileTransactionExpansion = (filename: string, batchIndex: number, transactionIndex: number) => {
-    const transactionKey = `${filename}-transaction-${batchIndex}-${transactionIndex}`;
-    setExpandedFileTransactions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(transactionKey)) {
-        newSet.delete(transactionKey);
-      } else {
-        newSet.add(transactionKey);
-      }
-      return newSet;
-    });
-  };
-
-  // Selection handlers for bulk operations
-  const handleSelectRecord = (recordId: number) => {
-    const newSelected = new Set(selectedRecords);
-    if (newSelected.has(recordId)) {
-      newSelected.delete(recordId);
-    } else {
-      newSelected.add(recordId);
-    }
-    setSelectedRecords(newSelected);
-    
-    // Update select all state
-    if (newSelected.size === 0) {
-      setIsSelectAllChecked(false);
-    } else if (newSelected.size === records.length) {
-      setIsSelectAllChecked(true);
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (isSelectAllChecked || selectedRecords.size === records.length) {
-      // Deselect all
-      setSelectedRecords(new Set());
-      setIsSelectAllChecked(false);
-    } else {
-      // Select all visible records
-      const allRecordIds = new Set(records.map((record: any) => record.id) as number[]);
-      setSelectedRecords(allRecordIds);
-      setIsSelectAllChecked(true);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedRecords.size === 0) {
-      toast({
-        title: "No Records Selected",
-        description: "Please select records to delete.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const recordIds = Array.from(selectedRecords);
-      await apiRequest('/api/tddf-api/records/bulk-delete', {
-        method: 'DELETE',
-        body: JSON.stringify({ recordIds }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      toast({
-        title: "Records Deleted",
-        description: `Successfully deleted ${recordIds.length} records.`,
-      });
-
-      // Clear selection and refetch data
-      setSelectedRecords(new Set());
-      setIsSelectAllChecked(false);
-      refetch();
-    } catch (error) {
-      console.error('Error deleting records:', error);
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete selected records. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Fetch raw data with React Query
-  const { data: rawData, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/tddf-api/all-records', { 
-      limit: pageSize, 
-      offset: currentPage * pageSize,
-      recordType: recordType === 'all' ? undefined : recordType,
-      search: searchQuery || undefined,
-      filename: globalFilenameFilter || undefined
-    }],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        limit: pageSize.toString(),
-        offset: (currentPage * pageSize).toString()
-      });
-      
-      if (recordType !== 'all') {
-        params.append('recordType', recordType);
-      }
-      
-      if (searchQuery) {
-        params.append('search', searchQuery);
-      }
-      
-      if (globalFilenameFilter) {
-        params.append('filename', globalFilenameFilter);
-      }
-      
-      return await apiRequest(`/api/tddf-api/all-records?${params}`);
-    },
-    enabled: showRecords,
-    refetchOnWindowFocus: false
-  });
-
-  const summary = (rawData as any)?.summary || {
-    totalRecords: 0,
-    bhRecords: 0,
-    dtRecords: 0,
-    totalFiles: 0
-  };
-
-  const records = (rawData as any)?.data || [];
-  const totalPages = (rawData as any)?.pagination?.total ? Math.ceil((rawData as any).pagination.total / pageSize) : 0;
-
-  const handleShowAllRecords = () => {
-    setShowRecords(true);
-    setCurrentPage(0);
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(0);
-  };
-
-  const handleSearch = () => {
-    setCurrentPage(0);
-    refetch();
-  };
-
-  const formatRecordContent = (record: any) => {
-    if (record.parsed_data && Object.keys(record.parsed_data).length > 0) {
-      return Object.entries(record.parsed_data)
-        .slice(0, 3) // Show first 3 parsed fields
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(' | ');
-    }
-    return record.raw_data ? record.raw_data.substring(0, 100) + '...' : 'No data';
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Filename Filter Indicator */}
-      {globalFilenameFilter && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-900">
-              Filtered by file: <code className="bg-white px-2 py-1 rounded text-xs">{globalFilenameFilter}</code>
-            </span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setGlobalFilenameFilter('')}
-              className="ml-auto h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
-              title="Clear filename filter"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Summary Cards - Matching the design from attached image */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">BH Records</p>
-                <p className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Batch Headers</p>
-              </div>
-              <Database className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">DT Records</p>
-                <p className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Detail Transactions</p>
-              </div>
-              <BarChart3 className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">Total Records</p>
-                <p className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">All Types</p>
-              </div>
-              <Activity className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Controls Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Raw Data Controls</CardTitle>
-              <CardDescription>Configure pagination and filters for TDDF records</CardDescription>
-            </div>
-            {!showRecords && (
-              <Button 
-                onClick={handleShowAllRecords}
-                className="bg-blue-600 hover:bg-blue-700"
-                data-testid="button-show-all-records"
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Show All Records
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Pagination Size */}
-            <div>
-              <Label>Records per page</Label>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={(value) => handlePageSizeChange(parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value.toString()}>
-                      {option.label} records
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Record Type Filter */}
-            <div>
-              <Label>Record Type</Label>
-              <Select 
-                value={recordType} 
-                onValueChange={setRecordType}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="BH">BH - Batch Header</SelectItem>
-                  <SelectItem value="DT">DT - Detail Transaction</SelectItem>
-                  <SelectItem value="G2">G2 - Geographic Data</SelectItem>
-                  <SelectItem value="P1">P1 - Processing Data</SelectItem>
-                  <SelectItem value="E1">E1 - Enhanced Data</SelectItem>
-                  <SelectItem value="DR">DR - Detail Record</SelectItem>
-                  <SelectItem value="TR">TR - Trailer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* View Mode */}
-            <div>
-              <Label>View Mode</Label>
-              <Select 
-                value={viewMode} 
-                onValueChange={(value: 'tree' | 'flat' | 'file') => setViewMode(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="flat">Flat View</SelectItem>
-                  <SelectItem value="tree">Tree View</SelectItem>
-                  <SelectItem value="file">File View</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Search */}
-            <div>
-              <Label>Search</Label>
-              <Input
-                placeholder="Search raw data..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
-
-            {/* Search Button */}
-            <div className="flex items-end">
-              <Button onClick={handleSearch} variant="outline" className="w-full">
-                <Search className="mr-2 h-4 w-4" />
-                Search
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Records Table */}
-      {showRecords && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>TDDF Records ({records.length} of {(rawData as any)?.pagination?.total || 0})</CardTitle>
-                <CardDescription>Raw TDDF data with parsed fields</CardDescription>
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                    disabled={currentPage === 0 || isLoading}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Page {currentPage + 1} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                    disabled={currentPage >= totalPages - 1 || isLoading}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                Loading records...
-              </div>
-            ) : error ? (
-              <div className="text-center py-8 text-red-600">
-                Error loading records: {error instanceof Error ? error.message : 'Unknown error'}
-              </div>
-            ) : records.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No records found matching your criteria
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {/* Bulk Operation Controls */}
-                {selectedRecords.size > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <CheckSquare className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                        {selectedRecords.size} record{selectedRecords.size !== 1 ? 's' : ''} selected
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBulkDelete}
-                        disabled={selectedRecords.size === 0}
-                        data-testid="button-bulk-delete"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete Selected
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedRecords(new Set());
-                          setIsSelectAllChecked(false);
-                        }}
-                        data-testid="button-clear-selection"
-                      >
-                        Clear Selection
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Flat View Display */}
-                {viewMode === 'flat' && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={isSelectAllChecked}
-                            onCheckedChange={handleSelectAll}
-                            data-testid="checkbox-select-all"
-                          />
-                        </TableHead>
-                        <TableHead className="w-20">Type</TableHead>
-                        <TableHead>Content</TableHead>
-                        <TableHead className="w-40">File</TableHead>
-                        <TableHead className="w-16">Line</TableHead>
-                        <TableHead className="w-32">Business Day</TableHead>
-                        <TableHead className="w-24">Scheduled Slot</TableHead>
-                        <TableHead className="w-16">View</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {records.map((record: any) => [
-                      <TableRow key={record.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedRecords.has(record.id)}
-                            onCheckedChange={() => handleSelectRecord(record.id)}
-                            data-testid={`checkbox-record-${record.id}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : record.record_type === 'DT' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
-                              variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
-                            >
-                              {record.record_type}
-                            </Badge>
-                            {/* Show card type badge for DT records */}
-                            {(record.record_type === 'DT' || record.record_type === '47') && (() => {
-                              const cardType = extractCardType(record);
-                              
-                              return cardType ? (
-                                <span 
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
-                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
-                                >
-                                  <CreditCard className="h-3 w-3" />
-                                  {getCardTypeBadges(cardType).label}
-                                </span>
-                              ) : null;
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          {record.record_type === 'BH' ? (
-                            <div className="flex items-center gap-3 text-sm">
-                              {/* Merchant Account and Name */}
-                              {(() => {
-                                const merchantAccountNumber = extractMerchantAccountNumber(record);
-                                const merchantName = getMerchantName(merchantAccountNumber);
-                                return merchantAccountNumber ? (
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-blue-600">
-                                      {merchantAccountNumber}
-                                    </span>
-                                    {merchantName && (
-                                      <span className="text-xs font-semibold text-green-600">
-                                        {merchantName}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              {/* Batch Date and Net Deposit */}
-                              {(() => {
-                                const batchDate = extractBatchDate(record);
-                                const netDeposit = record.parsed_data?.netDeposit || record.record_data?.netDeposit;
-                                return (batchDate || netDeposit) ? (
-                                  <div className="ml-auto flex items-center gap-3">
-                                    {batchDate && (
-                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <CalendarIcon className="h-4 w-4" />
-                                        {batchDate}
-                                      </span>
-                                    )}
-                                    {netDeposit && (
-                                      <span className="font-medium text-gray-700">
-                                        ${Number(netDeposit).toFixed(2)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                            </div>
-                          ) : (record.record_type === 'DT' || record.record_type === '47') ? (
-                            <div className="flex items-center gap-3 text-sm">
-                              {/* Merchant Account and Name for DT records */}
-                              {(() => {
-                                const merchantAccountNumber = extractMerchantAccountNumber(record);
-                                const merchantName = getMerchantName(merchantAccountNumber);
-                                return merchantAccountNumber ? (
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-blue-600">
-                                      {merchantAccountNumber}
-                                    </span>
-                                    {merchantName && (
-                                      <span className="text-xs font-semibold text-green-600">
-                                        {merchantName}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              {/* Transaction Date and Amount */}
-                              {(() => {
-                                const transactionDate = extractTransactionDate(record);
-                                const transactionAmount = extractTransactionAmount(record);
-                                return (transactionDate || transactionAmount !== null) ? (
-                                  <div className="ml-auto flex items-center gap-3">
-                                    {transactionDate && (
-                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <CalendarIcon className="h-4 w-4" />
-                                        {transactionDate}
-                                      </span>
-                                    )}
-                                    {transactionAmount !== null && (
-                                      <span className="font-medium text-gray-700">
-                                        ${Number(transactionAmount).toFixed(2)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                            </div>
-                          ) : (
-                            <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
-                              {formatRecordContent(record)}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="truncate text-sm" title={record.original_filename || record.filename}>
-                          {record.original_filename || record.filename || 'Unknown'}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
-                        <TableCell className="text-sm">
-                          {record.file_processing_date ? format(new Date(record.file_processing_date), 'MMM d, yyyy') : 
-                           record.business_day ? format(new Date(record.business_day), 'MMM d, yyyy') : 'Unknown'}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {record.scheduledSlotLabel ? (
-                            <Badge variant="outline" className="text-xs">
-                              {record.scheduledSlotLabel}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
-                            data-testid={`button-view-record-${record.id}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>,
-                      expandedRecord === record.id && (
-                        <TableRow key={`${record.id}-detail`}>
-                          <TableCell colSpan={8} className="p-0">
-                            <div className="border-t bg-muted/30 p-4">
-                              <RecordDetailView record={record} />
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                      ]).flat().filter(Boolean)}
-                    </TableBody>
-                  </Table>
-                )}
-
-                {/* Tree View Display */}
-                {viewMode === 'tree' && (
-                  <TreeViewDisplay 
-                    records={records}
-                    expandedBatches={expandedBatches}
-                    expandedTransactions={expandedTransactions}
-                    onToggleBatch={toggleBatchExpansion}
-                    onToggleTransaction={toggleTransactionExpansion}
-                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
-                    getRecordTypeName={getRecordTypeName}
-                    formatFieldValue={formatFieldValue}
-                    groupRecordsHierarchically={groupRecordsHierarchically}
-                    getMerchantName={getMerchantName}
-                  />
-                )}
-
-                {/* File View Display */}
-                {viewMode === 'file' && (
-                  <FileViewDisplay 
-                    records={records}
-                    expandedFiles={expandedFiles}
-                    expandedFileBatches={expandedFileBatches}
-                    expandedFileTransactions={expandedFileTransactions}
-                    onToggleFile={toggleFileExpansion}
-                    onToggleFileBatch={toggleFileBatchExpansion}
-                    onToggleFileTransaction={toggleFileTransactionExpansion}
-                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
-                    getRecordTypeName={getRecordTypeName}
-                    formatFieldValue={formatFieldValue}
-                    groupRecordsByFiles={groupRecordsByFiles}
-                    getMerchantName={getMerchantName}
-                  />
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
 
