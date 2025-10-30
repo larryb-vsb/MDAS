@@ -429,6 +429,14 @@ function DraggableCircles({
   );
 }
 
+// Helper function to parse ISO date strings without timezone shifts
+// Converts "2025-10-29" to Oct 29, 2025 in local timezone (not Oct 28)
+function parseISODateLocal(dateStr: string | null): Date | null {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day); // month is 0-indexed
+}
+
 function Tddf1Page() {
   // Default to today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -2373,21 +2381,21 @@ function Tddf1Page() {
                                           
                                           {/* Key Dates Display */}
                                           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                            {file.filenameDate && (
+                                            {file.filenameDate && parseISODateLocal(file.filenameDate) && (
                                               <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-                                                <span className="font-semibold">Filename Date:</span> {format(new Date(file.filenameDate), "MMM d, yyyy")}
+                                                <span className="font-semibold">Filename Date:</span> {format(parseISODateLocal(file.filenameDate)!, "MMM d, yyyy")}
                                               </div>
                                             )}
-                                            {file.primaryBatchDate && (
+                                            {file.primaryBatchDate && parseISODateLocal(file.primaryBatchDate) && (
                                               <div className={`${file.filenameDate !== file.primaryBatchDate ? (isDarkMode ? "text-yellow-400" : "text-yellow-600") : (isDarkMode ? "text-green-400" : "text-green-600")}`}>
-                                                <span className="font-semibold">Batch Date:</span> {format(new Date(file.primaryBatchDate), "MMM d, yyyy")}
-                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && ` - ${format(new Date(file.maxBatchDate), "MMM d")}`}
+                                                <span className="font-semibold">Batch Date:</span> {format(parseISODateLocal(file.primaryBatchDate)!, "MMM d, yyyy")}
+                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && parseISODateLocal(file.maxBatchDate) && ` - ${format(parseISODateLocal(file.maxBatchDate)!, "MMM d")}`}
                                               </div>
                                             )}
-                                            {file.minTransactionDate && (
+                                            {file.minTransactionDate && parseISODateLocal(file.minTransactionDate) && (
                                               <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-                                                <span className="font-semibold">Txn Dates:</span> {format(new Date(file.minTransactionDate), "MMM d, yyyy")}
-                                                {file.maxTransactionDate && file.maxTransactionDate !== file.minTransactionDate && ` - ${format(new Date(file.maxTransactionDate), "MMM d")}`}
+                                                <span className="font-semibold">Txn Dates:</span> {format(parseISODateLocal(file.minTransactionDate)!, "MMM d, yyyy")}
+                                                {file.maxTransactionDate && file.maxTransactionDate !== file.minTransactionDate && parseISODateLocal(file.maxTransactionDate) && ` - ${format(parseISODateLocal(file.maxTransactionDate)!, "MMM d")}`}
                                               </div>
                                             )}
                                           </div>
@@ -2506,21 +2514,21 @@ function Tddf1Page() {
                                           
                                           {/* Key Dates Display */}
                                           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                            {file.filenameDate && (
+                                            {file.filenameDate && parseISODateLocal(file.filenameDate) && (
                                               <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-                                                <span className="font-semibold">Filename Date:</span> {format(new Date(file.filenameDate), "MMM d, yyyy")}
+                                                <span className="font-semibold">Filename Date:</span> {format(parseISODateLocal(file.filenameDate)!, "MMM d, yyyy")}
                                               </div>
                                             )}
-                                            {file.primaryBatchDate && (
+                                            {file.primaryBatchDate && parseISODateLocal(file.primaryBatchDate) && (
                                               <div className={`${file.filenameDate !== file.primaryBatchDate ? (isDarkMode ? "text-yellow-400" : "text-yellow-600") : (isDarkMode ? "text-green-400" : "text-green-600")}`}>
-                                                <span className="font-semibold">Batch Date:</span> {format(new Date(file.primaryBatchDate), "MMM d, yyyy")}
-                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && ` - ${format(new Date(file.maxBatchDate), "MMM d")}`}
+                                                <span className="font-semibold">Batch Date:</span> {format(parseISODateLocal(file.primaryBatchDate)!, "MMM d, yyyy")}
+                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && parseISODateLocal(file.maxBatchDate) && ` - ${format(parseISODateLocal(file.maxBatchDate)!, "MMM d")}`}
                                               </div>
                                             )}
-                                            {file.minTransactionDate && (
+                                            {file.minTransactionDate && parseISODateLocal(file.minTransactionDate) && (
                                               <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-                                                <span className="font-semibold">Txn Dates:</span> {format(new Date(file.minTransactionDate), "MMM d, yyyy")}
-                                                {file.maxTransactionDate && file.maxTransactionDate !== file.minTransactionDate && ` - ${format(new Date(file.maxTransactionDate), "MMM d")}`}
+                                                <span className="font-semibold">Txn Dates:</span> {format(parseISODateLocal(file.minTransactionDate)!, "MMM d, yyyy")}
+                                                {file.maxTransactionDate && file.maxTransactionDate !== file.minTransactionDate && parseISODateLocal(file.maxTransactionDate) && ` - ${format(parseISODateLocal(file.maxTransactionDate)!, "MMM d")}`}
                                               </div>
                                             )}
                                           </div>
