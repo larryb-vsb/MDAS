@@ -24,7 +24,7 @@ export function formatCompactCurrency(amount: number): string {
   
   if (absAmount < 1000) {
     return `${sign}$${absAmount.toFixed(0)}`;
-  } else if (absAmount < 1000000) {
+  } else if (absAmount < 999500) {
     const k = absAmount / 1000;
     if (k < 10) {
       return `${sign}$${k.toFixed(1)}K`;
@@ -33,7 +33,7 @@ export function formatCompactCurrency(amount: number): string {
     } else {
       return `${sign}$${k.toFixed(0)}K`;
     }
-  } else if (absAmount < 1000000000) {
+  } else if (absAmount < 999500000) {
     const m = absAmount / 1000000;
     if (m < 10) {
       return `${sign}$${m.toFixed(1)}M`;
