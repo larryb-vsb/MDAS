@@ -1097,8 +1097,16 @@ export function registerTddfCacheRoutes(app: Express) {
           OR
           (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
         )
-        GROUP BY date
-        HAVING date IS NOT NULL
+        GROUP BY COALESCE(
+          CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+               WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+          END
+        )
+        HAVING COALESCE(
+          CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+               WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+          END
+        ) IS NOT NULL
         ORDER BY date
       `, [startDate, endDate]);
       
@@ -1174,8 +1182,16 @@ export function registerTddfCacheRoutes(app: Express) {
             OR
             (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
           )
-          GROUP BY date
-          HAVING date IS NOT NULL
+          GROUP BY COALESCE(
+            CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+                 WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+            END
+          )
+          HAVING COALESCE(
+            CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+                 WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+            END
+          ) IS NOT NULL
           ORDER BY date
         `, [startDate, endDate]);
         
