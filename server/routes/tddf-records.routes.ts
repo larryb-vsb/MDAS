@@ -1913,13 +1913,26 @@ export function registerTddfRecordsRoutes(app: Express) {
       }
 
       // Add filename condition only if filename is provided (for both queries since both will have JOIN)
+      // Support comma-separated filenames for multi-file filtering
       if (filename) {
-        summaryWhereConditions.push(`u.filename = $${summaryParamIndex}`);
-        recordsWhereConditions.push(`u.filename = $${recordsParamIndex}`);
-        summaryParams.push(filename as string);
-        recordsParams.push(filename as string);
-        summaryParamIndex++;
-        recordsParamIndex++;
+        const filenames = (filename as string).split(',').map(f => f.trim()).filter(f => f);
+        if (filenames.length === 1) {
+          // Single filename - use simple equality
+          summaryWhereConditions.push(`u.filename = $${summaryParamIndex}`);
+          recordsWhereConditions.push(`u.filename = $${recordsParamIndex}`);
+          summaryParams.push(filenames[0]);
+          recordsParams.push(filenames[0]);
+          summaryParamIndex++;
+          recordsParamIndex++;
+        } else if (filenames.length > 1) {
+          // Multiple filenames - use ANY with array
+          summaryWhereConditions.push(`u.filename = ANY($${summaryParamIndex}::text[])`);
+          recordsWhereConditions.push(`u.filename = ANY($${recordsParamIndex}::text[])`);
+          summaryParams.push(filenames);
+          recordsParams.push(filenames);
+          summaryParamIndex++;
+          recordsParamIndex++;
+        }
       }
       
       // Add merchant_account filtering (normalize to 16-digit format)
