@@ -1067,9 +1067,9 @@ function Tddf1Page() {
                   <CardTitle
                     className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
                   >
-                    Net Deposits for day
+                    Authorizations
                   </CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <DollarSign className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent className="pt-0 p-2">
                   <div
@@ -1077,7 +1077,7 @@ function Tddf1Page() {
                   >
                     {dayLoading
                       ? "..."
-                      : formatCompactCurrency(dayBreakdown?.netDeposits ?? 0)}
+                      : formatCompactCurrency(dayBreakdown?.totalTransactionValue ?? 0)}
                   </div>
                 </CardContent>
               </Card>
@@ -1089,9 +1089,9 @@ function Tddf1Page() {
                   <CardTitle
                     className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}
                   >
-                    Authorizations
+                    Net Deposits for day
                   </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent className="pt-0 p-2">
                   <div
@@ -1099,7 +1099,7 @@ function Tddf1Page() {
                   >
                     {dayLoading
                       ? "..."
-                      : formatCompactCurrency(dayBreakdown?.totalTransactionValue ?? 0)}
+                      : formatCompactCurrency(dayBreakdown?.netDeposits ?? 0)}
                   </div>
                 </CardContent>
               </Card>
