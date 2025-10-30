@@ -2271,6 +2271,23 @@ export default function TddfApiDataPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   
+  // Read URL parameters on mount to handle deep linking from other pages
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const filenamesParam = urlParams.get('filenames');
+    
+    // Switch to raw-data tab if specified
+    if (tabParam === 'rawData' || tabParam === 'raw-data') {
+      setActiveTab('raw-data');
+    }
+    
+    // Apply filename filter if specified (comma-separated list)
+    if (filenamesParam) {
+      setGlobalFilenameFilter(filenamesParam);
+    }
+  }, []);
+  
   // Archive management state
   const [archiveFilters, setArchiveFilters] = useState({
     archiveStatus: 'all',
