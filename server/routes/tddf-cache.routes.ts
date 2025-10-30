@@ -1016,7 +1016,7 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Monthly Totals
+  // TDDF1 Monthly Totals - Query master table directly
   app.get('/api/tddf1/monthly-totals', isAuthenticated, async (req, res) => {
     console.log('📅 Getting TDDF1 monthly totals');
     
@@ -1027,88 +1027,94 @@ export function registerTddfCacheRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
       }
       
-      // Environment-aware table naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
-      const totalsTableName = `${envPrefix}tddf1_totals`;
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderTableName = getTableName('uploader_uploads');
       
-      console.log(`📅 [MONTHLY-TOTALS] Environment: ${environment}, Using table: ${totalsTableName}`);
+      console.log(`📅 [MONTHLY-TOTALS] Querying master table: ${masterTableName}`);
       
       const [year, monthNum] = month.split('-');
       const startDate = `${month}-01`;
-      // Get last day of the month correctly - month index is 0-based, so we use parseInt(monthNum) directly
       const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
       const endDate = `${year}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
       
-      console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate} (strict date filtering)`);
+      console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
-      // Get aggregated data for the entire month from new monthly cache or individual file totals  
+      // Get aggregated totals for the entire month from master table
       const monthlyTotals = await pool.query(`
         SELECT 
-          $1 as month,
-          COUNT(*) as total_files,
-          SUM(total_records) as total_records,
-          SUM(total_transaction_amounts) as total_transaction_value,
-          SUM(total_net_deposits) as total_net_deposit_bh
-        FROM ${totalsTableName} 
-        WHERE file_date >= $2 AND file_date <= $3
-          AND EXTRACT(YEAR FROM file_date) = $4
-          AND EXTRACT(MONTH FROM file_date) = $5
-      `, [month, startDate, endDate, parseInt(year), parseInt(monthNum)]);
+          COUNT(*) as total_records,
+          COUNT(DISTINCT upload_id) as total_files,
+          COUNT(CASE WHEN record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN record_type = 'G2' THEN 1 END) as g2_records,
+          COUNT(CASE WHEN record_type = 'E1' THEN 1 END) as e1_records,
+          COUNT(CASE WHEN record_type = 'P1' THEN 1 END) as p1_records,
+          COUNT(CASE WHEN record_type = 'P2' THEN 1 END) as p2_records,
+          COUNT(CASE WHEN record_type = 'DR' THEN 1 END) as dr_records,
+          COUNT(CASE WHEN record_type = 'AD' THEN 1 END) as ad_records,
+          COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as total_net_deposit_bh,
+          COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as total_transaction_value
+        FROM ${masterTableName}
+        WHERE (
+          (record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+          OR
+          (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+          OR
+          (record_type IN ('G2', 'E1', 'P1', 'P2', 'DR', 'AD') AND upload_id IN (
+            SELECT DISTINCT upload_id FROM ${masterTableName}
+            WHERE record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2
+          ))
+        )
+      `, [startDate, endDate]);
       
-      // Get record type breakdown for the month using environment-aware table name
-      const recordTypeData = await pool.query(`
-        SELECT 
-          total_records, 
-          JSONB_BUILD_OBJECT('BH', 1, 'DT', total_records - 1) as breakdown
-        FROM ${totalsTableName} 
-        WHERE file_date >= $1 AND file_date <= $2
-          AND EXTRACT(YEAR FROM file_date) = $3
-          AND EXTRACT(MONTH FROM file_date) = $4
-      `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
+      const summary = monthlyTotals.rows[0];
+      const recordTypeBreakdown: Record<string, number> = {
+        'BH': parseInt(summary.bh_records) || 0,
+        'DT': parseInt(summary.dt_records) || 0,
+        'G2': parseInt(summary.g2_records) || 0,
+        'E1': parseInt(summary.e1_records) || 0,
+        'P1': parseInt(summary.p1_records) || 0,
+        'P2': parseInt(summary.p2_records) || 0,
+        'DR': parseInt(summary.dr_records) || 0,
+        'AD': parseInt(summary.ad_records) || 0
+      };
       
-      // Aggregate all record type breakdowns
-      const aggregatedBreakdown: Record<string, number> = {};
-      recordTypeData.rows.forEach(row => {
-        const breakdown = row.breakdown || {};
-        Object.entries(breakdown).forEach(([type, count]) => {
-          aggregatedBreakdown[type] = (aggregatedBreakdown[type] || 0) + (count as number);
-        });
-      });
-      
-      // Get daily breakdown for the month using environment-aware table name
+      // Get daily breakdown - aggregate by date
       const dailyBreakdown = await pool.query(`
         SELECT 
-          processing_date as date,
-          1 as files,
-          total_records as records,
-          dt_transaction_amounts as transaction_value,
-          bh_net_deposits as net_deposit_bh,
-          id,
-          created_at
-        FROM ${totalsTableName} 
-        WHERE file_date >= $1 AND file_date <= $2
-          AND EXTRACT(YEAR FROM file_date) = $3
-          AND EXTRACT(MONTH FROM file_date) = $4
-        ORDER BY processing_date, created_at
-      `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
+          COALESCE(
+            CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+                 WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+            END
+          ) as date,
+          COUNT(DISTINCT upload_id) as files,
+          COUNT(*) as records,
+          COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
+          COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
+        FROM ${masterTableName}
+        WHERE (
+          (record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+          OR
+          (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+        )
+        GROUP BY date
+        HAVING date IS NOT NULL
+        ORDER BY date
+      `, [startDate, endDate]);
       
       const result = {
         month,
-        totalFiles: parseInt(monthlyTotals.rows[0]?.total_files || '0'),
-        totalRecords: parseInt(monthlyTotals.rows[0]?.total_records || '0'),
-        totalTransactionValue: parseFloat(monthlyTotals.rows[0]?.total_transaction_value || '0'),
-        totalNetDepositBh: parseFloat(monthlyTotals.rows[0]?.total_net_deposit_bh || '0'),
-        recordTypeBreakdown: aggregatedBreakdown,
-        dailyBreakdown: dailyBreakdown.rows.map((entry, index) => ({
+        totalFiles: parseInt(summary.total_files) || 0,
+        totalRecords: parseInt(summary.total_records) || 0,
+        totalTransactionValue: parseFloat(summary.total_transaction_value) || 0,
+        totalNetDepositBh: parseFloat(summary.total_net_deposit_bh) || 0,
+        recordTypeBreakdown,
+        dailyBreakdown: dailyBreakdown.rows.map((entry) => ({
           date: entry.date,
           files: parseInt(entry.files),
           records: parseInt(entry.records),
           transactionValue: parseFloat(entry.transaction_value || '0'),
-          netDepositBh: parseFloat(entry.net_deposit_bh || '0'),
-          entryId: entry.id,
-          fileIndex: index + 1 // Show which file this is for the day
+          netDepositBh: parseFloat(entry.net_deposit_bh || '0')
         }))
       };
       
@@ -1121,7 +1127,7 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Monthly Comparison - Current and Previous Month
+  // TDDF1 Monthly Comparison - Current and Previous Month - Query master table directly
   app.get('/api/tddf1/monthly-comparison', isAuthenticated, async (req, res) => {
     console.log('📅 Getting TDDF1 monthly comparison');
     
@@ -1132,13 +1138,9 @@ export function registerTddfCacheRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
       }
       
-      // Environment-aware table naming
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
-      const totalsTableName = `${envPrefix}tddf1_totals`;
+      const masterTableName = getTableName('tddf_jsonb');
       
-      console.log(`📅 [MONTHLY-COMPARISON] Environment: ${environment}, Using table: ${totalsTableName}`);
+      console.log(`📅 [MONTHLY-COMPARISON] Querying master table: ${masterTableName}`);
       
       const [year, monthNum] = month.split('-');
       
@@ -1147,38 +1149,43 @@ export function registerTddfCacheRoutes(app: Express) {
       const previousDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
       const previousMonth = `${previousDate.getFullYear()}-${(previousDate.getMonth() + 1).toString().padStart(2, '0')}`;
       
-      // Helper function to get month data
+      // Helper function to get month data from master table
       const getMonthData = async (targetMonth: string) => {
         const [yr, mth] = targetMonth.split('-');
         const startDate = `${targetMonth}-01`;
         const lastDay = new Date(parseInt(yr), parseInt(mth), 0).getDate();
         const endDate = `${yr}-${mth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         
-        // Get daily breakdown for the month using environment-aware table name
+        // Get daily breakdown for the month from master table
         const dailyBreakdown = await pool.query(`
           SELECT 
-            processing_date as date,
-            1 as files,
-            total_records as records,
-            dt_transaction_amounts as transaction_value,
-            bh_net_deposits as net_deposit_bh,
-            id,
-            created_at
-          FROM ${totalsTableName} 
-          WHERE file_date >= $1 AND file_date <= $2
-            AND EXTRACT(YEAR FROM file_date) = $3
-            AND EXTRACT(MONTH FROM file_date) = $4
-          ORDER BY processing_date, created_at
-        `, [startDate, endDate, parseInt(yr), parseInt(mth)]);
+            COALESCE(
+              CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+                   WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+              END
+            ) as date,
+            COUNT(DISTINCT upload_id) as files,
+            COUNT(*) as records,
+            COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
+            COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
+          FROM ${masterTableName}
+          WHERE (
+            (record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+            OR
+            (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+          )
+          GROUP BY date
+          HAVING date IS NOT NULL
+          ORDER BY date
+        `, [startDate, endDate]);
         
-        return dailyBreakdown.rows.map((entry, index) => ({
+        return dailyBreakdown.rows.map((entry) => ({
           date: entry.date,
           files: parseInt(entry.files),
           records: parseInt(entry.records),
           transactionValue: parseFloat(entry.transaction_value || '0'),
           netDepositBh: parseFloat(entry.net_deposit_bh || '0'),
-          entryId: entry.id,
-          fileIndex: index + 1 // Show which file this is chronologically
+          dayOfMonth: parseInt(entry.date.split('-')[2])
         }));
       };
       
