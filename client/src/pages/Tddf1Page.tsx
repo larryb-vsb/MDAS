@@ -1391,61 +1391,218 @@ function Tddf1Page() {
                         </div>
                       </div>
 
-                      {/* Files Processed on This Day */}
-                      {dayBreakdown.filesProcessed &&
-                        dayBreakdown.filesProcessed.length > 0 && (
-                          <div>
-                            <h4
-                              className={`font-semibold mb-3 transition-colors ${isDarkMode ? "text-gray-200" : "text-gray-900"}`}
-                            >
-                              Files Processed (
-                              {(dayBreakdown.filesProcessed ?? []).length})
-                            </h4>
-                            <div className="space-y-2">
-                              {dayBreakdown.filesProcessed.map(
-                                (file, index) => (
-                                  <div
-                                    key={index}
-                                    className={`rounded-lg p-3 border transition-colors ${isDarkMode ? "bg-blue-900/20 border-blue-700" : "bg-blue-50 border-blue-200"}`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <div
-                                          className={`font-medium transition-colors ${isDarkMode ? "text-blue-200" : "text-blue-900"}`}
-                                        >
-                                          {file.fileName}
-                                        </div>
-                                        <div
-                                          className={`text-sm transition-colors ${isDarkMode ? "text-blue-300" : "text-blue-700"}`}
-                                        >
-                                          {file.fileSize && (
-                                            <div className="text-xs mt-1 opacity-90">
-                                              File Size: {file.fileSize}
+                      {/* Data Files by Batch */}
+                      {filesByDate?.files && filesByDate.files.length > 0 && (() => {
+                        const filesWithParsedData = filesByDate.files.map(file => ({
+                          ...file,
+                          parsed: parseTddfFilename(file.filename)
+                        }));
+
+                        const batch0830 = filesWithParsedData.filter(f => f.parsed?.scheduledSlotRaw === '830');
+                        const batch2400 = filesWithParsedData.filter(f => f.parsed?.scheduledSlotRaw === '2400');
+                        const batchOther = filesWithParsedData.filter(f => !f.parsed?.scheduledSlotRaw || (f.parsed.scheduledSlotRaw !== '830' && f.parsed.scheduledSlotRaw !== '2400'));
+
+                        return (
+                          <div className="space-y-4">
+                            {batch0830.length > 0 && (
+                              <div>
+                                <h4 className={`text-sm font-semibold mb-3 transition-colors ${isDarkMode ? "text-gray-200" : "text-gray-900"}`}>
+                                  08:30 Batch ({batch0830.length} file{batch0830.length !== 1 ? 's' : ''})
+                                </h4>
+                                <div className="space-y-2">
+                                  {batch0830.map((file, index) => (
+                                    <div
+                                      key={file.uploadId}
+                                      className={`p-3 rounded-lg border transition-colors ${
+                                        isDarkMode
+                                          ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+                                          : "bg-white border-gray-200 hover:bg-gray-50"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                                            {file.filename}
+                                          </div>
+                                          <div className="flex gap-3 mt-1 text-xs">
+                                            <div className={isDarkMode ? "text-blue-400" : "text-blue-600"}>
+                                              Batch: {file.parsed.scheduledSlotLabel}
                                             </div>
-                                          )}
-                                          {file.processingTime && (
-                                            <div className="text-xs mt-1 opacity-90">
-                                              Duration: {file.processingTime}s
+                                            {file.parsed.actualDateTime && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                Processed: {format(file.parsed.actualDateTime, "HH:mm:ss")}
+                                              </div>
+                                            )}
+                                          </div>
+                                          
+                                          {/* Key Dates Display */}
+                                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                            {file.filenameDate && parseISODateLocal(file.filenameDate) && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                <span className="font-semibold">Filename Date:</span> {format(parseISODateLocal(file.filenameDate)!, "MMM d, yyyy")}
+                                              </div>
+                                            )}
+                                            {file.primaryBatchDate && parseISODateLocal(file.primaryBatchDate) && (
+                                              <div className={`${file.filenameDate !== file.primaryBatchDate ? (isDarkMode ? "text-yellow-400" : "text-yellow-600") : (isDarkMode ? "text-green-400" : "text-green-600")}`}>
+                                                <span className="font-semibold">Batch Date:</span> {format(parseISODateLocal(file.primaryBatchDate)!, "MMM d, yyyy")}
+                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && parseISODateLocal(file.maxBatchDate) && ` - ${format(parseISODateLocal(file.maxBatchDate)!, "MMM d")}`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              isDarkMode
+                                                ? "text-blue-400 border-blue-600"
+                                                : "text-blue-600 border-blue-400"
+                                            }
+                                          >
+                                            {file.totalRecords.toLocaleString()} records
+                                          </Badge>
+                                          {file.transactionAmounts > 0 && (
+                                            <div className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}>
+                                              {formatCompactCurrency(file.transactionAmounts)}
                                             </div>
                                           )}
                                         </div>
                                       </div>
-                                      <Badge
-                                        variant="outline"
-                                        className="text-xs"
-                                      >
-                                        {file.tableName.replace(
-                                          "dev_tddf1_",
-                                          "",
-                                        )}
-                                      </Badge>
                                     </div>
-                                  </div>
-                                ),
-                              )}
-                            </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {batch2400.length > 0 && (
+                              <div>
+                                <h4 className={`text-sm font-semibold mb-3 transition-colors ${isDarkMode ? "text-gray-200" : "text-gray-900"}`}>
+                                  24:00 Batch ({batch2400.length} file{batch2400.length !== 1 ? 's' : ''})
+                                </h4>
+                                <div className="space-y-2">
+                                  {batch2400.map((file, index) => (
+                                    <div
+                                      key={file.uploadId}
+                                      className={`p-3 rounded-lg border transition-colors ${
+                                        isDarkMode
+                                          ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+                                          : "bg-white border-gray-200 hover:bg-gray-50"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                                            {file.filename}
+                                          </div>
+                                          <div className="flex gap-3 mt-1 text-xs">
+                                            <div className={isDarkMode ? "text-blue-400" : "text-blue-600"}>
+                                              Batch: {file.parsed.scheduledSlotLabel}
+                                            </div>
+                                            {file.parsed.actualDateTime && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                Processed: {format(file.parsed.actualDateTime, "HH:mm:ss")}
+                                              </div>
+                                            )}
+                                          </div>
+                                          
+                                          {/* Key Dates Display */}
+                                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                            {file.filenameDate && parseISODateLocal(file.filenameDate) && (
+                                              <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                <span className="font-semibold">Filename Date:</span> {format(parseISODateLocal(file.filenameDate)!, "MMM d, yyyy")}
+                                              </div>
+                                            )}
+                                            {file.primaryBatchDate && parseISODateLocal(file.primaryBatchDate) && (
+                                              <div className={`${file.filenameDate !== file.primaryBatchDate ? (isDarkMode ? "text-yellow-400" : "text-yellow-600") : (isDarkMode ? "text-green-400" : "text-green-600")}`}>
+                                                <span className="font-semibold">Batch Date:</span> {format(parseISODateLocal(file.primaryBatchDate)!, "MMM d, yyyy")}
+                                                {file.maxBatchDate && file.maxBatchDate !== file.primaryBatchDate && parseISODateLocal(file.maxBatchDate) && ` - ${format(parseISODateLocal(file.maxBatchDate)!, "MMM d")}`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              isDarkMode
+                                                ? "text-blue-400 border-blue-600"
+                                                : "text-blue-600 border-blue-400"
+                                            }
+                                          >
+                                            {file.totalRecords.toLocaleString()} records
+                                          </Badge>
+                                          {file.transactionAmounts > 0 && (
+                                            <div className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}>
+                                              {formatCompactCurrency(file.transactionAmounts)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {batchOther.length > 0 && (
+                              <div>
+                                <h4 className={`text-sm font-semibold mb-3 transition-colors ${isDarkMode ? "text-gray-200" : "text-gray-900"}`}>
+                                  Other Files ({batchOther.length} file{batchOther.length !== 1 ? 's' : ''})
+                                </h4>
+                                <div className="space-y-2">
+                                  {batchOther.map((file, index) => (
+                                    <div
+                                      key={file.uploadId}
+                                      className={`p-3 rounded-lg border transition-colors ${
+                                        isDarkMode
+                                          ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+                                          : "bg-white border-gray-200 hover:bg-gray-50"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`font-mono text-sm font-semibold truncate ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                                            {file.filename}
+                                          </div>
+                                          {file.parsed?.scheduledSlotLabel && (
+                                            <div className="flex gap-3 mt-1 text-xs">
+                                              <div className={isDarkMode ? "text-blue-400" : "text-blue-600"}>
+                                                Batch: {file.parsed.scheduledSlotLabel}
+                                              </div>
+                                              {file.parsed.actualDateTime && (
+                                                <div className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+                                                  Processed: {format(file.parsed.actualDateTime, "HH:mm:ss")}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                          <Badge
+                                            variant="outline"
+                                            className={
+                                              isDarkMode
+                                                ? "text-blue-400 border-blue-600"
+                                                : "text-blue-600 border-blue-400"
+                                            }
+                                          >
+                                            {file.totalRecords.toLocaleString()} records
+                                          </Badge>
+                                          {file.transactionAmounts > 0 && (
+                                            <div className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}>
+                                              {formatCompactCurrency(file.transactionAmounts)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        );
+                      })()}
 
                       {/* Active Tables (fallback) */}
                       {(!dayBreakdown.filesProcessed ||
