@@ -1567,7 +1567,18 @@ export function registerTddfCacheRoutes(app: Express) {
       const uploaderTableName = getTableName('uploader_uploads');
       
       // Query for file details including upload metadata
+      // Filter by PRIMARY batch date (from BH records) to show files where the main business day <= selected date
+      // This prevents future-dated files from appearing just because they contain late transactions
       const filesResult = await pool.query(`
+        WITH file_batch_dates AS (
+          SELECT DISTINCT
+            upload_id,
+            MIN(extracted_fields->>'batchDate') as primary_batch_date
+          FROM ${masterTableName}
+          WHERE record_type = 'BH'
+            AND extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+          GROUP BY upload_id
+        )
         SELECT 
           u.id as upload_id,
           u.filename,
@@ -1597,11 +1608,8 @@ export function registerTddfCacheRoutes(app: Express) {
           END) as transaction_amounts
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        WHERE (
-          (r.record_type = 'BH' AND r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'batchDate' = $1)
-          OR
-          (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'transactionDate' = $1)
-        )
+        JOIN file_batch_dates fbd ON r.upload_id = fbd.upload_id
+        WHERE fbd.primary_batch_date <= $1
         GROUP BY u.id, u.filename, u.start_time, u.uploaded_at, u.encoding_complete, u.file_size, u.business_day
         ORDER BY u.start_time DESC
       `, [date]);
