@@ -2180,12 +2180,12 @@ function Tddf1Page() {
 
                               let amount = "-";
                               if (type === "BH" && dayBreakdown.netDeposits) {
-                                amount = `$${(dayBreakdown.netDeposits / 1000000).toFixed(2)}M`;
+                                amount = formatCompactCurrency(dayBreakdown.netDeposits);
                               } else if (
                                 type === "DT" &&
                                 dayBreakdown.totalTransactionValue
                               ) {
-                                amount = `$${(dayBreakdown.totalTransactionValue / 1000000).toFixed(2)}M`;
+                                amount = formatCompactCurrency(dayBreakdown.totalTransactionValue);
                               }
 
                               return (
@@ -2336,9 +2336,7 @@ function Tddf1Page() {
                               <div
                                 className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
                               >
-                                $
-                                {(file.transactionAmounts / 1000000).toFixed(2)}
-                                M
+                                {formatCompactCurrency(file.transactionAmounts)}
                               </div>
                             )}
                           </div>
