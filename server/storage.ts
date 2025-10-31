@@ -6610,6 +6610,28 @@ export class DatabaseStorage implements IStorage {
         console.log(`Processing ${terminals.length} valid terminals...`);
         console.log(`=============================================================`);
         
+        // Parse date from filename (e.g., "TerminalReportJul14.2025.csv" -> July 14, 2025)
+        let fileDataDate: Date | null = null;
+        if (sourceFilename) {
+          const dateMatch = sourceFilename.match(/([A-Za-z]{3})(\d{1,2})\.(\d{4})/);
+          if (dateMatch) {
+            const [, monthStr, day, year] = dateMatch;
+            const monthMap: { [key: string]: number } = {
+              jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+              jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+            };
+            const month = monthMap[monthStr.toLowerCase()];
+            if (month !== undefined) {
+              fileDataDate = new Date(parseInt(year), month, parseInt(day));
+              console.log(`📅 Parsed file data date from filename: ${fileDataDate.toISOString()}`);
+            }
+          }
+        }
+        
+        // Use the older date between file data date and current date
+        const lastUpdateDate = fileDataDate || new Date();
+        console.log(`⏰ Using last_update date: ${lastUpdateDate.toISOString()}`);
+        
         try {
           let createdCount = 0;
           let updatedCount = 0;
@@ -6655,7 +6677,7 @@ export class DatabaseStorage implements IStorage {
                 terminal.vNumber, terminal.posMerchantNumber, terminal.status, terminal.mcc,
                 terminal.terminalType, terminal.boardDate, terminal.recordStatus, terminal.businessName,
                 terminal.dbaName, terminal.merchantAddress, terminal.city, terminal.state,
-                terminal.zipCode, terminal.country, terminal.phone, new Date(), new Date(), new Date(),
+                terminal.zipCode, terminal.country, terminal.phone, new Date(), new Date(), lastUpdateDate,
                 sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import", "System Import"
               ]);
               
