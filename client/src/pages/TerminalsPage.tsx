@@ -24,7 +24,7 @@ export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
-  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | 'termNumber' | 'vNumber' | null>(null);
+  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | 'terminalId' | 'vNumber' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedTerminals, setSelectedTerminals] = useState<number[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -51,7 +51,7 @@ export default function TerminalsPage() {
         terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.termNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase());
+        terminal.terminalId?.toString().toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
       const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
@@ -70,9 +70,9 @@ export default function TerminalsPage() {
     // Apply performance-optimized sorting
     if (sortField) {
       filteredTerminals.sort((a, b) => {
-        if (sortField === 'termNumber') {
-          const aValue = a.termNumber || '';
-          const bValue = b.termNumber || '';
+        if (sortField === 'terminalId') {
+          const aValue = a.terminalId || '';
+          const bValue = b.terminalId || '';
           
           // Convert to numbers if they're numeric, otherwise compare as strings
           const aNum = parseInt(aValue, 10);
@@ -160,7 +160,7 @@ export default function TerminalsPage() {
     }
   };
 
-  const handleSort = (field: 'lastActivity' | 'lastUpdate' | 'termNumber' | 'vNumber') => {
+  const handleSort = (field: 'lastActivity' | 'lastUpdate' | 'terminalId' | 'vNumber') => {
     if (sortField === field) {
       // Toggle direction or clear sort
       if (sortDirection === 'desc') {
@@ -177,7 +177,7 @@ export default function TerminalsPage() {
     setCurrentPage(1);
   };
 
-  const getSortIcon = (field: 'lastActivity' | 'lastUpdate' | 'termNumber' | 'vNumber') => {
+  const getSortIcon = (field: 'lastActivity' | 'lastUpdate' | 'terminalId' | 'vNumber') => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
     }
@@ -552,11 +552,11 @@ export default function TerminalsPage() {
                     <TableHead>POS Merchant #</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('termNumber')}
+                      onClick={() => handleSort('terminalId')}
                     >
                       <div className="flex items-center">
                         Term Number
-                        {getSortIcon('termNumber')}
+                        {getSortIcon('terminalId')}
                       </div>
                     </TableHead>
                     <TableHead>Status</TableHead>
@@ -602,7 +602,7 @@ export default function TerminalsPage() {
                         {terminal.posMerchantNumber || "-"}
                       </TableCell>
                       <TableCell className="font-mono text-sm font-medium text-blue-600">
-                        {terminal.termNumber || "-"}
+                        {terminal.terminalId || "-"}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(terminal.status || "Unknown")}
