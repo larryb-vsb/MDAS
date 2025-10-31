@@ -264,6 +264,30 @@ export default function TerminalsPage() {
     deleteMutation.mutate(selectedTerminals);
   };
 
+  // Sync Last Activity mutation
+  const syncLastActivityMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("/api/terminals/sync-last-activity", {
+        method: "POST",
+        body: {}
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Last Activity Sync Complete",
+        description: `Updated ${data.terminalsUpdated || 0} terminals with activity from TDDF data`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Sync Failed", 
+        description: error.message || "Failed to sync terminal activity",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (error) {
     return (
       <MainLayout>
@@ -308,6 +332,16 @@ export default function TerminalsPage() {
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => syncLastActivityMutation.mutate()}
+              disabled={syncLastActivityMutation.isPending}
+              data-testid="button-sync-last-activity"
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              {syncLastActivityMutation.isPending ? 'Syncing...' : 'Sync Last Activity'}
             </Button>
             <Button 
               variant="outline" 
