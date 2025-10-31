@@ -1,0 +1,68 @@
+2025-10-31 00:42:27.92
+internalQuery: undefined,
+2025-10-31 00:42:27.92
+where: undefined,
+2025-10-31 00:42:27.92
+schema: undefined,
+2025-10-31 00:42:27.92
+table: undefined,
+2025-10-31 00:42:27.92
+column: undefined,
+2025-10-31 00:42:27.92
+dataType: undefined,
+2025-10-31 00:42:27.92
+constraint: undefined,
+2025-10-31 00:42:27.92
+file: 'parse_relation.c',
+2025-10-31 00:42:27.92
+line: '3716',
+2025-10-31 00:42:27.92
+routine: 'errorMissingColumn'
+2025-10-31 00:42:27.92
+}
+2025-10-31 00:42:27.97
+5:42:27 AM [express] DELETE /api/uploader/bulk-delete 500 in 213ms :: {"error":"column \"bh_record_c…
+2025-10-31 00:42:28.51
+5:42:28 AM [express] GET /api/uploader 200 in 327ms :: {"uploads":[{"id":"uploader_1761886565415_t1n…
+2025-10-31 00:42:28.98
+5:42:28 AM [express] POST /api/uploader/set-previous-level 200 in 163ms
+2025-10-31 00:42:29.34
+5:42:29 AM [express] GET /api/uploader 200 in 316ms :: {"uploads":[{"id":"uploader_1761886565415_t1n…
+2025-10-31 00:42:30.19
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-31 00:42:30.75
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 00:42:30.76
+5:42:30 AM [express] GET /api/uploader 200 in 315ms :: {"uploads":[{"id":"uploader_1761886565415_t1n…
+2025-10-31 00:42:30.81
+5:42:30 AM [express] GET /api/mms-watcher/auto45-status 200 in 319ms :: {"success":true,"enabled":fa…
+2025-10-31 00:42:30.81
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 00:42:30.81
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 00:42:30.81
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 00:42:30.81
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 00:42:30.86
+[REPLIT-STORAGE] Found 329 files in prod-uploader/
+2025-10-31 00:42:30.86
+[STORAGE-CONFIG] Successfully counted 329 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 00:42:30.92
+5:42:30 AM [express] GET /api/uploader/storage-config 200 in 207ms :: {"available":true,"service":"R…
+2025-10-31 00:42:32.13
+5:42:32 AM [express] GET /api/uploader 200 in 271ms :: {"uploads":[{"id":"uploader_1761886565415_t1n…
+2025-10-31 00:42:33.55
+5:42:33 AM [express] GET /api/uploader 200 in 320ms :: {"uploads":[{"id":"uploader_1761886565415_t1n…
+2025-10-31 00:42:34.36
+5:42:34 AM [express] POST /api/uploader/set-previous-level 200 in 175ms
+2025-10-31 00:42:34.73
+5:42:34 AM [express] GET /api/uploader 200 in 321ms :: {"uploads":[{"id":"uploader_1761886565415_t1n…
+2025-10-31 00:42:36.07
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 00:42:36.12
+5:42:36 AM [express] GET /api/mms-watcher/auto45-status 200 in 162ms :: {"success":true,"enabled":fa…
+2025-10-31 00:42:36.13
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 00:42:36.13
+[REPLIT-STORAGE] Configuration check passed
