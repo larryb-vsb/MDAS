@@ -1311,7 +1311,7 @@ export function registerTddfCacheRoutes(app: Express) {
         }));
         
         const totalRecords = parseInt(cacheData.total_records) || 0;
-        const fileCount = parseInt(cacheData.total_files) || 0;
+        const fileCount = filesResult.rows.length; // Count actual data files with records on this date
         const netDepositsTotal = parseFloat(cacheData.total_net_deposits) || 0;
         const transactionAmountsTotal = parseFloat(cacheData.total_transaction_amounts) || 0;
         
