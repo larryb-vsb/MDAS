@@ -428,7 +428,7 @@ export default function Tddf1MonthlyView() {
           </View>
           {data.dailyBreakdown.slice(0, 15).map((day) => (
             <View key={day.date} style={pdfStyles.tableRow}>
-              <Text style={pdfStyles.tableCell}>{format(new Date(day.date), 'MMM dd')}</Text>
+              <Text style={pdfStyles.tableCell}>{format(new Date(day.date), 'EEE, MMM dd')}</Text>
               <Text style={pdfStyles.tableCell}>{day.files}</Text>
               <Text style={pdfStyles.tableCell}>{formatNumber(day.records)}</Text>
               <Text style={pdfStyles.tableCell}>{formatCurrency(day.transactionValue)}</Text>
@@ -634,23 +634,7 @@ export default function Tddf1MonthlyView() {
         <>
           {/* Main Financial Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            {/* Net Deposits Processed - First Position */}
-            <Card className={`${isDarkMode ? 'bg-indigo-900 border-indigo-700' : 'bg-indigo-50 border-indigo-200'} transition-colors`}>
-              <CardHeader className="pb-1">
-                <CardTitle className={`text-sm sm:text-base font-medium ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'} flex items-center`}>
-                  <DollarSign className="h-5 w-5 mr-2" />
-                  Net Deposits Processed
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className={`text-3xl sm:text-4xl font-bold ${isDarkMode ? 'text-indigo-100' : 'text-indigo-900'} mb-1`}>
-                  {formatCurrency(monthlyData.totalNetDepositBh)}
-                </div>
-                <p className={`text-sm ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>Batch Header (BH) totals</p>
-              </CardContent>
-            </Card>
-
-            {/* Transaction Authorizations Processed */}
+            {/* Transaction Authorizations Processed - First Position */}
             <Card className={`${isDarkMode ? 'bg-purple-900 border-purple-700' : 'bg-purple-50 border-purple-200'} transition-colors`}>
               <CardHeader className="pb-1">
                 <CardTitle className={`text-sm sm:text-base font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-700'} flex items-center`}>
@@ -664,6 +648,22 @@ export default function Tddf1MonthlyView() {
                   {formatCurrency(monthlyData.totalTransactionValue)}
                 </div>
                 <p className={`text-sm ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>Detail Transaction (DT) totals</p>
+              </CardContent>
+            </Card>
+
+            {/* Net Deposits Processed - Second Position */}
+            <Card className={`${isDarkMode ? 'bg-indigo-900 border-indigo-700' : 'bg-indigo-50 border-indigo-200'} transition-colors`}>
+              <CardHeader className="pb-1">
+                <CardTitle className={`text-sm sm:text-base font-medium ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'} flex items-center`}>
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  Net Deposits Processed
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className={`text-3xl sm:text-4xl font-bold ${isDarkMode ? 'text-indigo-100' : 'text-indigo-900'} mb-1`}>
+                  {formatCurrency(monthlyData.totalNetDepositBh)}
+                </div>
+                <p className={`text-sm ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>Batch Header (BH) totals</p>
               </CardContent>
             </Card>
           </div>
@@ -892,12 +892,18 @@ export default function Tddf1MonthlyView() {
                       // Convert to array and sort by date
                       return Object.values(dailyAggregated)
                         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                    })().map((day, index) => (
-                      <tr key={`${day.date}-aggregated`} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'} transition-colors`}>
-                        <td className={`py-1 sm:py-2 px-2 sm:px-4 font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                          <span className="hidden sm:inline">{format(new Date(day.date), 'MMM dd, yyyy')}</span>
-                          <span className="sm:hidden">{format(new Date(day.date), 'MMM dd')}</span>
-                        </td>
+                    })().map((day, index) => {
+                      const isHighActivity = day.files > 3;
+                      const rowBgClass = isHighActivity 
+                        ? (isDarkMode ? 'bg-yellow-900/30 hover:bg-yellow-900/40' : 'bg-yellow-50 hover:bg-yellow-100')
+                        : (isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50');
+                      
+                      return (
+                        <tr key={`${day.date}-aggregated`} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'} ${rowBgClass} transition-colors`}>
+                          <td className={`py-1 sm:py-2 px-2 sm:px-4 font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                            <span className="hidden sm:inline">{format(new Date(day.date), 'EEE, MMM dd, yyyy')}</span>
+                            <span className="sm:hidden">{format(new Date(day.date), 'EEE, MMM dd')}</span>
+                          </td>
                         <td className={`py-1 sm:py-2 px-1 sm:px-4 text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{day.files}</td>
                         <td className={`py-1 sm:py-2 px-1 sm:px-4 text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           <span className="hidden sm:inline">{formatNumber(day.records)}</span>
@@ -912,7 +918,8 @@ export default function Tddf1MonthlyView() {
                           <span className="sm:hidden">${(day.netDepositBh/1000).toFixed(0)}k</span>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
