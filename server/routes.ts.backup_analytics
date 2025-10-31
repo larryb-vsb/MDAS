@@ -2415,6 +2415,226 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get merchants with pagination and filters
+        
+        // Print some sample data for diagnosis
+        if (allTransactions.length > 0) {
+          console.log("ANALYTICS - Sample transaction dates:");
+          for (let i = 0; i < Math.min(10, allTransactions.length); i++) {
+            console.log(`Transaction ${i}: ${new Date(allTransactions[i].transaction.date).toISOString()}`);
+          }
+        }
+        
+        // Group transactions by month and year based on actual data
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthlyData = new Map<string, { transactions: number; revenue: number; year: number }>();
+        
+        // Process all transactions to group by month/year
+        allTransactions.forEach(item => {
+          const { transaction } = item;
+          const date = new Date(transaction.date);
+          const year = date.getFullYear();
+          const monthIndex = date.getMonth();
+          const monthName = monthNames[monthIndex];
+          const key = `${year}-${monthName}`;
+          
+          const amount = parseFloat(transaction.amount.toString());
+          
+          if (!monthlyData.has(key)) {
+            monthlyData.set(key, { transactions: 0, revenue: 0, year });
+          }
+          
+          const monthData = monthlyData.get(key)!;
+          monthData.transactions++;
+          
+          // Add to revenue (respecting transaction type)
+          if (transaction.type === "Credit" || transaction.type === "Sale") {
+            monthData.revenue += amount;
+          } else if (transaction.type === "Debit" || transaction.type === "Refund") {
+            monthData.revenue -= amount;
+          }
+        });
+        
+        // Convert map to array format expected by frontend
+        const finalMonthlyData = Array.from(monthlyData.entries()).map(([key, data]) => {
+          const [year, monthName] = key.split('-');
+          return {
+            name: monthName,
+            transactions: data.transactions,
+            revenue: data.revenue,
+            year: parseInt(year)
+          };
+        });
+        
+        // Get current year and previous year for display
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+        
+        // Create complete month structure for both years if data exists
+        const completeMonthlyData: any[] = [];
+        
+        // Check if we have data for current year or previous year
+        const hasCurrentYearData = finalMonthlyData.some(d => d.year === currentYear);
+        const hasPreviousYearData = finalMonthlyData.some(d => d.year === previousYear);
+        
+        // Add months for previous year if we have data
+        if (hasPreviousYearData) {
+          monthNames.forEach(monthName => {
+            const existingData = finalMonthlyData.find(d => d.year === previousYear && d.name === monthName);
+            completeMonthlyData.push({
+              name: monthName,
+              transactions: existingData?.transactions || 0,
+              revenue: existingData?.revenue || 0,
+              year: previousYear
+            });
+          });
+        }
+        
+        // Add months for current year if we have data
+        if (hasCurrentYearData) {
+          monthNames.forEach(monthName => {
+            const existingData = finalMonthlyData.find(d => d.year === currentYear && d.name === monthName);
+            completeMonthlyData.push({
+              name: monthName,
+              transactions: existingData?.transactions || 0,
+              revenue: existingData?.revenue || 0,
+              year: currentYear
+            });
+          });
+        }
+        
+        // If no current/previous year data, fall back to showing whatever years we have
+        const dataToUse = completeMonthlyData.length > 0 ? completeMonthlyData : finalMonthlyData;
+        
+        // Sort by year and month
+        dataToUse.sort((a, b) => {
+          if (a.year !== b.year) return a.year - b.year;
+          return monthNames.indexOf(a.name) - monthNames.indexOf(b.name);
+        });
+        
+        console.log(`ANALYTICS - Generated monthly data from actual transactions`);
+        console.log(`Generated monthly data: ${JSON.stringify(dataToUse)}`);
+        
+        // Calculate summary metrics from actual data
+        const totalTransactions = dataToUse.reduce((sum, month) => sum + month.transactions, 0);
+        const totalRevenue = dataToUse.reduce((sum, month) => sum + month.revenue, 0);
+        const avgTransactionValue = totalTransactions > 0 
+          ? Number((totalRevenue / totalTransactions).toFixed(2))
+          : 0;
+        
+        res.json({
+          transactionData: dataToUse,
+          merchantCategoryData: categoryData,
+          summary: {
+            totalTransactions: totalTransactions,
+            totalRevenue: totalRevenue,
+            totalMerchants: dashboardStats.totalMerchants,
+            avgTransactionValue: avgTransactionValue,
+            growthRate: 0 // No growth data available without historical comparison
+          }
+        });
+        return;
+      }
+      
+      // For other timeframes, keep the original logic
+      const groupedTransactions = new Map();
+      
+      // Define time range based on timeframe
+      const now = new Date();
+      let startDate = new Date();
+      
+      switch(timeframe) {
+        case 'day':
+          // For day view, start 24 hours ago
+          startDate.setHours(now.getHours() - 24);
+          break;
+        case 'week':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'quarter':
+          startDate.setMonth(now.getMonth() - 3);
+          break;
+      }
+      
+      // Process transactions
+      allTransactions.forEach(item => {
+        const { transaction } = item;
+        const txDate = new Date(transaction.date);
+        
+        // Skip if before our time range
+        if (txDate < startDate) return;
+        
+        // Format date key based on timeframe
+        let dateKey;
+        if (timeframe === 'day') {
+          // For day view, use hour format
+          dateKey = txDate.getHours().toString() + ':00';
+        } else if (timeframe === 'week') {
+          // For week view, use day name
+          dateKey = txDate.toLocaleDateString('en-US', { weekday: 'short' });
+        } else if (timeframe === 'month') {
+          // For month view, use day of month
+          dateKey = txDate.getDate().toString();
+        } else {
+          // For quarter view, use month name
+          dateKey = txDate.toLocaleDateString('en-US', { month: 'short' });
+        }
+        
+        if (!groupedTransactions.has(dateKey)) {
+          groupedTransactions.set(dateKey, { 
+            name: dateKey, 
+            transactions: 0, 
+            revenue: 0 
+          });
+        }
+        
+        const entry = groupedTransactions.get(dateKey);
+        entry.transactions++;
+        
+        // Calculate revenue based on transaction type
+        const amount = parseFloat(transaction.amount.toString());
+        if (transaction.type === "Credit") {
+          entry.revenue += amount;
+        } else if (transaction.type === "Debit") {
+          entry.revenue -= amount;
+        } else if (transaction.type === "Sale") {
+          entry.revenue += amount;
+        } else if (transaction.type === "Refund") {
+          entry.revenue -= amount;
+        }
+      });
+      
+      // Convert to array and ensure chronological order
+      const transactionData = Array.from(groupedTransactions.values());
+      
+      // Sort by month if needed (for timeframes longer than a week)
+      if (timeframe !== 'week') {
+        const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        transactionData.sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+      }
+      
+      // Return analytics data
+      res.json({
+        transactionData,
+        merchantCategoryData: categoryData,
+        summary: {
+          totalTransactions: dashboardStats.dailyTransactions,
+          totalRevenue: dashboardStats.monthlyRevenue,
+          totalMerchants: dashboardStats.totalMerchants,
+          avgTransactionValue: 
+            dashboardStats.dailyTransactions > 0 
+              ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
+              : 0,
+          growthRate: 12.7 // This would need historical data to calculate properly
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching analytics data:", error);
+      res.status(500).json({ error: "Failed to fetch analytics data" });
+    }
+  });
 
   // Get merchants with pagination and filters
 
