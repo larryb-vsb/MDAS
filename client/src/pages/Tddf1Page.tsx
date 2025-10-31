@@ -72,6 +72,7 @@ interface Tddf1DayBreakdown {
   date: string;
   totalRecords: number;
   recordTypes: Record<string, number>;
+  recordTypeBreakdown?: Record<string, number>; // Fallback property name from API
   transactionValue: number;
   totalTransactionValue?: number; // Primary field from backend
   netDeposits?: number; // Primary field from backend
