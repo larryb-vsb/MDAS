@@ -1081,6 +1081,7 @@ export function registerTddfCacheRoutes(app: Express) {
       };
       
       // Get daily breakdown - aggregate by date
+      // Count files by filename date (matching daily Data Files tab logic)
       const dailyBreakdown = await pool.query(`
         SELECT 
           COALESCE(
@@ -1088,7 +1089,6 @@ export function registerTddfCacheRoutes(app: Express) {
                  WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
             END
           ) as date,
-          COUNT(DISTINCT upload_id) as files,
           COUNT(*) as records,
           COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
           COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
@@ -1111,6 +1111,37 @@ export function registerTddfCacheRoutes(app: Express) {
         ORDER BY date
       `, [startDate, endDate]);
       
+      // Count files by filename date for each day (matching Data Files tab logic)
+      const fileCountsByDate = await pool.query(`
+        SELECT 
+          to_char(
+            to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
+          ) as date,
+          COUNT(*) as files
+        FROM ${uploaderTableName}
+        WHERE split_part(filename, '_', 4) ~ '^\\d{8}$'
+          AND to_char(
+            to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
+          ) >= $1
+          AND to_char(
+            to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
+          ) <= $2
+        GROUP BY to_char(
+          to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+          'YYYY-MM-DD'
+        )
+        ORDER BY date
+      `, [startDate, endDate]);
+      
+      // Create a map of file counts by date
+      const fileCountMap = new Map<string, number>();
+      fileCountsByDate.rows.forEach(row => {
+        fileCountMap.set(row.date, parseInt(row.files) || 0);
+      });
+      
       const result = {
         month,
         totalFiles: parseInt(summary.total_files) || 0,
@@ -1120,7 +1151,7 @@ export function registerTddfCacheRoutes(app: Express) {
         recordTypeBreakdown,
         dailyBreakdown: dailyBreakdown.rows.map((entry) => ({
           date: entry.date,
-          files: parseInt(entry.files),
+          files: fileCountMap.get(entry.date) || 0,  // Use filename date count
           records: parseInt(entry.records),
           transactionValue: parseFloat(entry.transaction_value || '0'),
           netDepositBh: parseFloat(entry.net_deposit_bh || '0')
