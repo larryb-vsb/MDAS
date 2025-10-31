@@ -14990,7 +14990,9 @@ export class DatabaseStorage implements IStorage {
         sessionId: row.session_id,
         failedAt: row.failed_at,
         completedAt: row.completed_at,
-        startTime: row.start_time
+        startTime: row.start_time,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by
       })) as UploaderUpload[];
       
     } catch (error) {
@@ -15076,7 +15078,9 @@ export class DatabaseStorage implements IStorage {
         sessionId: row.session_id,
         failedAt: row.failed_at,
         completedAt: row.completed_at,
-        startTime: row.start_time
+        startTime: row.start_time,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by
       } as UploaderUpload;
       
     } catch (error) {
@@ -15125,6 +15129,8 @@ export class DatabaseStorage implements IStorage {
         sessionId: 'session_id',
         failedAt: 'failed_at',
         completedAt: 'completed_at',
+        deletedAt: 'deleted_at',
+        deletedBy: 'deleted_by',
         // Legacy Step 6 columns (need to clear for merchant files)
         fileType: 'file_type',
         status: 'status',

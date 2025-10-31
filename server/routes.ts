@@ -435,7 +435,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dtRecordCount: row.dt_record_count,
         otherRecordCount: row.other_record_count,
         fileSequenceNumber: row.file_sequence_number,
-        fileProcessingTime: row.file_processing_time
+        fileProcessingTime: row.file_processing_time,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by
       }));
       
       // Return paginated response format when limit/offset is used
