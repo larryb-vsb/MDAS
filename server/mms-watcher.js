@@ -893,6 +893,13 @@ class MMSWatcher {
     
     // TDDF lines are typically fixed-width with specific patterns
     const sampleLine = lines[0];
+    
+    // Exclude CSV files - if line has commas, it's not TDDF
+    const hasCommas = (sampleLine.match(/,/g) || []).length > 2;
+    if (hasCommas) {
+      return false;
+    }
+    
     return sampleLine.length > 100 && 
            /^\d{2}/.test(sampleLine) && // Starts with record type (2 digits)
            sampleLine.length >= 300; // Minimum TDDF line length

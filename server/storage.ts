@@ -6615,63 +6615,62 @@ export class DatabaseStorage implements IStorage {
           let createdCount = 0;
           let updatedCount = 0;
           
-          // Process each terminal
+          // Process each terminal using UPSERT for efficiency
           for (const terminal of terminals) {
             try {
-              // @ENVIRONMENT-CRITICAL - Terminal existence check during CSV processing
+              // @ENVIRONMENT-CRITICAL - Terminal UPSERT during CSV processing
               // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API terminals
               const terminalsTableName = getTableName('api_terminals');
               
-              // Check if terminal already exists (by V Number)
-              const existingTerminalResult = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE v_number = $1 LIMIT 1`, [terminal.vNumber]);
-              const existingTerminal = existingTerminalResult.rows[0];
+              // Use UPSERT (INSERT ... ON CONFLICT ... DO UPDATE) for efficiency
+              // This handles both INSERT and UPDATE in a single atomic operation
+              const upsertTerminalQuery = `
+                INSERT INTO ${terminalsTableName} (
+                  v_number, pos_merchant_number, status, mcc, terminal_type, board_date, record_status,
+                  business_name, dba_name, merchant_address, city, state, zip_code, country, phone,
+                  created_at, updated_at, last_update, update_source, created_by, updated_by
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                ON CONFLICT (v_number) DO UPDATE SET
+                  pos_merchant_number = EXCLUDED.pos_merchant_number,
+                  status = EXCLUDED.status,
+                  mcc = EXCLUDED.mcc,
+                  terminal_type = EXCLUDED.terminal_type,
+                  board_date = EXCLUDED.board_date,
+                  record_status = EXCLUDED.record_status,
+                  business_name = EXCLUDED.business_name,
+                  dba_name = EXCLUDED.dba_name,
+                  merchant_address = EXCLUDED.merchant_address,
+                  city = EXCLUDED.city,
+                  state = EXCLUDED.state,
+                  zip_code = EXCLUDED.zip_code,
+                  country = EXCLUDED.country,
+                  phone = EXCLUDED.phone,
+                  updated_at = EXCLUDED.updated_at,
+                  last_update = EXCLUDED.last_update,
+                  update_source = EXCLUDED.update_source,
+                  updated_by = EXCLUDED.updated_by
+                RETURNING (xmax = 0) AS inserted
+              `;
               
-              if (existingTerminal) {
-                // @ENVIRONMENT-CRITICAL - Terminal update during CSV processing
-                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-                const updateTerminalQuery = `
-                  UPDATE ${terminalsTableName} 
-                  SET v_number = $2, pos_merchant_number = $3, status = $4, mcc = $5, terminal_type = $6,
-                      board_date = $7, record_status = $8, business_name = $9, dba_name = $10,
-                      merchant_address = $11, city = $12, state = $13, zip_code = $14, country = $15,
-                      phone = $16, updated_at = $17, last_update = $18, update_source = $19, updated_by = $20
-                  WHERE id = $1
-                `;
-                
-                await pool.query(updateTerminalQuery, [
-                  existingTerminal.id, terminal.vNumber, terminal.posMerchantNumber, terminal.status,
-                  terminal.mcc, terminal.terminalType, terminal.boardDate, terminal.recordStatus,
-                  terminal.businessName, terminal.dbaName, terminal.merchantAddress, terminal.city,
-                  terminal.state, terminal.zipCode, terminal.country, terminal.phone,
-                  new Date(), new Date(), sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import"
-                ]);
-                
-                updatedCount++;
-                console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
-              } else {
-                // @ENVIRONMENT-CRITICAL - New terminal creation during CSV processing
-                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-                const insertTerminalQuery = `
-                  INSERT INTO ${terminalsTableName} (
-                    v_number, pos_merchant_number, status, mcc, terminal_type, board_date, record_status,
-                    business_name, dba_name, merchant_address, city, state, zip_code, country, phone,
-                    created_at, updated_at, last_update, update_source, created_by, updated_by
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-                `;
-                
-                await pool.query(insertTerminalQuery, [
-                  terminal.vNumber, terminal.posMerchantNumber, terminal.status, terminal.mcc,
-                  terminal.terminalType, terminal.boardDate, terminal.recordStatus, terminal.businessName,
-                  terminal.dbaName, terminal.merchantAddress, terminal.city, terminal.state,
-                  terminal.zipCode, terminal.country, terminal.phone, new Date(), new Date(), new Date(),
-                  sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import", "System Import"
-                ]);
-                
+              const result = await pool.query(upsertTerminalQuery, [
+                terminal.vNumber, terminal.posMerchantNumber, terminal.status, terminal.mcc,
+                terminal.terminalType, terminal.boardDate, terminal.recordStatus, terminal.businessName,
+                terminal.dbaName, terminal.merchantAddress, terminal.city, terminal.state,
+                terminal.zipCode, terminal.country, terminal.phone, new Date(), new Date(), new Date(),
+                sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import", "System Import"
+              ]);
+              
+              // Check if it was an INSERT (true) or UPDATE (false)
+              const wasInserted = result.rows[0]?.inserted;
+              if (wasInserted) {
                 createdCount++;
                 console.log(`Created terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
+              } else {
+                updatedCount++;
+                console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
               }
-            } catch (insertError) {
-              console.error(`Error processing terminal ${terminal.vNumber}:`, insertError);
+            } catch (upsertError) {
+              console.error(`Error upserting terminal ${terminal.vNumber}:`, upsertError);
               errorCount++;
             }
           }
