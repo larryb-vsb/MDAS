@@ -22,10 +22,17 @@ interface AnalyticsData {
     name: string;
     transactions: number;
     revenue: number;
+    achDeposits: number;
+    achAmount: number;
+    cardAuthorizations: number;
+    cardAuthAmount: number;
+    batchDeposits: number;
+    batchDepositAmount: number;
   }>;
   merchantCategoryData: Array<{
     name: string;
     value: number;
+    amount?: number;
   }>;
   summary: {
     totalTransactions: number;
@@ -33,6 +40,12 @@ interface AnalyticsData {
     avgTransactionValue: number;
     growthRate: number;
     totalMerchants?: number;
+    achDeposits: number;
+    achAmount: number;
+    cardAuthorizations: number;
+    cardAuthAmount: number;
+    batchDeposits: number;
+    batchDepositAmount: number;
   };
 }
 
@@ -47,7 +60,7 @@ export default function Analytics() {
     isError,
     refetch
   } = useQuery<AnalyticsData>({
-    queryKey: ["/api/analytics", timeframe],
+    queryKey: [`/api/analytics?timeframe=${timeframe}`, timeframe],
     staleTime: 1000 * 60 * 5 // 5 minutes
   });
   

@@ -2416,8 +2416,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get merchants with pagination and filters
 
-  // Get merchants with pagination and filters
-
   // Database Connection Settings Routes
   
   // Get current database connection settings
