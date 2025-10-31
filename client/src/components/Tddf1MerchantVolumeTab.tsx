@@ -51,7 +51,13 @@ interface Tddf1MerchantsResponse {
   };
 }
 
-const Tddf1MerchantVolumeTab = () => {
+interface Tddf1MerchantVolumeTabProps {
+  selectedDate?: Date;
+  isDarkMode?: boolean;
+  onMerchantFocus?: (merchantId: string, merchantName: string) => void;
+}
+
+const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: Tddf1MerchantVolumeTabProps = {}) => {
   const [, setLocation] = useLocation();
   
   // State for filters and pagination
