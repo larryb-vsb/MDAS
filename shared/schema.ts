@@ -29,12 +29,16 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Environment-specific table name helper
-function getTableName(baseName: string): string {
+// EXPORTED: Use this helper for ALL raw SQL queries to ensure environment-aware table naming
+export function getTableName(baseName: string): string {
   // FIXED: Use TABLE_PREFIX env var with deterministic fallback for DrizzleKit consistency
   const TABLE_PREFIX = typeof process !== 'undefined' ? process.env.TABLE_PREFIX : 'dev_';
   const prefix = TABLE_PREFIX || 'dev_'; // Default to dev_ to match existing database
   return `${prefix}${baseName}`;
 }
+
+// Alias for convenience in server code
+export const tableName = getTableName;
 
 
 
