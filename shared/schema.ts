@@ -1196,12 +1196,12 @@ export type InsertTddfRawImport = typeof tddfRawImport.$inferInsert;
 export type Terminal = typeof apiTerminals.$inferSelect;
 export type InsertTerminal = typeof apiTerminals.$inferInsert;
 
-// Audit log table with performance optimizations
+// Audit log table with performance optimizations (supports merchant, transaction, and file deletion tracking)
 export const auditLogs = pgTable(getTableName("audit_logs"), {
   id: serial("id").primaryKey(),
-  entityType: text("entity_type").notNull(), // "merchant" or "transaction"
+  entityType: text("entity_type").notNull(), // "merchant", "transaction", "uploader_upload", etc.
   entityId: text("entity_id").notNull(),
-  action: text("action").notNull(), // "create", "update", "delete"
+  action: text("action").notNull(), // "create", "update", "delete", "soft_delete", "purge", "restore"
   userId: integer("user_id").references(() => users.id),
   username: text("username").notNull(),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
@@ -1210,14 +1210,17 @@ export const auditLogs = pgTable(getTableName("audit_logs"), {
   changedFields: text("changed_fields").array(), // Array of field names that were changed
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  notes: text("notes")
+  notes: text("notes"),
+  // Additional context for file deletions (filename, size, record counts)
+  fileMetadata: jsonb("file_metadata") // Stores filename, fileSize, recordCounts for uploader_upload deletions
 }, (table) => {
   return {
     // Create indexes for better query performance
     entityTypeIdx: index("audit_logs_entity_type_idx").on(table.entityType),
     entityIdIdx: index("audit_logs_entity_id_idx").on(table.entityId),
     timestampIdx: index("audit_logs_timestamp_idx").on(table.timestamp),
-    userIdIdx: index("audit_logs_user_id_idx").on(table.userId)
+    userIdIdx: index("audit_logs_user_id_idx").on(table.userId),
+    actionIdx: index("audit_logs_action_idx").on(table.action)
   };
 });
 
@@ -1423,7 +1426,11 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   // Archive tracking
   isArchived: boolean("is_archived").default(false).notNull(), // Whether file has been archived
   archivedAt: timestamp("archived_at"), // When file was marked as archived
-  archivedBy: text("archived_by") // Username who archived the file
+  archivedBy: text("archived_by"), // Username who archived the file
+  
+  // Soft-delete tracking
+  deletedAt: timestamp("deleted_at"), // When file was soft-deleted
+  deletedBy: text("deleted_by") // Username who deleted the file
 }, (table) => ({
   currentPhaseIdx: index("uploader_uploads_current_phase_idx").on(table.currentPhase),
   uploadStatusIdx: index("uploader_uploads_upload_status_idx").on(table.uploadStatus),
@@ -1631,6 +1638,7 @@ export const insertSecurityLogSchema = securityLogsSchema.omit({ id: true });
 // Export security log types
 export type SecurityLog = typeof securityLogs.$inferSelect;
 export type InsertSecurityLog = typeof securityLogs.$inferInsert;
+
 
 // Processing performance metrics for persistent tracking (environment-specific)
 export const processingMetrics = pgTable(getTableName("processing_metrics"), {
