@@ -1288,6 +1288,10 @@ export function registerTddfCacheRoutes(app: Express) {
         // Cache hit - get file list from master table for completeness
         const cacheData = cacheResult.rows[0];
         
+        // Convert YYYY-MM-DD to MMDDYYYY for filename matching
+        const [year, month, day] = date.split('-');
+        const filenameDateStr = `${month}${day}${year}`;
+        
         const filesResult = await pool.query(`
           SELECT 
             u.filename,
@@ -1295,14 +1299,10 @@ export function registerTddfCacheRoutes(app: Express) {
             COUNT(*) as record_count
           FROM ${masterTableName} r
           JOIN ${uploaderTableName} u ON r.upload_id = u.id
-          WHERE (
-            (r.record_type = 'BH' AND r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'batchDate' = $1)
-            OR
-            (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'transactionDate' = $1)
-          )
+          WHERE split_part(u.filename, '_', 4) = $1
           GROUP BY u.filename, u.id
           ORDER BY u.created_at DESC
-        `, [date]);
+        `, [filenameDateStr]);
         
         const filesProcessed = filesResult.rows.map(f => ({
           fileName: f.filename,
@@ -1350,6 +1350,10 @@ export function registerTddfCacheRoutes(app: Express) {
       // Cache miss - fall back to master table
       console.log(`📅 Cache miss for ${date}, falling back to MASTER table: ${masterTableName}`);
       
+      // Convert YYYY-MM-DD to MMDDYYYY for filename matching
+      const [year, month, day] = date.split('-');
+      const filenameDateStr = `${month}${day}${year}`;
+      
       const statsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
@@ -1360,13 +1364,10 @@ export function registerTddfCacheRoutes(app: Express) {
           COUNT(CASE WHEN record_type = 'P2' THEN 1 END) as p2_records,
           COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposits,
           COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_amounts
-        FROM ${masterTableName}
-        WHERE (
-          (record_type = 'BH' AND extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND extracted_fields->>'batchDate' = $1)
-          OR
-          (record_type = 'DT' AND extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND extracted_fields->>'transactionDate' = $1)
-        )
-      `, [date]);
+        FROM ${masterTableName} r
+        JOIN ${uploaderTableName} u ON r.upload_id = u.id
+        WHERE split_part(u.filename, '_', 4) = $1
+      `, [filenameDateStr]);
       
       const filesResult = await pool.query(`
         SELECT 
@@ -1375,14 +1376,10 @@ export function registerTddfCacheRoutes(app: Express) {
           COUNT(*) as record_count
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        WHERE (
-          (r.record_type = 'BH' AND r.extracted_fields->>'batchDate' ~ '^\\d{4}-\\d{2}-\\d{2}' AND r.extracted_fields->>'batchDate' = $1)
-          OR
-          (r.record_type = 'DT' AND r.extracted_fields->>'transactionDate' = $1)
-        )
+        WHERE split_part(u.filename, '_', 4) = $1
         GROUP BY u.filename, u.id
         ORDER BY u.created_at DESC
-      `, [date]);
+      `, [filenameDateStr]);
       
       const summary = statsResult.rows[0];
       const totalRecords = parseInt(summary.total_records) || 0;
