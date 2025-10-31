@@ -977,6 +977,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Set previous level endpoint - reset files from encoded/identified back to uploaded phase
+  app.post("/api/uploader/set-previous-level", isAuthenticated, async (req, res) => {
+    console.log("[SET-PREVIOUS-LEVEL] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[SET-PREVIOUS-LEVEL] Resetting ${uploadIds.length} files to uploaded phase`);
+      
+      const result = await storage.setPreviousLevel(uploadIds);
+      
+      console.log(`[SET-PREVIOUS-LEVEL] Successfully reset ${result.updatedCount} file(s) to uploaded phase`);
+      
+      res.json({
+        success: result.success,
+        updatedCount: result.updatedCount,
+        errors: result.errors,
+        message: `Successfully moved ${result.updatedCount} file(s) to previous level${result.errors.length > 0 ? ` (${result.errors.length} errors)` : ''}`
+      });
+      
+    } catch (error) {
+      console.error("[SET-PREVIOUS-LEVEL] Error setting previous level:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
   // Individual file encoding endpoint (Step 5)
   app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
     try {
