@@ -3534,6 +3534,29 @@ export default function TddfApiDataPage() {
                                   {file.is_archived && (
                                     <Badge variant="outline" className="bg-gray-100">Archived</Badge>
                                   )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (confirm(`Are you sure you want to delete "${file.filename}"?`)) {
+                                        try {
+                                          await deleteFilesMutation.mutateAsync([file.id]);
+                                          toast({ title: "File deleted successfully" });
+                                          refetchSearch();
+                                        } catch (error: any) {
+                                          toast({ 
+                                            title: "Failed to delete file", 
+                                            description: error.message,
+                                            variant: "destructive" 
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    data-testid={`button-delete-${file.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </div>
                             </CardContent>
@@ -3583,6 +3606,29 @@ export default function TddfApiDataPage() {
                                   {file.archived_by && (
                                     <span className="text-xs text-muted-foreground">by {file.archived_by}</span>
                                   )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (confirm(`Are you sure you want to delete archived file "${file.filename}"?`)) {
+                                        try {
+                                          await deleteFilesMutation.mutateAsync([file.id]);
+                                          toast({ title: "Archived file deleted successfully" });
+                                          refetchSearch();
+                                        } catch (error: any) {
+                                          toast({ 
+                                            title: "Failed to delete archived file", 
+                                            description: error.message,
+                                            variant: "destructive" 
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    data-testid={`button-delete-archive-${file.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </div>
                             </CardContent>
