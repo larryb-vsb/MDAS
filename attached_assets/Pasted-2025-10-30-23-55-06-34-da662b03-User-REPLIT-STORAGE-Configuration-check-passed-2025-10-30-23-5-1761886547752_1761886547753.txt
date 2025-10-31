@@ -1,0 +1,136 @@
+2025-10-30 23:55:06.34
+da662b03
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-30 23:55:06.34
+da662b03
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-30 23:55:06.34
+da662b03
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-30 23:55:06.40
+da662b03
+User
+[REPLIT-STORAGE] Found 328 files in prod-uploader/
+2025-10-30 23:55:06.40
+da662b03
+User
+[STORAGE-CONFIG] Successfully counted 328 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-30 23:55:06.45
+da662b03
+User
+4:55:06 AM [express] GET /api/uploader/storage-config 200 in 218ms :: {"available":true,"service":"R…
+2025-10-30 23:55:06.81
+da662b03
+User
+4:55:06 AM [express] GET /api/uploader 200 in 322ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:55:09.34
+da662b03
+User
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-30 23:55:09.34
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-30 23:55:09.34
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-30 23:55:09.44
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-30 23:55:09.44
+da662b03
+User
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-30 23:55:09.44
+da662b03
+User
+[MMS-WATCHER] [AUTO-45] No identified files found, running debug check...
+2025-10-30 23:55:09.44
+da662b03
+User
+[MMS-WATCHER] [FORCE-DEBUG] Getting all files...
+2025-10-30 23:55:09.44
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads ORDER BY start_time DESC
+2025-10-30 23:55:09.44
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query params: []
+2025-10-30 23:55:09.54
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 3 rows
+2025-10-30 23:55:09.54
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] First row: {
+2025-10-30 23:55:09.54
+da662b03
+User
+id: 'uploader_1761885008263_rua3r1n8d',
+2025-10-30 23:55:09.54
+da662b03
+User
+filename: 'VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO',
+2025-10-30 23:55:09.54
+da662b03
+User
+file_type: 'tddf',
+2025-10-30 23:55:09.54
+da662b03
+User
+status: 'started',
+2025-10-30 23:55:09.54
+da662b03
+User
+session_id: null,
+2025-10-30 23:55:09.54
+da662b03
+User
+started_at: 2025-10-31T04:30:08.294Z,
+2025-10-30 23:55:09.54
+da662b03
+User
+uploaded_at: 2025-10-31T04:30:14.738Z,
+2025-10-30 23:55:09.54
+da662b03
+User
+identified_at: null,
+2025-10-30 23:55:09.54
+da662b03
+User
+encoding_at: null,
+2025-10-30 23:55:09.54
+da662b03
+User
+processing_at: null,
+2025-10-30 23:55:09.54
+da662b03
+User
+completed_at: null,
+2025-10-30 23:55:09.54
+da662b03
+User
+file_size: '7048080',
+2025-10-30 23:55:09.54
+da662b03
+User
+line_count: 10041,
+2025-10-30 23:55:09.54
+da662b03
+User
+has_headers: false,
+2025-10-30 23:55:09.54
+da662b03
+User
+file_format: 'tddf',
+2025-10-30 23:55:09.54
+da662b03
+User
+encoding_detected: 'utf-8',

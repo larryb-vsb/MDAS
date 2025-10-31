@@ -1,0 +1,116 @@
+2025-10-30 23:41:46.78
+da662b03
+User
+4:41:46 AM [express] GET /api/uploader 200 in 277ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:41:46.98
+da662b03
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-30 23:41:46.99
+da662b03
+User
+[UPLOADER-DELETE] ============================================
+2025-10-30 23:41:46.99
+da662b03
+User
+[UPLOADER-DELETE] Soft-delete request initiated
+2025-10-30 23:41:46.99
+da662b03
+User
+[UPLOADER-DELETE] User: radmin
+2025-10-30 23:41:46.99
+da662b03
+User
+[UPLOADER-DELETE] Timestamp: 2025-10-31T04:41:46.990Z
+2025-10-30 23:41:46.99
+da662b03
+User
+[UPLOADER-DELETE] File count: 3
+2025-10-30 23:41:46.99
+da662b03
+User
+[UPLOADER-DELETE] Upload IDs: [
+2025-10-30 23:41:46.99
+da662b03
+User
+'uploader_1761885008263_rua3r1n8d',
+2025-10-30 23:41:46.99
+da662b03
+User
+'uploader_1761884829958_g116agerp',
+2025-10-30 23:41:46.99
+da662b03
+User
+'uploader_1761884720333_qn4mhb6fr'
+2025-10-30 23:41:46.99
+da662b03
+User
+]
+2025-10-30 23:41:47.03
+da662b03
+User
+4:41:47 AM [express] GET /api/mms-watcher/auto45-status 200 in 166ms :: {"success":true,"enabled":tr…
+2025-10-30 23:41:47.04
+da662b03
+User
+[UPLOADER] Error soft-deleting uploader uploads: error: column "bh_record_count" does not exist
+2025-10-30 23:41:47.04
+da662b03
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-30 23:41:47.04
+da662b03
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-30 23:41:47.04
+da662b03
+User
+at async DatabaseStorage.deleteUploaderUploads (file:///home/runner/workspace/dist/index.js:19365:32)
+2025-10-30 23:41:47.04
+da662b03
+User
+at async file:///home/runner/workspace/dist/index.js:34586:23 {
+2025-10-30 23:41:47.04
+da662b03
+User
+length: 115,
+2025-10-30 23:41:47.04
+da662b03
+User
+severity: 'ERROR',
+2025-10-30 23:41:47.04
+da662b03
+User
+code: '42703',
+2025-10-30 23:41:47.04
+da662b03
+User
+detail: undefined,
+2025-10-30 23:41:47.04
+da662b03
+User
+hint: undefined,
+2025-10-30 23:41:47.04
+da662b03
+User
+position: '86',
+2025-10-30 23:41:47.04
+da662b03
+User
+internalPosition: undefined,
+2025-10-30 23:41:47.04
+da662b03
+User
+internalQuery: undefined,
+2025-10-30 23:41:47.04
+da662b03
+User
+where: undefined,
+2025-10-30 23:41:47.04
+da662b03
+User
+schema: undefined,
+2025-10-30 23:41:47.04
+da662b03
+User
+table: undefined,
