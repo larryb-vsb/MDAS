@@ -6677,11 +6677,10 @@ export class DatabaseStorage implements IStorage {
               const upsertTerminalQuery = `
                 INSERT INTO ${terminalsTableName} (
                   v_number, pos_merchant_number, status, mcc, terminal_type, board_date, record_status,
-                  business_name, dba_name, merchant_address, city, state, zip_code, country, phone,
-                  bin, agent, chain, store, ssl, tokenization, encryption, daily_auth, dial_pay,
-                  terminal_info, terminal_visa,
+                  dba_name, bin, agent, chain, store, ssl, tokenization, encryption, daily_auth, dial_pay,
+                  terminal_info, terminal_visa, terminal_id,
                   created_at, updated_at, last_update, update_source, created_by, updated_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
                 ON CONFLICT (v_number) DO UPDATE SET
                   pos_merchant_number = EXCLUDED.pos_merchant_number,
                   status = EXCLUDED.status,
@@ -6689,14 +6688,7 @@ export class DatabaseStorage implements IStorage {
                   terminal_type = EXCLUDED.terminal_type,
                   board_date = EXCLUDED.board_date,
                   record_status = EXCLUDED.record_status,
-                  business_name = EXCLUDED.business_name,
                   dba_name = EXCLUDED.dba_name,
-                  merchant_address = EXCLUDED.merchant_address,
-                  city = EXCLUDED.city,
-                  state = EXCLUDED.state,
-                  zip_code = EXCLUDED.zip_code,
-                  country = EXCLUDED.country,
-                  phone = EXCLUDED.phone,
                   bin = EXCLUDED.bin,
                   agent = EXCLUDED.agent,
                   chain = EXCLUDED.chain,
@@ -6708,6 +6700,7 @@ export class DatabaseStorage implements IStorage {
                   dial_pay = EXCLUDED.dial_pay,
                   terminal_info = EXCLUDED.terminal_info,
                   terminal_visa = EXCLUDED.terminal_visa,
+                  terminal_id = EXCLUDED.terminal_id,
                   updated_at = EXCLUDED.updated_at,
                   last_update = EXCLUDED.last_update,
                   update_source = EXCLUDED.update_source,
@@ -6717,12 +6710,10 @@ export class DatabaseStorage implements IStorage {
               
               const result = await pool.query(upsertTerminalQuery, [
                 terminal.vNumber, terminal.posMerchantNumber, terminal.status, terminal.mcc,
-                terminal.terminalType, terminal.boardDate, terminal.recordStatus, terminal.businessName,
-                terminal.dbaName, terminal.merchantAddress, terminal.city, terminal.state,
-                terminal.zipCode, terminal.country, terminal.phone,
-                terminal.bin, terminal.agent, terminal.chain, terminal.store, terminal.ssl, terminal.tokenization,
-                terminal.encryption, terminal.dailyAuth, terminal.dialPay,
-                terminal.terminalInfo, terminal.terminalVisa,
+                terminal.terminalType, terminal.boardDate, terminal.recordStatus,
+                terminal.dbaName, terminal.bin, terminal.agent, terminal.chain, terminal.store, 
+                terminal.ssl, terminal.tokenization, terminal.encryption, terminal.dailyAuth, terminal.dialPay,
+                terminal.terminalInfo, terminal.terminalVisa, terminal.terminalId,
                 new Date(), new Date(), lastUpdateDate,
                 sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import", "System Import"
               ]);

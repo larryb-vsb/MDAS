@@ -170,7 +170,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
   agent: "Agent", // Agent information
   chain: "Chain", // Chain store identifier
   store: "Store", // Store number
-  terminalInfo: "Terminal #", // Terminal information from screenshot
+  terminalInfo: "Terminal Info", // Terminal information field
   
   // Extended fields from comprehensive specification (if available in CSV)
   bankNumber: "Bank Number", // Bank identification
@@ -185,11 +185,11 @@ export const terminalFieldMappings: Record<string, string | null> = {
   onlineEntry: "Online Entry", // Online processing capability
   achFlag: "ACH Flag", // ACH capability
   cardholderIdMethod: "Cardholder ID Method", // ID verification method
-  terminalId: "Terminal ID", // Terminal hardware ID
+  terminalId: "Terminal #", // Terminal # from CSV maps to Terminal ID
   discoverPosEntryMode: "Discover POS Entry Mode", // Discover network entry
   purchaseId: "Purchase ID", // Purchase identification
   posDataCode: "POS Data Code", // POS configuration code
-  termNumber: "Terminal #", // Terminal # from CSV import (renamed from genericField1)
+  termNumber: "Term Number", // Alternative terminal number field
   
   // Additional fields not directly from TSYS but managed internally
   terminalType: null, // Will be set during processing
