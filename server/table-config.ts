@@ -4,9 +4,8 @@ import { getEnvironment } from './env-config';
 const { NODE_ENV } = getEnvironment();
 
 // Environment-aware table prefix
-// FIXED: Both environments use 'dev_' prefix to match actual production database tables
-// Production database was created with dev_ prefix, so we maintain consistency
-const TABLE_PREFIX = 'dev_';
+// Development: dev_ prefix, Production: no prefix
+const TABLE_PREFIX = NODE_ENV === 'production' ? '' : 'dev_';
 
 // Function to get environment-specific table name
 export function getTableName(baseName: string): string {
