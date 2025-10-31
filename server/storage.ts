@@ -6506,27 +6506,23 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
-          // Find Master MID (POS Merchant #) - required field to link to merchants - EXACT HEADERS FROM SCREENSHOT
+          // Find Master MID (POS Merchant #) - OPTIONAL field to link to merchants
           const masterMID = row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
-                           row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"]; // Exact header from screenshot: "POS Merchant #"
+                           row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"];
           
           // Debug: Show actual values being used (for first 20 rows)
           if (rowCount <= 20) {
             console.log(`✅ Final vNumber value: "${vNumber}"`);
-            console.log(`✅ Final masterMID value: "${masterMID}"`);
+            console.log(`✅ Final masterMID value: "${masterMID || 'NOT PROVIDED'}"`);
             console.log(`---`);
           }
-          if (!masterMID || !masterMID.trim()) {
-            console.log(`[SKIP ROW] No Master MID found in row ${rowCount}, skipping`);
-            return;
-          }
           
-          // Create terminal object with required fields
+          // Create terminal object with VAR number as the only required field
           const terminalData: Partial<InsertTerminal> = {
             vNumber: vNumber.trim(),
-            posMerchantNumber: masterMID.trim(),
+            posMerchantNumber: masterMID?.trim() || null, // Optional - set to null if not provided
             status: "Active", // Default status, will be overridden by Record Status mapping
             // Will add more fields from CSV mapping below
           };
