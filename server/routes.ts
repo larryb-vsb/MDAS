@@ -3478,6 +3478,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SYNC TERMINAL LAST ACTIVITY FROM TDDF TRANSACTIONS
+  app.post('/api/terminals/sync-last-activity', isAuthenticated, async (req, res) => {
+    try {
+      console.log('🔄 [SYNC-LAST-ACTIVITY] Starting terminal activity sync from TDDF...');
+      
+      const tddfTableName = getTableName('tddf_jsonb');
+      const terminalsTableName = getTableName('api_terminals');
+      
+      // Query TDDF for most recent transaction per terminal ID
+      console.log(`📊 [SYNC-LAST-ACTIVITY] Querying ${tddfTableName} for terminal activity...`);
+      
+      const activityQuery = `
+        SELECT 
+          extracted_fields->>'terminalId' as terminal_id,
+          MAX((extracted_fields->>'transactionDate')::date) as last_activity_date,
+          COUNT(*) as transaction_count
+        FROM ${tddfTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'terminalId' IS NOT NULL
+          AND extracted_fields->>'terminalId' != ''
+        GROUP BY extracted_fields->>'terminalId'
+      `;
+      
+      const activityResult = await pool.query(activityQuery);
+      console.log(`✅ [SYNC-LAST-ACTIVITY] Found activity for ${activityResult.rows.length} terminals`);
+      
+      // Map Terminal IDs to VAR Numbers and update
+      let updatedCount = 0;
+      let unmatchedCount = 0;
+      
+      for (const row of activityResult.rows) {
+        const terminalId = row.terminal_id;
+        const lastActivityDate = row.last_activity_date;
+        
+        // Map Terminal ID to VAR Number
+        // Terminal ID like "71084114" or "01084114" → VAR "V1084114" or "V01084114"
+        let varNumber: string;
+        if (terminalId.startsWith('7')) {
+          // Remove leading "7" and prepend "V"
+          varNumber = 'V' + terminalId.substring(1);
+        } else if (terminalId.startsWith('0')) {
+          // Just prepend "V"
+          varNumber = 'V' + terminalId;
+        } else {
+          // Already in correct format or unknown pattern - try prepending V
+          varNumber = terminalId.startsWith('V') ? terminalId : 'V' + terminalId;
+        }
+        
+        // Update terminal
+        const updateQuery = `
+          UPDATE ${terminalsTableName}
+          SET last_activity = $1
+          WHERE v_number = $2
+        `;
+        
+        const updateResult = await pool.query(updateQuery, [lastActivityDate, varNumber]);
+        
+        if (updateResult.rowCount && updateResult.rowCount > 0) {
+          updatedCount++;
+          if (updatedCount % 100 === 0) {
+            console.log(`📈 [SYNC-LAST-ACTIVITY] Updated ${updatedCount} terminals...`);
+          }
+        } else {
+          unmatchedCount++;
+          if (unmatchedCount <= 10) {
+            console.log(`⚠️  [SYNC-LAST-ACTIVITY] No match for Terminal ID ${terminalId} → VAR ${varNumber}`);
+          }
+        }
+      }
+      
+      console.log(`✅ [SYNC-LAST-ACTIVITY] Sync complete!`);
+      console.log(`📊 [SYNC-LAST-ACTIVITY] Results: ${updatedCount} terminals updated, ${unmatchedCount} unmatched`);
+      
+      res.json({
+        success: true,
+        terminalsWithActivity: activityResult.rows.length,
+        terminalsUpdated: updatedCount,
+        terminalsUnmatched: unmatchedCount
+      });
+      
+    } catch (error) {
+      console.error('❌ [SYNC-LAST-ACTIVITY] Error:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // ==================== SUBTERMINAL DATA EXTRACTION ROUTE ====================
   
   // Get SubTerminal data from encoded xlsx file with VNumber matching
