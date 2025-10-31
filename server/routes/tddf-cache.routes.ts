@@ -297,8 +297,7 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`[OPTIMIZED-HEATMAP] Request for year ${year}, record type: ${recordType}`);
       
       // Try to use HeatMapCacheBuilder for optimized performance
-      const cacheBuilder = new HeatMapCacheBuilder(pool, getTableName);
-      const result = await cacheBuilder.getOrBuildCache(year, recordType);
+      const result = await HeatMapCacheBuilder.getYearDataFromCache(year, recordType);
       
       res.json(result);
     } catch (error) {
@@ -317,8 +316,7 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`[HEATMAP-OPTIMIZED] Fetching optimized heatmap for year ${year}`);
       
       // Use HeatMapCacheBuilder for optimized caching
-      const cacheBuilder = new HeatMapCacheBuilder(pool, getTableName);
-      const result = await cacheBuilder.getOrBuildCache(year, 'DT');
+      const result = await HeatMapCacheBuilder.getYearDataFromCache(year, 'DT');
       
       res.json(result);
     } catch (error) {
