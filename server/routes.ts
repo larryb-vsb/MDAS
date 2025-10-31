@@ -317,8 +317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const countParams: any[] = [];
         const countConditions: string[] = [];
         
-        // Exclude archived files from active file list
+        // Exclude archived and deleted files from active file list
         countConditions.push(`(is_archived = false OR is_archived IS NULL)`);
+        countConditions.push(`(upload_status != 'deleted' OR upload_status IS NULL)`);
         
         if (phase) {
           countConditions.push(`current_phase = $${countParams.length + 1}`);
@@ -347,8 +348,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const params: any[] = [];
         const conditions: string[] = [];
         
-        // Exclude archived files from active file list
+        // Exclude archived and deleted files from active file list
         conditions.push(`(is_archived = false OR is_archived IS NULL)`);
+        conditions.push(`(upload_status != 'deleted' OR upload_status IS NULL)`);
         
         if (phase) {
           conditions.push(`current_phase = $${params.length + 1}`);
@@ -454,23 +456,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Bulk delete uploader files
+  // Bulk delete uploader files (soft-delete with audit logging)
   app.delete("/api/uploader/bulk-delete", isAuthenticated, async (req, res) => {
     try {
       const { uploadIds } = req.body;
+      const username = (req.user as any)?.username || 'unknown';
+      const timestamp = new Date().toISOString();
       
       if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
         return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
       }
       
-      console.log(`[UPLOADER API] Bulk delete request for ${uploadIds.length} uploads:`, uploadIds);
+      console.log(`[UPLOADER-DELETE] ============================================`);
+      console.log(`[UPLOADER-DELETE] Soft-delete request initiated`);
+      console.log(`[UPLOADER-DELETE] User: ${username}`);
+      console.log(`[UPLOADER-DELETE] Timestamp: ${timestamp}`);
+      console.log(`[UPLOADER-DELETE] File count: ${uploadIds.length}`);
+      console.log(`[UPLOADER-DELETE] Upload IDs:`, uploadIds);
       
-      await storage.deleteUploaderUploads(uploadIds);
+      const result = await storage.deleteUploaderUploads(uploadIds, username);
       
-      console.log(`[UPLOADER API] Successfully deleted ${uploadIds.length} uploads`);
-      res.json({ success: true, message: `Successfully deleted ${uploadIds.length} files` });
+      console.log(`[UPLOADER-DELETE] ============================================`);
+      console.log(`[UPLOADER-DELETE] Soft-delete completed successfully`);
+      console.log(`[UPLOADER-DELETE] Files deleted: ${result.deletedFiles.length}`);
+      
+      // Log each deleted file with details
+      result.deletedFiles.forEach((file, index) => {
+        console.log(`[UPLOADER-DELETE] File ${index + 1}:`);
+        console.log(`[UPLOADER-DELETE]   - Filename: ${file.filename}`);
+        console.log(`[UPLOADER-DELETE]   - Upload ID: ${file.id}`);
+        console.log(`[UPLOADER-DELETE]   - Size: ${(file.fileSize / 1024).toFixed(2)} KB`);
+        console.log(`[UPLOADER-DELETE]   - BH Records: ${file.recordCounts.bh}`);
+        console.log(`[UPLOADER-DELETE]   - DT Records: ${file.recordCounts.dt}`);
+        console.log(`[UPLOADER-DELETE]   - Other Records: ${file.recordCounts.other}`);
+      });
+      
+      console.log(`[UPLOADER-DELETE] Audit logs created: ${result.deletedFiles.length} entries`);
+      console.log(`[UPLOADER-DELETE] ============================================`);
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully deleted ${result.deletedFiles.length} file(s)`,
+        deletedCount: result.deletedFiles.length,
+        deletedFiles: result.deletedFiles.map(f => ({
+          id: f.id,
+          filename: f.filename
+        }))
+      });
     } catch (error: any) {
-      console.error('Bulk delete uploader error:', error);
+      console.error('[UPLOADER-DELETE] ERROR during bulk delete:', error);
       res.status(500).json({ error: error.message });
     }
   });

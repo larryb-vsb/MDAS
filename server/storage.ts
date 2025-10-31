@@ -140,7 +140,7 @@ export interface IStorage {
   getUploaderUploadById(id: string): Promise<UploaderUpload | undefined>;
   updateUploaderUpload(id: string, updates: Partial<UploaderUpload>): Promise<UploaderUpload>;
   updateUploaderPhase(id: string, phase: string, phaseData?: Record<string, any>): Promise<UploaderUpload>;
-  deleteUploaderUploads(uploadIds: string[]): Promise<void>;
+  deleteUploaderUploads(uploadIds: string[], username: string): Promise<{ deletedFiles: Array<{ id: string; filename: string; fileSize: number; recordCounts: any }> }>;
   cancelUploaderEncoding(uploadIds: string[]): Promise<{ success: boolean; canceledCount: number; errors: string[] }>;
   setPreviousLevel(uploadIds: string[]): Promise<{ success: boolean; updatedCount: number; errors: string[] }>;
 
@@ -15256,26 +15256,99 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteUploaderUploads(uploadIds: string[]): Promise<void> {
+  async deleteUploaderUploads(uploadIds: string[], username: string): Promise<{ deletedFiles: Array<{ id: string; filename: string; fileSize: number; recordCounts: any }> }> {
     try {
       if (!uploadIds || uploadIds.length === 0) {
-        return;
+        return { deletedFiles: [] };
       }
 
       const uploaderTableName = getTableName('uploader_uploads');
+      const auditLogsTableName = getTableName('audit_logs');
       
       // Build placeholders for parameterized query
       const placeholders = uploadIds.map((_, index) => `$${index + 1}`).join(', ');
       
-      const result = await pool.query(`
-        DELETE FROM ${uploaderTableName} 
+      // First, get file details for audit logging before soft-deleting
+      const selectResult = await pool.query(`
+        SELECT 
+          id, 
+          filename, 
+          file_size, 
+          bh_record_count, 
+          dt_record_count, 
+          other_record_count,
+          final_file_type
+        FROM ${uploaderTableName} 
         WHERE id IN (${placeholders})
+          AND (upload_status != 'deleted' OR upload_status IS NULL)
       `, uploadIds);
       
-      console.log(`[UPLOADER] Deleted ${result.rowCount} uploader uploads`);
+      const filesToDelete = selectResult.rows;
+      
+      if (filesToDelete.length === 0) {
+        console.log(`[UPLOADER] No files to delete (already deleted or not found)`);
+        return { deletedFiles: [] };
+      }
+      
+      // Soft-delete: Update upload_status to 'deleted' and set deleted_at/deleted_by
+      const updateResult = await pool.query(`
+        UPDATE ${uploaderTableName} 
+        SET 
+          upload_status = 'deleted',
+          deleted_at = NOW(),
+          deleted_by = $${uploadIds.length + 1},
+          last_updated = NOW()
+        WHERE id IN (${placeholders})
+          AND (upload_status != 'deleted' OR upload_status IS NULL)
+        RETURNING id
+      `, [...uploadIds, username]);
+      
+      console.log(`[UPLOADER] Soft-deleted ${updateResult.rowCount} uploader uploads`);
+      
+      // Create audit log entries for each deleted file
+      const deletedFiles = filesToDelete.map((file: any) => ({
+        id: file.id,
+        filename: file.filename,
+        fileSize: file.file_size,
+        recordCounts: {
+          bh: file.bh_record_count || 0,
+          dt: file.dt_record_count || 0,
+          other: file.other_record_count || 0
+        },
+        fileType: file.final_file_type
+      }));
+      
+      // Insert audit log entries
+      for (const file of deletedFiles) {
+        await pool.query(`
+          INSERT INTO ${auditLogsTableName} (
+            entity_type, 
+            entity_id, 
+            action, 
+            username, 
+            file_metadata,
+            timestamp
+          ) VALUES ($1, $2, $3, $4, $5, NOW())
+        `, [
+          'uploader_upload',
+          file.id,
+          'soft_delete',
+          username,
+          JSON.stringify({
+            filename: file.filename,
+            fileSize: file.fileSize,
+            recordCounts: file.recordCounts,
+            fileType: file.fileType
+          })
+        ]);
+      }
+      
+      console.log(`[UPLOADER-AUDIT] Created ${deletedFiles.length} audit log entries for deleted files`);
+      
+      return { deletedFiles };
       
     } catch (error) {
-      console.error('[UPLOADER] Error deleting uploader uploads:', error);
+      console.error('[UPLOADER] Error soft-deleting uploader uploads:', error);
       throw error;
     }
   }
