@@ -742,9 +742,9 @@ function Tddf1Page() {
 
   return (
     <div
-      className={`min-h-screen transition-colors p-2 sm:p-4 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
+      className={`min-h-screen transition-colors p-2 sm:p-3 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
     >
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-3">
         {/* Compact Header */}
         <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -1041,7 +1041,7 @@ function Tddf1Page() {
           </Card>
 
           {/* Overview Tab Content */}
-          <TabsContent value="overview" className="space-y-2 sm:space-y-4">
+          <TabsContent value="overview" className="space-y-2 sm:space-y-3">
             {/* Focused Merchant Indicator */}
             {focusedMerchant && (
               <Card
@@ -1077,7 +1077,7 @@ function Tddf1Page() {
             )}
 
             {/* Main Financial Metrics */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <Card
                 className={`transition-colors ${isDarkMode ? "bg-gray-900 border-gray-600" : "bg-gray-50 border-gray-300"}`}
               >
@@ -1124,7 +1124,7 @@ function Tddf1Page() {
             </div>
 
             {/* Mobile-Optimized Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* Mobile-Optimized Day Breakdown Widget */}
               <Card
                 className={`lg:col-span-2 transition-colors ${isDarkMode ? "bg-gray-900 border-gray-600" : "bg-gray-50 border-gray-300"}`}
@@ -1162,11 +1162,11 @@ function Tddf1Page() {
                       Loading day data...
                     </div>
                   ) : dayBreakdown ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Interactive Draggable Circles */}
                       <div
                         ref={containerRef}
-                        className="relative h-80 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden"
+                        className="relative h-72 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden"
                         style={{ touchAction: "none" }}
                       >
                         <div className="absolute top-2 left-2 text-xs text-gray-500 dark:text-gray-400">
@@ -1184,11 +1184,11 @@ function Tddf1Page() {
                       {/* Mobile-Optimized Record Type Breakdown */}
                       <div>
                         <h4
-                          className={`font-semibold mb-3 text-sm sm:text-base transition-colors ${isDarkMode ? "text-gray-200" : "text-gray-900"}`}
+                          className={`font-semibold mb-2 text-sm sm:text-base transition-colors ${isDarkMode ? "text-gray-200" : "text-gray-900"}`}
                         >
                           Record Types
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                           {(() => {
                             // Define consistent order and colors for record types
                             const recordTypeConfig = {
@@ -2131,7 +2131,7 @@ function Tddf1Page() {
           </TabsContent>
 
           {/* Table View Tab Content */}
-          <TabsContent value="table" className="space-y-2 sm:space-y-4">
+          <TabsContent value="table" className="space-y-2 sm:space-y-3">
             <Card
               className={`transition-colors ${isDarkMode ? "bg-gray-900 border-gray-600" : "bg-gray-50 border-gray-300"}`}
             >
@@ -2784,7 +2784,7 @@ function Tddf1Page() {
           </TabsContent>
 
           {/* Merchant Volume Tab Content */}
-          <TabsContent value="merchants" className="space-y-2 sm:space-y-4">
+          <TabsContent value="merchants" className="space-y-2 sm:space-y-3">
             <Tddf1MerchantVolumeTab
               selectedDate={selectedDate}
               isDarkMode={isDarkMode}
