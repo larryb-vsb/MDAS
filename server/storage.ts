@@ -6430,12 +6430,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process terminal file from database content
-  async processTerminalFileFromContent(base64Content: string, sourceFileId?: string, sourceFilename?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }> {
+  async processTerminalFileFromContent(content: string | Buffer, sourceFileId?: string, sourceFilename?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }> {
     console.log(`=================== TERMINAL FILE PROCESSING (DATABASE) ===================`);
     console.log(`Processing terminal file from database content`);
     
-    // Decode base64 content
-    const csvContent = Buffer.from(base64Content, 'base64').toString('utf8');
+    // Convert Buffer to UTF-8 string if needed (coerce buffer to string)
+    const csvContent = Buffer.isBuffer(content) ? content.toString('utf8') : content;
+    console.log(`[TERMINAL-DEBUG] Content type: ${Buffer.isBuffer(content) ? 'Buffer' : typeof content}`);
     console.log(`[TERMINAL-DEBUG] CSV content length: ${csvContent.length} characters`);
     console.log(`[TERMINAL-DEBUG] CSV content lines: ${csvContent.split('\n').length}`);
     console.log(`[TERMINAL-DEBUG] First 500 chars: ${csvContent.substring(0, 500)}`);
