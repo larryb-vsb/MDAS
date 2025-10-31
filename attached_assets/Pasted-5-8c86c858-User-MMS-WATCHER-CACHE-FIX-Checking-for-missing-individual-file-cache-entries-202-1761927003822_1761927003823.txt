@@ -1,0 +1,156 @@
+5
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Checking for missing individual file cache entries
+2025-10-31 11:05:47.91
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Found 0 total encoded TDDF files
+2025-10-31 11:05:47.97
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: 0
+2025-10-31 11:05:47.98
+8c86c858
+User
+Error fetching TDDF API monitoring: error: column "uploaded_at" does not exist
+2025-10-31 11:05:47.98
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 11:05:47.98
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 11:05:47.98
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:22359:31 {
+2025-10-31 11:05:47.98
+8c86c858
+User
+length: 112,
+2025-10-31 11:05:47.98
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 11:05:47.98
+8c86c858
+User
+code: '42703',
+2025-10-31 11:05:47.98
+8c86c858
+User
+detail: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+hint: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+position: '440',
+2025-10-31 11:05:47.98
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+where: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+schema: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+table: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+column: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+dataType: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+constraint: undefined,
+2025-10-31 11:05:47.98
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 11:05:47.98
+8c86c858
+User
+line: '3716',
+2025-10-31 11:05:47.98
+8c86c858
+User
+routine: 'errorMissingColumn'
+2025-10-31 11:05:47.98
+8c86c858
+User
+}
+2025-10-31 11:05:48.04
+8c86c858
+User
+4:05:48 PM [express] GET /api/tddf-api/monitoring 500 in 357ms :: {"error":"Failed to fetch monitori…
+2025-10-31 11:05:48.26
+8c86c858
+User
+4:05:48 PM [express] GET /api/uploader/processing-status 200 in 375ms
+2025-10-31 11:05:48.43
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-31 11:05:48.43
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 11:05:48.43
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-31 11:05:48.43
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 11:05:48.43
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 11:05:48.49
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 11:05:48.49
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-31 11:05:48.50
+8c86c858
+User
+4:05:48 PM [express] GET /api/tddf-archive 200 in 360ms :: {"files":[{"id":"uploader_1761890444167_r…
+2025-10-31 11:05:48.67
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 11:05:48.67
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 11:05:48.82
+8c86c858
+User
+4:05:48 PM [express] GET /api/uploader/uploader_1761890341369_hatx3xd62/timing 200 in 175ms
+2025-10-31 11:05:50.36
+8c86c858
+User
+4:05:50 PM [express] GET /api/uploader/uploader_1761890505581_tgtvvnwli/timing 200 in 183ms

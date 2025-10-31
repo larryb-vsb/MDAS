@@ -1,0 +1,116 @@
+2025-10-31 12:17:26.92
+8c86c858
+User
+file: 'plancat.c',
+2025-10-31 12:17:26.92
+8c86c858
+User
+line: '943',
+2025-10-31 12:17:26.92
+8c86c858
+User
+routine: 'infer_arbiter_indexes'
+2025-10-31 12:17:26.92
+8c86c858
+User
+}
+2025-10-31 12:17:26.92
+8c86c858
+User
+[MCC SCHEMA] Error uploading CSV: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+2025-10-31 12:17:26.92
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 12:17:26.92
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 12:17:26.92
+8c86c858
+User
+at async DatabaseStorage.bulkUpsertMccSchemaFields (file:///home/runner/workspace/dist/index.js:18796:13)
+2025-10-31 12:17:26.92
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:31297:23 {
+2025-10-31 12:17:26.92
+8c86c858
+User
+length: 148,
+2025-10-31 12:17:26.92
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 12:17:26.92
+8c86c858
+User
+code: '42P10',
+2025-10-31 12:17:26.92
+8c86c858
+User
+detail: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+hint: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+position: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+where: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+schema: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+table: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+column: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+dataType: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+constraint: undefined,
+2025-10-31 12:17:26.92
+8c86c858
+User
+file: 'plancat.c',
+2025-10-31 12:17:26.92
+8c86c858
+User
+line: '943',
+2025-10-31 12:17:26.92
+8c86c858
+User
+routine: 'infer_arbiter_indexes'
+2025-10-31 12:17:26.92
+8c86c858
+User
+}
+2025-10-31 12:17:26.99
+8c86c858
+User
+5:17:26 PM [express] POST /api/mcc-schema/upload-csv 500 in 305ms :: {"error":"there is no unique or…
+2025-10-31 12:17:30.03
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue

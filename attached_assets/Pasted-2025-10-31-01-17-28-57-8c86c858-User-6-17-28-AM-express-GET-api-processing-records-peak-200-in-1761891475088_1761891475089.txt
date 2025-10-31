@@ -1,0 +1,136 @@
+2025-10-31 01:17:28.57
+8c86c858
+User
+6:17:28 AM [express] GET /api/processing/records-peak 200 in 493ms
+2025-10-31 01:17:28.75
+8c86c858
+User
+[JSONB-CLEANUP] Error getting duplicate stats: error: column "raw_line_hash" does not exist
+2025-10-31 01:17:28.75
+8c86c858
+User
+at cn.parse (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1127:36)
+2025-10-31 01:17:28.75
+8c86c858
+User
+at WebSocket. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:987:80)
+2025-10-31 01:17:28.75
+8c86c858
+User
+length: 114,
+2025-10-31 01:17:28.75
+8c86c858
+User
+dataType: undefined,
+2025-10-31 01:17:28.75
+8c86c858
+User
+constraint: undefined,
+2025-10-31 01:17:28.75
+8c86c858
+User
+}
+2025-10-31 01:17:28.81
+8c86c858
+User
+[JSONB-CLEANUP] Error finding duplicates: error: column "raw_line_hash" does not exist
+2025-10-31 01:17:28.81
+8c86c858
+User
+at v. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1190:16)
+2025-10-31 01:17:28.81
+8c86c858
+User
+at v.emit (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:397:12)
+2025-10-31 01:17:28.81
+8c86c858
+User
+at WebSocket. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:987:80)
+2025-10-31 01:17:28.81
+8c86c858
+User
+at WebSocket.onMessage (/home/runner/workspace/node_modules/ws/lib/event-target.js:209:9)
+2025-10-31 01:17:28.81
+8c86c858
+User
+length: 113,
+2025-10-31 01:17:28.81
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:17:28.81
+8c86c858
+User
+where: undefined,
+2025-10-31 01:17:28.81
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 01:17:28.81
+8c86c858
+User
+}
+2025-10-31 01:17:28.81
+8c86c858
+User
+at cn.parseErrorMessage (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1182:6)
+2025-10-31 01:17:28.81
+8c86c858
+User
+at cn.parse (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1127:36)
+2025-10-31 01:17:28.81
+8c86c858
+User
+at WebSocket.emit (node:events:524:28)
+2025-10-31 01:17:28.81
+8c86c858
+User
+at Receiver.receiverOnMessage (/home/runner/workspace/node_modules/ws/lib/websocket.js:1220:20) {
+2025-10-31 01:17:28.81
+8c86c858
+User
+detail: undefined,
+2025-10-31 01:17:28.81
+8c86c858
+User
+hint: undefined,
+2025-10-31 01:17:28.81
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:17:28.81
+8c86c858
+User
+schema: undefined,
+2025-10-31 01:17:28.81
+8c86c858
+User
+}
+2025-10-31 01:17:28.86
+8c86c858
+User
+6:17:28 AM [express] GET /api/tddf-json/duplicate-stats 500 in 788ms :: {"success":false,"error":"co…
+2025-10-31 01:17:28.91
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:17:29.26
+8c86c858
+User
+Storage status check: {
+2025-10-31 01:17:29.26
+8c86c858
+User
+storageType: 'DatabaseStorage',
+2025-10-31 01:17:29.26
+8c86c858
+User
+isFallbackStorage: false,
+2025-10-31 01:17:29.26
+8c86c858
+User
+}
+2025-10-31 01:17:30.09
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue

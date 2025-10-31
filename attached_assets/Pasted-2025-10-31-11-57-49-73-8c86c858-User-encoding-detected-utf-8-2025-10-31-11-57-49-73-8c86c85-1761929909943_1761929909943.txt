@@ -1,0 +1,121 @@
+2025-10-31 11:57:49.73
+8c86c858
+User
+encoding_detected: 'utf-8',
+2025-10-31 11:57:49.73
+8c86c858
+User
+storage_key: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+bucket_name: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+encoding_status: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+encoding_time_ms: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+json_records_created: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+processing_errors: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+keep_for_review: false,
+2025-10-31 11:57:49.73
+8c86c858
+User
+created_at: 2025-10-31T16:56:10.841Z,
+2025-10-31 11:57:49.73
+8c86c858
+User
+updated_at: 2025-10-31T16:56:10.882Z,
+2025-10-31 11:57:49.73
+8c86c858
+User
+upload_status: 'started',
+2025-10-31 11:57:49.73
+8c86c858
+User
+start_time: 2025-10-31T16:56:10.882Z,
+2025-10-31 11:57:49.73
+8c86c858
+User
+current_phase: 'encoded',
+2025-10-31 11:57:49.73
+8c86c858
+User
+last_updated: 2025-10-31T16:56:32.562Z,
+2025-10-31 11:57:49.73
+8c86c858
+User
+created_by: 'system',
+2025-10-31 11:57:49.73
+8c86c858
+User
+server_id: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+upload_progress: 100,
+2025-10-31 11:57:49.73
+8c86c858
+User
+chunked_upload: false,
+2025-10-31 11:57:49.73
+8c86c858
+User
+chunk_count: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+chunks_uploaded: 0,
+2025-10-31 11:57:49.73
+8c86c858
+User
+upload_started_at: 2025-10-31T16:56:11.711Z,
+2025-10-31 11:57:49.73
+8c86c858
+User
+storage_path: 'prod-uploader/2025-10-31/uploader_1761929770841_5ilm6qs84/TSYS-ACQ MerchantDetailFileSchema-10Oct2024.csv',
+2025-10-31 11:57:49.73
+8c86c858
+User
+detected_file_type: 'transaction_csv',
+2025-10-31 11:57:49.73
+8c86c858
+User
+user_classified_type: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+final_file_type: 'transaction_csv',
+2025-10-31 11:57:49.73
+8c86c858
+User
+data_size: 10569,
+2025-10-31 11:57:49.73
+8c86c858
+User
+compression_used: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+validation_errors: null,
+2025-10-31 11:57:49.73
+8c86c858
+User
+file_content: null,
+
+2025-10-31 11:57:49.73
+8c86c858
+User
+s3_bucket: 'default-replit-bucket',

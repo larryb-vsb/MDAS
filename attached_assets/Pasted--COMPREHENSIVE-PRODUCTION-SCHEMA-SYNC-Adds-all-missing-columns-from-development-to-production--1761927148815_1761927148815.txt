@@ -1,0 +1,69 @@
+-- COMPREHENSIVE PRODUCTION SCHEMA SYNC
+-- Adds all missing columns from development to production
+BEGIN;
+
+-- 1. uploader_uploads - File processing pipeline
+ALTER TABLE uploader_uploads
+ADD COLUMN IF NOT EXISTS business_day DATE,
+ADD COLUMN IF NOT EXISTS file_sequence_number TEXT,
+ADD COLUMN IF NOT EXISTS file_processing_time TEXT,
+ADD COLUMN IF NOT EXISTS validation_errors TEXT,
+ADD COLUMN IF NOT EXISTS status_message TEXT,
+ADD COLUMN IF NOT EXISTS raw_lines_count INTEGER,
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS deleted_by TEXT;
+
+-- 2. tddf_api_files - TDDF API processing
+ALTER TABLE tddf_api_files
+ADD COLUMN IF NOT EXISTS file_size BIGINT,
+ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS record_count INTEGER,
+ADD COLUMN IF NOT EXISTS processing_status TEXT,
+ADD COLUMN IF NOT EXISTS error_message TEXT;
+
+-- 3. tddf_api_request_logs - API monitoring
+ALTER TABLE tddf_api_request_logs
+ADD COLUMN IF NOT EXISTS api_key_id INTEGER,
+ADD COLUMN IF NOT EXISTS request_size INTEGER,
+ADD COLUMN IF NOT EXISTS response_size INTEGER,
+ADD COLUMN IF NOT EXISTS user_agent TEXT,
+ADD COLUMN IF NOT EXISTS ip_address TEXT,
+ADD COLUMN IF NOT EXISTS requested_at TIMESTAMP;
+
+-- 4. api_terminals - Terminal management
+ALTER TABLE api_terminals
+ADD COLUMN IF NOT EXISTS pos_merchant_number TEXT;
+
+-- 5. merchants - Merchant data
+ALTER TABLE merchants
+ADD COLUMN IF NOT EXISTS mcc TEXT;
+
+-- 6. uploader_tddf_jsonb_records - TDDF record storage
+ALTER TABLE uploader_tddf_jsonb_records
+ADD COLUMN IF NOT EXISTS raw_line_hash TEXT;
+
+-- 7. audit_logs - Audit trail
+ALTER TABLE audit_logs
+ADD COLUMN IF NOT EXISTS file_metadata JSONB;
+
+-- 8. Create missing dashboard_cache table
+CREATE TABLE IF NOT EXISTS dashboard_cache (
+  id SERIAL PRIMARY KEY,
+  cache_key TEXT NOT NULL UNIQUE,
+  cache_data JSONB NOT NULL,
+  record_count BIGINT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP
+);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS dashboard_cache_key_idx ON dashboard_cache(cache_key);
+CREATE INDEX IF NOT EXISTS dashboard_cache_expires_idx ON dashboard_cache(expires_at);
+CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS uploader_uploads_deleted_at_idx ON uploader_uploads(deleted_at);
+
+COMMIT;
+
+-- Verification
+SELECT 'All missing columns added successfully' AS status;

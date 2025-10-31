@@ -1,0 +1,136 @@
+2025-10-31 00:57:03.89
+8c86c858
+User
+[MMS-WATCHER-DEBUG] businessDay value: 2025-10-30T00:00:00.000Z
+2025-10-31 00:57:03.89
+8c86c858
+User
+[UPLOADER-DEBUG] Update fields for uploader_1761890183739_dw7bit373: [
+2025-10-31 00:57:03.89
+8c86c858
+User
+'currentPhase',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'identifiedAt',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'detectedFileType',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'finalFileType',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'lineCount',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'hasHeaders',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'fileFormat',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'businessDay',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'fileSequenceNumber',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'fileProcessingTime',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'validationErrors',
+2025-10-31 00:57:03.89
+8c86c858
+User
+'processingNotes'
+2025-10-31 00:57:03.89
+8c86c858
+User
+]
+2025-10-31 00:57:03.89
+8c86c858
+User
+[UPLOADER-DEBUG] SET clause: current_phase = $2, identified_at = $3, detected_file_type = $4, final_file_type = $5, line_count = $6, has_headers = $7, file_format = $8, business_day = $9, file_sequence_number = $10, file_processing_time = $11, validation_errors = $12, processing_notes = $13
+2025-10-31 00:57:03.89
+8c86c858
+User
+[UPLOADER-DEBUG] Updates object: {
+2025-10-31 00:57:03.89
+8c86c858
+User
+"currentPhase": "identified",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"identifiedAt": "2025-10-31T05:57:03.893Z",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"detectedFileType": "tddf",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"finalFileType": "tddf",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"lineCount": 10040,
+2025-10-31 00:57:03.89
+8c86c858
+User
+"hasHeaders": false,
+2025-10-31 00:57:03.89
+8c86c858
+User
+"fileFormat": "tddf",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"businessDay": "2025-10-30T00:00:00.000Z",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"fileSequenceNumber": "830",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"fileProcessingTime": "083401",
+2025-10-31 00:57:03.89
+8c86c858
+User
+"validationErrors": null,
+2025-10-31 00:57:03.89
+8c86c858
+User
+"processingNotes": "{\"identified\":true,\"detectedType\":\"tddf\",\"lineCount\":10040,\"hasHeaders\":false,\"format\":\"tddf\",\"validationErrors\":null,\"identifiedAt\":\"2025-10-31T05:57:03.893Z\"}"
+2025-10-31 00:57:03.89
+8c86c858
+User
+}
+2025-10-31 00:57:04.09
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-31 00:57:04.29
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 1 rows
+2025-10-31 00:57:04.39
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] First row: {
+2025-10-31 00:57:04.39
+8c86c858
+User
+id: 'uploader_1761890183739_dw7bit373',

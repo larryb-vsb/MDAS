@@ -1,0 +1,143 @@
+2025-10-31 01:09:19.69
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 01:09:19.69
+8c86c858
+User
+line: '1449',
+2025-10-31 01:09:19.69
+8c86c858
+User
+routine: 'parserOpenTable'
+2025-10-31 01:09:19.69
+8c86c858
+User
+}
+2025-10-31 01:09:20.39
+8c86c858
+User
+[MMS-WATCHER] [AUTO-STEP7] Error in Step 7 archiving interval: error: relation "system_settings" does not exist
+2025-10-31 01:09:20.39
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 01:09:20.39
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 01:09:20.39
+8c86c858
+User
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32416:29) {
+2025-10-31 01:09:20.39
+8c86c858
+User
+length: 114,
+2025-10-31 01:09:20.39
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 01:09:20.39
+8c86c858
+User
+code: '42P01',
+2025-10-31 01:09:20.39
+8c86c858
+User
+detail: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+hint: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+position: '38',
+2025-10-31 01:09:20.39
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+where: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+schema: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+table: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+column: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+dataType: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+constraint: undefined,
+2025-10-31 01:09:20.39
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 01:09:20.39
+8c86c858
+User
+line: '1449',
+2025-10-31 01:09:20.39
+8c86c858
+User
+routine: 'parserOpenTable'
+2025-10-31 01:09:20.39
+8c86c858
+User
+}
+2025-10-31 01:09:21.09
+8c86c858
+User
+[MMS-WATCHER] [PIPELINE-RECOVERY] Found 0 recently encoded files
+2025-10-31 01:09:21.09
+8c86c858
+User
+[MMS-WATCHER] [MONTHLY-CACHE] Checking if monthly cache update needed for tddf1_totals
+2025-10-31 01:09:21.24
+8c86c858
+User
+[MMS-WATCHER] [MONTHLY-CACHE] ⚠️ No data found in tddf1_totals
+2025-10-31 01:09:21.24
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Checking for missing individual file cache entries
+2025-10-31 01:09:21.34
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Found 0 total encoded TDDF files
+2025-10-31 01:09:21.44
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: 0
+2025-10-31 01:09:28.16
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:09:30.00
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+
+Collapse
+
+Wrap
+
+Colors
+

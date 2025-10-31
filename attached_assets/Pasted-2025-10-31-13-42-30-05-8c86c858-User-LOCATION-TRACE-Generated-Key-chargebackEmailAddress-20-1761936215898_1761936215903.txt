@@ -1,0 +1,156 @@
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: chargebackEmailAddress
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Database Key: chargebackEmailAddress
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Raw Value: "support@hempifiedusa.com"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Will Map: YES
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] Chargeback Email Address (chargebackEmailAddress) -> chargebackEmailAddress = support@hempifiedusa.com
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] DBA Name (dbaName) -> dbaName = HEMPIFIED
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] SIC (sic) -> sic = 5499
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] CLASS (class) -> class = 5499
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] Field: "DBA Address City"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Tab Position: 9
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: dbaAddressCity
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Database Key: dbaAddressCity
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Raw Value: "WILMINGTON"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Will Map: YES
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] DBA Address City (dbaAddressCity) -> dbaAddressCity = WILMINGTON
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] Field: "DBA Address State"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Tab Position: 10
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: dbaAddressState
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Database Key: dbaAddressState
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Raw Value: "DE"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Will Map: YES
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] DBA Address State (dbaAddressState) -> dbaAddressState = DE
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] Field: "DBA Zip"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Tab Position: 11
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: dbaZip
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Database Key: dbaZip
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Raw Value: "000019801"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Will Map: YES
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] DBA Zip (dbaZip) -> dbaZip = 000019801
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] Field: "State Tax ID"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Tab Position: 20
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: stateTaxId
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Database Key: stateTaxId
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Raw Value: "000000000"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Will Map: YES
+2025-10-31 13:42:30.05
+8c86c858
+User
+[MAPPER] State Tax ID (stateTaxId) -> stateTaxId = 000000000
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] Field: "Print Statement Indicator"
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Tab Position: 120
+2025-10-31 13:42:30.05
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: printStatementIndicator

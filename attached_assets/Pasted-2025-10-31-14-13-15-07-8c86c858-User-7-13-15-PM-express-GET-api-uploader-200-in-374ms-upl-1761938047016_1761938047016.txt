@@ -1,0 +1,151 @@
+2025-10-31 14:13:15.07
+8c86c858
+User
+7:13:15 PM [express] GET /api/uploader 200 in 374ms :: {"uploads":[{"id":"uploader_1761937681301_n5t…
+2025-10-31 14:13:15.55
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 14:13:15.55
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 14:13:15.75
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 14:13:15.75
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 14:13:16.55
+8c86c858
+User
+7:13:16 PM [express] GET /api/uploader 200 in 371ms :: {"uploads":[{"id":"uploader_1761937681301_n5t…
+2025-10-31 14:13:17.87
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 14:13:17.93
+8c86c858
+User
+7:13:17 PM [express] GET /api/mms-watcher/auto45-status 200 in 189ms :: {"success":true,"enabled":tr…
+2025-10-31 14:13:18.04
+8c86c858
+User
+7:13:18 PM [express] GET /api/uploader 200 in 378ms :: {"uploads":[{"id":"uploader_1761937681301_n5t…
+2025-10-31 14:13:19.49
+8c86c858
+User
+7:13:19 PM [express] GET /api/uploader 200 in 365ms :: {"uploads":[{"id":"uploader_1761937681301_n5t…
+2025-10-31 14:13:19.72
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 14:13:19.72
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 14:13:19.72
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 14:13:19.72
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 14:13:19.78
+8c86c858
+User
+[REPLIT-STORAGE] Found 358 files in prod-uploader/
+2025-10-31 14:13:19.78
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 358 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 14:13:19.84
+8c86c858
+User
+7:13:19 PM [express] GET /api/uploader/storage-config 200 in 243ms :: {"available":true,"service":"R…
+2025-10-31 14:13:20.91
+8c86c858
+User
+7:13:20 PM [express] GET /api/uploader 200 in 307ms :: {"uploads":[{"id":"uploader_1761937681301_n5t…
+2025-10-31 14:13:22.16
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-31 14:13:22.16
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 14:13:22.16
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-31 14:13:22.22
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 14:13:22.22
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-31 14:13:22.22
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] No identified files found, running debug check...
+2025-10-31 14:13:22.22
+8c86c858
+User
+[MMS-WATCHER] [FORCE-DEBUG] Getting all files...
+2025-10-31 14:13:22.22
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads ORDER BY start_time DESC
+2025-10-31 14:13:22.22
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: []
+2025-10-31 14:13:22.39
+8c86c858
+User
+7:13:22 PM [express] GET /api/uploader 200 in 366ms :: {"uploads":[{"id":"uploader_1761937681301_n5t…
+2025-10-31 14:13:22.41
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 33 rows
+2025-10-31 14:13:22.41
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] First row: {
+2025-10-31 14:13:22.41
+8c86c858
+User
+id: 'uploader_1761937681301_n5tf861gu',
+2025-10-31 14:13:22.41
+8c86c858
+User
+filename: 'TSYS-Terminal-Risk-Report-Oct29-2025.csv',
+2025-10-31 14:13:22.41
+8c86c858
+User
+file_type: 'tddf',
+2025-10-31 14:13:22.41
+8c86c858
+User
+status: 'started',
+2025-10-31 14:13:22.41
+8c86c858
+User
+session_id: null,
+2025-10-31 14:13:22.41
+8c86c858
+User
+started_at: 2025-10-31T19:08:01.339Z,
+2025-10-31 14:13:22.41
+8c86c858
+User
+uploaded_at: 2025-10-31T19:08:02.725Z,
+2025-10-31 14:13:22.41
+8c86c858
+Us

@@ -1,0 +1,156 @@
+2025-10-31 01:49:12.42
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/
+2025-10-31 01:49:12.42
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:49:12.48
+8c86c858
+User
+6:49:12 AM [express] GET /api/uploader/storage-config 200 in 215ms :: {"available":true,"service":"R…
+2025-10-31 01:49:12.52
+8c86c858
+User
+6:49:12 AM [express] GET /api/uploader 200 in 321ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:49:12.64
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000137828: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:12.91
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000032847: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:13.19
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000195818: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:13.46
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000156034: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:13.95
+8c86c858
+User
+6:49:13 AM [express] GET /api/uploader 200 in 315ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:49:13.98
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000177592: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:14.28
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000101147: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:14.56
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000119511: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:14.83
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000122853: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:15.91
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000115527: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:16.45
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000146290: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:16.71
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000142489: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:16.80
+8c86c858
+User
+6:49:16 AM [express] GET /api/uploader 200 in 320ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:49:16.98
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000034066: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:17.51
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000147645: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:17.51
+8c86c858
+User
+6:49:17 AM [express] GET /api/mms-watcher/auto45-status 200 in 163ms :: {"success":true,"enabled":fa…
+2025-10-31 01:49:17.78
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:49:17.78
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000138941: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:17.83
+8c86c858
+User
+6:49:17 AM [express] GET /api/uploader/storage-config 200 in 231ms :: {"available":true,"service":"R…
+2025-10-31 01:49:18.04
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000142034: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:18.22
+8c86c858
+User
+6:49:18 AM [express] GET /api/uploader 200 in 314ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:49:13.72
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000002154: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:14.34
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:49:15.09
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000124552: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:15.37
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000103606: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:15.37
+8c86c858
+User
+6:49:15 AM [express] GET /api/uploader 200 in 317ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:49:15.63
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000158477: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:16.17
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000114785: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:17.24
+8c86c858
+User
+[STEP-6-MERCHANTS] Error processing merchant 0675900000143404: column "mcc" of relation "merchants" does not exist
+2025-10-31 01:49:17.45
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:49:17.71
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 01:49:17.71
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 01:49:17.71
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 01:49:17.71
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 01:49:17.78
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/

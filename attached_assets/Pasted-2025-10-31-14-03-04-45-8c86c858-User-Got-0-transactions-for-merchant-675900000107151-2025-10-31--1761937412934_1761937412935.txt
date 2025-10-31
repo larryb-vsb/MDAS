@@ -1,0 +1,80 @@
+2025-10-31 14:03:04.45
+8c86c858
+User
+Got 0 transactions for merchant 675900000107151
+2025-10-31 14:03:04.75
+8c86c858
+User
+Found 0 total transactions in VSB API table for merchant 675900000107151
+2025-10-31 14:03:05.02
+8c86c858
+User
+Error updating merchant 675900000107151: error: column "date_of_first_deposit" of relation "merchants" does not exist
+2025-10-31 14:03:05.02
+8c86c858
+User
+[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Record error: error: column "date_of_first_deposit" of relation "merchants" does not exist
+2025-10-31 14:03:05.02
+8c86c858
+User
+[MAPPER] Merchant Activation Date (merchantActivationDate) -> merchantActivationDate = 05/24/2024
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] - Generated Key: merchantEmailAddress
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] - Database Key: merchantEmailAddress
+2025-10-31 14:03:05.02
+8c86c858
+User
+[MAPPER] Merchant Email Address (merchantEmailAddress) -> merchantEmailAddress = SCOTTS@AMERICANMATTRESS.COM
+2025-10-31 14:03:05.02
+8c86c858
+User
+[MAPPER] merchantStatus explicitly set: null (blank/Active)
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.address = "NOT SET"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.city = "NOT SET"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.state = "NOT SET"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.zipCode = "NOT SET"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.dbaAddressCity = "MCHENRY"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.dbaAddressState = "IL"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[LOCATION-TRACE] merchantData.dbaZip = "000060051"
+2025-10-31 14:03:05.02
+8c86c858
+User
+[GET MERCHANT] Using unified merchants table: merchants for merchant ID: 675900000107326
+2025-10-31 14:03:05.42
+8c86c858
+User
+Got 0 transactions for merchant 675900000107326
+2025-10-31 14:03:05.49
+8c86c858
+User
+Found 0 total transactions in VSB API table for merchant 675900000107326
+2025-10-31 14:03:05.63
+8c86c858
+User
+Error updating merchant 675900000107326: error: column "date_of_first_deposit" of relation "merchants" does not exist

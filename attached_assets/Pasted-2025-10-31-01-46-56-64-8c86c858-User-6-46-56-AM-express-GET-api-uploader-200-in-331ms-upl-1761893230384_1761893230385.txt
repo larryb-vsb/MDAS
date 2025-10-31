@@ -1,0 +1,108 @@
+2025-10-31 01:46:56.64
+8c86c858
+User
+6:46:56 AM [express] GET /api/uploader 200 in 331ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:46:57.06
+8c86c858
+User
+[STEP-6-PROCESSING] Error processing VERMNTSB.6759_TDDF_2400_10252025_005630.TSYSO: error: column "raw_line_hash" of relation "uploader_tddf_jsonb_records" does not exist
+2025-10-31 01:46:57.06
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 01:46:57.06
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 01:46:57.06
+8c86c858
+User
+at async insertApiRecordsBatch (file:///home/runner/workspace/dist/index.js:6327:3)
+2025-10-31 01:46:57.06
+8c86c858
+User
+at async processAllRecordsToMasterTable (file:///home/runner/workspace/dist/index.js:6135:9)
+2025-10-31 01:46:57.06
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:35226:31 {
+2025-10-31 01:46:57.06
+8c86c858
+User
+length: 154,
+2025-10-31 01:46:57.06
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 01:46:57.06
+8c86c858
+User
+code: '42703',
+2025-10-31 01:46:57.06
+8c86c858
+User
+detail: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+hint: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+position: '151',
+2025-10-31 01:46:57.06
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+where: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+schema: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+table: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+column: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+dataType: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+constraint: undefined,
+2025-10-31 01:46:57.06
+8c86c858
+User
+file: 'parse_target.c',
+2025-10-31 01:46:57.06
+8c86c858
+User
+line: '1065',
+2025-10-31 01:46:57.06
+8c86c858
+User
+routine: 'checkInsertTargets'
+2025-10-31 01:46:57.06
+8c86c858
+User
+}
+2025-10-31 01:46:57.27
+8c86c858
+User
+[STEP-6-TIMING] Failed timing log 24: column "raw_line_hash" of relation "uploader_tddf_jsonb_records" does not exist
+2025-10-31 01:46:57.27
+8c86c858
+User
+[UPLOADER-DEBUG] Update fields fo

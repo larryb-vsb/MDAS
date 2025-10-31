@@ -1,0 +1,54 @@
+5-10-31 00:49:31.18
+[STORAGE-CONFIG] Successfully counted 330 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 00:49:31.24
+5:49:31 AM [express] GET /api/uploader/storage-config 200 in 235ms :: {"available":true,"service":"R…
+2025-10-31 00:49:31.83
+5:49:31 AM [express] GET /api/uploader 200 in 269ms :: {"uploads":[{"id":"uploader_1761889540358_djl…
+2025-10-31 00:49:33.20
+5:49:33 AM [express] GET /api/uploader 200 in 273ms :: {"uploads":[{"id":"uploader_1761889540358_djl…
+2025-10-31 00:49:39.09
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:49:39.09
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 00:49:39.19
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:49:39.19
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:49:41.30
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-31 00:49:41.30
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:49:41.30
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-31 00:49:41.35
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:49:41.35
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-31 00:49:54.09
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:49:54.09
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 00:49:54.19
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:49:54.19
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:50:00.00
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-31 00:50:01.30
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-31 00:50:01.30
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:50:01.30
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-31 00:50:01.39
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:50:01.39
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-31 00:50:09.10
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:50:09.10
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 00:50:09.16
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:50:09.16
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0

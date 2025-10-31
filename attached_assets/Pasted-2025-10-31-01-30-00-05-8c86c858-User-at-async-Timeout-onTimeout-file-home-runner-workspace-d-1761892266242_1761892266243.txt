@@ -1,0 +1,136 @@
+2025-10-31 01:30:00.05
+8c86c858
+User
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32367:13) {
+2025-10-31 01:30:00.05
+8c86c858
+User
+length: 144,
+2025-10-31 01:30:00.05
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 01:30:00.05
+8c86c858
+User
+code: '42703',
+2025-10-31 01:30:00.05
+8c86c858
+User
+detail: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+hint: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+position: '187',
+2025-10-31 01:30:00.05
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+where: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+schema: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+table: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+column: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+dataType: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+constraint: undefined,
+2025-10-31 01:30:00.05
+8c86c858
+User
+file: 'analyze.c',
+2025-10-31 01:30:00.05
+8c86c858
+User
+line: '2528',
+2025-10-31 01:30:00.05
+8c86c858
+User
+routine: 'transformUpdateTargetList'
+2025-10-31 01:30:00.05
+8c86c858
+User
+}
+2025-10-31 01:30:00.16
+8c86c858
+User
+6:30:00 AM [express] GET /api/uploader 200 in 419ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:30:00.21
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 01:30:00.21
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 01:30:00.21
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 01:30:00.21
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 01:30:00.29
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/
+2025-10-31 01:30:00.29
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:30:00.35
+8c86c858
+User
+6:30:00 AM [express] GET /api/uploader/storage-config 200 in 446ms :: {"available":true,"service":"R…
+2025-10-31 01:30:01.62
+8c86c858
+User
+6:30:01 AM [express] GET /api/uploader 200 in 325ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:30:02.12
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:30:02.17
+8c86c858
+User
+6:30:02 AM [express] GET /api/mms-watcher/auto45-status 200 in 166ms :: {"success":true,"enabled":fa…
+2025-10-31 01:30:03.07
+8c86c858
+User
+6:30:03 AM [express] GET /api/uploader 200 in 324ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:30:04.51
+8c86c858
+User
+6:30:04 AM [express] GET /api/uploader 200 in 323ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:30:05.99
+8c86c858
+User
+6:30:05 AM [express] GET /api/uploader 200 in 334ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:30:06.62
+8c86c858
+User
+[REPLIT-S

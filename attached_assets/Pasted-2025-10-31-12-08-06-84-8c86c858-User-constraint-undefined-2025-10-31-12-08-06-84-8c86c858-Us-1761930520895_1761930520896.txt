@@ -1,0 +1,152 @@
+2025-10-31 12:08:06.84
+8c86c858
+User
+constraint: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+file: 'plancat.c',
+2025-10-31 12:08:06.84
+8c86c858
+User
+line: '943',
+2025-10-31 12:08:06.84
+8c86c858
+User
+routine: 'infer_arbiter_indexes'
+2025-10-31 12:08:06.84
+8c86c858
+User
+}
+2025-10-31 12:08:06.84
+8c86c858
+User
+[MCC SCHEMA] Error uploading CSV: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+2025-10-31 12:08:06.84
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 12:08:06.84
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 12:08:06.84
+8c86c858
+User
+at async DatabaseStorage.bulkUpsertMccSchemaFields (file:///home/runner/workspace/dist/index.js:18796:13)
+2025-10-31 12:08:06.84
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:31297:23 {
+2025-10-31 12:08:06.84
+8c86c858
+User
+length: 148,
+2025-10-31 12:08:06.84
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 12:08:06.84
+8c86c858
+User
+code: '42P10',
+2025-10-31 12:08:06.84
+8c86c858
+User
+detail: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+hint: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+position: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+where: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+schema: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+table: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+column: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+dataType: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+constraint: undefined,
+2025-10-31 12:08:06.84
+8c86c858
+User
+file: 'plancat.c',
+2025-10-31 12:08:06.84
+8c86c858
+User
+line: '943',
+2025-10-31 12:08:06.84
+8c86c858
+User
+routine: 'infer_arbiter_indexes'
+2025-10-31 12:08:06.84
+8c86c858
+User
+}
+2025-10-31 12:08:06.90
+8c86c858
+User
+5:08:06 PM [express] POST /api/mcc-schema/upload-csv 500 in 298ms :: {"error":"there is no unique or…
+2025-10-31 12:08:11.74
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-31 12:08:11.74
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 12:08:11.74
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-31 12:08:11.79
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 12:08:11.79
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-31 12:08:17.02
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 12:08:17.02
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 12:08:17.08
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 12:08:17.08
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
