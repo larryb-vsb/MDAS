@@ -6482,14 +6482,6 @@ export class DatabaseStorage implements IStorage {
             const masterMIDVariations = ["POS Merchant #", "Master MID", "masterMID", "pos_merchant", "POS_Merchant_#", "POS_MERCHANT_#", "POSMerchant#"];
             const foundMasterMIDs = masterMIDVariations.filter(key => row[key] !== undefined && row[key] !== "");
             console.log(`🔸 Master MID field matches: ${foundMasterMIDs.length > 0 ? foundMasterMIDs.map(k => `${k}="${row[k]}"`).join(", ") : "❌ NONE FOUND"}`);
-            
-            // Show actual values being used
-            console.log(`✅ Final vNumber value: "${vNumber}"`);
-            console.log(`✅ Final masterMID value: "${masterMID}"`);
-            console.log(`---`);  
-            const midVariations = ["POS Merchant #", "Master MID", "masterMID", "pos_merchant", "POS_Merchant_#", "POS_MERCHANT_#", "POSMerchant#", "POS Merchant Number", "MasterMID", "Master_MID", "MASTER_MID", "Merchant_ID", "MerchantID", "Merchant ID", "MERCHANT_ID", "POS_Merchant_Number"];
-            const foundMIDs = midVariations.filter(key => row[key] !== undefined);
-            console.log(`Master MID field matches: ${foundMIDs.length > 0 ? foundMIDs.join(", ") : "NONE FOUND"}`);
           } else if (rowCount % 100 === 0) {
             console.log(`\n--- Processing terminal row ${rowCount} (every 100th) ---`);
           }
@@ -6510,6 +6502,13 @@ export class DatabaseStorage implements IStorage {
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
                            row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"]; // Exact header from screenshot: "POS Merchant #"
+          
+          // Debug: Show actual values being used (for first 20 rows)
+          if (rowCount <= 20) {
+            console.log(`✅ Final vNumber value: "${vNumber}"`);
+            console.log(`✅ Final masterMID value: "${masterMID}"`);
+            console.log(`---`);
+          }
           if (!masterMID || !masterMID.trim()) {
             console.log(`[SKIP ROW] No Master MID found in row ${rowCount}, skipping`);
             return;
