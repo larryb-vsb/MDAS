@@ -6486,15 +6486,23 @@ export class DatabaseStorage implements IStorage {
             console.log(`\n--- Processing terminal row ${rowCount} (every 100th) ---`);
           }
           
-          // Find V Number (VAR Number) - required field - EXACT HEADERS FROM SCREENSHOT
-          const vNumber = row["V Number"] || row["VAR Number"] || row["vNumber"] || row["var_number"] || 
+          // Find V Number (VAR Number) - try column first, then derive from BIN
+          let vNumber = row["V Number"] || row["VAR Number"] || row["vNumber"] || row["var_number"] || 
                          row["V_Number"] || row["VAR_NUMBER"] || row["VNumber"] || row["VARNumber"] ||
                          row["Terminal_ID"] || row["TerminalID"] || row["Terminal ID"] || row["TERMINAL_ID"] ||
                          row["Terminal #"]; // Exact header from screenshot
+          
+          // If no V Number found, derive it from BIN column (V Number = "V" + BIN)
           if (!vNumber || !vNumber.trim()) {
-            console.log(`[SKIP ROW ${rowCount}] No V Number found. Available keys: ${Object.keys(row).join(", ")}`);
-            console.log(`[SKIP ROW ${rowCount}] Row data: ${JSON.stringify(row)}`);
-            return;
+            const binValue = row["BIN"] || row["bin"] || row["Bin"];
+            if (binValue && binValue.toString().trim()) {
+              vNumber = "V" + binValue.toString().trim();
+              console.log(`[DERIVE V NUMBER] No V Number column, derived from BIN: ${binValue} -> ${vNumber}`);
+            } else {
+              console.log(`[SKIP ROW ${rowCount}] No V Number or BIN found. Available keys: ${Object.keys(row).join(", ")}`);
+              console.log(`[SKIP ROW ${rowCount}] Row data: ${JSON.stringify(row)}`);
+              return;
+            }
           }
           
           // Find Master MID (POS Merchant #) - required field to link to merchants - EXACT HEADERS FROM SCREENSHOT
@@ -6540,7 +6548,8 @@ export class DatabaseStorage implements IStorage {
               
               // Special handling for Record Status field to map to terminal status
               if (dbField === 'recordStatus') {
-                const rawStatus = row[csvField];
+                // Try multiple column name variations
+                const rawStatus = row[csvField] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
                 if (rawStatus) {
                   const statusValue = rawStatus.toString().trim().toLowerCase();
                   if (statusValue === 'open') {
@@ -6553,9 +6562,9 @@ export class DatabaseStorage implements IStorage {
                     terminalData.status = 'Active'; // Default to Active for unknown statuses
                     console.log(`Unknown Record Status "${rawStatus}", defaulting to "Active"`);
                   }
+                  // Store the raw record status in recordStatus field
+                  terminalData[dbField as keyof InsertTerminal] = rawStatus.toString().trim() as any;
                 }
-                // Store the raw record status in recordStatus field
-                terminalData[dbField as keyof InsertTerminal] = row[csvField].toString().trim() as any;
               }
               // Handle date fields
               else if (dbField === 'boardDate') {

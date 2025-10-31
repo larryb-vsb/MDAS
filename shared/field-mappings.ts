@@ -160,7 +160,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
   dailyAuth: "Daily Auth Count", // EXACT header 
   dialPay: "Dial Pay Passcode", // EXACT header
   mcc: "PRR MCC", // EXACT header from screenshot
-  recordStatus: "Record Status",
+  recordStatus: "Merchant Record Status", // EXACT header from CSV
   boardDate: "Board Date",
   terminalVisa: "Terminal Visa MCC", // EXACT header
   bin: "BIN", // Bank Identification Number
