@@ -3070,17 +3070,28 @@ export default function TddfApiDataPage() {
 
   // Delete files mutation
   const deleteFilesMutation = useMutation({
-    mutationFn: async (fileIds: number[]) => {
+    mutationFn: async (fileIds: (string | number)[]) => {
       return apiRequest("/api/tddf-api/files/delete", {
         method: "POST",
         body: JSON.stringify({ fileIds })
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploader"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf1/monthly-totals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf1/monthly-comparison"], exact: false });
       setSelectedFiles(new Set());
       setShowDeleteDialog(false);
-      toast({ title: "Files deleted successfully" });
+      
+      const message = data?.tddfRecordsDeleted > 0
+        ? `${data.message} - Dashboard totals will be recalculated`
+        : data?.message || "Files deleted successfully";
+      
+      toast({ 
+        title: "Success",
+        description: message
+      });
     },
     onError: (error: any) => {
       toast({ title: "Failed to delete files", description: error.message, variant: "destructive" });

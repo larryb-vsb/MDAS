@@ -738,7 +738,7 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
-  // TDDF API - Delete files endpoint
+  // TDDF API - Delete files endpoint (handles both uploader_uploads and tddf_api_files)
   app.post('/api/tddf-api/files/delete', isAuthenticated, async (req, res) => {
     try {
       const { fileIds } = req.body;
@@ -747,56 +747,138 @@ export function registerTddfFilesRoutes(app: Express) {
         return res.status(400).json({ error: 'File IDs are required' });
       }
 
-      // Validate file IDs are numbers
-      const validFileIds = fileIds.filter(id => Number.isInteger(id) && id > 0);
-      if (validFileIds.length === 0) {
-        return res.status(400).json({ error: 'Valid file IDs are required' });
-      }
-
       await pool.query('BEGIN');
 
       try {
-        // First, get file information including storage paths
-        const placeholders = validFileIds.map((_, i) => `$${i + 1}`).join(',');
-        const filesResult = await pool.query(`
-          SELECT id, filename, storage_path 
-          FROM ${getTableName('tddf_api_files')} 
-          WHERE id IN (${placeholders})
-        `, validFileIds);
+        let totalTddfRecordsDeleted = 0;
+        let totalFilesDeleted = 0;
+        const deletionDetails: any[] = [];
 
-        const filesToDelete = filesResult.rows;
-        
-        // Delete files from filesystem
-        filesToDelete.forEach(file => {
-          try {
-            if (file.storage_path && fs.existsSync(file.storage_path)) {
-              fs.unlinkSync(file.storage_path);
-              console.log(`[TDDF-API-DELETE] Deleted file: ${file.storage_path}`);
+        // Process each file ID (handles both string and number IDs)
+        for (const fileId of fileIds) {
+          // Try uploader_uploads table first (string IDs)
+          const uploaderResult = await pool.query(`
+            SELECT id, filename, storage_path, is_archived
+            FROM ${getTableName('uploader_uploads')} 
+            WHERE id = $1
+          `, [fileId]);
+
+          if (uploaderResult.rows.length > 0) {
+            const file = uploaderResult.rows[0];
+            
+            // Count TDDF records before deletion
+            const tddfCountResult = await pool.query(`
+              SELECT COUNT(*) as count
+              FROM ${getTableName('tddf_jsonb')}
+              WHERE upload_id = $1
+            `, [fileId]);
+            
+            const tddfRecordCount = parseInt(tddfCountResult.rows[0].count);
+            
+            // Delete related TDDF records from master table
+            await pool.query(`
+              DELETE FROM ${getTableName('tddf_jsonb')}
+              WHERE upload_id = $1
+            `, [fileId]);
+            
+            totalTddfRecordsDeleted += tddfRecordCount;
+            
+            // Delete from uploader_uploads table
+            await pool.query(`
+              DELETE FROM ${getTableName('uploader_uploads')}
+              WHERE id = $1
+            `, [fileId]);
+            
+            totalFilesDeleted++;
+            
+            deletionDetails.push({
+              id: fileId,
+              filename: file.filename,
+              tddfRecords: tddfRecordCount,
+              wasArchived: file.is_archived
+            });
+            
+            console.log(`[FILE-DELETE] Deleted file: ${file.filename} (${tddfRecordCount} TDDF records)`);
+            
+          } else if (Number.isInteger(fileId)) {
+            // Try tddf_api_files table (numeric IDs - old system)
+            const placeholders = '$1';
+            const filesResult = await pool.query(`
+              SELECT id, filename, storage_path 
+              FROM ${getTableName('tddf_api_files')} 
+              WHERE id = ${placeholders}
+            `, [fileId]);
+
+            if (filesResult.rows.length > 0) {
+              const file = filesResult.rows[0];
+              
+              // Delete files from filesystem
+              if (file.storage_path && fs.existsSync(file.storage_path)) {
+                fs.unlinkSync(file.storage_path);
+                console.log(`[TDDF-API-DELETE] Deleted file: ${file.storage_path}`);
+              }
+
+              // Delete from queue first (foreign key constraint)
+              await pool.query(`
+                DELETE FROM ${getTableName('tddf_api_queue')} 
+                WHERE file_id = ${placeholders}
+              `, [fileId]);
+
+              // Delete from files table
+              await pool.query(`
+                DELETE FROM ${getTableName('tddf_api_files')} 
+                WHERE id = ${placeholders}
+              `, [fileId]);
+
+              totalFilesDeleted++;
+              deletionDetails.push({
+                id: fileId,
+                filename: file.filename,
+                tddfRecords: 0,
+                wasArchived: false
+              });
+              
+              console.log(`[TDDF-API-DELETE] Deleted old API file: ${file.filename}`);
             }
-          } catch (error) {
-            console.error(`[TDDF-API-DELETE] Error deleting file ${file.storage_path}:`, error);
           }
-        });
+        }
 
-        // Delete from queue first (foreign key constraint)
-        await pool.query(`
-          DELETE FROM ${getTableName('tddf_api_queue')} 
-          WHERE file_id IN (${placeholders})
-        `, validFileIds);
-
-        // Delete from files table
-        const deleteResult = await pool.query(`
-          DELETE FROM ${getTableName('tddf_api_files')} 
-          WHERE id IN (${placeholders})
-        `, validFileIds);
+        // Clear cache entries that might reference deleted files
+        if (totalTddfRecordsDeleted > 0) {
+          // Clear monthly totals cache
+          await pool.query(`
+            DELETE FROM ${getTableName('tddf1_totals')}
+            WHERE 1=1
+          `).catch(err => console.log('[CACHE-CLEAR] tddf1_totals error:', err.message));
+          
+          // Clear activity cache
+          await pool.query(`
+            DELETE FROM ${getTableName('tddf1_activity_cache')}
+            WHERE 1=1
+          `).catch(err => console.log('[CACHE-CLEAR] activity_cache error:', err.message));
+          
+          // Clear monthly cache
+          await pool.query(`
+            DELETE FROM ${getTableName('tddf1_monthly_cache')}
+            WHERE 1=1
+          `).catch(err => console.log('[CACHE-CLEAR] monthly_cache error:', err.message));
+          
+          console.log(`[CACHE-CLEAR] Cleared TDDF caches after deleting ${totalTddfRecordsDeleted} records`);
+        }
 
         await pool.query('COMMIT');
 
-        console.log(`[TDDF-API-DELETE] Successfully deleted ${deleteResult.rowCount} files`);
+        const message = totalTddfRecordsDeleted > 0
+          ? `Deleted ${totalFilesDeleted} file(s) and ${totalTddfRecordsDeleted} TDDF record(s)`
+          : `Deleted ${totalFilesDeleted} file(s)`;
+
+        console.log(`[FILE-DELETE] Success: ${message}`);
         res.json({ 
           success: true, 
-          deletedCount: deleteResult.rowCount,
-          message: `Successfully deleted ${deleteResult.rowCount} file(s)` 
+          deletedCount: totalFilesDeleted,
+          tddfRecordsDeleted: totalTddfRecordsDeleted,
+          details: deletionDetails,
+          message
         });
 
       } catch (error) {
@@ -805,7 +887,7 @@ export function registerTddfFilesRoutes(app: Express) {
       }
 
     } catch (error) {
-      console.error('Error deleting TDDF API files:', error);
+      console.error('Error deleting files:', error);
       res.status(500).json({ error: 'Failed to delete files' });
     }
   });
