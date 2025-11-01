@@ -1351,15 +1351,22 @@ export class DatabaseStorage implements IStorage {
       
       // Apply merchant type filter
       if (merchantType !== "All") {
-        // Support comma-separated merchant types for OR filtering (e.g., "0,1" for MCC merchants)
-        const types = merchantType.split(',').map(t => t.trim());
-        if (types.length === 1) {
-          conditions.push(`merchant_type = $${queryParams.length + 1}`);
-          queryParams.push(types[0]);
+        // Support comma-separated merchant types for OR filtering
+        // Special handling: "mcc" means all non-ACH merchants (exclude type '3')
+        if (merchantType === "mcc") {
+          conditions.push(`(merchant_type != $${queryParams.length + 1} OR merchant_type IS NULL)`);
+          queryParams.push('3');
         } else {
-          const typeConditions = types.map((_, index) => `merchant_type = $${queryParams.length + index + 1}`);
+          const types = merchantType.split(',').map(t => t.trim());
+          const typeConditions: string[] = [];
+          
+          // Add conditions for each specified type
+          types.forEach((type, index) => {
+            typeConditions.push(`merchant_type = $${queryParams.length + index + 1}`);
+            queryParams.push(type);
+          });
+          
           conditions.push(`(${typeConditions.join(' OR ')})`);
-          types.forEach(type => queryParams.push(type));
         }
       }
       

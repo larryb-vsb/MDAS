@@ -63,7 +63,8 @@ export default function Merchants() {
   }, [searchQuery, statusFilter, uploadFilter, itemsPerPage]);
   
   // Determine merchantType based on active tab
-  const merchantType = activeTab === "ach" ? "3" : activeTab === "mcc" ? "0,1" : "All";
+  // MCC merchants are all non-ACH merchants (backend filters by excluding type '3')
+  const merchantType = activeTab === "ach" ? "3" : activeTab === "mcc" ? "mcc" : "All";
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
