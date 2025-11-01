@@ -225,7 +225,7 @@ export const apiMerchants = pgTable(getTableName("api_merchants"), {
 export const apiTerminals = pgTable(getTableName("api_terminals"), {
   id: serial("id").primaryKey(),
   vNumber: text("v_number").notNull().unique(), // VAR Number from TSYS (unique terminal identifier)
-  posMerchantNumber: text("pos_merchant_number").notNull(), // Links to merchants.masterMID (POS Merchant # from TSYS)
+  posMerchantNumber: text("pos_merchant_number"), // Optional - Links to merchants.masterMID (POS Merchant # from TSYS)
   
   // Core TSYS fields
   bin: text("bin"), // Bank Identification Number
