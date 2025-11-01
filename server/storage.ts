@@ -6507,11 +6507,24 @@ export class DatabaseStorage implements IStorage {
           }
           
           // Find Master MID (POS Merchant #) - OPTIONAL field to link to merchants
-          // Supports both July format ("POS Mc") and Oct format ("POS Merc")
-          const masterMID = row["POS Mc"] || row["POS Merc"] || row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
+          // Supports multiple formats:
+          // - July format: "POS Mc"
+          // - Oct format: "POS Merc" OR "POS Merchant #0000000..." (column name includes numbers)
+          let masterMID = row["POS Mc"] || row["POS Merc"] || row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
                            row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"];
+          
+          // If not found, search for columns that START WITH "POS Merchant" (handles dynamic column names like "POS Merchant #0000000...")
+          if (!masterMID) {
+            const posMerchantColumn = Object.keys(row).find(key => key.startsWith("POS Merchant"));
+            if (posMerchantColumn) {
+              masterMID = row[posMerchantColumn];
+              if (rowCount <= 5) {
+                console.log(`🔍 Found POS Merchant column: "${posMerchantColumn}" = "${masterMID}"`);
+              }
+            }
+          }
           
           // Find Record Status - used to determine if terminal is Active or Inactive
           // Supports both July format ("Record") and Oct format ("Merchant Record St")
@@ -6562,8 +6575,8 @@ export class DatabaseStorage implements IStorage {
                 continue; // Skip the generic field mapping below for MCC
               }
               
-              // Record Status already handled upfront - skip in field mappings loop
-              if (dbField === 'recordStatus') {
+              // Record Status and POS Merchant Number already handled upfront - skip in field mappings loop
+              if (dbField === 'recordStatus' || dbField === 'posMerchantNumber') {
                 continue; // Already processed before the field mapping loop
               }
               // Handle date fields
@@ -6616,7 +6629,7 @@ export class DatabaseStorage implements IStorage {
               console.log(`[ALT] Mapping ${csvField} -> ${dbField}: ${row[csvField]}`);
               
               // Skip fields already handled
-              if (dbField === 'recordStatus' || dbField === 'status' || dbField === 'mcc') {
+              if (dbField === 'recordStatus' || dbField === 'status' || dbField === 'mcc' || dbField === 'posMerchantNumber') {
                 continue;
               }
               
