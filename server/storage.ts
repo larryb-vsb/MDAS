@@ -6507,15 +6507,30 @@ export class DatabaseStorage implements IStorage {
           }
           
           // Find Master MID (POS Merchant #) - OPTIONAL field to link to merchants
-          const masterMID = row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
+          const masterMID = row["POS Mc"] || row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
                            row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"];
+          
+          // Find Record Status - used to determine if terminal is Active or Inactive
+          const recordStatus = row["Record"] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
+          
+          // Determine terminal status based on record status value
+          let terminalStatus = "Active"; // Default
+          if (recordStatus) {
+            const statusValue = recordStatus.toString().trim().toLowerCase();
+            if (statusValue === 'closed' || statusValue === 'delete') {
+              terminalStatus = 'Inactive';
+            } else if (statusValue === 'open' || statusValue === 'fs') {
+              terminalStatus = 'Active';
+            }
+          }
           
           // Debug: Show actual values being used (for first 20 rows)
           if (rowCount <= 20) {
             console.log(`✅ Final vNumber value: "${vNumber}"`);
             console.log(`✅ Final masterMID value: "${masterMID || 'NOT PROVIDED'}"`);
+            console.log(`✅ Final recordStatus value: "${recordStatus || 'NOT PROVIDED'}" -> status: "${terminalStatus}"`);
             console.log(`---`);
           }
           
@@ -6523,7 +6538,8 @@ export class DatabaseStorage implements IStorage {
           const terminalData: Partial<InsertTerminal> = {
             vNumber: vNumber.trim(),
             posMerchantNumber: masterMID?.trim() || null, // Optional - set to null if not provided
-            status: "Active", // Default status, will be overridden by Record Status mapping
+            recordStatus: recordStatus?.trim() || null, // Store raw record status value from CSV
+            status: terminalStatus, // Set Active/Inactive based on record status
             // Will add more fields from CSV mapping below
           };
           
@@ -6543,25 +6559,9 @@ export class DatabaseStorage implements IStorage {
                 continue; // Skip the generic field mapping below for MCC
               }
               
-              // Special handling for Record Status field to map to terminal status
+              // Record Status already handled upfront - skip in field mappings loop
               if (dbField === 'recordStatus') {
-                // Try multiple column name variations
-                const rawStatus = row[csvField] || row["Record"] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
-                if (rawStatus) {
-                  const statusValue = rawStatus.toString().trim().toLowerCase();
-                  if (statusValue === 'open' || statusValue === 'fs') {
-                    terminalData.status = 'Active';
-                    console.log(`Record Status mapped: "${rawStatus}" -> "Active"`);
-                  } else if (statusValue === 'closed' || statusValue === 'delete') {
-                    terminalData.status = 'Inactive';
-                    console.log(`Record Status mapped: "${rawStatus}" -> "Inactive"`);
-                  } else {
-                    terminalData.status = 'Active'; // Default to Active for unknown statuses
-                    console.log(`Unknown Record Status "${rawStatus}", defaulting to "Active"`);
-                  }
-                  // Store the raw record status in recordStatus field
-                  terminalData[dbField as keyof InsertTerminal] = rawStatus.toString().trim() as any;
-                }
+                continue; // Already processed before the field mapping loop
               }
               // Handle date fields
               else if (dbField === 'boardDate') {
