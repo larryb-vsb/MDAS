@@ -6519,7 +6519,7 @@ export class DatabaseStorage implements IStorage {
           let terminalStatus = "Active"; // Default
           if (recordStatus) {
             const statusValue = recordStatus.toString().trim().toLowerCase();
-            if (statusValue === 'closed' || statusValue === 'delete') {
+            if (statusValue === 'closed' || statusValue === 'delete' || statusValue === 'block' || statusValue === 'blocked') {
               terminalStatus = 'Inactive';
             } else if (statusValue === 'open' || statusValue === 'fs') {
               terminalStatus = 'Active';
