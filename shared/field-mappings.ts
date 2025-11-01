@@ -154,13 +154,13 @@ export const alternateTransactionMappings = {
 // Terminal field mappings for TSYS export
 export const terminalFieldMappings: Record<string, string | null> = {
   vNumber: "V Number", // VAR Number from TSYS (unique identifier) 
-  posMerchantNumber: "POS Merchant #", // EXACT header from screenshot
+  posMerchantNumber: "POS Mc", // EXACT header from TSYS CSV
   // Additional fields from CSV screenshot - EXACT HEADERS
   dbaName: "DBA Name",
   dailyAuth: "Daily Auth Count", // EXACT header 
   dialPay: "Dial Pay Passcode", // EXACT header
-  mcc: "PRR MCC", // EXACT header from screenshot
-  recordStatus: "Merchant Record Status", // EXACT header from CSV
+  mcc: "Terminal Visa MCC", // EXACT header from TSYS CSV - contains actual MCC codes
+  recordStatus: "Record", // EXACT header from TSYS CSV - shows Closed/FS/Open
   boardDate: "Board Date",
   terminalVisa: "Terminal Visa MCC", // EXACT header
   bin: "BIN", // Bank Identification Number
