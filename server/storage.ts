@@ -6442,7 +6442,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`[TERMINAL-DEBUG] First 500 chars: ${csvContent.substring(0, 500)}`);
     
     // Import field mappings and utility functions
-    const { terminalFieldMappings } = await import("@shared/field-mappings");
+    const { terminalFieldMappings, terminalFieldMappingsAlt } = await import("@shared/field-mappings");
     
     return new Promise((resolve, reject) => {
       console.log("Starting terminal CSV parsing from content...");
@@ -6507,13 +6507,15 @@ export class DatabaseStorage implements IStorage {
           }
           
           // Find Master MID (POS Merchant #) - OPTIONAL field to link to merchants
-          const masterMID = row["POS Mc"] || row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
+          // Supports both July format ("POS Mc") and Oct format ("POS Merc")
+          const masterMID = row["POS Mc"] || row["POS Merc"] || row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
                            row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"];
           
           // Find Record Status - used to determine if terminal is Active or Inactive
-          const recordStatus = row["Record"] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
+          // Supports both July format ("Record") and Oct format ("Merchant Record St")
+          const recordStatus = row["Record"] || row["Merchant Record St"] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
           
           // Determine terminal status based on record status value
           let terminalStatus = "Active"; // Default
@@ -6543,7 +6545,8 @@ export class DatabaseStorage implements IStorage {
             // Will add more fields from CSV mapping below
           };
           
-          // Apply field mappings - map CSV fields to database fields
+          // Apply field mappings - try both mapping sets (July and Oct formats)
+          // First, try the primary mapping set
           for (const [dbField, csvField] of Object.entries(terminalFieldMappings)) {
             if (csvField && row[csvField] !== undefined && row[csvField] !== null && row[csvField] !== '') {
               console.log(`Mapping ${csvField} -> ${dbField}: ${row[csvField]}`);
@@ -6594,6 +6597,54 @@ export class DatabaseStorage implements IStorage {
                   }
                 } catch (e) {
                   console.warn(`Failed to parse date: ${row[csvField]}, skipping field`);
+                }
+              } else {
+                // Handle regular text fields
+                terminalData[dbField as keyof InsertTerminal] = row[csvField].toString().trim() as any;
+              }
+            }
+          }
+          
+          // Try alternative mapping set (Oct 2025 format) for fields not found in first pass
+          for (const [dbField, csvField] of Object.entries(terminalFieldMappingsAlt)) {
+            // Skip if we already have a value for this field
+            if (terminalData[dbField as keyof InsertTerminal]) {
+              continue;
+            }
+            
+            if (csvField && row[csvField] !== undefined && row[csvField] !== null && row[csvField] !== '') {
+              console.log(`[ALT] Mapping ${csvField} -> ${dbField}: ${row[csvField]}`);
+              
+              // Skip fields already handled
+              if (dbField === 'recordStatus' || dbField === 'status' || dbField === 'mcc') {
+                continue;
+              }
+              
+              // Handle date fields
+              if (dbField === 'boardDate') {
+                try {
+                  if (row[csvField] && row[csvField].trim() !== '') {
+                    const dateStr = row[csvField].trim();
+                    let parsedDate: Date | null = null;
+                    
+                    if (/^\d{8}$/.test(dateStr)) {
+                      const month = parseInt(dateStr.substring(0, 2)) - 1;
+                      const day = parseInt(dateStr.substring(2, 4));
+                      const year = parseInt(dateStr.substring(4, 8));
+                      parsedDate = new Date(year, month, day);
+                    } else {
+                      parsedDate = new Date(dateStr);
+                      if (isNaN(parsedDate.getTime())) {
+                        parsedDate = null;
+                      }
+                    }
+                    
+                    if (parsedDate && !isNaN(parsedDate.getTime())) {
+                      terminalData[dbField as keyof InsertTerminal] = parsedDate as any;
+                    }
+                  }
+                } catch (e) {
+                  console.warn(`Failed to parse date: ${row[csvField]}`);
                 }
               } else {
                 // Handle regular text fields

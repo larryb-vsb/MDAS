@@ -151,16 +151,16 @@ export const alternateTransactionMappings = {
   }
 };
 
-// Terminal field mappings for TSYS export
+// Terminal field mappings for TSYS export (July 2025 format)
 export const terminalFieldMappings: Record<string, string | null> = {
   vNumber: "V Number", // VAR Number from TSYS (unique identifier) 
-  posMerchantNumber: "POS Mc", // EXACT header from TSYS CSV
+  posMerchantNumber: "POS Mc", // EXACT header from TSYS CSV (July format)
   // Additional fields from CSV screenshot - EXACT HEADERS
   dbaName: "DBA Name",
   dailyAuth: "Daily Auth Count", // EXACT header 
   dialPay: "Dial Pay Passcode", // EXACT header
   mcc: "Terminal Visa MCC", // EXACT header from TSYS CSV - contains actual MCC codes
-  recordStatus: "Record", // EXACT header from TSYS CSV - shows Closed/FS/Open
+  recordStatus: "Record", // EXACT header from TSYS CSV (July format) - shows Closed/FS/Open
   boardDate: "Board Date",
   terminalVisa: "Terminal Visa MCC", // EXACT header
   bin: "BIN", // Bank Identification Number
@@ -185,7 +185,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
   onlineEntry: "Online Entry", // Online processing capability
   achFlag: "ACH Flag", // ACH capability
   cardholderIdMethod: "Cardholder ID Method", // ID verification method
-  terminalId: "Terminal #", // Terminal # from CSV maps to Terminal ID
+  terminalId: "Terminal #", // Terminal # from CSV (July format) maps to Terminal ID
   discoverPosEntryMode: "Discover POS Entry Mode", // Discover network entry
   purchaseId: "Purchase ID", // Purchase identification
   posDataCode: "POS Data Code", // POS configuration code
@@ -210,6 +210,49 @@ export const terminalFieldMappings: Record<string, string | null> = {
   description: null, // Internal field
   notes: null, // Internal field
   internalNotes: null, // Internal field
+};
+
+// Alternative terminal field mappings for TSYS export (Oct 2025 format)
+export const terminalFieldMappingsAlt: Record<string, string | null> = {
+  vNumber: "V Number", // VAR Number from TSYS (unique identifier)
+  posMerchantNumber: "POS Merc", // Oct 2025 format uses "POS Merc" instead of "POS Mc"
+  dbaName: "DBA Name",
+  dailyAuth: "Daily Auth", // Shortened in Oct format
+  dialPay: "Dial Pay P", // Shortened in Oct format
+  mcc: "Terminal Visa MCC",
+  recordStatus: "Merchant Record St", // Oct 2025 format uses full "Merchant Record St" instead of "Record"
+  boardDate: "Board Date",
+  terminalVisa: "Terminal Visa MCC",
+  bin: "BIN",
+  encryption: "Encryption",
+  ssl: "SSL",
+  tokenization: "Tokenization",
+  agent: "Agent",
+  chain: "Chain",
+  store: "Store",
+  terminalId: "Terminal", // Oct 2025 format uses "Terminal" instead of "Terminal #"
+  termNumber: "Term Number",
+  
+  // PPR MCC field specific to Oct format
+  pprMcc: "PPR MCC", // Additional MCC field in Oct format
+  
+  // Fields not directly mapped (internal only)
+  terminalType: null,
+  status: null,
+  location: null,
+  installationDate: null,
+  lastActivity: null,
+  mType: null,
+  mLocation: null,
+  hardwareModel: null,
+  manufacturer: null,
+  firmwareVersion: null,
+  networkType: null,
+  ipAddress: null,
+  genericField2: null,
+  description: null,
+  notes: null,
+  internalNotes: null,
 };
 
 // Customizable default values for fields not found in CSV
