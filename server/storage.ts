@@ -6546,13 +6546,13 @@ export class DatabaseStorage implements IStorage {
               // Special handling for Record Status field to map to terminal status
               if (dbField === 'recordStatus') {
                 // Try multiple column name variations
-                const rawStatus = row[csvField] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
+                const rawStatus = row[csvField] || row["Record"] || row["Merchant Record Status"] || row["Record Status"] || row["Status"];
                 if (rawStatus) {
                   const statusValue = rawStatus.toString().trim().toLowerCase();
-                  if (statusValue === 'open') {
+                  if (statusValue === 'open' || statusValue === 'fs') {
                     terminalData.status = 'Active';
                     console.log(`Record Status mapped: "${rawStatus}" -> "Active"`);
-                  } else if (statusValue === 'closed') {
+                  } else if (statusValue === 'closed' || statusValue === 'delete') {
                     terminalData.status = 'Inactive';
                     console.log(`Record Status mapped: "${rawStatus}" -> "Inactive"`);
                   } else {
