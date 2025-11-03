@@ -3194,30 +3194,93 @@ export default function TddfApiDataPage() {
         if (uploadResponse && typeof uploadResponse === 'object' && 'id' in uploadResponse) {
           const uploadId = (uploadResponse as any).id;
           
-          // Upload file to object storage
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('sessionId', sessionId);
+          // Determine if we need chunked upload (files > 25MB)
+          const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+          const USE_CHUNKED_THRESHOLD = 25 * 1024 * 1024; // 25MB threshold
+          const useChunkedUpload = file.size > USE_CHUNKED_THRESHOLD;
           
-          const uploadApiResponse = await fetch(`/api/uploader/${uploadId}/upload`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
-          });
-          
-          if (!uploadApiResponse.ok) {
-            throw new Error(`Upload failed: ${uploadApiResponse.status}`);
+          if (useChunkedUpload) {
+            // Chunked upload for large files
+            console.log(`[CHUNKED-UPLOAD] Starting chunked upload for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            let uploadedChunks = 0;
+            
+            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+              const start = chunkIndex * CHUNK_SIZE;
+              const end = Math.min(start + CHUNK_SIZE, file.size);
+              const chunk = file.slice(start, end);
+              
+              const formData = new FormData();
+              formData.append('chunk', chunk);
+              formData.append('chunkIndex', chunkIndex.toString());
+              formData.append('totalChunks', totalChunks.toString());
+              
+              console.log(`[CHUNKED-UPLOAD] Uploading chunk ${chunkIndex + 1}/${totalChunks} (${(chunk.size / 1024 / 1024).toFixed(2)} MB)`);
+              
+              const chunkResponse = await fetch(`/api/uploader/${uploadId}/upload-chunk`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+              });
+              
+              if (!chunkResponse.ok) {
+                throw new Error(`Chunk upload failed: ${chunkResponse.status}`);
+              }
+              
+              const chunkResult = await chunkResponse.json();
+              uploadedChunks++;
+              
+              // Show progress toast
+              const progress = Math.round((uploadedChunks / totalChunks) * 100);
+              if (chunkIndex % 2 === 0 || chunkIndex === totalChunks - 1) { // Update every other chunk
+                toast({ 
+                  title: `Uploading ${file.name}`, 
+                  description: `${progress}% (${uploadedChunks}/${totalChunks} chunks)` 
+                });
+              }
+              
+              if (chunkResult.complete) {
+                console.log(`[CHUNKED-UPLOAD] Upload complete for ${file.name}`);
+                break;
+              }
+            }
+            
+            // Update to uploaded status
+            await updatePhaseMutation.mutateAsync({
+              uploadId: uploadId,
+              phase: 'uploaded',
+              phaseData: { uploadProgress: 100 }
+            });
+            
+            toast({ title: `${file.name} uploaded successfully (chunked)`, variant: "default" });
+          } else {
+            // Standard upload for smaller files
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('sessionId', sessionId);
+            
+            const uploadApiResponse = await fetch(`/api/uploader/${uploadId}/upload`, {
+              method: 'POST',
+              body: formData,
+              credentials: 'include'
+            });
+            
+            if (!uploadApiResponse.ok) {
+              throw new Error(`Upload failed: ${uploadApiResponse.status}`);
+            }
+            
+            // Update to uploaded status
+            await updatePhaseMutation.mutateAsync({
+              uploadId: uploadId,
+              phase: 'uploaded',
+              phaseData: { uploadProgress: 100 }
+            });
+            
+            toast({ title: `${file.name} uploaded successfully` });
           }
-          
-          // Update to uploaded status
-          await updatePhaseMutation.mutateAsync({
-            uploadId: uploadId,
-            phase: 'uploaded',
-            phaseData: { uploadProgress: 100 }
-          });
         }
         
-        toast({ title: `${file.name} uploaded successfully` });
       } catch (error) {
         console.error('Upload error:', error);
         toast({ title: `Failed to upload ${file.name}`, variant: "destructive" });

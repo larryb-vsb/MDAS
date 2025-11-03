@@ -657,6 +657,237 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chunked upload endpoint for large files (>25MB)
+  app.post("/api/uploader/:id/upload-chunk", isAuthenticated, upload.single('chunk'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { chunkIndex, totalChunks } = req.body;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No chunk uploaded" });
+      }
+      
+      if (chunkIndex === undefined || totalChunks === undefined) {
+        return res.status(400).json({ error: "Missing chunk metadata (chunkIndex, totalChunks)" });
+      }
+      
+      const uploadRecord = await storage.getUploaderUploadById(id);
+      if (!uploadRecord) {
+        return res.status(404).json({ error: "Upload record not found" });
+      }
+      
+      const chunkIndexNum = parseInt(chunkIndex);
+      const totalChunksNum = parseInt(totalChunks);
+      
+      // Create temp directory for chunks if it doesn't exist
+      const tempDir = path.join(os.tmpdir(), 'mms-chunks', id);
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      // Clean up stale chunk directories (>6 hours old) to prevent disk exhaustion from abandoned uploads
+      // Excludes the current upload to avoid deleting active chunks
+      try {
+        const chunksParentDir = path.join(os.tmpdir(), 'mms-chunks');
+        if (fs.existsSync(chunksParentDir)) {
+          const uploadDirs = fs.readdirSync(chunksParentDir);
+          const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000); // 6 hours for slow networks
+          
+          for (const dir of uploadDirs) {
+            // Skip current upload directory
+            if (dir === id) {
+              continue;
+            }
+            
+            const dirPath = path.join(chunksParentDir, dir);
+            try {
+              const stats = fs.statSync(dirPath);
+              if (stats.isDirectory() && stats.mtimeMs < sixHoursAgo) {
+                // Check if upload exists and is truly abandoned
+                const oldUpload = await storage.getUploaderUploadById(dir);
+                
+                // Remove if:
+                // 1. Upload record doesn't exist, OR
+                // 2. Upload is not in uploading phase (completed/failed/etc), OR
+                // 3. Upload has been in uploading phase for >6 hours (abandoned mid-stream)
+                const shouldCleanup = !oldUpload || 
+                  oldUpload.currentPhase !== 'uploading' ||
+                  (oldUpload.uploadStartedAt && 
+                   (Date.now() - new Date(oldUpload.uploadStartedAt).getTime()) > (6 * 60 * 60 * 1000));
+                
+                if (shouldCleanup) {
+                  fs.rmSync(dirPath, { recursive: true, force: true });
+                  console.log(`[CHUNKED-UPLOAD] Cleaned up stale chunk directory: ${dir} (abandoned: ${!oldUpload ? 'no record' : oldUpload.currentPhase !== 'uploading' ? 'completed/failed' : 'timeout'})`);
+                }
+              }
+            } catch (statError) {
+              // Ignore errors reading individual directories
+            }
+          }
+        }
+      } catch (cleanupError) {
+        // Don't fail the upload if cleanup fails
+        console.error(`[CHUNKED-UPLOAD] Stale directory cleanup error:`, cleanupError);
+      }
+      
+      // Save chunk to temp file
+      const chunkPath = path.join(tempDir, `chunk-${chunkIndexNum}`);
+      fs.writeFileSync(chunkPath, req.file.buffer);
+      
+      console.log(`[CHUNKED-UPLOAD] Received chunk ${chunkIndexNum + 1}/${totalChunksNum} for upload ${id} (${req.file.buffer.length} bytes)`);
+      
+      // Update chunk progress in database
+      const chunksUploaded = chunkIndexNum + 1;
+      const uploadProgress = Math.round((chunksUploaded / totalChunksNum) * 100);
+      
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'uploading',
+        chunkedUpload: true,
+        chunkCount: totalChunksNum,
+        chunksUploaded: chunksUploaded,
+        uploadProgress: uploadProgress,
+        uploadStartedAt: uploadRecord.uploadStartedAt || new Date()
+      });
+      
+      // Check if all chunks have been uploaded
+      const uploadedChunks = fs.readdirSync(tempDir).filter(f => f.startsWith('chunk-'));
+      
+      if (uploadedChunks.length === totalChunksNum) {
+        console.log(`[CHUNKED-UPLOAD] All ${totalChunksNum} chunks received for upload ${id}. Reassembling...`);
+        
+        // Reassemble chunks in correct order
+        const chunks: Buffer[] = [];
+        for (let i = 0; i < totalChunksNum; i++) {
+          const chunkFilePath = path.join(tempDir, `chunk-${i}`);
+          const chunkBuffer = fs.readFileSync(chunkFilePath);
+          chunks.push(chunkBuffer);
+        }
+        
+        const completeFileBuffer = Buffer.concat(chunks);
+        console.log(`[CHUNKED-UPLOAD] Reassembled file: ${completeFileBuffer.length} bytes`);
+        
+        // Upload to Replit Object Storage
+        await storage.updateUploaderUpload(id, {
+          uploadProgress: 100,
+          currentPhase: 'uploading',
+          processingNotes: JSON.stringify({
+            status: 'Uploading to object storage...',
+            chunksReassembled: true
+          })
+        });
+        
+        const { ReplitStorageService } = await import('./replit-storage-service');
+        const uploadResult = await ReplitStorageService.uploadFile(
+          completeFileBuffer,
+          uploadRecord.filename,
+          id,
+          'application/octet-stream'
+        );
+        
+        // Extract file metadata
+        const fileContent = completeFileBuffer.toString('utf-8');
+        const lines = fileContent.split('\n');
+        const lineCount = lines.length;
+        const actualFileSize = completeFileBuffer.length;
+        const hasHeaders = lines.length > 0 && (lines[0].includes(',') || lines[0].includes('\t'));
+        
+        // Detect file format
+        let fileFormat = 'text';
+        if (uploadRecord.filename.toLowerCase().endsWith('.csv')) fileFormat = 'csv';
+        else if (uploadRecord.filename.toLowerCase().endsWith('.tsv')) fileFormat = 'tsv';
+        else if (uploadRecord.filename.toLowerCase().endsWith('.json')) fileFormat = 'json';
+        else if (uploadRecord.filename.toLowerCase().endsWith('.tsyso')) fileFormat = 'tddf';
+        
+        // Update database with final metadata
+        await storage.updateUploaderUpload(id, {
+          currentPhase: 'uploaded',
+          uploadProgress: 100,
+          uploadedAt: new Date(),
+          storagePath: uploadResult.key,
+          s3Bucket: uploadResult.bucket,
+          s3Key: uploadResult.key,
+          s3Url: uploadResult.url,
+          s3Etag: uploadResult.etag,
+          fileSize: actualFileSize,
+          lineCount: lineCount,
+          dataSize: actualFileSize,
+          hasHeaders: hasHeaders,
+          fileFormat: fileFormat,
+          encodingDetected: 'utf-8',
+          processingNotes: JSON.stringify({
+            uploaded: true,
+            chunkedUpload: true,
+            totalChunks: totalChunksNum,
+            storageKey: uploadResult.key,
+            storageBucket: uploadResult.bucket,
+            uploadedAt: new Date().toISOString()
+          })
+        });
+        
+        // Clean up temp chunks
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+          console.log(`[CHUNKED-UPLOAD] Cleaned up temp directory: ${tempDir}`);
+        } catch (cleanupError) {
+          console.error(`[CHUNKED-UPLOAD] Failed to clean up temp directory:`, cleanupError);
+        }
+        
+        console.log(`[CHUNKED-UPLOAD] Successfully uploaded chunked file ${id} to ${uploadResult.key}`);
+        
+        return res.json({
+          success: true,
+          complete: true,
+          message: "All chunks received and file uploaded successfully",
+          uploadResult,
+          lineCount,
+          fileSize: uploadResult.size,
+          chunksReceived: totalChunksNum
+        });
+      } else {
+        // Not all chunks received yet
+        return res.json({
+          success: true,
+          complete: false,
+          message: `Chunk ${chunkIndexNum + 1}/${totalChunksNum} received`,
+          chunksReceived: uploadedChunks.length,
+          totalChunks: totalChunksNum,
+          uploadProgress: uploadProgress
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('Chunked upload error:', error);
+      
+      // Update upload record with error
+      const { id } = req.params;
+      try {
+        await storage.updateUploaderUpload(id, {
+          currentPhase: 'warning',
+          processingNotes: JSON.stringify({
+            error: true,
+            message: error.message,
+            failedAt: new Date().toISOString(),
+            chunkedUploadFailed: true
+          })
+        });
+      } catch (updateError) {
+        console.error('Failed to update upload record with error:', updateError);
+      }
+      
+      // Clean up temp chunks on error
+      try {
+        const tempDir = path.join(os.tmpdir(), 'mms-chunks', id);
+        if (fs.existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+      } catch (cleanupError) {
+        console.error('Failed to clean up temp chunks on error:', cleanupError);
+      }
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Manual identification endpoint for progressing uploaded files (Step 4)
   app.post("/api/uploader/manual-identify", isAuthenticated, async (req, res) => {
     console.log("[MANUAL-IDENTIFY-DEBUG] API endpoint reached with body:", req.body);
