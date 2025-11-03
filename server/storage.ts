@@ -3785,7 +3785,11 @@ export class DatabaseStorage implements IStorage {
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[MERCHANT-DETAIL] Processing file from database content: ${file.id}`);
                 const processingStartTime = new Date();
-                const processingMetrics = await this.processMerchantDetailFileFromContent(dbContent);
+                const processingMetrics = await this.processMerchantDetailFileFromContent(
+                  dbContent,
+                  file.originalFilename,
+                  file.id
+                );
                 
                 // Calculate processing time
                 const processingCompletedTime = new Date();
@@ -4269,7 +4273,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process TSYS merchant detail fixed-width file using MCC schema configuration
-  async processMerchantDetailFileFromContent(base64Content: string): Promise<{ rowsProcessed: number; merchantsUpdated: number; errors: number }> {
+  async processMerchantDetailFileFromContent(
+    base64Content: string, 
+    filename?: string, 
+    uploadId?: string
+  ): Promise<{ 
+    rowsProcessed: number; 
+    merchantsUpdated: number; 
+    merchantsCreated: number;
+    skipped: number;
+    errors: number;
+    logPath?: string;
+  }> {
     console.log('[MERCHANT-DETAIL] Processing TSYS merchant detail file using MCC schema');
     
     try {
@@ -4288,8 +4303,18 @@ export class DatabaseStorage implements IStorage {
       
       // Get merchants table for updates
       const merchantsTableName = getTableName('merchants');
+      const apiMerchantsTableName = getTableName('api_merchants');
       let merchantsUpdated = 0;
+      let merchantsCreated = 0;
+      let skipped = 0;
       let errors = 0;
+      
+      // Build processing log
+      const logLines: string[] = [];
+      logLines.push(`Processing: ${filename || 'Unknown File'}`);
+      logLines.push(`Started: ${new Date().toISOString()}`);
+      logLines.push(`Total Lines: ${parseResult.totalLines}`);
+      logLines.push('');
       
       // Process each parsed record
       for (const parsed of parseResult.records) {
@@ -4297,7 +4322,10 @@ export class DatabaseStorage implements IStorage {
           // Check if this record has critical errors
           if (parsed._errors.length > 0) {
             console.log(`[MERCHANT-DETAIL] Record has ${parsed._errors.length} validation errors, skipping update`);
-            errors++;
+            skipped++;
+            const merchantId = String(parsed.merchantNumber || parsed.bankNumber || 'Unknown');
+            const merchantName = String(parsed.dbaName || 'Unknown');
+            logLines.push(`SKIPPED: ${merchantId} - ${merchantName} (validation errors)`);
             continue;
           }
           
@@ -4309,13 +4337,15 @@ export class DatabaseStorage implements IStorage {
           
           if (!bankNum) {
             console.log('[MERCHANT-DETAIL] No bank number found, skipping record');
-            errors++;
+            skipped++;
+            const merchantName = String(parsed.dbaName || 'Unknown');
+            logLines.push(`SKIPPED: Unknown ID - ${merchantName} (no bank number)`);
             continue;
           }
           
-          // Find merchants with this bank number
+          // Find merchants with this bank number (check both tables)
           const existingMerchants = await db.execute(sql`
-            SELECT id FROM ${sql.identifier(merchantsTableName)} 
+            SELECT id, dba_name FROM ${sql.identifier(merchantsTableName)} 
             WHERE bank_number = ${bankNum}
           `);
           
@@ -4339,23 +4369,107 @@ export class DatabaseStorage implements IStorage {
               ]);
               
               merchantsUpdated++;
+              logLines.push(`UPDATED: ${merchant.id} - ${merchant.dba_name || bankNum}`);
             }
             console.log(`[MERCHANT-DETAIL] Updated ${existingMerchants.rows.length} merchant(s) for bank ${bankNum}`);
           } else {
-            console.log(`[MERCHANT-DETAIL] No existing merchant found for bank ${bankNum}`);
+            // Check if merchant exists in api_merchants table and create if not
+            const apiMerchant = await db.execute(sql`
+              SELECT merchant_id, dba_name FROM ${sql.identifier(apiMerchantsTableName)} 
+              WHERE merchant_id = ${bankNum}
+            `);
+            
+            if (apiMerchant.rows.length > 0) {
+              // Merchant exists in API table but not in main table - update API table
+              await pool.query(`
+                UPDATE ${apiMerchantsTableName}
+                SET 
+                  dba_name = COALESCE($1, dba_name),
+                  updated_at = NOW()
+                WHERE merchant_id = $2
+              `, [
+                merchantData.dbaName || null,
+                bankNum
+              ]);
+              merchantsUpdated++;
+              logLines.push(`UPDATED: ${bankNum} - ${apiMerchant.rows[0].dba_name || merchantData.dbaName} (API table)`);
+            } else {
+              // New merchant - create in API table
+              await pool.query(`
+                INSERT INTO ${apiMerchantsTableName} (
+                  merchant_id, dba_name, bank_number, created_at, updated_at
+                )
+                VALUES ($1, $2, $3, NOW(), NOW())
+              `, [
+                bankNum,
+                merchantData.dbaName || null,
+                bankNum
+              ]);
+              merchantsCreated++;
+              logLines.push(`NEW: ${bankNum} - ${merchantData.dbaName || 'Unknown'}`);
+            }
           }
         } catch (recordError) {
           console.error('[MERCHANT-DETAIL] Error processing record:', recordError);
           errors++;
+          logLines.push(`ERROR: Processing failed - ${recordError instanceof Error ? recordError.message : 'Unknown error'}`);
         }
       }
       
-      console.log(`[MERCHANT-DETAIL] Complete: Updated ${merchantsUpdated} merchants, ${errors} errors`);
+      // Add summary to log
+      logLines.push('');
+      logLines.push('='.repeat(50));
+      logLines.push('SUMMARY:');
+      logLines.push(`Total Records: ${parseResult.totalLines}`);
+      logLines.push(`New Merchants: ${merchantsCreated}`);
+      logLines.push(`Updated Merchants: ${merchantsUpdated}`);
+      logLines.push(`Skipped: ${skipped}`);
+      logLines.push(`Errors: ${errors}`);
+      logLines.push(`Completed: ${new Date().toISOString()}`);
+      logLines.push('='.repeat(50));
+      
+      console.log(`[MERCHANT-DETAIL] Complete: Created ${merchantsCreated}, Updated ${merchantsUpdated}, Skipped ${skipped}, ${errors} errors`);
+      
+      // Save log to object storage if filename and uploadId provided
+      let logPath: string | undefined;
+      if (filename && uploadId) {
+        try {
+          const { ReplitStorageService } = await import('./replit-storage-service');
+          const storageService = new ReplitStorageService();
+          
+          const logContent = logLines.join('\n');
+          const logFilename = `${filename}.log`;
+          
+          // Extract the folder path from the original file's storage path
+          const upload = await this.getUploaderUploadById(uploadId);
+          if (upload?.storagePath) {
+            const folderPath = upload.storagePath.substring(0, upload.storagePath.lastIndexOf('/'));
+            logPath = `${folderPath}/${logFilename}`;
+            
+            await storageService.uploadFile(logPath, Buffer.from(logContent, 'utf8'), {
+              contentType: 'text/plain'
+            });
+            
+            console.log(`[MERCHANT-DETAIL] Processing log saved to: ${logPath}`);
+            
+            // Update upload record with log path
+            await this.updateUploaderUpload(uploadId, {
+              processingLogPath: logPath
+            });
+          }
+        } catch (logError) {
+          console.error('[MERCHANT-DETAIL] Failed to save processing log:', logError);
+          // Don't fail the whole process if log save fails
+        }
+      }
       
       return {
         rowsProcessed: parseResult.totalLines,
         merchantsUpdated,
-        errors
+        merchantsCreated,
+        skipped,
+        errors,
+        logPath
       };
     } catch (error) {
       console.error('[MERCHANT-DETAIL] File processing error:', error);
@@ -15407,7 +15521,9 @@ export class DatabaseStorage implements IStorage {
           bh_record_count, 
           dt_record_count, 
           other_record_count,
-          final_file_type
+          final_file_type,
+          processing_log_path,
+          storage_path
         FROM ${uploaderTableName} 
         WHERE id IN (${placeholders})
           AND (upload_status != 'deleted' OR upload_status IS NULL)
@@ -15474,6 +15590,27 @@ export class DatabaseStorage implements IStorage {
       }
       
       console.log(`[UPLOADER-AUDIT] Created ${deletedFiles.length} audit log entries for deleted files`);
+      
+      // Delete associated log files from object storage
+      try {
+        const { ReplitStorageService } = await import('./replit-storage-service');
+        const storageService = new ReplitStorageService();
+        
+        for (const file of filesToDelete) {
+          if (file.processing_log_path) {
+            try {
+              await storageService.deleteFile(file.processing_log_path);
+              console.log(`[UPLOADER-DELETE] Deleted log file: ${file.processing_log_path}`);
+            } catch (logError) {
+              console.error(`[UPLOADER-DELETE] Failed to delete log file ${file.processing_log_path}:`, logError);
+              // Don't fail the whole deletion if log file deletion fails
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[UPLOADER-DELETE] Error deleting log files from object storage:', error);
+        // Don't fail the whole process if log cleanup fails
+      }
       
       return { deletedFiles };
       

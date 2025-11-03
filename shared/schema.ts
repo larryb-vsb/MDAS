@@ -1413,6 +1413,7 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   encodingDetected: text("encoding_detected"), // utf-8, ascii, etc.
   validationErrors: jsonb("validation_errors"), // Array of validation issues
   processingNotes: text("processing_notes"), // General processing notes
+  processingLogPath: text("processing_log_path"), // Path to processing log file in object storage (for merchant detail files)
   
   // System tracking
   createdBy: text("created_by"), // Username who uploaded
