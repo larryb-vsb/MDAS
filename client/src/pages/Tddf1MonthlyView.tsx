@@ -525,7 +525,11 @@ export default function Tddf1MonthlyView() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button 
-              onClick={() => setLocation('/tddf1')} 
+              onClick={() => {
+                // Pass the current month as a date parameter (15th of the month)
+                const dateStr = format(currentMonth, 'yyyy-MM-15');
+                setLocation(`/tddf1?date=${dateStr}`);
+              }} 
               variant="outline" 
               size="sm"
               className="flex items-center gap-1 sm:gap-2"

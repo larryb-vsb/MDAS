@@ -440,9 +440,18 @@ function parseISODateLocal(dateStr: string | null): Date | null {
 }
 
 function Tddf1Page() {
-  // Default to today's date
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  // Read date parameter from URL (format: yyyy-MM-dd)
+  const params = new URLSearchParams(window.location.search);
+  const dateParam = params.get('date');
+  
+  // Initialize selectedDate from URL param or default to today
+  const initialDate = dateParam
+    ? new Date(dateParam) // Parse yyyy-MM-dd format
+    : new Date();
+  
+  // Default to today's date or URL param
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(initialDate);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
