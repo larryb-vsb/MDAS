@@ -1220,76 +1220,156 @@ export default function MMSUploader() {
           });
           
           // Phase 2: Session-controlled upload to Replit Object Storage with progress
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('sessionId', sessionId);
+          // Determine if we need chunked upload (files > 25MB)
+          const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+          const USE_CHUNKED_THRESHOLD = 25 * 1024 * 1024; // 25MB threshold
+          const useChunkedUpload = file.size > USE_CHUNKED_THRESHOLD;
           
-          // Robust upload with background progress tracking (window-close resistant)
-          let progressTracker: NodeJS.Timeout | null = null;
-          let currentProgress = 0;
+          console.log(`[SESSION-UPLOAD] File size: ${(file.size / 1024 / 1024).toFixed(2)} MB, Using chunked upload: ${useChunkedUpload}`);
           
           try {
-            // Start background progress simulation until upload completes
-            progressTracker = setInterval(async () => {
-              currentProgress = Math.min(currentProgress + Math.random() * 8 + 2, 95);
+            if (useChunkedUpload) {
+              // Chunked upload for large files
+              console.log(`[CHUNKED-UPLOAD] Starting chunked upload for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
               
-              try {
+              const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+              let uploadedChunks = 0;
+              
+              for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+                
+                const formData = new FormData();
+                formData.append('chunk', chunk);
+                formData.append('chunkIndex', chunkIndex.toString());
+                formData.append('totalChunks', totalChunks.toString());
+                
+                console.log(`[CHUNKED-UPLOAD] Uploading chunk ${chunkIndex + 1}/${totalChunks} (${(chunk.size / 1024 / 1024).toFixed(2)} MB)`);
+                
+                const chunkResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload-chunk`, {
+                  method: 'POST',
+                  body: formData,
+                  credentials: 'include'
+                });
+                
+                if (!chunkResponse.ok) {
+                  const errorText = await chunkResponse.text();
+                  console.error(`[CHUNKED-UPLOAD] Chunk ${chunkIndex + 1} failed: ${errorText}`);
+                  throw new Error(`Chunk upload failed: ${chunkResponse.status}`);
+                }
+                
+                const chunkResult = await chunkResponse.json();
+                uploadedChunks++;
+                
+                // Update progress in database
+                const progress = Math.round((uploadedChunks / totalChunks) * 100);
                 await fetch(`/api/uploader/${uploadResponse.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   credentials: 'include',
                   body: JSON.stringify({
-                    uploadProgress: Math.round(currentProgress),
-                    processingNotes: `Uploading... ${Math.round(currentProgress)}% - Session: ${sessionId}`
+                    uploadProgress: progress,
+                    processingNotes: `Uploading chunks... ${progress}% (${uploadedChunks}/${totalChunks} chunks) - Session: ${sessionId}`
                   })
                 });
-              } catch (error) {
-                console.log('Progress update error:', error);
+                
+                if (chunkResult.complete) {
+                  console.log(`[CHUNKED-UPLOAD] Upload complete for ${file.name}`);
+                  break;
+                }
               }
-            }, 800);
-            
-            // Perform actual upload with fetch (more resilient than XMLHttpRequest)
-            console.log(`[SESSION-UPLOAD] Starting upload for ${file.name} to /api/uploader/${uploadResponse.id}/upload`);
-            const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
-              method: 'POST',
-              body: formData,
-              credentials: 'include'
-            });
-            
-            // Clear progress tracker
-            if (progressTracker) {
-              clearInterval(progressTracker);
-              progressTracker = null;
+              
+              console.log(`[SESSION-UPLOAD] Chunked upload successful for ${file.name}`);
+              
+              // Set final progress to 100%
+              await fetch(`/api/uploader/${uploadResponse.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  uploadProgress: 100,
+                  processingNotes: `Upload completed (chunked) - Session: ${sessionId}`
+                })
+              });
+              
+            } else {
+              // Standard upload for smaller files
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('sessionId', sessionId);
+              
+              // Robust upload with background progress tracking (window-close resistant)
+              let progressTracker: NodeJS.Timeout | null = null;
+              let currentProgress = 0;
+              
+              try {
+                // Start background progress simulation until upload completes
+                progressTracker = setInterval(async () => {
+                  currentProgress = Math.min(currentProgress + Math.random() * 8 + 2, 95);
+                  
+                  try {
+                    await fetch(`/api/uploader/${uploadResponse.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        uploadProgress: Math.round(currentProgress),
+                        processingNotes: `Uploading... ${Math.round(currentProgress)}% - Session: ${sessionId}`
+                      })
+                    });
+                  } catch (error) {
+                    console.log('Progress update error:', error);
+                  }
+                }, 800);
+                
+                // Perform actual upload with fetch (more resilient than XMLHttpRequest)
+                console.log(`[SESSION-UPLOAD] Starting upload for ${file.name} to /api/uploader/${uploadResponse.id}/upload`);
+                const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
+                  method: 'POST',
+                  body: formData,
+                  credentials: 'include'
+                });
+                
+                // Clear progress tracker
+                if (progressTracker) {
+                  clearInterval(progressTracker);
+                  progressTracker = null;
+                }
+                
+                console.log(`[SESSION-UPLOAD] Upload response status: ${uploadApiResponse.status} ${uploadApiResponse.statusText}`);
+                
+                if (!uploadApiResponse.ok) {
+                  const errorText = await uploadApiResponse.text();
+                  console.error(`[SESSION-UPLOAD] Upload failed with status ${uploadApiResponse.status}: ${errorText}`);
+                  throw new Error(`Session upload failed: ${uploadApiResponse.status} ${uploadApiResponse.statusText} - ${errorText}`);
+                }
+                
+                const uploadResult = await uploadApiResponse.json();
+                console.log(`[SESSION-UPLOAD] Upload successful:`, uploadResult);
+                
+                // Set final progress to 100%
+                await fetch(`/api/uploader/${uploadResponse.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    uploadProgress: 100,
+                    processingNotes: `Upload completed - Session: ${sessionId}`
+                  })
+                });
+                
+              } catch (uploadError) {
+                // Clear progress tracker on error
+                if (progressTracker) {
+                  clearInterval(progressTracker);
+                  progressTracker = null;
+                }
+                throw uploadError;
+              }
             }
-            
-            console.log(`[SESSION-UPLOAD] Upload response status: ${uploadApiResponse.status} ${uploadApiResponse.statusText}`);
-            
-            if (!uploadApiResponse.ok) {
-              const errorText = await uploadApiResponse.text();
-              console.error(`[SESSION-UPLOAD] Upload failed with status ${uploadApiResponse.status}: ${errorText}`);
-              throw new Error(`Session upload failed: ${uploadApiResponse.status} ${uploadApiResponse.statusText} - ${errorText}`);
-            }
-            
-            const uploadResult = await uploadApiResponse.json();
-            console.log(`[SESSION-UPLOAD] Upload successful:`, uploadResult);
-            
-            // Set final progress to 100%
-            await fetch(`/api/uploader/${uploadResponse.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                uploadProgress: 100,
-                processingNotes: `Upload completed - Session: ${sessionId}`
-              })
-            });
             
           } catch (uploadError) {
-            // Clear progress tracker on error
-            if (progressTracker) {
-              clearInterval(progressTracker);
-              progressTracker = null;
-            }
             throw uploadError;
           }
 
