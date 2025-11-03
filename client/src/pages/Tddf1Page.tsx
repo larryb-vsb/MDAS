@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -28,7 +29,7 @@ import {
   X,
   Table as TableIcon,
 } from "lucide-react";
-import { format, addDays, subDays, isToday, getDay } from "date-fns";
+import { format, addDays, subDays, isToday, getDay, setMonth, setYear, startOfMonth } from "date-fns";
 import { isNonProcessingDay, isFederalHoliday } from "@/lib/federal-holidays";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -441,6 +442,8 @@ function parseISODateLocal(dateStr: string | null): Date | null {
 function Tddf1Page() {
   // Default to today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -452,6 +455,14 @@ function Tddf1Page() {
     id: string;
     name: string;
   } | null>(null);
+  
+  // Month/year selection options for calendar
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 16 }, (_, i) => currentYear - 10 + i);
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
 
   // Get user info for theme preferences
   const { data: user, refetch: refetchUser } = useQuery({
@@ -773,7 +784,11 @@ function Tddf1Page() {
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
             <Button
-              onClick={() => setLocation("/tddf1-monthly")}
+              onClick={() => {
+                // Pass the current selected date's month/year to monthly view
+                const month = format(selectedDate, "yyyy-MM");
+                setLocation(`/tddf1-monthly?month=${month}`);
+              }}
               variant="outline"
               size="sm"
               className="flex-1 sm:flex-none"
@@ -908,12 +923,22 @@ function Tddf1Page() {
                 <span className="sm:hidden">Prev</span>
               </Button>
 
-              <Popover>
+              <Popover 
+                open={isCalendarOpen}
+                onOpenChange={(open) => {
+                  setIsCalendarOpen(open);
+                  // When opening, set calendar to show the selected date's month/year
+                  if (open) {
+                    setCalendarMonth(selectedDate);
+                  }
+                }}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className="flex items-center gap-1 min-w-[100px] justify-center"
                     size="sm"
+                    data-testid="button-calendar-trigger"
                   >
                     <CalendarIcon className="h-4 w-4" />
                     <span className="hidden sm:inline">Select Date</span>
@@ -921,14 +946,63 @@ function Tddf1Page() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="center">
+                  {/* Month and Year Selectors */}
+                  <div className="flex items-center gap-2 p-3 border-b">
+                    <Select
+                      value={calendarMonth.getMonth().toString()}
+                      onValueChange={(value) => {
+                        // Normalize to 1st of month to prevent rollover (e.g., Jan 31 → Feb would become Mar 3)
+                        const normalized = startOfMonth(calendarMonth);
+                        const newMonth = setMonth(normalized, parseInt(value));
+                        setCalendarMonth(newMonth);
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px]" data-testid="select-month">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthNames.map((month, index) => (
+                          <SelectItem key={index} value={index.toString()}>
+                            {month}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select
+                      value={calendarMonth.getFullYear().toString()}
+                      onValueChange={(value) => {
+                        // Normalize to 1st of month to prevent rollover (e.g., Feb 29 2024 → 2023 would become Mar 1)
+                        const normalized = startOfMonth(calendarMonth);
+                        const newYear = setYear(normalized, parseInt(value));
+                        setCalendarMonth(newYear);
+                      }}
+                    >
+                      <SelectTrigger className="w-[100px]" data-testid="select-year">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
                   <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => {
                       if (date) {
                         setSelectedDate(date);
+                        setCalendarMonth(date);
                       }
+                      setIsCalendarOpen(false);
                     }}
+                    month={calendarMonth}
+                    onMonthChange={setCalendarMonth}
                     disabled={(date) =>
                       date > new Date() || date < new Date("1900-01-01")
                     }

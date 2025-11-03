@@ -54,7 +54,16 @@ interface MonthlyComparison {
 }
 
 export default function Tddf1MonthlyView() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  // Read month parameter from URL (format: yyyy-MM)
+  const params = new URLSearchParams(window.location.search);
+  const monthParam = params.get('month');
+  
+  // Initialize currentMonth from URL param or default to today
+  const initialMonth = monthParam
+    ? new Date(monthParam + '-01') // Convert yyyy-MM to yyyy-MM-01
+    : new Date();
+  
+  const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
