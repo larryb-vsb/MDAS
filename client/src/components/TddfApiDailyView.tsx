@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, RefreshCw, Upload, Loader2 } from "lucide-react";
-import { format, addDays, subDays, isToday } from "date-fns";
+import { format, addDays, subDays, isToday, setMonth, setYear, startOfMonth } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -41,9 +42,20 @@ export function TddfApiDailyView() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   
   // Format selected date for API calls
   const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+  
+  // Generate year options (10 years back, current year, 5 years forward)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 16 }, (_, i) => currentYear - 10 + i);
+  
+  // Month names for dropdown
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
   
   // Query daily stats
   const { data: dailyStats, isLoading: statsLoading } = useQuery<TddfApiDailyStats>({
@@ -93,7 +105,16 @@ export function TddfApiDailyView() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
             
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+            <Popover 
+              open={isCalendarOpen} 
+              onOpenChange={(open) => {
+                setIsCalendarOpen(open);
+                // When opening, set calendar to show the selected date's month/year
+                if (open) {
+                  setCalendarMonth(selectedDate);
+                }
+              }}
+            >
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -101,19 +122,70 @@ export function TddfApiDailyView() {
                     "w-[240px] justify-start text-left font-normal",
                     !selectedDate && "text-muted-foreground"
                   )}
+                  data-testid="button-calendar-trigger"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {selectedDate ? format(selectedDate, "EEEE, MMMM d, yyyy") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
+                {/* Month and Year Selectors */}
+                <div className="flex items-center gap-2 p-3 border-b">
+                  <Select
+                    value={calendarMonth.getMonth().toString()}
+                    onValueChange={(value) => {
+                      // Normalize to 1st of month to prevent rollover (e.g., Jan 31 → Feb would become Mar 3)
+                      const normalized = startOfMonth(calendarMonth);
+                      const newMonth = setMonth(normalized, parseInt(value));
+                      setCalendarMonth(newMonth);
+                    }}
+                  >
+                    <SelectTrigger className="w-[140px]" data-testid="select-month">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((month, index) => (
+                        <SelectItem key={index} value={index.toString()}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select
+                    value={calendarMonth.getFullYear().toString()}
+                    onValueChange={(value) => {
+                      // Normalize to 1st of month to prevent rollover (e.g., Feb 29 2024 → 2023 would become Mar 1)
+                      const normalized = startOfMonth(calendarMonth);
+                      const newYear = setYear(normalized, parseInt(value));
+                      setCalendarMonth(newYear);
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px]" data-testid="select-year">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yearOptions.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={(date) => {
-                    if (date) setSelectedDate(date);
+                    if (date) {
+                      setSelectedDate(date);
+                      setCalendarMonth(date);
+                    }
                     setIsCalendarOpen(false);
                   }}
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
                   initialFocus
                 />
               </PopoverContent>
