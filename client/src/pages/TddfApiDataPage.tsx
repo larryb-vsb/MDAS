@@ -3071,9 +3071,9 @@ export default function TddfApiDataPage() {
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: (string | number)[]) => {
-      return apiRequest("/api/tddf-api/files/delete", {
-        method: "POST",
-        body: JSON.stringify({ fileIds })
+      return apiRequest("/api/uploader/bulk-delete", {
+        method: "DELETE",
+        body: JSON.stringify({ uploadIds: fileIds })
       });
     },
     onSuccess: (data: any) => {
