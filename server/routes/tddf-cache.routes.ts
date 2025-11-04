@@ -2479,4 +2479,141 @@ export function registerTddfCacheRoutes(app: Express) {
       res.status(500).json({ error: 'Failed to fetch monitoring data' });
     }
   });
+
+  // Queue Monitoring - Enhanced processing metrics for uploader system
+  app.get("/api/uploader/queue-status", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      const timingTableName = getTableName('uploader_processing_timing');
+      
+      // Get counts by phase for ALL file types
+      const phaseCounts = await pool.query(`
+        SELECT 
+          current_phase,
+          final_file_type,
+          COUNT(*) as count,
+          MAX(updated_at) as most_recent
+        FROM ${uploaderTableName}
+        WHERE current_phase IN ('uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed', 'failed')
+        GROUP BY current_phase, final_file_type
+        ORDER BY current_phase
+      `);
+      
+      // Get processing rate from last 10 completed files
+      const processingRate = await pool.query(`
+        SELECT 
+          AVG(total_duration_seconds) as avg_processing_time,
+          AVG(total_records_processed) as avg_records_per_file,
+          AVG(records_per_second) as avg_records_per_second,
+          COUNT(*) as sample_size
+        FROM ${timingTableName}
+        WHERE completed_at >= NOW() - INTERVAL '1 hour'
+          AND total_records_processed > 0
+        ORDER BY completed_at DESC
+        LIMIT 10
+      `);
+      
+      // Get currently processing files with elapsed time
+      const currentlyProcessing = await pool.query(`
+        SELECT 
+          u.id,
+          u.filename,
+          u.current_phase,
+          u.final_file_type,
+          u.updated_at,
+          EXTRACT(EPOCH FROM (NOW() - u.updated_at)) as seconds_in_phase,
+          t.total_records_processed,
+          t.records_per_second
+        FROM ${uploaderTableName} u
+        LEFT JOIN ${timingTableName} t ON u.id = t.upload_id
+        WHERE u.current_phase IN ('encoding', 'processing')
+        ORDER BY u.updated_at ASC
+      `);
+      
+      // Get files stuck in phases (> 5 minutes)
+      const stuckFiles = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          current_phase,
+          final_file_type,
+          updated_at,
+          EXTRACT(EPOCH FROM (NOW() - updated_at)) as seconds_stuck
+        FROM ${uploaderTableName}
+        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
+          AND updated_at < NOW() - INTERVAL '5 minutes'
+        ORDER BY updated_at ASC
+        LIMIT 10
+      `);
+      
+      // Calculate phase breakdown
+      const phaseBreakdown = phaseCounts.rows.reduce((acc: any, row: any) => {
+        const phase = row.current_phase;
+        if (!acc[phase]) {
+          acc[phase] = { total: 0, byType: {}, mostRecent: row.most_recent };
+        }
+        acc[phase].total += parseInt(row.count);
+        acc[phase].byType[row.final_file_type || 'unknown'] = parseInt(row.count);
+        if (new Date(row.most_recent) > new Date(acc[phase].mostRecent)) {
+          acc[phase].mostRecent = row.most_recent;
+        }
+        return acc;
+      }, {});
+      
+      // Calculate estimated completion time for encoded files
+      const encodedCount = phaseBreakdown.encoded?.total || 0;
+      const avgProcessingTime = parseFloat(processingRate.rows[0]?.avg_processing_time || '120');
+      const estimatedCompletionSeconds = encodedCount * avgProcessingTime;
+      
+      const response = {
+        phases: phaseBreakdown,
+        totals: {
+          uploaded: phaseBreakdown.uploaded?.total || 0,
+          identified: phaseBreakdown.identified?.total || 0,
+          encoding: phaseBreakdown.encoding?.total || 0,
+          encoded: phaseBreakdown.encoded?.total || 0,
+          processing: phaseBreakdown.processing?.total || 0,
+          completed: phaseBreakdown.completed?.total || 0,
+          failed: phaseBreakdown.failed?.total || 0
+        },
+        processingMetrics: {
+          avgProcessingTimeSeconds: parseFloat(processingRate.rows[0]?.avg_processing_time || '0'),
+          avgRecordsPerFile: parseFloat(processingRate.rows[0]?.avg_records_per_file || '0'),
+          avgRecordsPerSecond: parseFloat(processingRate.rows[0]?.avg_records_per_second || '0'),
+          sampleSize: parseInt(processingRate.rows[0]?.sample_size || '0')
+        },
+        currentlyProcessing: currentlyProcessing.rows.map((row: any) => ({
+          id: row.id,
+          filename: row.filename,
+          phase: row.current_phase,
+          fileType: row.final_file_type,
+          secondsInPhase: parseFloat(row.seconds_in_phase),
+          recordsProcessed: parseInt(row.total_records_processed || '0'),
+          recordsPerSecond: parseFloat(row.records_per_second || '0')
+        })),
+        stuckFiles: stuckFiles.rows.map((row: any) => ({
+          id: row.id,
+          filename: row.filename,
+          phase: row.current_phase,
+          fileType: row.final_file_type,
+          secondsStuck: parseFloat(row.seconds_stuck),
+          updatedAt: row.updated_at
+        })),
+        estimates: {
+          encodedQueueCount: encodedCount,
+          estimatedCompletionSeconds: estimatedCompletionSeconds,
+          estimatedCompletionMinutes: Math.ceil(estimatedCompletionSeconds / 60)
+        },
+        lastUpdated: new Date().toISOString()
+      };
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error getting queue status:', error);
+      res.status(500).json({ 
+        error: 'Failed to get queue status',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 }
