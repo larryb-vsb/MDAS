@@ -1894,8 +1894,6 @@ export function registerTddfRecordsRoutes(app: Express) {
   });
 
   // Frontend-compatible Merchant View API endpoint
-  // NOTE: This route appears twice in routes.ts (lines 17969 and 19626)
-  // This is the first occurrence (line 17969)
   app.get("/api/tddf1/merchant-view", isAuthenticated, async (req, res) => {
     try {
       const { merchantId, processingDate } = req.query;
@@ -1906,12 +1904,106 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       console.log(`[MERCHANT-VIEW] Getting merchant view data for: ${merchantId} on ${processingDate}`);
       
-      const environment = process.env.NODE_ENV || 'development';
-      const isDevelopment = environment === 'development';
-      const envPrefix = isDevelopment ? 'dev_' : '';
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const date = processingDate as string;
       
-      // Implementation truncated for brevity - full implementation in original routes.ts
-      res.json({ message: "Merchant view - full implementation available" });
+      // Handle merchant ID variants (with/without leading "0")
+      const merchantIdVariants = [
+        merchantId as string,
+        '0' + (merchantId as string),
+        (merchantId as string).replace(/^0+/, '')
+      ];
+      
+      // Query all records for this merchant on this date
+      const result = await pool.query(`
+        SELECT 
+          id,
+          record_type,
+          extracted_fields,
+          tddf_processing_date
+        FROM ${tddfJsonbTableName}
+        WHERE DATE(tddf_processing_date) = $1
+          AND extracted_fields->>'merchantAccountNumber' = ANY($2)
+        ORDER BY 
+          CASE record_type
+            WHEN 'BH' THEN 1
+            WHEN 'DT' THEN 2
+            ELSE 3
+          END,
+          id
+      `, [date, merchantIdVariants]);
+      
+      if (result.rows.length === 0) {
+        return res.json({
+          merchantId: merchantId as string,
+          merchantName: null,
+          summary: {
+            totalTransactions: 0,
+            totalAmount: 0,
+            totalNetDeposits: 0,
+            totalBatches: 0
+          },
+          batches: [],
+          allTransactions: []
+        });
+      }
+      
+      // Extract merchant name from first record
+      const merchantName = result.rows[0]?.extracted_fields?.merchantName || null;
+      
+      // Separate BH and DT records
+      const bhRecords = result.rows.filter(r => r.record_type === 'BH');
+      const dtRecords = result.rows.filter(r => r.record_type === 'DT');
+      
+      // Calculate summary
+      const totalTransactions = dtRecords.length;
+      const totalAmount = dtRecords.reduce((sum, r) => {
+        const amount = parseFloat(r.extracted_fields?.transactionAmount || '0');
+        return sum + amount;
+      }, 0);
+      const totalNetDeposits = bhRecords.reduce((sum, r) => {
+        const netDeposit = parseFloat(r.extracted_fields?.netDeposit || '0');
+        return sum + netDeposit;
+      }, 0);
+      const totalBatches = bhRecords.length;
+      
+      // Build batches array
+      const batches = bhRecords.map(bh => ({
+        batchId: bh.id,
+        entryRunNumber: bh.extracted_fields?.entryRunNumber || '',
+        netDeposit: parseFloat(bh.extracted_fields?.netDeposit || '0'),
+        transactionCount: dtRecords.filter(dt => 
+          dt.extracted_fields?.entryRunNumber === bh.extracted_fields?.entryRunNumber
+        ).length
+      }));
+      
+      // Build allTransactions array
+      const allTransactions = dtRecords.map(dt => ({
+        id: dt.id,
+        recordType: dt.record_type,
+        transactionAmount: parseFloat(dt.extracted_fields?.transactionAmount || '0'),
+        entryRunNumber: dt.extracted_fields?.entryRunNumber || '',
+        terminalId: dt.extracted_fields?.terminalId || '',
+        referenceNumber: dt.extracted_fields?.referenceNumber || '',
+        authorizationNumber: dt.extracted_fields?.authorizationCode || '',
+        cardType: dt.extracted_fields?.cardType || '',
+        transactionDate: dt.extracted_fields?.transactionDate || '',
+        merchantAccountNumber: dt.extracted_fields?.merchantAccountNumber || ''
+      }));
+      
+      res.json({
+        merchantId: merchantId as string,
+        merchantName,
+        summary: {
+          totalTransactions,
+          totalAmount,
+          totalNetDeposits,
+          totalBatches
+        },
+        batches,
+        allTransactions
+      });
+      
     } catch (error: any) {
       console.error('[MERCHANT-VIEW] Error:', error);
       res.status(500).json({ error: error.message });
