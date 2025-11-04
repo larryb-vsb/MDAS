@@ -1311,15 +1311,15 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       const totalItems = parseInt(countResult.rows[0]?.total || '0');
       
-      // Format the response
+      // Format the response with consistent field naming
       const enrichedData = dataResult.rows.map(row => ({
         merchantId: row.merchant_account_number,
         merchantName: row.merchant_name || `Merchant ${row.merchant_account_number}`,
         date,
         authorizationTotal: parseFloat(row.authorization_total || 0),
-        authorizationCount: parseInt(row.dt_count || 0),
+        dtCount: parseInt(row.dt_count || 0),  // Aligned with sortBy key
         netDepositTotal: parseFloat(row.net_deposit_total || 0),
-        batchCount: parseInt(row.bh_count || 0),
+        bhCount: parseInt(row.bh_count || 0),  // Aligned with sortBy key
         recordBreakdown: {
           BH: parseInt(row.bh_count || 0),
           DT: parseInt(row.dt_count || 0),

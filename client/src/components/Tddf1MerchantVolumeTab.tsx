@@ -29,9 +29,9 @@ interface DailyMerchantVolume {
   merchantName: string;
   date: string;
   authorizationTotal: number;
-  authorizationCount: number;
+  dtCount: number;  // Aligned with backend sortBy key
   netDepositTotal: number;
-  batchCount: number;
+  bhCount: number;  // Aligned with backend sortBy key
   recordBreakdown: {
     BH: number;
     DT: number;
@@ -283,7 +283,7 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                            {formatNumber(merchant.batchCount)}
+                            {formatNumber(merchant.bhCount)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium text-blue-600">
@@ -294,7 +294,7 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {formatNumber(merchant.authorizationCount)}
+                            {formatNumber(merchant.dtCount)}
                           </Badge>
                         </TableCell>
                         <TableCell>
