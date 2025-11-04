@@ -364,8 +364,9 @@ function QueueStatusMonitor() {
 
   const toggleAuto45 = useMutation({
     mutationFn: async (enabled: boolean) => {
-      return apiRequest(`/api/mms-watcher/auto45/${enabled ? 'enable' : 'disable'}`, {
-        method: 'POST'
+      return apiRequest(`/api/mms-watcher/auto45-toggle`, {
+        method: 'POST',
+        body: JSON.stringify({ enabled })
       });
     },
     onSuccess: (data: any, enabled: boolean) => {
