@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, Shield, BarChart3, Database, CheckCircle2 } from "lucide-react";
-import { SiMicrosoft } from "react-icons/si";
 
 // Login form schema
 const loginFormSchema = z.object({
@@ -148,27 +147,37 @@ export default function AuthPage() {
               {/* Login form */}
               <TabsContent value="login" className="space-y-4">
                 {/* Microsoft Sign In Button */}
-                {!checkingMicrosoft && microsoftEnabled && (
+                {!checkingMicrosoft && (
                   <div className="space-y-4">
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full h-12 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      className="w-full h-12 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => window.location.href = '/auth/microsoft'}
+                      disabled={!microsoftEnabled}
                       data-testid="button-microsoft-login"
                     >
-                      <SiMicrosoft className="mr-2 h-5 w-5 text-blue-600" />
-                      <span className="font-medium text-gray-700">Sign in with Microsoft</span>
+                      <svg className="mr-2 h-5 w-5" viewBox="0 0 23 23" fill="none">
+                        <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+                        <rect x="12" y="1" width="10" height="10" fill="#00a4ef"/>
+                        <rect x="1" y="12" width="10" height="10" fill="#7fba00"/>
+                        <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+                      </svg>
+                      <span className="font-medium text-gray-700">
+                        {microsoftEnabled ? 'Sign in with Microsoft' : 'Microsoft SSO (Not Configured)'}
+                      </span>
                     </Button>
                     
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-gray-200" />
+                    {microsoftEnabled && (
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t border-gray-200" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                        </div>
                       </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-gray-500">Or continue with</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
