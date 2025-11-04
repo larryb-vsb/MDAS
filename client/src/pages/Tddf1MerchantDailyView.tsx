@@ -394,7 +394,7 @@ export default function Tddf1MerchantDailyView() {
               Transactions ({formatNumber(filteredTransactions.length)})
             </TabsTrigger>
             <TabsTrigger value="terminals">
-              Terminals ({terminalData?.length || 0})
+              Terminals ({aggregatedTerminals.length})
             </TabsTrigger>
           </TabsList>
 
