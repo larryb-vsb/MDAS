@@ -1258,8 +1258,8 @@ export function registerTddfRecordsRoutes(app: Express) {
             AND merchant_account_number IS NOT NULL
           GROUP BY merchant_account_number
         ),
-        merchant_names AS (
-          SELECT DISTINCT
+        unique_merchant_names AS (
+          SELECT DISTINCT ON (merchant_account_number)
             merchant_account_number,
             COALESCE(
               record_data->>'merchantName',
@@ -1270,12 +1270,6 @@ export function registerTddfRecordsRoutes(app: Express) {
           ${whereClause}
             AND merchant_account_number IS NOT NULL
           ORDER BY merchant_account_number, created_at DESC
-        ),
-        unique_merchant_names AS (
-          SELECT DISTINCT ON (merchant_account_number)
-            merchant_account_number,
-            merchant_name
-          FROM merchant_names
         )
         SELECT 
           s.*,
