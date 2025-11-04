@@ -19,36 +19,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, ArrowUpDown, Building2, Terminal, CreditCard, Search, ExternalLink } from "lucide-react";
+import { RefreshCw, ArrowUpDown, Building2, Terminal, CreditCard, Search, ExternalLink, Calendar as CalendarIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import { format } from "date-fns";
 
-interface Tddf1Merchant {
+interface DailyMerchantVolume {
   merchantId: string;
   merchantName: string;
-  dbaName?: string;
-  totalTransactions: number;
-  totalAmount: number;
-  totalNetDeposits: number;
+  date: string;
+  authorizationTotal: number;
+  authorizationCount: number;
+  netDepositTotal: number;
+  batchCount: number;
+  recordBreakdown: {
+    BH: number;
+    DT: number;
+    G2: number;
+    E1: number;
+    P1: number;
+    P2: number;
+    DR: number;
+    AD: number;
+  };
+  totalRecords: number;
   uniqueTerminals: number;
-  firstSeenDate: string;
-  lastSeenDate: string;
-  recordCount: number;
-  lastUpdated: string;
-  sourceFiles: string[];
-  lastProcessedFile: string;
-  batchCount?: number;        // BH records count
-  dtRecordCount?: number;     // DT records count
 }
 
-interface Tddf1MerchantsResponse {
-  data: Tddf1Merchant[];
+interface Tddf1DailyMerchantsResponse {
+  data: DailyMerchantVolume[];
   pagination: {
     currentPage: number;
     totalPages: number;
     totalItems: number;
     itemsPerPage: number;
   };
+  date: string;
 }
 
 interface Tddf1MerchantVolumeTabProps {
@@ -57,6 +63,22 @@ interface Tddf1MerchantVolumeTabProps {
   onMerchantFocus?: (merchantId: string, merchantName: string) => void;
 }
 
+// Record type badge configuration
+const getRecordTypeBadge = (type: string, count: number) => {
+  const config: Record<string, { label: string; className: string }> = {
+    'BH': { label: 'BH', className: 'bg-blue-100 text-blue-800 border-blue-300' },
+    'DT': { label: 'DT', className: 'bg-green-100 text-green-800 border-green-300' },
+    'G2': { label: 'G2', className: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+    'E1': { label: 'E1', className: 'bg-purple-100 text-purple-800 border-purple-300' },
+    'P1': { label: 'P1', className: 'bg-pink-100 text-pink-800 border-pink-300' },
+    'P2': { label: 'P2', className: 'bg-orange-100 text-orange-800 border-orange-300' },
+    'DR': { label: 'DR', className: 'bg-red-100 text-red-800 border-red-300' },
+    'AD': { label: 'AD', className: 'bg-gray-100 text-gray-800 border-gray-300' },
+  };
+  
+  return config[type] || { label: type, className: 'bg-gray-100 text-gray-700 border-gray-200' };
+};
+
 const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: Tddf1MerchantVolumeTabProps = {}) => {
   const [, setLocation] = useLocation();
   
@@ -64,17 +86,20 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [sortBy, setSortBy] = useState("totalTransactions");
+  const [sortBy, setSortBy] = useState("authorizationTotal");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // Reset page to 1 when search query or itemsPerPage changes
+  // Reset page to 1 when search query, itemsPerPage, or selectedDate changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  }, [searchQuery, itemsPerPage, selectedDate]);
 
-  // Query TDDF1 merchants
-  const { data, isLoading, error, refetch } = useQuery<Tddf1MerchantsResponse>({
-    queryKey: ['/api/tddf1/merchants', currentPage, itemsPerPage, searchQuery, sortBy, sortOrder],
+  // Format date for API
+  const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+
+  // Query TDDF1 daily merchants
+  const { data, isLoading, error, refetch } = useQuery<Tddf1DailyMerchantsResponse>({
+    queryKey: ['/api/tddf1/merchants-by-date', dateString, currentPage, itemsPerPage, searchQuery, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -86,9 +111,9 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
         params.append('search', searchQuery.trim());
       }
       
-      const response = await fetch(`/api/tddf1/merchants?${params.toString()}`);
+      const response = await fetch(`/api/tddf1/merchants-by-date/${dateString}?${params.toString()}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch TDDF1 merchants');
+        throw new Error('Failed to fetch daily TDDF1 merchants');
       }
       return response.json();
     }
@@ -118,6 +143,10 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-blue-600" />
               TDDF1 Merchants ({pagination?.totalItems || 0})
+              <Badge variant="outline" className="ml-2">
+                <CalendarIcon className="h-3 w-3 mr-1" />
+                {format(selectedDate || new Date(), 'MMM d, yyyy')}
+              </Badge>
             </CardTitle>
             <Button
               variant="outline"
@@ -189,7 +218,7 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('batchCount')}
+                          onClick={() => handleSort('bhCount')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Batches (BH)
@@ -199,7 +228,7 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('totalNetDeposits')}
+                          onClick={() => handleSort('netDepositTotal')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Net Deposit
@@ -209,7 +238,7 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('totalAmount')}
+                          onClick={() => handleSort('authorizationTotal')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Authorization (DT)
@@ -219,30 +248,21 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('dtRecordCount')}
+                          onClick={() => handleSort('dtCount')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Number DT Records
                           <ArrowUpDown className="h-3 w-3" />
                         </Button>
                       </TableHead>
+                      <TableHead>Record Breakdown</TableHead>
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('totalTransactions')}
+                          onClick={() => handleSort('totalRecords')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
-                          Transaction Amount
-                          <ArrowUpDown className="h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort('lastSeenDate')}
-                          className="h-auto p-0 font-medium flex items-center gap-1"
-                        >
-                          Terminals Last Seen
+                          Total Records
                           <ArrowUpDown className="h-3 w-3" />
                         </Button>
                       </TableHead>
@@ -258,41 +278,44 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Building2 className="h-4 w-4 text-blue-500" />
-                            <div className="flex flex-col">
-                              <span>{merchant.merchantName}</span>
-                              {merchant.dbaName && (
-                                <span className="text-xs text-gray-500">{merchant.dbaName}</span>
-                              )}
-                            </div>
+                            <span>{merchant.merchantName}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                            {formatNumber(merchant.batchCount || 0)}
+                            {formatNumber(merchant.batchCount)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium text-blue-600">
-                          {formatCurrency(merchant.totalNetDeposits)}
+                          {formatCurrency(merchant.netDepositTotal)}
                         </TableCell>
                         <TableCell className="font-medium text-green-600">
-                          {formatCurrency(merchant.totalAmount)}
+                          {formatCurrency(merchant.authorizationTotal)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {formatNumber(merchant.dtRecordCount || 0)}
+                            {formatNumber(merchant.authorizationCount)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-medium text-gray-600">
-                          {formatNumber(merchant.totalTransactions)}
-                        </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Terminal className="h-3 w-3 text-gray-400" />
-                            <span className="text-sm">{merchant.uniqueTerminals}</span>
-                            <span className="text-xs text-gray-500 ml-2">
-                              {new Date(merchant.lastSeenDate).toLocaleDateString()}
-                            </span>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(merchant.recordBreakdown).map(([type, count]) => {
+                              if (count === 0) return null;
+                              const badge = getRecordTypeBadge(type, count);
+                              return (
+                                <Badge 
+                                  key={type} 
+                                  variant="outline" 
+                                  className={`text-xs ${badge.className}`}
+                                >
+                                  {badge.label}: {count}
+                                </Badge>
+                              );
+                            })}
                           </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm text-gray-600">
+                          {formatNumber(merchant.totalRecords)}
                         </TableCell>
                         <TableCell className="text-center">
                           <Button
