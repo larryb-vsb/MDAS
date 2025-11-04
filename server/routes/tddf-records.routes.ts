@@ -1200,20 +1200,19 @@ export function registerTddfRecordsRoutes(app: Express) {
         sortOrder
       });
       
-      // Environment-aware table naming
+      // Environment-aware table naming - use the master TDDF table
       const environment = process.env.NODE_ENV || 'development';
       const isDevelopment = environment === 'development';
-      const recordsTableName = isDevelopment ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
-      const merchantsTableName = isDevelopment ? 'dev_tddf1_merchants' : 'tddf1_merchants';
+      const recordsTableName = isDevelopment ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
-      // Build WHERE conditions
-      const conditions = ['file_processing_date = $1'];
+      // Build WHERE conditions for date filtering
+      const conditions = [`DATE(tddf_processing_date) = $1::date`];
       const values = [date];
       let paramCount = 1;
       
       if (search) {
         paramCount++;
-        conditions.push(`(merchant_account_number ILIKE $${paramCount})`);
+        conditions.push(`((extracted_fields->>'merchantAccountNumber') ILIKE $${paramCount})`);
         values.push(`%${search}%`);
       }
       
@@ -1225,11 +1224,11 @@ export function registerTddfRecordsRoutes(app: Express) {
       const offset = (pageNum - 1) * limitNum;
       
       // Main query to aggregate daily merchant data with record type breakdowns
-      // Uses the new composite indexes for optimal performance
+      // Uses existing indexes on merchant_account and record_type
       const dataQuery = `
         WITH merchant_daily_stats AS (
           SELECT 
-            merchant_account_number,
+            (extracted_fields->>'merchantAccountNumber') as merchant_account_number,
             COUNT(*) FILTER (WHERE record_type = 'BH') as bh_count,
             COUNT(*) FILTER (WHERE record_type = 'DT') as dt_count,
             COUNT(*) FILTER (WHERE record_type = 'G2') as g2_count,
@@ -1240,36 +1239,36 @@ export function registerTddfRecordsRoutes(app: Express) {
             COUNT(*) FILTER (WHERE record_type = 'AD') as ad_count,
             COUNT(*) as total_records,
             SUM(CASE 
-              WHEN record_type = 'DT' AND (record_data->>'transactionAmount') IS NOT NULL 
-              THEN (record_data->>'transactionAmount')::numeric 
+              WHEN record_type = 'DT' AND (extracted_fields->>'transactionAmount') IS NOT NULL 
+              THEN (extracted_fields->>'transactionAmount')::numeric 
               ELSE 0 
             END) as authorization_total,
             SUM(CASE 
-              WHEN record_type = 'BH' AND (record_data->>'netDepositAmount') IS NOT NULL 
-              THEN (record_data->>'netDepositAmount')::numeric 
+              WHEN record_type = 'BH' AND (extracted_fields->>'netDeposit') IS NOT NULL 
+              THEN (extracted_fields->>'netDeposit')::numeric 
               ELSE 0 
             END) as net_deposit_total,
             COUNT(DISTINCT CASE 
-              WHEN record_type = 'DT' AND (record_data->>'terminalId') IS NOT NULL 
-              THEN record_data->>'terminalId' 
+              WHEN record_type = 'DT' AND (extracted_fields->>'terminalId') IS NOT NULL 
+              THEN extracted_fields->>'terminalId' 
             END) as unique_terminals
           FROM ${recordsTableName}
           ${whereClause}
-            AND merchant_account_number IS NOT NULL
-          GROUP BY merchant_account_number
+            AND (extracted_fields->>'merchantAccountNumber') IS NOT NULL
+          GROUP BY (extracted_fields->>'merchantAccountNumber')
         ),
         unique_merchant_names AS (
-          SELECT DISTINCT ON (merchant_account_number)
-            merchant_account_number,
+          SELECT DISTINCT ON ((extracted_fields->>'merchantAccountNumber'))
+            (extracted_fields->>'merchantAccountNumber') as merchant_account_number,
             COALESCE(
-              record_data->>'merchantName',
-              record_data->>'amexMerchantSellerName',
+              extracted_fields->>'merchantName',
+              extracted_fields->>'amexMerchantSellerName',
               'Unknown Merchant'
             ) as merchant_name
           FROM ${recordsTableName}
           ${whereClause}
-            AND merchant_account_number IS NOT NULL
-          ORDER BY merchant_account_number, created_at DESC
+            AND (extracted_fields->>'merchantAccountNumber') IS NOT NULL
+          ORDER BY (extracted_fields->>'merchantAccountNumber'), id DESC
         )
         SELECT 
           s.*,
@@ -1292,10 +1291,10 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       // Get total count
       const countQuery = `
-        SELECT COUNT(DISTINCT merchant_account_number) as total
+        SELECT COUNT(DISTINCT (extracted_fields->>'merchantAccountNumber')) as total
         FROM ${recordsTableName}
         ${whereClause}
-          AND merchant_account_number IS NOT NULL
+          AND (extracted_fields->>'merchantAccountNumber') IS NOT NULL
       `;
       
       const [dataResult, countResult] = await Promise.all([
