@@ -267,6 +267,24 @@ export default function Tddf1MerchantDailyView() {
     new Set(merchantData.allTransactions.map(tx => tx.terminalId).filter(Boolean))
   ).sort();
 
+  // Aggregate terminal data from transactions
+  const aggregatedTerminals = uniqueTerminals.map(terminalId => {
+    const terminalTransactions = merchantData.allTransactions.filter(tx => tx.terminalId === terminalId);
+    const totalAmount = terminalTransactions.reduce((sum, tx) => sum + tx.transactionAmount, 0);
+    const cardTypes = Array.from(new Set(terminalTransactions.map(tx => tx.cardType).filter(Boolean)));
+    const mccCodes = Array.from(new Set(terminalTransactions.map(tx => tx.mccCode).filter(Boolean)));
+    const transactionTypes = Array.from(new Set(terminalTransactions.map(tx => tx.transactionTypeIndicator).filter(Boolean)));
+    
+    return {
+      terminalId,
+      transactionCount: terminalTransactions.length,
+      totalAmount,
+      cardTypes,
+      mccCodes,
+      transactionTypeIndicators: transactionTypes,
+    };
+  });
+
   // Filter transactions
   const filteredTransactions = merchantData.allTransactions.filter((tx) => {
     if (selectedBatch && tx.entryRunNumber !== selectedBatch) return false;
@@ -535,63 +553,80 @@ export default function Tddf1MerchantDailyView() {
               <CardHeader>
                 <CardTitle>Terminal Activity</CardTitle>
                 <CardDescription>
-                  Terminal summary with MCC codes and transaction type indicators
+                  Terminal summary aggregated from transaction data
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {terminalData && terminalData.length > 0 ? (
+                {aggregatedTerminals && aggregatedTerminals.length > 0 ? (
                   <div className="space-y-4">
-                    {terminalData.map((terminal) => (
-                      <div key={terminal.terminalId} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
+                    {aggregatedTerminals.map((terminal) => (
+                      <div key={terminal.terminalId} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
                           <div>
-                            <div className="font-medium">Terminal {terminal.terminalId}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatNumber(terminal.transactionCount)} transactions • {formatCurrency(terminal.totalAmount)}
+                            <div className="font-medium text-lg flex items-center gap-2">
+                              <Terminal className="h-5 w-5 text-blue-600" />
+                              Terminal {terminal.terminalId}
+                            </div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {formatNumber(terminal.transactionCount)} transaction{terminal.transactionCount !== 1 ? 's' : ''} • {formatCurrency(terminal.totalAmount)}
                             </div>
                           </div>
                           
-                          <div className="text-right text-sm text-muted-foreground">
-                            <div>First: {new Date(terminal.firstSeen).toLocaleTimeString()}</div>
-                            <div>Last: {new Date(terminal.lastSeen).toLocaleTimeString()}</div>
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTerminal(terminal.terminalId || "");
+                              setActiveTab("transactions");
+                            }}
+                            className="text-xs"
+                          >
+                            <Filter className="h-3 w-3 mr-1" />
+                            View Transactions
+                          </Button>
                         </div>
                         
                         <div className="space-y-2">
-                          <div className="flex gap-2 flex-wrap">
-                            <div className="text-sm font-medium">Card Types:</div>
-                            {terminal.cardTypes.map((type, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {type}
-                              </Badge>
-                            ))}
-                          </div>
+                          {terminal.cardTypes.length > 0 && (
+                            <div className="flex gap-2 flex-wrap items-center">
+                              <div className="text-sm font-medium text-gray-600">Card Types:</div>
+                              {terminal.cardTypes.map((type, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                           
-                          <div className="flex gap-2 flex-wrap">
-                            <div className="text-sm font-medium">MCC Codes:</div>
-                            {terminal.mccCodes.map((mcc, index) => (
-                              <Badge 
-                                key={index} 
-                                variant={mcc === '6540' ? 'default' : 'secondary'}
-                                className="text-xs"
-                              >
-                                {mcc}
-                              </Badge>
-                            ))}
-                          </div>
+                          {terminal.mccCodes.length > 0 && (
+                            <div className="flex gap-2 flex-wrap items-center">
+                              <div className="text-sm font-medium text-gray-600">MCC Codes:</div>
+                              {terminal.mccCodes.map((mcc, index) => (
+                                <Badge 
+                                  key={index} 
+                                  variant={mcc === '6540' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {mcc}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                           
-                          <div className="flex gap-2 flex-wrap">
-                            <div className="text-sm font-medium">Transaction Types:</div>
-                            {terminal.transactionTypeIndicators.map((type, index) => (
-                              <Badge 
-                                key={index} 
-                                variant={type === 'F64' ? 'default' : 'outline'}
-                                className="text-xs"
-                              >
-                                {type}
-                              </Badge>
-                            ))}
-                          </div>
+                          {terminal.transactionTypeIndicators.length > 0 && (
+                            <div className="flex gap-2 flex-wrap items-center">
+                              <div className="text-sm font-medium text-gray-600">Transaction Types:</div>
+                              {terminal.transactionTypeIndicators.map((type, index) => (
+                                <Badge 
+                                  key={index} 
+                                  variant={type === 'F64' ? 'default' : 'outline'}
+                                  className="text-xs"
+                                >
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
