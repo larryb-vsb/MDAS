@@ -14,7 +14,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, Shield, BarChart3, Database, CheckCircle2 } from "lucide-react";
 
@@ -26,26 +25,10 @@ const loginFormSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-// Registration form schema
-const registerFormSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
-
-type RegisterFormValues = z.infer<typeof registerFormSchema>;
-
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState<string>("login");
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
   const [checkingMicrosoft, setCheckingMicrosoft] = useState(true);
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation } = useAuth();
 
   // Check if Microsoft OAuth is enabled on the server
   useEffect(() => {
@@ -69,22 +52,8 @@ export default function AuthPage() {
       password: "",
     },
   });
-
-  // Register form
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerFormSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-      confirmPassword: "",
-      firstName: "",
-      lastName: "",
-      email: "",
-    },
-  });
   
   // If user is already logged in, redirect to dashboard
-  // IMPORTANT: Move this after hook declarations to avoid React hook rules violation
   if (user) {
     return <Redirect to="/" />;
   }
@@ -92,13 +61,6 @@ export default function AuthPage() {
   // Handle login form submission
   const onLoginSubmit = (values: LoginFormValues) => {
     loginMutation.mutate(values);
-  };
-
-  // Handle registration form submission
-  const onRegisterSubmit = (values: RegisterFormValues) => {
-    // Omit confirmPassword when sending to API
-    const { confirmPassword, ...registrationData } = values;
-    registerMutation.mutate(registrationData);
   };
 
   return (
@@ -109,7 +71,7 @@ export default function AuthPage() {
           Merchant Management System
         </h1>
         <p className="text-gray-400 text-sm">
-          Sign in to your account to continue
+          Merchant Management and Datawarehouse
         </p>
       </div>
 
@@ -123,29 +85,13 @@ export default function AuthPage() {
                 Merchant Management System
               </h1>
               <p className="text-gray-600 text-sm">
-                Sign in to your account to continue
+                Merchant Management and Datawarehouse
               </p>
             </div>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <Tabs
-              defaultValue="login"
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
-            >
-              <TabsList className="grid grid-cols-2 w-full mb-6 bg-gray-100">
-                <TabsTrigger value="login" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
-                  Login
-                </TabsTrigger>
-                <TabsTrigger value="register" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
-                  Register
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Login form */}
-              <TabsContent value="login" className="space-y-4">
+            <div className="space-y-4">
                 {/* Microsoft Sign In Button */}
                 {!checkingMicrosoft && (
                   <div className="space-y-4">
@@ -236,146 +182,7 @@ export default function AuthPage() {
                     </Button>
                   </form>
                 </Form>
-              </TabsContent>
-
-              {/* Registration form */}
-              <TabsContent value="register" className="space-y-4">
-                <Form {...registerForm}>
-                  <form
-                    onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={registerForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-700">Username</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Choose a username" 
-                              className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField
-                        control={registerForm.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-gray-700">First Name</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="First name" 
-                                className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={registerForm.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-gray-700">Last Name</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Last name" 
-                                className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-700">Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="Enter your email (optional)"
-                              className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-700">Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Create a password"
-                              className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={registerForm.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-700">Confirm Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Confirm your password"
-                              className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button
-                      type="submit"
-                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                      disabled={registerMutation.isPending}
-                    >
-                      {registerMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating account...
-                        </>
-                      ) : (
-                        "Create Account"
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
+              </div>
           </CardContent>
         </Card>
       </div>
