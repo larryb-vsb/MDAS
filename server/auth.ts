@@ -331,4 +331,17 @@ export function setupAuth(app: Express) {
     }
     next();
   });
+
+  // Initialize Microsoft OAuth and Duo MFA (optional - only if credentials configured)
+  (async () => {
+    try {
+      const { microsoftOAuth } = await import("./auth/microsoft-oauth");
+      const { duoMFA } = await import("./auth/duo-mfa");
+      
+      microsoftOAuth.initialize();
+      await duoMFA.initialize();
+    } catch (error) {
+      console.warn("[AUTH] Microsoft OAuth/Duo initialization skipped (credentials not configured):", error);
+    }
+  })();
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, Shield, BarChart3, Database, CheckCircle2 } from "lucide-react";
+import { SiMicrosoft } from "react-icons/si";
 
 // Login form schema
 const loginFormSchema = z.object({
@@ -43,7 +44,23 @@ type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
+  const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
+  const [checkingMicrosoft, setCheckingMicrosoft] = useState(true);
   const { user, loginMutation, registerMutation } = useAuth();
+
+  // Check if Microsoft OAuth is enabled on the server
+  useEffect(() => {
+    fetch('/api/auth/microsoft/status')
+      .then(res => res.json())
+      .then(data => {
+        setMicrosoftEnabled(data.microsoftEnabled || false);
+        setCheckingMicrosoft(false);
+      })
+      .catch(() => {
+        setMicrosoftEnabled(false);
+        setCheckingMicrosoft(false);
+      });
+  }, []);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -130,6 +147,31 @@ export default function AuthPage() {
 
               {/* Login form */}
               <TabsContent value="login" className="space-y-4">
+                {/* Microsoft Sign In Button */}
+                {!checkingMicrosoft && microsoftEnabled && (
+                  <div className="space-y-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-12 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      onClick={() => window.location.href = '/auth/microsoft'}
+                      data-testid="button-microsoft-login"
+                    >
+                      <SiMicrosoft className="mr-2 h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-gray-700">Sign in with Microsoft</span>
+                    </Button>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-gray-200" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <Form {...loginForm}>
                   <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                     <FormField

@@ -13,9 +13,11 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.808.0",
     "@aws-sdk/lib-storage": "^3.808.0",
+    "@azure/msal-node": "^3.8.1",
     "@babel/preset-env": "^7.27.1",
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
+    "@duosecurity/duo_universal": "^3.0.0",
     "@google-cloud/storage": "^7.16.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",

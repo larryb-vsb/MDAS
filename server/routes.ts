@@ -34,6 +34,7 @@ import logTestRoutes from "./routes/log_test_routes";
 import poolRoutes from "./routes/pool_routes";
 import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
+import { registerMicrosoftAuthRoutes } from "./routes/microsoft-auth.routes";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
 import { NODE_ENV } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
@@ -237,6 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Phase B: System Routes
   registerSystemRoutes(app);
   registerAuthRoutes(app);
+  registerMicrosoftAuthRoutes(app); // Microsoft OAuth + Duo MFA
   registerSettingsRoutes(app);
   registerSchemaRoutes(app);
   registerMccSchemaRoutes(app);
