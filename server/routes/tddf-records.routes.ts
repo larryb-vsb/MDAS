@@ -1179,6 +1179,178 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
+  // TDDF1 Daily Merchant Volume - Query merchants for a specific date with record breakdowns
+  app.get('/api/tddf1/merchants-by-date/:date', isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.params;
+      const {
+        page = 1,
+        limit = 20,
+        search,
+        sortBy = 'authorizationTotal',
+        sortOrder = 'desc'
+      } = req.query;
+      
+      console.log('[TDDF1 DAILY MERCHANTS] Query params:', {
+        date,
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        search,
+        sortBy,
+        sortOrder
+      });
+      
+      // Environment-aware table naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const recordsTableName = isDevelopment ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      const merchantsTableName = isDevelopment ? 'dev_tddf1_merchants' : 'tddf1_merchants';
+      
+      // Build WHERE conditions
+      const conditions = ['file_processing_date = $1'];
+      const values = [date];
+      let paramCount = 1;
+      
+      if (search) {
+        paramCount++;
+        conditions.push(`(merchant_account_number ILIKE $${paramCount})`);
+        values.push(`%${search}%`);
+      }
+      
+      const whereClause = `WHERE ${conditions.join(' AND ')}`;
+      
+      // Calculate pagination
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      const offset = (pageNum - 1) * limitNum;
+      
+      // Main query to aggregate daily merchant data with record type breakdowns
+      // Uses the new composite indexes for optimal performance
+      const dataQuery = `
+        WITH merchant_daily_stats AS (
+          SELECT 
+            merchant_account_number,
+            COUNT(*) FILTER (WHERE record_type = 'BH') as bh_count,
+            COUNT(*) FILTER (WHERE record_type = 'DT') as dt_count,
+            COUNT(*) FILTER (WHERE record_type = 'G2') as g2_count,
+            COUNT(*) FILTER (WHERE record_type = 'E1') as e1_count,
+            COUNT(*) FILTER (WHERE record_type = 'P1') as p1_count,
+            COUNT(*) FILTER (WHERE record_type = 'P2') as p2_count,
+            COUNT(*) FILTER (WHERE record_type = 'DR') as dr_count,
+            COUNT(*) FILTER (WHERE record_type = 'AD') as ad_count,
+            COUNT(*) as total_records,
+            SUM(CASE 
+              WHEN record_type = 'DT' AND (record_data->>'transactionAmount') IS NOT NULL 
+              THEN (record_data->>'transactionAmount')::numeric 
+              ELSE 0 
+            END) as authorization_total,
+            SUM(CASE 
+              WHEN record_type = 'BH' AND (record_data->>'netDepositAmount') IS NOT NULL 
+              THEN (record_data->>'netDepositAmount')::numeric 
+              ELSE 0 
+            END) as net_deposit_total,
+            COUNT(DISTINCT CASE 
+              WHEN record_type = 'DT' AND (record_data->>'terminalId') IS NOT NULL 
+              THEN record_data->>'terminalId' 
+            END) as unique_terminals
+          FROM ${recordsTableName}
+          ${whereClause}
+            AND merchant_account_number IS NOT NULL
+          GROUP BY merchant_account_number
+        ),
+        merchant_names AS (
+          SELECT DISTINCT
+            merchant_account_number,
+            COALESCE(
+              record_data->>'merchantName',
+              record_data->>'amexMerchantSellerName',
+              'Unknown Merchant'
+            ) as merchant_name
+          FROM ${recordsTableName}
+          ${whereClause}
+            AND merchant_account_number IS NOT NULL
+          ORDER BY merchant_account_number, created_at DESC
+        ),
+        unique_merchant_names AS (
+          SELECT DISTINCT ON (merchant_account_number)
+            merchant_account_number,
+            merchant_name
+          FROM merchant_names
+        )
+        SELECT 
+          s.*,
+          n.merchant_name
+        FROM merchant_daily_stats s
+        LEFT JOIN unique_merchant_names n ON s.merchant_account_number = n.merchant_account_number
+        ORDER BY 
+          CASE 
+            WHEN $${paramCount + 1} = 'authorizationTotal' THEN s.authorization_total
+            WHEN $${paramCount + 1} = 'netDepositTotal' THEN s.net_deposit_total
+            WHEN $${paramCount + 1} = 'totalRecords' THEN s.total_records
+            WHEN $${paramCount + 1} = 'dtCount' THEN s.dt_count
+            WHEN $${paramCount + 1} = 'bhCount' THEN s.bh_count
+            ELSE s.authorization_total
+          END ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
+        LIMIT $${paramCount + 2} OFFSET $${paramCount + 3}
+      `;
+      
+      values.push(sortBy as string, limitNum, offset);
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(DISTINCT merchant_account_number) as total
+        FROM ${recordsTableName}
+        ${whereClause}
+          AND merchant_account_number IS NOT NULL
+      `;
+      
+      const [dataResult, countResult] = await Promise.all([
+        pool.query(dataQuery, values),
+        pool.query(countQuery, values.slice(0, paramCount))
+      ]);
+      
+      const totalItems = parseInt(countResult.rows[0]?.total || '0');
+      
+      // Format the response
+      const enrichedData = dataResult.rows.map(row => ({
+        merchantId: row.merchant_account_number,
+        merchantName: row.merchant_name || `Merchant ${row.merchant_account_number}`,
+        date,
+        authorizationTotal: parseFloat(row.authorization_total || 0),
+        authorizationCount: parseInt(row.dt_count || 0),
+        netDepositTotal: parseFloat(row.net_deposit_total || 0),
+        batchCount: parseInt(row.bh_count || 0),
+        recordBreakdown: {
+          BH: parseInt(row.bh_count || 0),
+          DT: parseInt(row.dt_count || 0),
+          G2: parseInt(row.g2_count || 0),
+          E1: parseInt(row.e1_count || 0),
+          P1: parseInt(row.p1_count || 0),
+          P2: parseInt(row.p2_count || 0),
+          DR: parseInt(row.dr_count || 0),
+          AD: parseInt(row.ad_count || 0)
+        },
+        totalRecords: parseInt(row.total_records || 0),
+        uniqueTerminals: parseInt(row.unique_terminals || 0)
+      }));
+      
+      res.json({
+        data: enrichedData,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalItems / limitNum),
+          totalItems,
+          itemsPerPage: limitNum
+        },
+        date
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching daily TDDF1 merchants:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // TDDF1 Merchant Top 5 by Volume (for daily page analysis)
   app.get('/api/tddf1/merchants/top-volume', isAuthenticated, async (req, res) => {
     try {
