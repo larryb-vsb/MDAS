@@ -129,7 +129,7 @@ const Tddf1MerchantVolumeTab = ({ selectedDate, isDarkMode, onMerchantFocus }: T
   };
 
   const handleMerchantClick = (merchantId: string) => {
-    setLocation(`/tddf1-merchant-daily-view/${merchantId}`);
+    setLocation(`/tddf1-merchant/${merchantId}/${dateString}`);
   };
 
   const merchants = data?.data || [];
