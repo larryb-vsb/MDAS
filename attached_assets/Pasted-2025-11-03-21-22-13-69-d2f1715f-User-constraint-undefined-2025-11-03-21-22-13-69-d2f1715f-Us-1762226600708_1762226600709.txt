@@ -1,0 +1,140 @@
+2025-11-03 21:22:13.69
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+file: 'parse_relation.c',
+2025-11-03 21:22:13.69
+d2f1715f
+User
+line: '3716',
+2025-11-03 21:22:13.69
+d2f1715f
+User
+routine: 'errorMissingColumn'
+2025-11-03 21:22:13.69
+d2f1715f
+User
+}
+2025-11-03 21:22:13.69
+d2f1715f
+User
+[UPLOADER-DELETE] ERROR during bulk delete: error: column "processing_log_path" does not exist
+2025-11-03 21:22:13.69
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:22:13.69
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:22:13.69
+d2f1715f
+User
+at async DatabaseStorage.deleteUploaderUploads (file:///home/runner/workspace/dist/index.js:19596:32)
+2025-11-03 21:22:13.69
+d2f1715f
+User
+at async file:///home/runner/workspace/dist/index.js:35184:23 {
+2025-11-03 21:22:13.69
+d2f1715f
+User
+length: 120,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:22:13.69
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:22:13.69
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+position: '199',
+2025-11-03 21:22:13.69
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:22:13.69
+d2f1715f
+User
+file: 'parse_relation.c',
+2025-11-03 21:22:13.75
+d2f1715f
+User
+3:22:13 AM [express] DELETE /api/uploader/bulk-delete 500 in 387ms :: {"error":"column \"processing_…
+2025-11-03 21:22:13.85
+d2f1715f
+User
+3:22:13 AM [express] GET /api/uploader 200 in 497ms :: {"uploads":[{"id":"uploader_1762197540503_zng…
+2025-11-03 21:22:13.99
+d2f1715f
+User
+3:22:13 AM [express] GET /api/tddf-api/monitoring 200 in 634ms :: {"stats":{"total_requests":"0","av…
+2025-11-03 21:22:18.10
+d2f1715f
+User
+3:22:18 AM [express] GET /api/tddf-archive 200 in 321ms :: {"files":[{"id":"uploader_1762188643847_6…
+2025-11-03 21:22:18.58
+d2f1715f
+User
+3:22:18 AM [express] GET /api/tddf-api/monitoring 200 in 496ms :: {"stats":{"total_requests":"0","av…
+2025-11-03 21:22:18.74
+d2f1715f
+User
+3:22:18 AM [express] GET /api/uploader/processing-status 200 in 168ms
+2025-11-03 21:22:18.97
+d2f1715f
+User
+[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...
+2025-11-03 21:22:18.97
+d2f1715f
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-11-03 21:22:18.97
+d2f1715f
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'encoded' ]
+2025-11-03 21:22:18.97
+d2f1715f
+User
+[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 is disabled, skipping completed file archiving
+2025-11-03 21:22:19.05
+d2f1715f
+User
+3:22:19 AM [express] 

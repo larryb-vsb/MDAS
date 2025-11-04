@@ -1,0 +1,152 @@
+2025-11-03 21:46:01.53
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:46:01.53
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:46:01.53
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:46:01.53
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:46:01.53
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:46:01.53
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:46:01.53
+d2f1715f
+User
+file: 'parse_target.c',
+2025-11-03 21:46:01.53
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:46:01.53
+d2f1715f
+User
+routine: 'checkInsertTargets'
+2025-11-03 21:46:01.53
+d2f1715f
+User
+}
+2025-11-03 21:46:01.57
+d2f1715f
+User
+[TERMINAL-CREATE] Inserting into api_terminals with columns: v_number, pos_merchant_number, dba_name, status, mcc, terminal_type
+2025-11-03 21:46:01.61
+d2f1715f
+User
+3:46:01 AM [express] GET /api/uploader 200 in 460ms :: {"uploads":[{"id":"uploader_1762227437076_wsk…
+2025-11-03 21:46:01.62
+d2f1715f
+User
+[TERMINAL-CREATE] Inserting into api_terminals with columns: v_number, pos_merchant_number, dba_name, status, mcc, terminal_type
+2025-11-03 21:46:01.67
+d2f1715f
+User
+[TERMINAL-CREATE] Inserting into api_terminals with columns: v_number, pos_merchant_number, dba_name, status, mcc, terminal_type
+2025-11-03 21:46:01.72
+d2f1715f
+User
+[TERMINAL-CREATE] Inserting into api_terminals with columns: v_number, pos_merchant_number, dba_name, status, mcc, terminal_type
+2025-11-03 21:46:01.75
+d2f1715f
+User
+Error upserting terminal V6531237: error: column "record_status" of relation "api_terminals" does not exist
+2025-11-03 21:46:01.75
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:46:01.75
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:46:01.75
+d2f1715f
+User
+at async Parser. (file:///home/runner/workspace/dist/index.js:12423:35) {
+2025-11-03 21:46:01.75
+d2f1715f
+User
+length: 140,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:46:01.75
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:46:01.75
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+position: '135',
+2025-11-03 21:46:01.75
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:46:01.75
+d2f1715f
+User
+file: 'parse_target.c',
+2025-11-03 21:46:01.75
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:46:01.75
+d2f1715f
+User
+routine: 'checkInsertTargets'
+2025-11-03 21:46:01.75
+d2f1715f
+User
+}
+2025-11-03 21:46:01.78
+d2f1715f
+User
+[TERMINAL-CREATE] Inserting into api_terminals with columns: v_number, pos_merchant_number, dba_name, status, mcc, terminal_type

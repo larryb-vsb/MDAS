@@ -15522,7 +15522,6 @@ export class DatabaseStorage implements IStorage {
           dt_record_count, 
           other_record_count,
           final_file_type,
-          processing_log_path,
           storage_path
         FROM ${uploaderTableName} 
         WHERE id IN (${placeholders})
@@ -15591,26 +15590,8 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`[UPLOADER-AUDIT] Created ${deletedFiles.length} audit log entries for deleted files`);
       
-      // Delete associated log files from object storage
-      try {
-        const { ReplitStorageService } = await import('./replit-storage-service');
-        const storageService = new ReplitStorageService();
-        
-        for (const file of filesToDelete) {
-          if (file.processing_log_path) {
-            try {
-              await storageService.deleteFile(file.processing_log_path);
-              console.log(`[UPLOADER-DELETE] Deleted log file: ${file.processing_log_path}`);
-            } catch (logError) {
-              console.error(`[UPLOADER-DELETE] Failed to delete log file ${file.processing_log_path}:`, logError);
-              // Don't fail the whole deletion if log file deletion fails
-            }
-          }
-        }
-      } catch (error) {
-        console.error('[UPLOADER-DELETE] Error deleting log files from object storage:', error);
-        // Don't fail the whole process if log cleanup fails
-      }
+      // Note: Log file cleanup skipped (processing_log_path column not available in production)
+      // This is safe since log files are optional and don't affect core functionality
       
       return { deletedFiles };
       

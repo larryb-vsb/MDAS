@@ -1,0 +1,180 @@
+2025-11-03 21:39:06.60
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+position: '147',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+file: 'analyze.c',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+line: '2528',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+routine: 'transformUpdateTargetList'
+2025-11-03 21:39:06.60
+d2f1715f
+User
+}
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Record error: error: column "date_of_last_deposit" of relation "merchants" does not exist
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at async DatabaseStorage.updateMerchant (file:///home/runner/workspace/dist/index.js:8641:13)
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at async MMSWatcher.encodeFile (file:///home/runner/workspace/dist/index.js:34047:21)
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at async MMSWatcher.encodeFileWithRetry (file:///home/runner/workspace/dist/index.js:34105:13)
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at async MMSWatcher.processIdentifiedFiles (file:///home/runner/workspace/dist/index.js:33835:15)
+2025-11-03 21:39:06.60
+d2f1715f
+User
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32967:15) {
+2025-11-03 21:39:06.60
+d2f1715f
+User
+length: 145,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+position: '147',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:39:06.60
+d2f1715f
+User
+file: 'analyze.c',
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[LOCATION-TRACE] ========== LOCATION FIELD MAPPING START ==========
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[MAPPER] Exposure Amount (exposureAmount) -> exposureAmount = 00000000
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[MAPPER] Date of Last Deposit (dateOfLastDeposit) -> dateOfLastDeposit = 1900/01/01
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[LOCATION-TRACE] Field: "Merchant Email Address"
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[LOCATION-TRACE] - Raw Value: "SUPPORT@ECHOSPEND.COM"
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[LOCATION-TRACE] - Database Key: chargebackEmailAddress
+2025-11-03 21:39:06.60
+d2f1715f
+User
+[LOCATION-TRACE] - Will Map: YES

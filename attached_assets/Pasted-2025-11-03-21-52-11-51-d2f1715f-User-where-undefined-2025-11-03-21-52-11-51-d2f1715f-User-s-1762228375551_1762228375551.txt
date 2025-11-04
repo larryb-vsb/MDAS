@@ -1,0 +1,234 @@
+2025-11-03 21:52:11.51
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:52:11.51
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:52:11.51
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:52:11.51
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:52:11.51
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:52:11.51
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:52:11.51
+d2f1715f
+User
+file: 'parse_target.c',
+2025-11-03 21:52:11.51
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:52:11.51
+d2f1715f
+User
+routine: 'checkInsertTargets'
+2025-11-03 21:52:11.51
+d2f1715f
+User
+}
+2025-11-03 21:52:11.72
+d2f1715f
+User
+Error upserting terminal V7535803: error: column "chain" of relation "api_terminals" does not exist
+2025-11-03 21:52:11.72
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:52:11.72
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:52:11.72
+d2f1715f
+User
+at async Parser. (file:///home/runner/workspace/dist/index.js:12423:35) {
+2025-11-03 21:52:11.72
+d2f1715f
+User
+length: 132,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:52:11.72
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:52:11.72
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+position: '190',
+2025-11-03 21:52:11.72
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:52:11.72
+d2f1715f
+User
+file: 'parse_target.c',
+2025-11-03 21:52:11.72
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:52:11.72
+d2f1715f
+User
+routine: 'checkInsertTargets'
+2025-11-03 21:52:11.72
+d2f1715f
+User
+}
+2025-11-03 21:52:11.72
+d2f1715f
+User
+3:52:11 AM [express] GET /api/uploader/uploader_1762227041690_nr4r4uojp/timing 200 in 323ms
+2025-11-03 21:52:11.77
+d2f1715f
+User
+Error upserting terminal V7535938: error: column "chain" of relation "api_terminals" does not exist
+2025-11-03 21:52:11.77
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:52:11.77
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:52:11.77
+d2f1715f
+User
+at async Parser. (file:///home/runner/workspace/dist/index.js:12423:35) {
+2025-11-03 21:52:11.77
+d2f1715f
+User
+length: 132,
+2025-11-03 21:52:11.77
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:52:11.77
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:52:11.77
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:52:11.77
+d2f1715f
+User
+position: '190',
+2025-11-03 21:52:11.77
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:52:11.77
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:52:11.77
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:52:11.79
+d2f1715f
+User
+3:52:11 AM [express] GET /api/uploader/uploader_1762197540503_zngn0rh2x/timing 200 in 322ms
+2025-11-03 21:52:11.82
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:52:11.82
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:52:16.66
+d2f1715f
+User
+Error upserting terminal V7565227: error: column "chain" of relation "api_terminals" does not exist
+2025-11-03 21:52:16.66
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:52:16.66
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:52:16.66
+d2f1715f
+User
+at async Parser. (file:///home/runner/workspace/dist/index.js:12423:35) {
+2025-11-03 21:52:16.66
+d2f1715f
+User
+length: 132,
+2025-11-03 21:52:16.66
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:52:16.66
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:52:16.66
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:52:16.66
+d2f1715f
+User
+hint: undefined,
+
+Collapse
+
+Wrap
+
+Colors
