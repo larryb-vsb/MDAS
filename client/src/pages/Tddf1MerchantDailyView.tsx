@@ -95,6 +95,7 @@ export default function Tddf1MerchantDailyView() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<string>("");
+  const [selectedTerminal, setSelectedTerminal] = useState<string>("");
   const [activeTab, setActiveTab] = useState("overview");
 
   // Navigate between dates
@@ -261,9 +262,15 @@ export default function Tddf1MerchantDailyView() {
     );
   }
 
+  // Get unique terminals from transactions
+  const uniqueTerminals = Array.from(
+    new Set(merchantData.allTransactions.map(tx => tx.terminalId).filter(Boolean))
+  ).sort();
+
   // Filter transactions
   const filteredTransactions = merchantData.allTransactions.filter((tx) => {
     if (selectedBatch && tx.entryRunNumber !== selectedBatch) return false;
+    if (selectedTerminal && tx.terminalId !== selectedTerminal) return false;
     if (searchTerm) {
       return tx.referenceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
              tx.authorizationNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -429,11 +436,28 @@ export default function Tddf1MerchantDailyView() {
                       className="w-full p-2 border rounded-md"
                       value={selectedBatch}
                       onChange={(e) => setSelectedBatch(e.target.value)}
+                      data-testid="filter-batch"
                     >
                       <option value="">All Batches</option>
                       {merchantData.batches.map((batch) => (
                         <option key={batch.batchId} value={batch.entryRunNumber}>
                           Batch #{batch.entryRunNumber}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="w-48">
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      value={selectedTerminal}
+                      onChange={(e) => setSelectedTerminal(e.target.value)}
+                      data-testid="filter-terminal"
+                    >
+                      <option value="">All Terminals</option>
+                      {uniqueTerminals.map((terminalId) => (
+                        <option key={terminalId} value={terminalId}>
+                          Terminal {terminalId}
                         </option>
                       ))}
                     </select>
