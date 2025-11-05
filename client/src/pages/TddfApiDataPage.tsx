@@ -6133,6 +6133,21 @@ export default function TddfApiDataPage() {
             </Dialog>
           </div>
 
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800 p-4">
+            <div className="flex items-start gap-3">
+              <Lightbulb className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Important: Save Your API Key
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  Full API keys are only shown once when created. After creation, only the key prefix is visible for security. 
+                  If you lose your key, you'll need to delete it and create a new one.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {createdApiKey && (
             <Card className="border-green-200 bg-green-50">
               <CardHeader>
@@ -6211,27 +6226,16 @@ export default function TddfApiDataPage() {
                           {(key as any).lastUsedIp || "—"}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => copyToClipboard(key.keyPrefix, key.id)}
-                              title="Copy key prefix"
-                              data-testid={`button-copy-key-${key.id}`}
-                            >
-                              {copiedKeyId === key.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteApiKey(key.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete API key"
-                              data-testid={`button-delete-key-${key.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteApiKey(key.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Delete API key"
+                            data-testid={`button-delete-key-${key.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
