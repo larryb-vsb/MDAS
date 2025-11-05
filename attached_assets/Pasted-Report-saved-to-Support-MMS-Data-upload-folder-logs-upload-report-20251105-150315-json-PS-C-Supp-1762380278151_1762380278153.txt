@@ -1,0 +1,277 @@
+Report saved to: \Support\MMS-Data\upload-folder\logs\upload-report_20251105_150315.json
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --key "mms_1762369377412_2tp0tim1qvz" --folder "/Support/MMS-Data/upload-folder" --upload
+
+=== MMS Batch Uploader v1.2.0 - Batch Upload ===
+
+═════════════════════════════════════════════════════════════
+  BATCH UPLOAD
+═════════════════════════════════════════════════════════════
+
+Configuration:
+  Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+  Base Folder: \Support\MMS-Data\upload-folder
+  Inbox: \Support\MMS-Data\upload-folder\inbox
+  Processed: \Support\MMS-Data\upload-folder\processed
+  Batch Size: 5
+  Polling Interval: 10s
+
+Testing connection...
+
+======================================================================
+  MMS Batch Uploader v1.2.0
+  Server Ping - 2025-11-05 16:01:23
+======================================================================
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Client Information:
+  Hostname: VSB-L-LARRY
+  User-Agent: MMS-BatchUploader/1.2.0 (Python; VSB-L-LARRY)
+  API Key: mms_1762369377412_2t...
+
+Server Response:
+  Service Status: running
+  Environment: development
+  Version: 1.0.0
+  Server IP: 75.236.21.33
+
+API Key Validation:
+  Status: ✓ VALID
+  Key User: key5
+
+Host Approval Status:
+  Hostname: VSB-L-LARRY
+  Status: ✓ APPROVED
+  Access: Ready to upload files
+
+  Response Time: 1.64s
+  Message: MMS Batch Uploader API is operational
+
+✓ Connection successful! API key is valid and active.
+
+✓ Host approval verified: Upload authorized
+
+Found 23 file(s) to upload
+
+═════════════════════════════════════════════════════════════
+  BATCH 1/5
+═════════════════════════════════════════════════════════════
+
+Uploading: VERMNTSB.6759_TDDF_2400_08302025_005804.TSYSO - 21.46 MB
+  Creating upload session...
+  Upload ID: uploader_1762380085736_r43ozlgd2
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_08302025_005804.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_08302025_005804.TSYSO → VERMNTSB.6759_TDDF_2400_08302025_005804.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_08302025_005804.TSYSO
+
+Uploading: VERMNTSB.6759_TDDF_2400_09012025_001506.TSYSO - 47.96 MB
+  Creating upload session...
+  Upload ID: uploader_1762380105027_0rmeah6tr
+  Using chunked upload - 2 chunks
+    Uploading chunk 1/2...
+    Uploading chunk 2/2...
+  ✓ VERMNTSB.6759_TDDF_2400_09012025_001506.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_09012025_001506.TSYSO → VERMNTSB.6759_TDDF_2400_09012025_001506.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_09012025_001506.TSYSO
+
+Uploading: VERMNTSB.6759_TDDF_2400_09022025_004321.TSYSO - 14.76 MB
+  Creating upload session...
+  Upload ID: uploader_1762380146671_tagrijlv8
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_09022025_004321.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_09022025_004321.TSYSO → VERMNTSB.6759_TDDF_2400_09022025_004321.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_09022025_004321.TSYSO
+
+Uploading: VERMNTSB.6759_TDDF_2400_09032025_002855.TSYSO - 14.30 MB
+  Creating upload session...
+  Upload ID: uploader_1762380162112_sceej5m7k
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_09032025_002855.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_09032025_002855.TSYSO → VERMNTSB.6759_TDDF_2400_09032025_002855.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_09032025_002855.TSYSO
+
+Uploading: VERMNTSB.6759_TDDF_2400_09042025_004246.TSYSO - 15.04 MB
+  Creating upload session...
+  Upload ID: uploader_1762380176217_bl3yl13w5
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_09042025_004246.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_09042025_004246.TSYSO → VERMNTSB.6759_TDDF_2400_09042025_004246.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_09042025_004246.TSYSO
+
+═════════════════════════════════════════════════════════════
+  BATCH 2/5
+═════════════════════════════════════════════════════════════
+
+Waiting for system to be ready...
+
+=== MMS Batch Uploader v1.2.0 - Queue Status ===
+
+=== Upload Queue Status ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Queue Metrics:
+  Active: 0
+  Waiting: 0
+  Completed: 0
+  Failed: 0
+
+Capacity:
+  Max Concurrent: Unknown
+  Is Busy: False
+System ready, proceeding...
+
+Uploading: VERMNTSB.6759_TDDF_2400_09052025_004448.TSYSO - 16.54 MB
+  Creating upload session...
+  Upload ID: uploader_1762380192620_jkm3603kb
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_09052025_004448.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_09052025_004448.TSYSO → VERMNTSB.6759_TDDF_2400_09052025_004448.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_09052025_004448.TSYSO
+
+Uploading: VERMNTSB.6759_TDDF_2400_09062025_002727.TSYSO - 19.52 MB
+  Creating upload session...
+  Upload ID: uploader_1762380211985_6hsbxcjhl
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_09062025_002727.TSYSO uploaded successfully
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 95: character maps to <undefined>
+Call stack:
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 769, in <module>
+    main()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 764, in main
+    results = uploader.upload_batch()
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 607, in upload_batch
+    moved = self._move_to_processed(file_path)
+  File "C:\Support\MMS-Data\script\batch-uploader.py", line 186, in _move_to_processed
+    self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+Message: 'Moved to processed: VERMNTSB.6759_TDDF_2400_09062025_002727.TSYSO → VERMNTSB.6759_TDDF_2400_09062025_002727.TSYSO'
+Arguments: ()
+  ↳ Moved to processed: VERMNTSB.6759_TDDF_2400_09062025_002727.TSYSO
+
+Uploading: VERMNTSB.6759_TDDF_2400_09082025_001535.TSYSO - 47.59 MB
+  Creating upload session...
+  Upload ID: uploader_1762380233465_whf283u17
+  Using chunked upload - 2 chunks
+    Uploading chunk 1/2...
+    Uploading chunk 2/2...
