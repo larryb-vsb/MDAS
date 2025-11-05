@@ -2523,6 +2523,8 @@ export default function TddfApiDataPage() {
   const [createdApiKey, setCreatedApiKey] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [isCreateKeyDialogOpen, setIsCreateKeyDialogOpen] = useState(false);
+  const [deleteKeyId, setDeleteKeyId] = useState<number | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // File selection state
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -3028,6 +3030,16 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Delete API key mutation
+  const deleteApiKeyMutation = useMutation({
+    mutationFn: (keyId: number) => apiRequest(`/api/tddf-api/keys/${keyId}`, {
+      method: "DELETE"
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/keys"], exact: false });
+      toast({ title: "API key deleted successfully" });
+    }
+  });
 
   // Start upload mutation
   const startUploadMutation = useMutation({
@@ -3265,6 +3277,19 @@ export default function TddfApiDataPage() {
 
   const handleCreateApiKey = () => {
     createApiKeyMutation.mutate(newApiKey);
+  };
+
+  const handleDeleteApiKey = (keyId: number) => {
+    setDeleteKeyId(keyId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteApiKey = () => {
+    if (deleteKeyId !== null) {
+      deleteApiKeyMutation.mutate(deleteKeyId);
+      setIsDeleteDialogOpen(false);
+      setDeleteKeyId(null);
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -6125,9 +6150,25 @@ export default function TddfApiDataPage() {
                           {key.lastUsed ? format(new Date(key.lastUsed), "MMM d, yyyy") : "Never"}
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm">
-                            <Settings className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => copyToClipboard(key.apiKey)}
+                              title="Copy API key"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleDeleteApiKey(key.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Delete API key"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -6136,6 +6177,34 @@ export default function TddfApiDataPage() {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Delete API Key Confirmation Dialog */}
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete API Key</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this API key? This action cannot be undone and will immediately revoke access for any applications using this key.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={confirmDeleteApiKey}
+                  disabled={deleteApiKeyMutation.isPending}
+                >
+                  {deleteApiKeyMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Delete
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="monitoring" className="space-y-4">
