@@ -182,4 +182,35 @@ export function registerApiUserRoutes(app: Express) {
       res.status(500).json({ error: "Failed to fetch last connection" });
     }
   });
+
+  // Get host list (unique IPs with stats)
+  app.get("/api/tddf-api/monitoring/hosts", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+
+      const hosts = await storage.getConnectionHosts();
+      res.json(hosts);
+    } catch (error) {
+      console.error("Error fetching connection hosts:", error);
+      res.status(500).json({ error: "Failed to fetch connection hosts" });
+    }
+  });
+
+  // Get connection log
+  app.get("/api/tddf-api/monitoring/connections", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 100;
+      const connections = await storage.getConnectionLog(limit);
+      res.json(connections);
+    } catch (error) {
+      console.error("Error fetching connection log:", error);
+      res.status(500).json({ error: "Failed to fetch connection log" });
+    }
+  });
 }

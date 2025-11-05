@@ -115,6 +115,10 @@ export interface IStorage {
   deleteApiUser(id: number): Promise<void>;
   updateApiUserUsage(apiKeyId: number, ipAddress?: string): Promise<void>;
   
+  // Connection tracking operations
+  getConnectionHosts(): Promise<any[]>;
+  getConnectionLog(limit: number): Promise<any[]>;
+  
   // Log operations
   getSystemLogs(params: any): Promise<any>;
   getSecurityLogs(params: any): Promise<any>;
@@ -1024,6 +1028,50 @@ export class DatabaseStorage implements IStorage {
         WHERE id = $2
       `, [new Date(), apiKeyId]);
     }
+  }
+
+  // @ENVIRONMENT-CRITICAL - Connection tracking operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async getConnectionHosts(): Promise<any[]> {
+    const connectionLogTableName = getTableName('connection_log');
+    
+    const result = await pool.query(`
+      SELECT 
+        client_ip,
+        COUNT(*) as total_requests,
+        MAX(timestamp) as last_seen,
+        COUNT(DISTINCT endpoint) as unique_endpoints,
+        BOOL_OR(authenticated) as has_authenticated,
+        ARRAY_AGG(DISTINCT user_agent) FILTER (WHERE user_agent IS NOT NULL) as user_agents
+      FROM ${connectionLogTableName}
+      GROUP BY client_ip
+      ORDER BY last_seen DESC
+      LIMIT 100
+    `);
+    
+    return result.rows;
+  }
+
+  async getConnectionLog(limit: number): Promise<any[]> {
+    const connectionLogTableName = getTableName('connection_log');
+    
+    const result = await pool.query(`
+      SELECT 
+        timestamp,
+        client_ip,
+        endpoint,
+        method,
+        user_agent,
+        api_key_used,
+        authenticated,
+        status_code,
+        response_time
+      FROM ${connectionLogTableName}
+      ORDER BY timestamp DESC
+      LIMIT $1
+    `, [limit]);
+    
+    return result.rows;
   }
   
   // Helper function to generate search index

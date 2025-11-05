@@ -2978,6 +2978,18 @@ export default function TddfApiDataPage() {
     refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 
+  // Fetch connection hosts
+  const { data: connectionHosts } = useQuery<any>({
+    queryKey: ["/api/tddf-api/monitoring/hosts"],
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // Fetch connection log
+  const { data: connectionLog } = useQuery<any>({
+    queryKey: ["/api/tddf-api/monitoring/connections"],
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
   // Fetch merchant lookup map for displaying merchant names
   const { data: merchantLookupMap = {}, isLoading: merchantLookupLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/merchants/lookup-map"],
@@ -6374,6 +6386,108 @@ export default function TddfApiDataPage() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+
+          {/* Host List Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Host List</CardTitle>
+              <CardDescription>All unique IPs that have connected to the API</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>IP Address</TableHead>
+                    <TableHead>Total Requests</TableHead>
+                    <TableHead>Last Seen</TableHead>
+                    <TableHead>Endpoints</TableHead>
+                    <TableHead>Authenticated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {connectionHosts?.map((host: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-mono">{host.client_ip}</TableCell>
+                      <TableCell>{host.total_requests}</TableCell>
+                      <TableCell>{host.last_seen ? format(new Date(host.last_seen), "MMM d, h:mm a") : "Never"}</TableCell>
+                      <TableCell>{host.unique_endpoints} unique</TableCell>
+                      <TableCell>
+                        {host.has_authenticated ? (
+                          <Badge variant="default">Yes</Badge>
+                        ) : (
+                          <Badge variant="outline">No</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )) || (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No connection data available
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Connection Log Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Connection Log</CardTitle>
+              <CardDescription>Recent API requests (last 100)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[500px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>IP Address</TableHead>
+                      <TableHead>Endpoint</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Response Time</TableHead>
+                      <TableHead>Authenticated</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {connectionLog?.map((log: any, index: number) => (
+                      <TableRow key={index}>
+                        <TableCell className="text-xs">{format(new Date(log.timestamp), "MMM d, h:mm:ss a")}</TableCell>
+                        <TableCell className="font-mono text-xs">{log.client_ip}</TableCell>
+                        <TableCell className="font-mono text-xs">{log.endpoint}</TableCell>
+                        <TableCell>
+                          <Badge variant={log.method === 'GET' ? 'outline' : 'secondary'}>
+                            {log.method}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={log.status_code >= 200 && log.status_code < 300 ? 'default' : 'destructive'}>
+                            {log.status_code}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{log.response_time}ms</TableCell>
+                        <TableCell>
+                          {log.authenticated ? (
+                            <Badge variant="default" className="text-xs">Yes</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">No</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )) || (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No connection logs available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
