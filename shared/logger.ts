@@ -30,7 +30,7 @@ function getEnvVar(name: string, defaultValue: boolean = false): boolean {
   }
 }
 
-// Logging configuration
+// Logging configuration - mutable for runtime updates
 export const logConfig = {
   auth: getEnvVar('VERBOSE_AUTH_DEBUG', false),
   navigation: getEnvVar('VERBOSE_NAVIGATION', false),
@@ -41,6 +41,9 @@ export const logConfig = {
   all: getEnvVar('VERBOSE_ALL', false)
 };
 
+// Store initial config for reset functionality
+const initialConfig = { ...logConfig };
+
 // Override individual settings if VERBOSE_ALL is enabled
 if (logConfig.all) {
   logConfig.auth = true;
@@ -49,6 +52,31 @@ if (logConfig.all) {
   logConfig.charts = true;
   logConfig.tddfProcessing = true;
   logConfig.database = true;
+}
+
+/**
+ * Update logger configuration at runtime
+ * Used by API endpoints for dynamic control
+ */
+export function updateLogConfig(updates: Partial<typeof logConfig>) {
+  Object.assign(logConfig, updates);
+  
+  // Apply VERBOSE_ALL override if enabled
+  if (logConfig.all) {
+    logConfig.auth = true;
+    logConfig.navigation = true;
+    logConfig.uploader = true;
+    logConfig.charts = true;
+    logConfig.tddfProcessing = true;
+    logConfig.database = true;
+  }
+}
+
+/**
+ * Reset logger configuration to initial state
+ */
+export function resetLogConfig() {
+  Object.assign(logConfig, initialConfig);
 }
 
 /**

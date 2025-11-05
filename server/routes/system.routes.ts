@@ -353,4 +353,95 @@ export function registerSystemRoutes(app: Express) {
       });
     }
   });
+
+  // Verbose logging configuration endpoints for automation/AI monitoring
+  // Get current verbose logging configuration
+  app.get("/api/system/verbose-config", isAuthenticated, async (req, res) => {
+    try {
+      const { logConfig } = await import('../../shared/logger');
+      res.json({
+        success: true,
+        config: { ...logConfig },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[VERBOSE-CONFIG] Error getting config:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get verbose config"
+      });
+    }
+  });
+
+  // Update verbose logging configuration
+  app.put("/api/system/verbose-config", isAuthenticated, async (req, res) => {
+    try {
+      const { logConfig, updateLogConfig } = await import('../../shared/logger');
+      const updates = req.body;
+      
+      // Validate updates
+      const validKeys = ['auth', 'navigation', 'uploader', 'charts', 'tddfProcessing', 'database', 'all'];
+      const invalidKeys = Object.keys(updates).filter(key => !validKeys.includes(key));
+      
+      if (invalidKeys.length > 0) {
+        return res.status(400).json({
+          error: "Invalid configuration keys",
+          invalidKeys,
+          validKeys
+        });
+      }
+      
+      // Validate values are boolean
+      for (const [key, value] of Object.entries(updates)) {
+        if (typeof value !== 'boolean') {
+          return res.status(400).json({
+            error: `Value for '${key}' must be boolean`,
+            received: typeof value
+          });
+        }
+      }
+      
+      // Apply updates
+      updateLogConfig(updates);
+      
+      console.log("[VERBOSE-CONFIG] Configuration updated:", updates);
+      console.log("[VERBOSE-CONFIG] New config:", { ...logConfig });
+      
+      res.json({
+        success: true,
+        message: "Verbose logging configuration updated",
+        config: { ...logConfig },
+        updated: updates,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[VERBOSE-CONFIG] Error updating config:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update verbose config"
+      });
+    }
+  });
+
+  // Reset verbose logging configuration to defaults
+  app.post("/api/system/verbose-config/reset", isAuthenticated, async (req, res) => {
+    try {
+      const { logConfig, resetLogConfig } = await import('../../shared/logger');
+      
+      resetLogConfig();
+      
+      console.log("[VERBOSE-CONFIG] Configuration reset to defaults");
+      console.log("[VERBOSE-CONFIG] Current config:", { ...logConfig });
+      
+      res.json({
+        success: true,
+        message: "Verbose logging configuration reset to defaults",
+        config: { ...logConfig },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[VERBOSE-CONFIG] Error resetting config:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to reset verbose config"
+      });
+    }
+  });
 }
