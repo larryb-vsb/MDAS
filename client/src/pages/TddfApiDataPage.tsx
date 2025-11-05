@@ -2964,6 +2964,19 @@ export default function TddfApiDataPage() {
     refetchInterval: 4000 // Real-time updates every 4 seconds
   });
 
+  // Fetch last API connection data
+  const { data: lastConnection } = useQuery<any>({
+    queryKey: ["/api/tddf-api/monitoring/last-connection"],
+    queryFn: async () => {
+      const response = await fetch("/api/tddf-api/monitoring/last-connection", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch last connection');
+      return response.json();
+    },
+    refetchInterval: 4000 // Real-time updates every 4 seconds
+  });
+
   // Fetch merchant lookup map for displaying merchant names
   const { data: merchantLookupMap = {}, isLoading: merchantLookupLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/merchants/lookup-map"],
@@ -6115,13 +6128,14 @@ export default function TddfApiDataPage() {
                     <TableHead>Usage</TableHead>
                     <TableHead>Rate Limit</TableHead>
                     <TableHead>Last Used</TableHead>
+                    <TableHead>Last IP</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {keysLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center">
+                      <TableCell colSpan={9} className="text-center">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
@@ -6147,7 +6161,10 @@ export default function TddfApiDataPage() {
                         <TableCell>{key.requestCount.toLocaleString()}</TableCell>
                         <TableCell>{key.rateLimitPerMinute}/min</TableCell>
                         <TableCell>
-                          {key.lastUsed ? format(new Date(key.lastUsed), "MMM d, yyyy") : "Never"}
+                          {key.lastUsed ? format(new Date(key.lastUsed), "MMM d, yyyy 'at' h:mm a") : "Never"}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {(key as any).lastUsedIp || "—"}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -6209,6 +6226,42 @@ export default function TddfApiDataPage() {
 
         <TabsContent value="monitoring" className="space-y-4">
           <h2 className="text-2xl font-bold">API Monitoring</h2>
+          
+          {/* Last API Connection Card */}
+          {lastConnection?.hasConnection && (
+            <Card className="border-blue-500/50 bg-blue-50/30 dark:bg-blue-950/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  Last API Connection
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Key Name</p>
+                    <p className="font-medium">{lastConnection.keyName}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <p className="text-xs text-muted-foreground">Timestamp</p>
+                    <p className="text-sm font-medium">
+                      {lastConnection.lastUsed ? format(new Date(lastConnection.lastUsed), "MMM d, yyyy 'at' h:mm a") : "Never"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <div>
+                    <p className="text-xs text-muted-foreground">IP Address</p>
+                    <p className="font-mono text-sm">{lastConnection.lastUsedIp}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Total Requests</p>
+                    <p className="text-sm font-medium">{lastConnection.requestCount.toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>

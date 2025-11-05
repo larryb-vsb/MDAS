@@ -45,6 +45,7 @@ import { heatMapCacheProcessingStats } from "@shared/schema";
 import { backfillUniversalTimestamps } from "./services/universal-timestamp";
 import { parseTddfFilename, formatProcessingTime } from "./utils/tddfFilename";
 import { logger } from "../shared/logger";
+import { getClientIp } from "./routes/middleware";
 
 // Business day extraction utility for TDDF filenames
 function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
@@ -121,7 +122,7 @@ export async function isApiKeyAuthenticated(req: Request, res: Response, next: N
       return res.status(401).json({ error: "Invalid API key" });
     }
     
-    if (!apiUser.isActive) {
+    if (!apiUser.is_active) {
       return res.status(403).json({ error: "API key is inactive" });
     }
     
@@ -130,8 +131,9 @@ export async function isApiKeyAuthenticated(req: Request, res: Response, next: N
       return res.status(403).json({ error: "Insufficient permissions for TDDF upload" });
     }
     
-    // Update last used timestamp and request count
-    await storage.updateApiUserUsage(apiUser.id);
+    // Update last used timestamp, request count, and IP address
+    const clientIp = getClientIp(req);
+    await storage.updateApiUserUsage(apiUser.id, clientIp);
     
     // Add API user to request for logging
     (req as any).apiUser = apiUser;
@@ -152,13 +154,14 @@ export async function isAuthenticatedOrApiKey(req: Request, res: Response, next:
   if (apiKey) {
     try {
       const apiUser = await storage.getApiUserByKey(apiKey);
-      if (apiUser && apiUser.isActive) {
-        // Update last used timestamp and request count
-        await storage.updateApiUserUsage(apiUser.id);
+      if (apiUser && apiUser.is_active) {
+        // Update last used timestamp, request count, and IP address
+        const clientIp = getClientIp(req);
+        await storage.updateApiUserUsage(apiUser.id, clientIp);
         // Add API user to request for logging
         (req as any).apiUser = apiUser;
-        (req as any).user = { username: apiUser.keyName }; // Mock user for compatibility
-        logger.auth(`API key authenticated: ${apiUser.keyName}`);
+        (req as any).user = { username: apiUser.username }; // Mock user for compatibility
+        logger.auth(`API key authenticated: ${apiUser.username}`);
         return next();
       }
     } catch (error) {
@@ -289,9 +292,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (apiKey) {
         const apiUser = await storage.getApiUserByKey(apiKey);
-        if (apiUser && apiUser.isActive) {
+        if (apiUser && apiUser.is_active) {
           authMethod = 'api_key';
-          await storage.updateApiUserUsage(apiUser.id);
+          const clientIp = getClientIp(req);
+          await storage.updateApiUserUsage(apiUser.id, clientIp);
         }
       } else if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
         authMethod = 'session';
@@ -318,9 +322,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (apiKey) {
         const apiUser = await storage.getApiUserByKey(apiKey);
-        if (apiUser && apiUser.isActive) {
+        if (apiUser && apiUser.is_active) {
           authenticated = true;
-          await storage.updateApiUserUsage(apiUser.id);
+          const clientIp = getClientIp(req);
+          await storage.updateApiUserUsage(apiUser.id, clientIp);
         }
       } else if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
         authenticated = true;

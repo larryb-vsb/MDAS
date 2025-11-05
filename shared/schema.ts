@@ -1122,6 +1122,7 @@ export const apiUsers = pgTable(getTableName("api_users"), {
   isActive: boolean("is_active"), // Active status
   createdAt: timestamp("created_at"), // Creation timestamp
   lastUsed: timestamp("last_used"), // Track when key was last used
+  lastUsedIp: text("last_used_ip"), // Track IP address that last used the key
   requestCount: integer("request_count").default(0), // Track API usage
 }, (table) => {
   return {
@@ -2818,6 +2819,7 @@ export const tddApiKeys = pgTable(getTableName("tddf_api_keys"), {
   permissions: jsonb("permissions").notNull(), // Array of permission strings
   isActive: boolean("is_active").default(true),
   lastUsed: timestamp("last_used"),
+  lastUsedIp: text("last_used_ip"), // IP address of last request
   requestCount: integer("request_count").default(0),
   rateLimitPerMinute: integer("rate_limit_per_minute").default(100),
   createdAt: timestamp("created_at").defaultNow().notNull(),

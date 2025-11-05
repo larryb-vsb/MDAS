@@ -2,6 +2,26 @@ import type { Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { logger } from "../../shared/logger";
 
+// Helper function to extract client IP address
+export function getClientIp(req: Request): string {
+  // Check X-Forwarded-For header (set by proxies)
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    // X-Forwarded-For can contain multiple IPs, take the first one
+    const ips = typeof forwarded === 'string' ? forwarded.split(',') : forwarded;
+    return ips[0].trim();
+  }
+  
+  // Check X-Real-IP header
+  const realIp = req.headers['x-real-ip'];
+  if (realIp && typeof realIp === 'string') {
+    return realIp.trim();
+  }
+  
+  // Fall back to req.ip (direct connection)
+  return req.ip || 'unknown';
+}
+
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   logger.auth(`Checking authentication for ${req.method} ${req.path}`);
@@ -38,7 +58,7 @@ export async function isApiKeyAuthenticated(req: Request, res: Response, next: N
       return res.status(401).json({ error: "Invalid API key" });
     }
     
-    if (!apiUser.isActive) {
+    if (!apiUser.is_active) {
       return res.status(403).json({ error: "API key is inactive" });
     }
     
@@ -47,8 +67,9 @@ export async function isApiKeyAuthenticated(req: Request, res: Response, next: N
       return res.status(403).json({ error: "Insufficient permissions for TDDF upload" });
     }
     
-    // Update last used timestamp and request count
-    await storage.updateApiUserUsage(apiUser.id);
+    // Update last used timestamp, request count, and IP address
+    const clientIp = getClientIp(req);
+    await storage.updateApiUserUsage(apiUser.id, clientIp);
     
     // Add API user to request for logging
     (req as any).apiUser = apiUser;
@@ -69,13 +90,14 @@ export async function isAuthenticatedOrApiKey(req: Request, res: Response, next:
   if (apiKey) {
     try {
       const apiUser = await storage.getApiUserByKey(apiKey);
-      if (apiUser && apiUser.isActive) {
-        // Update last used timestamp and request count
-        await storage.updateApiUserUsage(apiUser.id);
+      if (apiUser && apiUser.is_active) {
+        // Update last used timestamp, request count, and IP address
+        const clientIp = getClientIp(req);
+        await storage.updateApiUserUsage(apiUser.id, clientIp);
         // Add API user to request for logging
         (req as any).apiUser = apiUser;
-        (req as any).user = { username: apiUser.keyName }; // Mock user for compatibility
-        logger.auth(`API key authenticated: ${apiUser.keyName}`);
+        (req as any).user = { username: apiUser.username }; // Mock user for compatibility
+        logger.auth(`API key authenticated: ${apiUser.username}`);
         return next();
       }
     } catch (error) {

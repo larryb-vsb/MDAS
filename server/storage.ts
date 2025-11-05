@@ -113,7 +113,7 @@ export interface IStorage {
   createApiUser(insertApiUser: any): Promise<any>;
   updateApiUser(id: number, userData: Partial<any>): Promise<any>;
   deleteApiUser(id: number): Promise<void>;
-  updateApiUserUsage(apiKey: string): Promise<void>;
+  updateApiUserUsage(apiKeyId: number, ipAddress?: string): Promise<void>;
   
   // Log operations
   getSystemLogs(params: any): Promise<any>;
@@ -1005,15 +1005,25 @@ export class DatabaseStorage implements IStorage {
 
   // @ENVIRONMENT-CRITICAL - API User usage tracking operations
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-  async updateApiUserUsage(apiKey: string): Promise<void> {
+  async updateApiUserUsage(apiKeyId: number, ipAddress?: string): Promise<void> {
     const apiUsersTableName = getTableName('api_users');
     
-    await pool.query(`
-      UPDATE ${apiUsersTableName} 
-      SET last_used = $1, 
-          request_count = COALESCE(request_count, 0) + 1
-      WHERE api_key = $2
-    `, [new Date(), apiKey]);
+    if (ipAddress) {
+      await pool.query(`
+        UPDATE ${apiUsersTableName} 
+        SET last_used = $1, 
+            last_used_ip = $2,
+            request_count = COALESCE(request_count, 0) + 1
+        WHERE id = $3
+      `, [new Date(), ipAddress, apiKeyId]);
+    } else {
+      await pool.query(`
+        UPDATE ${apiUsersTableName} 
+        SET last_used = $1, 
+            request_count = COALESCE(request_count, 0) + 1
+        WHERE id = $2
+      `, [new Date(), apiKeyId]);
+    }
   }
   
   // Helper function to generate search index

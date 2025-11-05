@@ -88,6 +88,7 @@ export function registerApiUserRoutes(app: Express) {
         apiKey: user.api_key,  // Provide camelCase for frontend
         isActive: user.is_active,  // Map is_active to isActive for frontend
         requestCount: user.request_count || 0,  // Database column is request_count
+        lastUsedIp: user.last_used_ip,  // Map last_used_ip to lastUsedIp for frontend
         rateLimitPerMinute: 100 // Default value for now
       }));
       
@@ -142,6 +143,43 @@ export function registerApiUserRoutes(app: Express) {
     } catch (error) {
       console.error("Error deleting API key:", error);
       res.status(500).json({ error: "Failed to delete API key" });
+    }
+  });
+
+  // Get last API connection details for monitoring
+  app.get("/api/tddf-api/monitoring/last-connection", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+      
+      const apiUsers = await storage.getApiUsers();
+      
+      // Filter to only API keys that have been used at least once
+      const usedKeys = apiUsers.filter(user => user.last_used != null);
+      
+      if (usedKeys.length === 0) {
+        return res.json({ hasConnection: false });
+      }
+      
+      // Find the most recently used API key
+      const lastUsedKey = usedKeys.reduce((latest, current) => {
+        const latestTime = latest.last_used ? new Date(latest.last_used).getTime() : 0;
+        const currentTime = current.last_used ? new Date(current.last_used).getTime() : 0;
+        return currentTime > latestTime ? current : latest;
+      });
+      
+      res.json({
+        hasConnection: true,
+        keyName: lastUsedKey.username,
+        keyPrefix: lastUsedKey.api_key?.substring(0, 15) + '...' || 'mms_...',
+        lastUsed: lastUsedKey.last_used,
+        lastUsedIp: lastUsedKey.last_used_ip || 'Unknown',
+        requestCount: lastUsedKey.request_count || 0
+      });
+    } catch (error) {
+      console.error("Error fetching last connection:", error);
+      res.status(500).json({ error: "Failed to fetch last connection" });
     }
   });
 }

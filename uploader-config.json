@@ -1,7 +1,7 @@
 {
   "url": "http://localhost:5000",
-  "key": "mms_your_api_key_here",
-  "folder": "/tmp/test-upload",
+  "key": "YOUR_API_KEY_HERE",
+  "folder": "/path/to/upload/folder",
   "batchSize": 5,
   "pollingInterval": 10
 }
