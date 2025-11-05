@@ -3867,37 +3867,15 @@ export default function TddfApiDataPage() {
                           Active Uploads ({searchResults.summary?.uploadsCount || 0})
                         </h4>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {searchResults.results.uploads.map((file: any) => (
                           <Card key={file.id} className="bg-white dark:bg-gray-900">
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate" title={file.filename}>
+                            <CardContent className="p-3">
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-medium text-xs truncate flex-1 min-w-0" title={file.filename}>
                                     {file.filename}
                                   </p>
-                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {file.start_time ? format(new Date(file.start_time), 'MMM d, yyyy h:mm a') : 'N/A'}
-                                    </span>
-                                    {file.file_size && (
-                                      <span>{formatFileSize(file.file_size)}</span>
-                                    )}
-                                    {(file.bh_record_count || file.dt_record_count) && (
-                                      <span>
-                                        BH: {file.bh_record_count || 0} | DT: {file.dt_record_count || 0}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant={file.upload_status === 'completed' ? 'default' : 'secondary'}>
-                                    {file.current_phase || 'unknown'}
-                                  </Badge>
-                                  {file.is_archived && (
-                                    <Badge variant="outline" className="bg-gray-100">Archived</Badge>
-                                  )}
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -3916,11 +3894,35 @@ export default function TddfApiDataPage() {
                                         }
                                       }
                                     }}
-                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                                     data-testid={`button-delete-${file.id}`}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3 w-3" />
                                   </Button>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+                                    <span className="flex items-center gap-0.5 whitespace-nowrap">
+                                      <Clock className="h-2.5 w-2.5" />
+                                      {file.start_time ? format(new Date(file.start_time), 'MMM d, yyyy h:mm a') : 'N/A'}
+                                    </span>
+                                    {file.file_size && (
+                                      <span className="whitespace-nowrap">{formatFileSize(file.file_size)}</span>
+                                    )}
+                                    {(file.bh_record_count || file.dt_record_count) && (
+                                      <span className="whitespace-nowrap">
+                                        BH: {file.bh_record_count || 0} | DT: {file.dt_record_count || 0}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+                                    <Badge variant={file.upload_status === 'completed' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 whitespace-nowrap">
+                                      {file.current_phase || 'unknown'}
+                                    </Badge>
+                                    {file.is_archived && (
+                                      <Badge variant="outline" className="bg-gray-100 text-[10px] px-1.5 py-0 whitespace-nowrap">Archived</Badge>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </CardContent>
@@ -3939,37 +3941,15 @@ export default function TddfApiDataPage() {
                           Archived Files ({searchResults.summary?.archiveCount || 0})
                         </h4>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {searchResults.results.archive.map((file: any) => (
                           <Card key={file.id} className="bg-white dark:bg-gray-900">
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate" title={file.filename}>
+                            <CardContent className="p-3">
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-medium text-xs truncate flex-1 min-w-0" title={file.filename}>
                                     {file.filename}
                                   </p>
-                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy h:mm a') : 'N/A'}
-                                    </span>
-                                    {file.file_size && (
-                                      <span>{formatFileSize(file.file_size)}</span>
-                                    )}
-                                    {(file.bh_record_count || file.dt_record_count) && (
-                                      <span>
-                                        BH: {file.bh_record_count || 0} | DT: {file.dt_record_count || 0}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                    Archived
-                                  </Badge>
-                                  {file.archived_by && (
-                                    <span className="text-xs text-muted-foreground">by {file.archived_by}</span>
-                                  )}
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -3988,11 +3968,35 @@ export default function TddfApiDataPage() {
                                         }
                                       }
                                     }}
-                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                                     data-testid={`button-delete-archive-${file.id}`}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3 w-3" />
                                   </Button>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+                                    <span className="flex items-center gap-0.5 whitespace-nowrap">
+                                      <Clock className="h-2.5 w-2.5" />
+                                      {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy h:mm a') : 'N/A'}
+                                    </span>
+                                    {file.file_size && (
+                                      <span className="whitespace-nowrap">{formatFileSize(file.file_size)}</span>
+                                    )}
+                                    {(file.bh_record_count || file.dt_record_count) && (
+                                      <span className="whitespace-nowrap">
+                                        BH: {file.bh_record_count || 0} | DT: {file.dt_record_count || 0}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] px-1.5 py-0 whitespace-nowrap">
+                                      Archived
+                                    </Badge>
+                                    {file.archived_by && (
+                                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">by {file.archived_by}</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </CardContent>
