@@ -2,8 +2,8 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.1.1
-Last Updated: November 05, 2025 - 6:15 PM CST
+Version: 1.1.2
+Last Updated: November 05, 2025 - 6:20 PM CST
 Status: PRODUCTION READY
 ================================================================================
 
@@ -21,6 +21,7 @@ Features:
   - Timestamp display on ping
   - Verbose mode (-v flag)
   - Optional API key for ping (validates if provided)
+  - Version display in output and logs
 """
 
 import argparse
@@ -36,7 +37,7 @@ from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
@@ -100,6 +101,10 @@ class MMSUploader:
             ch.setLevel(logging.DEBUG)
             ch.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
             self.logger.addHandler(ch)
+        
+        # Log version when logger is initialized
+        self.logger.info(f"=== MMS Batch Uploader v{VERSION} Started ===")
+        self.logger.info(f"Hostname: {self.hostname}")
     
     def _print_colored(self, message: str, color: str = Colors.WHITE):
         """Print colored output to terminal"""
@@ -120,7 +125,8 @@ class MMSUploader:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         self._print_colored(f"\n{'='*70}", Colors.CYAN)
-        self._print_colored(f"  MMS Server Ping - {current_time}", Colors.CYAN)
+        self._print_colored(f"  MMS Batch Uploader v{VERSION}", Colors.CYAN)
+        self._print_colored(f"  Server Ping - {current_time}", Colors.CYAN)
         self._print_colored(f"{'='*70}", Colors.CYAN)
         self._print_colored(f"Server: {self.url}", Colors.GRAY)
         
@@ -243,6 +249,7 @@ class MMSUploader:
     
     def get_status(self) -> Optional[Dict[str, Any]]:
         """Get upload queue status"""
+        self._print_colored(f"\n=== MMS Batch Uploader v{VERSION} - Queue Status ===", Colors.CYAN)
         self.logger.info("Requesting batch status")
         try:
             endpoint = f"{self.url}/api/uploader/batch-status"
@@ -399,6 +406,7 @@ class MMSUploader:
     
     def upload_batch(self) -> Dict[str, Any]:
         """Upload files in batches"""
+        self._print_colored(f"\n=== MMS Batch Uploader v{VERSION} - Batch Upload ===", Colors.CYAN)
         if not self.folder:
             self._print_colored("Error: No folder specified for upload", Colors.RED)
             return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
