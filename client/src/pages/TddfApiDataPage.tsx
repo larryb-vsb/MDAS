@@ -2952,7 +2952,7 @@ export default function TddfApiDataPage() {
   };
 
   // Fetch monitoring data
-  const { data: monitoring } = useQuery<any>({
+  const { data: monitoring, isLoading: monitoringLoading, isFetching: monitoringFetching } = useQuery<any>({
     queryKey: ["/api/tddf-api/monitoring"],
     queryFn: async () => {
       const response = await fetch("/api/tddf-api/monitoring", {
@@ -6167,25 +6167,16 @@ export default function TddfApiDataPage() {
                           {(key as any).lastUsedIp || "—"}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => copyToClipboard(key.apiKey)}
-                              title="Copy API key"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteApiKey(key.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete API key"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteApiKey(key.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Delete API key"
+                            data-testid={`button-delete-key-${key.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -6225,7 +6216,22 @@ export default function TddfApiDataPage() {
         </TabsContent>
 
         <TabsContent value="monitoring" className="space-y-4">
-          <h2 className="text-2xl font-bold">API Monitoring</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">API Monitoring</h2>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring/last-connection"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring"] });
+                toast({ title: "Monitoring data refreshed" });
+              }}
+              disabled={monitoringLoading || monitoringFetching}
+              data-testid="button-refresh-monitoring"
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", monitoringFetching && "animate-spin")} />
+              Refresh
+            </Button>
+          </div>
           
           {/* Last API Connection Card */}
           {lastConnection?.hasConnection && (
