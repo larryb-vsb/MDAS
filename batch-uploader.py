@@ -2,22 +2,25 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.1.0
-Last Updated: November 05, 2025 - 5:45 PM CST
+Version: 1.1.1
+Last Updated: November 05, 2025 - 6:15 PM CST
 Status: PRODUCTION READY
 ================================================================================
 
 Automated batch file uploader with API key authentication.
 Supports config files, command-line parameters, and three actions:
-  - ping: Test server connectivity
-  - status: Check upload queue status
-  - upload: Batch upload files from a directory
+  - ping: Test server connectivity (NO API key required)
+  - status: Check upload queue status (requires API key)
+  - upload: Batch upload files from a directory (requires API key)
 
 Features:
-  - Detailed connection logging
-  - Client fingerprint tracking
+  - Detailed connection logging to mms-uploader.log
+  - Client fingerprint tracking with hostname
   - Automatic retry with exponential backoff
   - JSON upload reports
+  - Timestamp display on ping
+  - Verbose mode (-v flag)
+  - Optional API key for ping (validates if provided)
 """
 
 import argparse
@@ -33,7 +36,7 @@ from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
