@@ -1,4 +1,11 @@
 <#
+================================================================================
+MMS Batch File Uploader
+Version: 1.0.0
+Last Updated: November 05, 2025 - 2:45 PM CST
+Status: PRODUCTION READY - All parsing errors fixed
+================================================================================
+
 .SYNOPSIS
     MMS Batch File Uploader - Automated batch upload with API key authentication
 .DESCRIPTION
