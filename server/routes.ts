@@ -246,6 +246,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize authentication system
   setupAuth(app);
   
+  // ============================================================================
+  // GLOBAL MIDDLEWARE - Connection Logging and IP Blocking
+  // ============================================================================
+  // CRITICAL: Must be registered FIRST to log and block ALL requests
+  
+  // Connection logging and IP blocking middleware - logs ALL requests including blocked ones
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    const startTime = Date.now();
+    const clientIp = getClientIp(req);
+    const apiKey = req.headers['x-api-key'] as string;
+    const userAgent = req.headers['user-agent'] as string;
+    
+    // Store API user context on request to avoid duplicate lookups
+    let apiUserContext: { id: number; username: string } | null = null;
+    let isAuthenticated = false;
+    
+    // Single API user lookup for this request
+    if (apiKey) {
+      try {
+        const apiUser = await storage.getApiUserByKey(apiKey);
+        if (apiUser && apiUser.is_active) {
+          apiUserContext = { id: apiUser.id, username: apiUser.username };
+          isAuthenticated = true;
+          // Store on request for downstream use
+          (req as any).apiUser = apiUserContext;
+        }
+      } catch (error) {
+        logger.error('Error looking up API key:', error);
+      }
+    } else if ((req as any).user) {
+      isAuthenticated = true;
+    }
+    
+    // Helper function to log this request - reuses context from above
+    const logThisConnection = async (statusCodeOverride?: number) => {
+      try {
+        await db.insert(connectionLog).values({
+          timestamp: new Date(),
+          clientIp,
+          endpoint: req.path,
+          method: req.method,
+          userAgent,
+          apiKeyUsed: apiKey ? apiKey.substring(0, 20) + '...' : null,
+          apiUserId: apiUserContext?.id || null,
+          authenticated: isAuthenticated,
+          statusCode: statusCodeOverride || res.statusCode,
+          responseTime: Date.now() - startTime
+        });
+      } catch (error) {
+        logger.error('Failed to log connection:', error);
+      }
+    };
+    
+    // Attach finish listener FIRST to ensure it runs even if errors occur below
+    let loggedAlready = false;
+    res.on('finish', async () => {
+      if (!loggedAlready) {
+        await logThisConnection();
+      }
+    });
+    
+    // Check if IP is blocked
+    try {
+      const blocked = await db.select()
+        .from(ipBlocklist)
+        .where(and(
+          eq(ipBlocklist.ipAddress, clientIp),
+          eq(ipBlocklist.isActive, true)
+        ))
+        .limit(1);
+      
+      if (blocked && blocked.length > 0) {
+        const blockEntry = blocked[0];
+        // Check if block has expired
+        if (blockEntry.expiresAt && new Date(blockEntry.expiresAt) < new Date()) {
+          // Block expired, allow through (will log on finish)
+          return next();
+        }
+        
+        logger.warn(`Blocked IP attempted access: ${clientIp} - ${blockEntry.reason}`);
+        
+        // Log the blocked attempt BEFORE returning 403
+        await logThisConnection(403);
+        loggedAlready = true; // Prevent double logging
+        
+        return res.status(403).json({ 
+          error: 'Access denied',
+          reason: 'IP blocked',
+          message: 'Your IP address has been blocked from accessing this service'
+        });
+      }
+      
+      // IP not blocked - continue (will log on finish event)
+      next();
+      
+    } catch (error) {
+      logger.error('Error checking IP blocklist:', error);
+      // Continue on error (will log on finish event)
+      next();
+    }
+  });
+  
+  // ============================================================================
+  // ROUTE REGISTRATION
+  // ============================================================================
+  
   // Register S3 configuration routes
   registerS3Routes(app);
   
@@ -284,82 +390,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerTddfCacheRoutes(app);      // Register specific routes FIRST (before :id parameter)
   registerTddfRecordsRoutes(app);    // Register parameter routes LAST (/:id catch-all)
   
-  // Helper function to log connections
-  async function logConnection(req: Request, statusCode: number, responseTime: number, apiUserId?: number, authenticated = false) {
-    try {
-      const clientIp = getClientIp(req);
-      const apiKey = req.headers['x-api-key'] as string;
-      const userAgent = req.headers['user-agent'] as string;
-      
-      await db.insert(connectionLog).values({
-        timestamp: new Date(),
-        clientIp,
-        endpoint: req.path,
-        method: req.method,
-        userAgent,
-        apiKeyUsed: apiKey ? apiKey.substring(0, 20) + '...' : null,
-        apiUserId: apiUserId || null,
-        authenticated,
-        statusCode,
-        responseTime
-      });
-    } catch (error) {
-      logger.error('Failed to log connection:', error);
-    }
-  }
-
-  // IP blocking middleware
-  async function checkIpBlocked(req: Request, res: Response, next: NextFunction) {
-    try {
-      const clientIp = getClientIp(req);
-      const blocked = await db.select()
-        .from(ipBlocklist)
-        .where(and(
-          eq(ipBlocklist.ipAddress, clientIp),
-          eq(ipBlocklist.isActive, true)
-        ))
-        .limit(1);
-      
-      if (blocked && blocked.length > 0) {
-        const blockEntry = blocked[0];
-        // Check if block has expired
-        if (blockEntry.expiresAt && new Date(blockEntry.expiresAt) < new Date()) {
-          // Block expired, allow through
-          return next();
-        }
-        
-        logger.warn(`Blocked IP attempted access: ${clientIp} - ${blockEntry.reason}`);
-        return res.status(403).json({ 
-          error: 'Access denied',
-          reason: 'IP blocked',
-          message: 'Your IP address has been blocked from accessing this service'
-        });
-      }
-      
-      next();
-    } catch (error) {
-      logger.error('Error checking IP blocklist:', error);
-      next(); // Continue on error to not break service
-    }
-  }
-
-  // Ping endpoint - NO authentication required, logs all connections
-  app.get("/api/uploader/ping", checkIpBlocked, async (req, res) => {
-    const startTime = Date.now();
-    
+  // Ping endpoint - NO authentication required, connection logged automatically by global middleware
+  app.get("/api/uploader/ping", async (req, res) => {
     try {
       const apiKey = req.headers['x-api-key'] as string;
       const clientIp = getClientIp(req);
       let authMethod = 'none';
       let keyStatus = 'not_provided';
-      let apiUserId: number | undefined;
       let keyUsername: string | undefined;
       
       // Check if API key provided
       if (apiKey) {
         const apiUser = await storage.getApiUserByKey(apiKey);
         if (apiUser) {
-          apiUserId = apiUser.id;
           keyUsername = apiUser.username;
           
           if (apiUser.is_active) {
@@ -377,11 +420,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         keyStatus = 'session_auth';
       }
       
-      const responseTime = Date.now() - startTime;
-      
-      // Log connection
-      await logConnection(req, 200, responseTime, apiUserId, authMethod !== 'none');
-      
       res.json({
         status: 'ok',
         serviceStatus: 'running',
@@ -398,8 +436,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error: any) {
-      const responseTime = Date.now() - startTime;
-      await logConnection(req, 500, responseTime);
       res.status(500).json({ 
         status: 'error',
         serviceStatus: 'error',

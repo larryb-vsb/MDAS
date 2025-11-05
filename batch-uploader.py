@@ -57,7 +57,7 @@ class Colors:
 class MMSUploader:
     """MMS Batch File Uploader"""
     
-    def __init__(self, url: str, api_key: str, folder: Optional[str] = None,
+    def __init__(self, url: str, api_key: Optional[str] = None, folder: Optional[str] = None,
                  batch_size: int = DEFAULT_BATCH_SIZE,
                  polling_interval: int = DEFAULT_POLLING_INTERVAL,
                  verbose: bool = False):
@@ -67,7 +67,9 @@ class MMSUploader:
         self.batch_size = batch_size
         self.polling_interval = polling_interval
         self.verbose = verbose
-        self.headers = {"X-API-Key": api_key}
+        self.headers = {}
+        if api_key:
+            self.headers["X-API-Key"] = api_key
         self.hostname = socket.gethostname()
         self.user_agent = f"MMS-BatchUploader/{VERSION} (Python; {self.hostname})"
         self.headers["User-Agent"] = self.user_agent
@@ -110,14 +112,23 @@ class MMSUploader:
     
     def ping(self) -> bool:
         """Test server connectivity with detailed client info"""
-        self._print_colored("\n=== MMS Server Ping ===", Colors.CYAN)
+        # Show current timestamp
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        self._print_colored(f"\n{'='*70}", Colors.CYAN)
+        self._print_colored(f"  MMS Server Ping - {current_time}", Colors.CYAN)
+        self._print_colored(f"{'='*70}", Colors.CYAN)
         self._print_colored(f"Server: {self.url}", Colors.GRAY)
         
         # Log connection attempt
         self.logger.info(f"Attempting connection to {self.url}")
         self.logger.info(f"Client: {self.hostname}")
         self.logger.info(f"User-Agent: {self.user_agent}")
-        self.logger.info(f"API Key: {self.api_key[:20]}...")
+        if self.api_key:
+            self.logger.info(f"API Key: {self.api_key[:20]}...")
+        else:
+            self.logger.info("API Key: Not provided")
         
         try:
             # Make request
@@ -138,29 +149,62 @@ class MMSUploader:
             data = response.json()
             
             # Log response details
-            self.logger.info(f"Server status: {data.get('status', 'Unknown')}")
+            self.logger.info(f"Service status: {data.get('serviceStatus', 'Unknown')}")
             self.logger.info(f"Environment: {data.get('environment', 'Unknown')}")
+            self.logger.info(f"Key status: {data.get('keyStatus', 'not_provided')}")
             self.logger.info(f"Auth method: {data.get('authMethod', 'Unknown')}")
             self.logger.info(f"Version: {data.get('version', 'Unknown')}")
+            if data.get('keyUser'):
+                self.logger.info(f"Key user: {data.get('keyUser')}")
             
             # Display to console
             self._print_colored("\nClient Information:", Colors.YELLOW)
             self._print_colored(f"  Hostname: {self.hostname}", Colors.WHITE)
             self._print_colored(f"  User-Agent: {self.user_agent}", Colors.GRAY)
-            self._print_colored(f"  API Key: {self.api_key[:20]}...", Colors.GRAY)
-            
-            self._print_colored("\nServer Response:", Colors.YELLOW)
-            self._print_colored(f"  Status: {data.get('status', 'Unknown')}", Colors.GREEN)
-            self._print_colored(f"  Environment: {data.get('environment', 'Unknown')}", Colors.GRAY)
-            self._print_colored(f"  Auth Method: {data.get('authMethod', 'none')}", Colors.CYAN)
-            self._print_colored(f"  Version: {data.get('version', 'Unknown')}", Colors.GRAY)
-            self._print_colored(f"  Message: {data.get('message', 'No message')}", Colors.GRAY)
-            self._print_colored(f"  Response Time: {elapsed:.2f}s", Colors.GRAY)
-            
-            if data.get('authMethod') == 'api_key':
-                self._print_colored("\n✓ Connection successful! (Authenticated)", Colors.GREEN)
+            if self.api_key:
+                self._print_colored(f"  API Key: {self.api_key[:20]}...", Colors.GRAY)
             else:
-                self._print_colored("\n✓ Connection successful! (Not authenticated)", Colors.YELLOW)
+                self._print_colored(f"  API Key: Not provided", Colors.GRAY)
+            
+            # Display server info
+            client_info = data.get('client', {})
+            self._print_colored("\nServer Response:", Colors.YELLOW)
+            self._print_colored(f"  Service Status: {data.get('serviceStatus', 'Unknown')}", 
+                              Colors.GREEN if data.get('serviceStatus') == 'running' else Colors.RED)
+            self._print_colored(f"  Environment: {data.get('environment', 'Unknown')}", Colors.GRAY)
+            self._print_colored(f"  Version: {data.get('version', 'Unknown')}", Colors.GRAY)
+            self._print_colored(f"  Server IP: {client_info.get('ip', 'Unknown')}", Colors.GRAY)
+            
+            # Key validation status
+            key_status = data.get('keyStatus', 'not_provided')
+            self._print_colored("\nAPI Key Validation:", Colors.YELLOW)
+            if key_status == 'valid':
+                self._print_colored(f"  Status: ✓ VALID", Colors.GREEN)
+                self._print_colored(f"  Key User: {data.get('keyUser', 'Unknown')}", Colors.CYAN)
+            elif key_status == 'invalid':
+                self._print_colored(f"  Status: ✗ INVALID", Colors.RED)
+                self._print_colored(f"  Issue: API key not recognized", Colors.RED)
+            elif key_status == 'inactive':
+                self._print_colored(f"  Status: ✗ INACTIVE", Colors.YELLOW)
+                self._print_colored(f"  Issue: API key is disabled", Colors.YELLOW)
+            elif key_status == 'not_provided':
+                self._print_colored(f"  Status: Not provided", Colors.GRAY)
+            elif key_status == 'session_auth':
+                self._print_colored(f"  Status: Session authenticated", Colors.CYAN)
+            
+            self._print_colored(f"\n  Response Time: {elapsed:.2f}s", Colors.GRAY)
+            self._print_colored(f"  Message: {data.get('message', 'No message')}", Colors.GRAY)
+            
+            # Summary
+            if key_status == 'valid':
+                self._print_colored("\n✓ Connection successful! API key is valid and active.", Colors.GREEN)
+            elif data.get('serviceStatus') == 'running':
+                if key_status == 'invalid':
+                    self._print_colored("\n⚠ Service is running but API key is INVALID.", Colors.YELLOW)
+                elif key_status == 'inactive':
+                    self._print_colored("\n⚠ Service is running but API key is INACTIVE.", Colors.YELLOW)
+                else:
+                    self._print_colored("\n✓ Service is running. (No API key provided)", Colors.YELLOW)
             
             self.logger.info("Ping successful")
             return True
@@ -527,8 +571,9 @@ Configuration File (config.json):
         parser.print_help()
         sys.exit(1)
     
-    if not api_key:
-        print(f"{Colors.RED}Error: --key or config file with 'key' is required{Colors.RESET}")
+    # API key is only required for upload and status, not for ping
+    if not api_key and (args.status or args.upload):
+        print(f"{Colors.RED}Error: --key or config file with 'key' is required for --status and --upload{Colors.RESET}")
         parser.print_help()
         sys.exit(1)
     
