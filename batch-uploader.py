@@ -2,9 +2,9 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.1.4
-Last Updated: November 05, 2025 - 6:45 PM CST
-Status: PRODUCTION READY
+Version: 1.1.5
+Last Updated: November 05, 2025 - 7:10 PM CST
+Status: PRODUCTION READY - TESTED
 ================================================================================
 
 Automated batch file uploader with API key authentication.
@@ -38,7 +38,7 @@ from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
