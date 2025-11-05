@@ -2,8 +2,8 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.2.0
-Last Updated: November 05, 2025 - 8:45 PM CST
+Version: 1.2.1
+Last Updated: November 05, 2025 - 9:05 PM CST
 Status: PRODUCTION READY - TESTED
 ================================================================================
 
@@ -49,7 +49,7 @@ from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
@@ -121,8 +121,8 @@ class MMSUploader:
         self.logger = logging.getLogger('MMS-Uploader')
         self.logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
         
-        # File handler (logs to logs folder)
-        fh = logging.FileHandler(log_file)
+        # File handler (logs to logs folder) with UTF-8 encoding
+        fh = logging.FileHandler(log_file, encoding='utf-8')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter(
             '%(asctime)s - %(levelname)s - %(message)s',
