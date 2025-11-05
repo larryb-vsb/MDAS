@@ -213,4 +213,42 @@ export function registerApiUserRoutes(app: Express) {
       res.status(500).json({ error: "Failed to fetch connection log" });
     }
   });
+
+  // Get all host approvals
+  app.get("/api/tddf-api/monitoring/host-approvals", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+
+      const approvals = await storage.getHostApprovals();
+      res.json(approvals);
+    } catch (error) {
+      console.error("Error fetching host approvals:", error);
+      res.status(500).json({ error: "Failed to fetch host approvals" });
+    }
+  });
+
+  // Update host approval status
+  app.put("/api/tddf-api/monitoring/host-approvals/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const { status, notes } = req.body;
+      const reviewedBy = req.user?.username || "Unknown";
+
+      if (!['approved', 'denied'].includes(status)) {
+        return res.status(400).json({ error: "Status must be 'approved' or 'denied'" });
+      }
+
+      const updated = await storage.updateHostApprovalStatus(id, status, reviewedBy, notes);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating host approval:", error);
+      res.status(500).json({ error: "Failed to update host approval" });
+    }
+  });
 }

@@ -119,6 +119,12 @@ export interface IStorage {
   getConnectionHosts(): Promise<any[]>;
   getConnectionLog(limit: number): Promise<any[]>;
   
+  // Host approval operations
+  getHostApproval(hostname: string, apiKeyPrefix: string): Promise<any | null>;
+  createOrUpdateHostApproval(data: any): Promise<any>;
+  updateHostApprovalStatus(id: number, status: string, reviewedBy: string, notes?: string): Promise<any>;
+  getHostApprovals(): Promise<any[]>;
+  
   // Log operations
   getSystemLogs(params: any): Promise<any>;
   getSecurityLogs(params: any): Promise<any>;
@@ -1070,6 +1076,75 @@ export class DatabaseStorage implements IStorage {
       ORDER BY timestamp DESC
       LIMIT $1
     `, [limit]);
+    
+    return result.rows;
+  }
+
+  // @ENVIRONMENT-CRITICAL - Host approval operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async getHostApproval(hostname: string, apiKeyPrefix: string): Promise<any | null> {
+    const hostApprovalsTableName = getTableName('host_approvals');
+    
+    const result = await pool.query(`
+      SELECT * FROM ${hostApprovalsTableName}
+      WHERE hostname = $1 AND api_key_prefix = $2
+    `, [hostname, apiKeyPrefix]);
+    
+    return result.rows[0] || null;
+  }
+
+  async createOrUpdateHostApproval(data: {
+    hostname: string;
+    apiKeyPrefix: string;
+    apiUserId?: number;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<any> {
+    const hostApprovalsTableName = getTableName('host_approvals');
+    
+    const result = await pool.query(`
+      INSERT INTO ${hostApprovalsTableName} 
+        (hostname, api_key_prefix, api_user_id, ip_address, user_agent, last_seen_at, last_seen_ip)
+      VALUES ($1, $2, $3, $4, $5, NOW(), $4)
+      ON CONFLICT (hostname, api_key_prefix) 
+      DO UPDATE SET 
+        last_seen_at = NOW(),
+        last_seen_ip = $4,
+        user_agent = $5
+      RETURNING *
+    `, [data.hostname, data.apiKeyPrefix, data.apiUserId || null, data.ipAddress, data.userAgent]);
+    
+    return result.rows[0];
+  }
+
+  async updateHostApprovalStatus(id: number, status: string, reviewedBy: string, notes?: string): Promise<any> {
+    const hostApprovalsTableName = getTableName('host_approvals');
+    
+    const result = await pool.query(`
+      UPDATE ${hostApprovalsTableName}
+      SET 
+        status = $1,
+        reviewed_by = $2,
+        reviewed_at = NOW(),
+        notes = $3
+      WHERE id = $4
+      RETURNING *
+    `, [status, reviewedBy, notes || null, id]);
+    
+    return result.rows[0];
+  }
+
+  async getHostApprovals(): Promise<any[]> {
+    const hostApprovalsTableName = getTableName('host_approvals');
+    
+    const result = await pool.query(`
+      SELECT 
+        ha.*,
+        au.username as api_key_name
+      FROM ${hostApprovalsTableName} ha
+      LEFT JOIN ${getTableName('api_users')} au ON ha.api_user_id = au.id
+      ORDER BY ha.requested_at DESC
+    `);
     
     return result.rows;
   }

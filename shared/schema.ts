@@ -1169,6 +1169,29 @@ export const ipBlocklist = pgTable(getTableName("ip_blocklist"), {
   };
 });
 
+// Host approvals for upload access control (hostname + API key combination)
+export const hostApprovals = pgTable(getTableName("host_approvals"), {
+  id: serial("id").primaryKey(),
+  hostname: text("hostname").notNull(), // Client hostname (from user agent, e.g., "VSB-L-LARRY")
+  apiKeyPrefix: text("api_key_prefix").notNull(), // API key prefix (first 20 chars)
+  apiUserId: integer("api_user_id"), // Foreign key to api_users
+  ipAddress: text("ip_address"), // Current IP (informational only, can change)
+  userAgent: text("user_agent"), // Full user agent string
+  status: text("status").notNull().default("pending"), // pending, approved, denied
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  reviewedBy: text("reviewed_by"), // Username who approved/denied
+  reviewedAt: timestamp("reviewed_at"), // When it was approved/denied
+  notes: text("notes"), // Admin notes about this host
+  lastSeenAt: timestamp("last_seen_at"), // Last time this host+key connected
+  lastSeenIp: text("last_seen_ip"), // Most recent IP seen (informational)
+}, (table) => {
+  return {
+    hostnameKeyIdx: unique("host_approvals_hostname_key_unique").on(table.hostname, table.apiKeyPrefix),
+    statusIdx: index("host_approvals_status_idx").on(table.status),
+    hostnameIdx: index("host_approvals_hostname_idx").on(table.hostname),
+  };
+});
+
 // Zod schemas for users
 export const usersSchema = createInsertSchema(users);
 export const insertUserSchema = usersSchema.omit({ id: true, createdAt: true, lastLogin: true });
