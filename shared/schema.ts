@@ -1130,28 +1130,42 @@ export const apiUsers = pgTable(getTableName("api_users"), {
   };
 });
 
-// Client Registrations table - tracks client fingerprints for API key approval
-export const clientRegistrations = pgTable(getTableName("client_registrations"), {
+// Connection Log table - tracks ALL connections for security monitoring
+export const connectionLog = pgTable(getTableName("connection_log"), {
   id: serial("id").primaryKey(),
-  apiUserId: integer("api_user_id").notNull(), // Foreign key to api_users
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
   clientIp: text("client_ip").notNull(), // Client IP address
-  hostname: text("hostname"), // Client hostname if available
-  userAgent: text("user_agent"), // Client user agent string
-  fingerprint: text("fingerprint").notNull(), // Unique fingerprint hash (IP + hostname)
-  status: text("status").notNull().default("pending"), // pending, approved, denied
-  firstSeen: timestamp("first_seen").defaultNow().notNull(),
-  lastSeen: timestamp("last_seen").defaultNow().notNull(),
-  requestCount: integer("request_count").default(0),
-  approvedBy: text("approved_by"), // Username of admin who approved
-  approvedAt: timestamp("approved_at"),
-  deniedBy: text("denied_by"), // Username of admin who denied
-  deniedAt: timestamp("denied_at"),
-  notes: text("notes"), // Admin notes about this client
+  endpoint: text("endpoint").notNull(), // Which endpoint was accessed
+  method: text("method").notNull(), // HTTP method (GET, POST, etc)
+  userAgent: text("user_agent"), // User agent string
+  apiKeyUsed: text("api_key_used"), // API key prefix if used (first 20 chars)
+  apiUserId: integer("api_user_id"), // Foreign key to api_users if authenticated
+  authenticated: boolean("authenticated").notNull().default(false), // Was request authenticated
+  statusCode: integer("status_code"), // HTTP response status code
+  responseTime: integer("response_time"), // Response time in milliseconds
 }, (table) => {
   return {
-    fingerprintIdx: index("client_registrations_fingerprint_idx").on(table.fingerprint),
-    apiUserIdIdx: index("client_registrations_api_user_id_idx").on(table.apiUserId),
-    statusIdx: index("client_registrations_status_idx").on(table.status),
+    ipIdx: index("connection_log_ip_idx").on(table.clientIp),
+    timestampIdx: index("connection_log_timestamp_idx").on(table.timestamp),
+    endpointIdx: index("connection_log_endpoint_idx").on(table.endpoint),
+    apiUserIdIdx: index("connection_log_api_user_id_idx").on(table.apiUserId),
+  };
+});
+
+// IP Blocklist table - track blocked IPs
+export const ipBlocklist = pgTable(getTableName("ip_blocklist"), {
+  id: serial("id").primaryKey(),
+  ipAddress: text("ip_address").notNull().unique(),
+  reason: text("reason"), // Why this IP was blocked
+  blockedBy: text("blocked_by"), // Username who blocked it
+  blockedAt: timestamp("blocked_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"), // Optional expiration for temporary blocks
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+}, (table) => {
+  return {
+    ipIdx: index("ip_blocklist_ip_idx").on(table.ipAddress),
+    activeIdx: index("ip_blocklist_active_idx").on(table.isActive),
   };
 });
 

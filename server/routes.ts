@@ -41,7 +41,7 @@ import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { processAllRecordsToMasterTable } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
 import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
-import { heatMapCacheProcessingStats } from "@shared/schema";
+import { heatMapCacheProcessingStats, connectionLog, ipBlocklist } from "@shared/schema";
 import { backfillUniversalTimestamps } from "./services/universal-timestamp";
 import { parseTddfFilename, formatProcessingTime } from "./utils/tddfFilename";
 import { logger } from "../shared/logger";
@@ -284,33 +284,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerTddfCacheRoutes(app);      // Register specific routes FIRST (before :id parameter)
   registerTddfRecordsRoutes(app);    // Register parameter routes LAST (/:id catch-all)
   
-  // Ping endpoint for connectivity testing (supports API key authentication)
-  app.get("/api/uploader/ping", async (req, res) => {
+  // Helper function to log connections
+  async function logConnection(req: Request, statusCode: number, responseTime: number, apiUserId?: number, authenticated = false) {
+    try {
+      const clientIp = getClientIp(req);
+      const apiKey = req.headers['x-api-key'] as string;
+      const userAgent = req.headers['user-agent'] as string;
+      
+      await db.insert(connectionLog).values({
+        timestamp: new Date(),
+        clientIp,
+        endpoint: req.path,
+        method: req.method,
+        userAgent,
+        apiKeyUsed: apiKey ? apiKey.substring(0, 20) + '...' : null,
+        apiUserId: apiUserId || null,
+        authenticated,
+        statusCode,
+        responseTime
+      });
+    } catch (error) {
+      logger.error('Failed to log connection:', error);
+    }
+  }
+
+  // IP blocking middleware
+  async function checkIpBlocked(req: Request, res: Response, next: NextFunction) {
+    try {
+      const clientIp = getClientIp(req);
+      const blocked = await db.select()
+        .from(ipBlocklist)
+        .where(and(
+          eq(ipBlocklist.ipAddress, clientIp),
+          eq(ipBlocklist.isActive, true)
+        ))
+        .limit(1);
+      
+      if (blocked && blocked.length > 0) {
+        const blockEntry = blocked[0];
+        // Check if block has expired
+        if (blockEntry.expiresAt && new Date(blockEntry.expiresAt) < new Date()) {
+          // Block expired, allow through
+          return next();
+        }
+        
+        logger.warn(`Blocked IP attempted access: ${clientIp} - ${blockEntry.reason}`);
+        return res.status(403).json({ 
+          error: 'Access denied',
+          reason: 'IP blocked',
+          message: 'Your IP address has been blocked from accessing this service'
+        });
+      }
+      
+      next();
+    } catch (error) {
+      logger.error('Error checking IP blocklist:', error);
+      next(); // Continue on error to not break service
+    }
+  }
+
+  // Ping endpoint - NO authentication required, logs all connections
+  app.get("/api/uploader/ping", checkIpBlocked, async (req, res) => {
+    const startTime = Date.now();
+    
     try {
       const apiKey = req.headers['x-api-key'] as string;
+      const clientIp = getClientIp(req);
       let authMethod = 'none';
+      let keyStatus = 'not_provided';
+      let apiUserId: number | undefined;
+      let keyUsername: string | undefined;
       
+      // Check if API key provided
       if (apiKey) {
         const apiUser = await storage.getApiUserByKey(apiKey);
-        if (apiUser && apiUser.is_active) {
-          authMethod = 'api_key';
-          const clientIp = getClientIp(req);
-          await storage.updateApiUserUsage(apiUser.id, clientIp);
+        if (apiUser) {
+          apiUserId = apiUser.id;
+          keyUsername = apiUser.username;
+          
+          if (apiUser.is_active) {
+            authMethod = 'api_key';
+            keyStatus = 'valid';
+            await storage.updateApiUserUsage(apiUser.id, clientIp);
+          } else {
+            keyStatus = 'inactive';
+          }
+        } else {
+          keyStatus = 'invalid';
         }
       } else if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
         authMethod = 'session';
+        keyStatus = 'session_auth';
       }
+      
+      const responseTime = Date.now() - startTime;
+      
+      // Log connection
+      await logConnection(req, 200, responseTime, apiUserId, authMethod !== 'none');
       
       res.json({
         status: 'ok',
+        serviceStatus: 'running',
         version: '1.0.0',
         timestamp: new Date().toISOString(),
         environment: NODE_ENV,
         authMethod: authMethod,
-        message: 'MMS Batch Uploader API is operational'
+        keyStatus: keyStatus,
+        keyUser: keyUsername,
+        message: 'MMS Batch Uploader API is operational',
+        client: {
+          ip: clientIp,
+          userAgent: req.headers['user-agent']
+        }
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      const responseTime = Date.now() - startTime;
+      await logConnection(req, 500, responseTime);
+      res.status(500).json({ 
+        status: 'error',
+        serviceStatus: 'error',
+        error: error.message 
+      });
     }
   });
 
