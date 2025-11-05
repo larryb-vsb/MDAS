@@ -2522,6 +2522,7 @@ export default function TddfApiDataPage() {
   });
   const [createdApiKey, setCreatedApiKey] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [isCreateKeyDialogOpen, setIsCreateKeyDialogOpen] = useState(false);
   
   // File selection state
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -3022,6 +3023,7 @@ export default function TddfApiDataPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/keys"], exact: false });
       setCreatedApiKey(data?.key || "");
       setNewApiKey({ keyName: "", permissions: ["read"], rateLimitPerMinute: 100, expiresAt: "" });
+      setIsCreateKeyDialogOpen(false);
       toast({ title: "API key created successfully" });
     }
   });
@@ -5994,7 +5996,7 @@ export default function TddfApiDataPage() {
         <TabsContent value="api-keys" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">API Key Management</h2>
-            <Dialog>
+            <Dialog open={isCreateKeyDialogOpen} onOpenChange={setIsCreateKeyDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Key className="mr-2 h-4 w-4" />
