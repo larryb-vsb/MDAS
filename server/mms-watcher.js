@@ -430,6 +430,8 @@ class MMSWatcher {
         FROM ${this.storage.getTableName('uploader_uploads')}
         WHERE current_phase = 'encoding' 
           AND updated_at < NOW() - INTERVAL '5 minutes'
+          AND deleted_at IS NULL
+          AND is_archived = false
         LIMIT 3
       `);
       
