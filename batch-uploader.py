@@ -339,7 +339,7 @@ class MMSUploader:
             response = requests.post(
                 f"{self.url}/api/uploader/start",
                 headers=self.headers,
-                json={"fileName": filename, "fileSize": file_size},
+                json={"filename": filename, "fileSize": file_size},
                 timeout=30
             )
             response.raise_for_status()

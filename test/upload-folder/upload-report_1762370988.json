@@ -1,0 +1,62 @@
+{
+  "total": 11,
+  "successful": 11,
+  "failed": 0,
+  "uploads": [
+    {
+      "fileName": "VERMNTSB.6759_DACQ_MER_DTL_10152025_001053.TSYSO",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_830_10272022_083244.TSYSO",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_2400_10272022_001824.TSYSO",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_2400_10282022_002134.TSYSO",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "VSB_MerchantDem_20250729-MID2 Parent Mid.csv",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "TSYS-Terminal-Risk-Report-Oct29-2025.csv",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "801203_AH0314P1_20240118_003-20250912082849.csv",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "801203_AH0314P1_20240122_001-20250912082849.csv",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "VERMNTSB.6759_DACQ_MER_DTL_10042025_000559.TSYSO",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_2400_10062025_001346.TSYSO",
+      "success": true,
+      "error": null
+    },
+    {
+      "fileName": "upload-report_1762370826.json",
+      "success": true,
+      "error": null
+    }
+  ]
+}
