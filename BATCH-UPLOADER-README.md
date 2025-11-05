@@ -30,7 +30,11 @@ PowerShell-based batch file uploader for the Merchant Management System (MMS). U
 4. Click **Create API Key**
 5. Enter a key name (e.g., "PowerShell Batch Uploader")
 6. Set permissions to include upload access
-7. Copy the generated API key (save it securely - it won't be shown again)
+7. **IMPORTANT:** Copy the API key from the green success card that appears
+   - The key starts with `mms_` and is 40+ characters long (e.g., `mms_1762317589477_rd27o6dv8x`)
+   - Click the copy button next to the key
+   - **DO NOT use "undefined"** - if you see this, the key wasn't copied correctly
+   - Save it securely - it won't be shown again!
 
 ### 2. Test Connection (Command-Line)
 
