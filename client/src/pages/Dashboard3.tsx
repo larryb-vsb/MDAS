@@ -31,22 +31,22 @@ interface DashboardMetrics {
   merchants: {
     total: number;
     ach: number;
-    mmc: number;
+    mcc: number;
   };
   newMerchants30Day: {
     total: number;
     ach: number;
-    mmc: number;
+    mcc: number;
   };
   todayTransactions: {
     total: number;
     ach: number;
-    mmc: number;
+    mcc: number;
   };
   totalTerminals: {
     total: number;
     ach: number;
-    mmc: number;
+    mcc: number;
   };
   cacheMetadata?: {
     lastRefreshed: string;
@@ -170,7 +170,7 @@ export default function Dashboard3() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">MCC:</span>
-                    <span className="font-medium">{dashboardMetrics?.merchants.mmc.toLocaleString() || '0'}</span>
+                    <span className="font-medium">{dashboardMetrics?.merchants.mcc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -195,7 +195,7 @@ export default function Dashboard3() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">MCC:</span>
-                    <span className="font-medium">{dashboardMetrics?.newMerchants30Day.mmc.toLocaleString() || '0'}</span>
+                    <span className="font-medium">{dashboardMetrics?.newMerchants30Day.mcc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -220,7 +220,7 @@ export default function Dashboard3() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">MCC:</span>
-                    <span className="font-medium">{dashboardMetrics?.todayTransactions.mmc.toLocaleString() || '0'}</span>
+                    <span className="font-medium">{dashboardMetrics?.todayTransactions.mcc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -245,7 +245,7 @@ export default function Dashboard3() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">MCC:</span>
-                    <span className="font-medium">{dashboardMetrics?.totalTerminals.mmc.toLocaleString() || '0'}</span>
+                    <span className="font-medium">{dashboardMetrics?.totalTerminals.mcc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
               </CardContent>
