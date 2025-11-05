@@ -4080,6 +4080,77 @@ export default function TddfApiDataPage() {
             </Card>
           </div>
 
+          {/* Automation Controls Section */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Automation Controls
+              </CardTitle>
+              <CardDescription>
+                Configure automatic processing for uploaded files
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Auto 4-5 Encode */}
+              <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Zap className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <div className="font-medium text-purple-800">Auto 4-5 Encode</div>
+                    <div className="text-sm text-purple-600">
+                      Automatic file identification and encoding (Steps 4-5)
+                    </div>
+                  </div>
+                </div>
+                <Switch
+                  checked={auto45Enabled}
+                  onCheckedChange={handleAuto45Change}
+                  disabled={saveAuto45Setting.isPending}
+                  data-testid="switch-auto-45-overview"
+                />
+              </div>
+
+              {/* Auto 6 Json Encode */}
+              <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Pause className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium text-blue-800">Auto 6 Json Encode</div>
+                    <div className="text-sm text-blue-600">
+                      Enable automatic Step 6 JSON encoding for uploaded files
+                    </div>
+                  </div>
+                </div>
+                <Switch
+                  checked={autoStep6Enabled}
+                  onCheckedChange={handleAutoStep6Change}
+                  disabled={saveAutoStep6Setting.isPending}
+                  data-testid="switch-auto-step6-overview"
+                />
+              </div>
+
+              {/* Auto 7 Archive */}
+              <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Database className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="font-medium text-green-800">Auto 7 Archive</div>
+                    <div className="text-sm text-green-600">
+                      Enable automatic Step 7 archiving for completed files
+                    </div>
+                  </div>
+                </div>
+                <Switch
+                  checked={autoStep7Enabled}
+                  onCheckedChange={handleAutoStep7Change}
+                  disabled={saveAutoStep7Setting.isPending}
+                  data-testid="switch-auto-step7-overview"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Advanced Analytics Section */}
           <div className="border-t pt-6 mt-6">
             <h3 className="text-xl font-semibold mb-4">Advanced Analytics & Insights</h3>
