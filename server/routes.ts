@@ -143,6 +143,39 @@ export async function isApiKeyAuthenticated(req: Request, res: Response, next: N
   }
 }
 
+// Flexible authentication middleware - accepts either session or API key
+export async function isAuthenticatedOrApiKey(req: Request, res: Response, next: NextFunction) {
+  logger.auth(`Checking flexible authentication for ${req.method} ${req.path}`);
+  
+  // Check for API key first
+  const apiKey = req.headers['x-api-key'] as string;
+  if (apiKey) {
+    try {
+      const apiUser = await storage.getApiUserByKey(apiKey);
+      if (apiUser && apiUser.isActive) {
+        // Update last used timestamp and request count
+        await storage.updateApiUserUsage(apiUser.id);
+        // Add API user to request for logging
+        (req as any).apiUser = apiUser;
+        (req as any).user = { username: apiUser.keyName }; // Mock user for compatibility
+        logger.auth(`API key authenticated: ${apiUser.keyName}`);
+        return next();
+      }
+    } catch (error) {
+      console.error('API key validation error:', error);
+    }
+  }
+  
+  // Fall back to session authentication
+  if (req.isAuthenticated()) {
+    logger.auth(`Session authenticated: ${(req.user as any)?.username}`);
+    return next();
+  }
+  
+  logger.auth(`Authentication failed - no valid session or API key`);
+  res.status(401).json({ error: "Authentication required (session or API key)" });
+}
+
 // Helper function to format CSV without external dependency
 function formatCSV(data: any[]) {
   if (!data || data.length === 0) return '';
@@ -248,6 +281,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerTddfCacheRoutes(app);      // Register specific routes FIRST (before :id parameter)
   registerTddfRecordsRoutes(app);    // Register parameter routes LAST (/:id catch-all)
   
+  // Ping endpoint for connectivity testing (supports API key authentication)
+  app.get("/api/uploader/ping", async (req, res) => {
+    try {
+      const apiKey = req.headers['x-api-key'] as string;
+      let authMethod = 'none';
+      
+      if (apiKey) {
+        const apiUser = await storage.getApiUserByKey(apiKey);
+        if (apiUser && apiUser.isActive) {
+          authMethod = 'api_key';
+          await storage.updateApiUserUsage(apiUser.id);
+        }
+      } else if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
+        authMethod = 'session';
+      }
+      
+      res.json({
+        status: 'ok',
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        environment: NODE_ENV,
+        authMethod: authMethod,
+        message: 'MMS Batch Uploader API is operational'
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Batch status endpoint - returns upload queue status (supports API key authentication)
+  app.get("/api/uploader/batch-status", async (req, res) => {
+    try {
+      const apiKey = req.headers['x-api-key'] as string;
+      let authenticated = false;
+      
+      if (apiKey) {
+        const apiUser = await storage.getApiUserByKey(apiKey);
+        if (apiUser && apiUser.isActive) {
+          authenticated = true;
+          await storage.updateApiUserUsage(apiUser.id);
+        }
+      } else if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
+        authenticated = true;
+      }
+      
+      if (!authenticated) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
+      const tableName = getTableName('uploader_uploads');
+      
+      const queueStatus = await pool.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE current_phase IN ('queued', 'uploading')) as queued_count,
+          COUNT(*) FILTER (WHERE current_phase IN ('identifying', 'encoding', 'processing')) as processing_count,
+          COUNT(*) FILTER (WHERE current_phase = 'completed') as completed_count,
+          COUNT(*) FILTER (WHERE current_phase = 'error') as error_count,
+          COUNT(*) as total_count
+        FROM ${tableName}
+        WHERE (is_archived = false OR is_archived IS NULL)
+        AND (upload_status != 'deleted' OR upload_status IS NULL)
+        AND created_at >= NOW() - INTERVAL '24 hours'
+      `);
+      
+      const stats = queueStatus.rows[0];
+      const processingCount = parseInt(stats.processing_count || 0);
+      const queuedCount = parseInt(stats.queued_count || 0);
+      const totalActive = processingCount + queuedCount;
+      const capacityLimit = 10;
+      
+      res.json({
+        ready: totalActive < capacityLimit,
+        processing_count: processingCount,
+        queued_count: queuedCount,
+        completed_count: parseInt(stats.completed_count || 0),
+        error_count: parseInt(stats.error_count || 0),
+        total_count: parseInt(stats.total_count || 0),
+        capacity_available: Math.max(0, capacityLimit - totalActive),
+        capacity_limit: capacityLimit,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Batch status error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get Replit Object Storage configuration status with optional prefix override
   app.get("/api/uploader/storage-config", isAuthenticated, async (req, res) => {
     try {
@@ -514,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Start upload - Create database record and generate storage key
-  app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
+  app.post("/api/uploader/start", isAuthenticatedOrApiKey, async (req, res) => {
     try {
       const { filename, fileSize, sessionId, keep = false } = req.body;
       const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -559,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload file content to Replit Object Storage
-  app.post("/api/uploader/:id/upload", isAuthenticated, upload.single('file'), async (req, res) => {
+  app.post("/api/uploader/:id/upload", isAuthenticatedOrApiKey, upload.single('file'), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -660,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chunked upload endpoint for large files (>25MB)
-  app.post("/api/uploader/:id/upload-chunk", isAuthenticated, upload.single('chunk'), async (req, res) => {
+  app.post("/api/uploader/:id/upload-chunk", isAuthenticatedOrApiKey, upload.single('chunk'), async (req, res) => {
     try {
       const { id } = req.params;
       const { chunkIndex, totalChunks } = req.body;

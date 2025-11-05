@@ -60,6 +60,39 @@ export async function isApiKeyAuthenticated(req: Request, res: Response, next: N
   }
 }
 
+// Flexible authentication middleware - accepts either session or API key
+export async function isAuthenticatedOrApiKey(req: Request, res: Response, next: NextFunction) {
+  logger.auth(`Checking flexible authentication for ${req.method} ${req.path}`);
+  
+  // Check for API key first
+  const apiKey = req.headers['x-api-key'] as string;
+  if (apiKey) {
+    try {
+      const apiUser = await storage.getApiUserByKey(apiKey);
+      if (apiUser && apiUser.isActive) {
+        // Update last used timestamp and request count
+        await storage.updateApiUserUsage(apiUser.id);
+        // Add API user to request for logging
+        (req as any).apiUser = apiUser;
+        (req as any).user = { username: apiUser.keyName }; // Mock user for compatibility
+        logger.auth(`API key authenticated: ${apiUser.keyName}`);
+        return next();
+      }
+    } catch (error) {
+      console.error('API key validation error:', error);
+    }
+  }
+  
+  // Fall back to session authentication
+  if (req.isAuthenticated()) {
+    logger.auth(`Session authenticated: ${(req.user as any)?.username}`);
+    return next();
+  }
+  
+  logger.auth(`Authentication failed - no valid session or API key`);
+  res.status(401).json({ error: "Authentication required (session or API key)" });
+}
+
 // Global processing pause state
 let processingPaused = false;
 
