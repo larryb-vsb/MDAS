@@ -3872,35 +3872,10 @@ export default function TddfApiDataPage() {
                           <Card key={file.id} className="bg-white dark:bg-gray-900">
                             <CardContent className="p-3">
                               <div className="space-y-2">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="font-medium text-xs truncate flex-1 min-w-0" title={file.filename}>
-                                    {file.filename}
-                                  </p>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={async () => {
-                                      if (confirm(`Are you sure you want to delete "${file.filename}"?`)) {
-                                        try {
-                                          await deleteFilesMutation.mutateAsync([file.id]);
-                                          toast({ title: "File deleted successfully" });
-                                          refetchSearch();
-                                        } catch (error: any) {
-                                          toast({ 
-                                            title: "Failed to delete file", 
-                                            description: error.message,
-                                            variant: "destructive" 
-                                          });
-                                        }
-                                      }
-                                    }}
-                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                                    data-testid={`button-delete-${file.id}`}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
+                                <p className="font-medium text-xs truncate" title={file.filename}>
+                                  {file.filename}
+                                </p>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
                                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                                     <span className="flex items-center gap-0.5 whitespace-nowrap">
                                       <Clock className="h-2.5 w-2.5" />
@@ -3922,6 +3897,29 @@ export default function TddfApiDataPage() {
                                     {file.is_archived && (
                                       <Badge variant="outline" className="bg-gray-100 text-[10px] px-1.5 py-0 whitespace-nowrap">Archived</Badge>
                                     )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (confirm(`Are you sure you want to delete "${file.filename}"?`)) {
+                                          try {
+                                            await deleteFilesMutation.mutateAsync([file.id]);
+                                            toast({ title: "File deleted successfully" });
+                                            refetchSearch();
+                                          } catch (error: any) {
+                                            toast({ 
+                                              title: "Failed to delete file", 
+                                              description: error.message,
+                                              variant: "destructive" 
+                                            });
+                                          }
+                                        }
+                                      }}
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      data-testid={`button-delete-${file.id}`}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
@@ -3946,35 +3944,10 @@ export default function TddfApiDataPage() {
                           <Card key={file.id} className="bg-white dark:bg-gray-900">
                             <CardContent className="p-3">
                               <div className="space-y-2">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="font-medium text-xs truncate flex-1 min-w-0" title={file.filename}>
-                                    {file.filename}
-                                  </p>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={async () => {
-                                      if (confirm(`Are you sure you want to delete archived file "${file.filename}"?`)) {
-                                        try {
-                                          await deleteFilesMutation.mutateAsync([file.id]);
-                                          toast({ title: "Archived file deleted successfully" });
-                                          refetchSearch();
-                                        } catch (error: any) {
-                                          toast({ 
-                                            title: "Failed to delete archived file", 
-                                            description: error.message,
-                                            variant: "destructive" 
-                                          });
-                                        }
-                                      }
-                                    }}
-                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                                    data-testid={`button-delete-archive-${file.id}`}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
+                                <p className="font-medium text-xs truncate" title={file.filename}>
+                                  {file.filename}
+                                </p>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
                                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                                     <span className="flex items-center gap-0.5 whitespace-nowrap">
                                       <Clock className="h-2.5 w-2.5" />
@@ -3996,6 +3969,29 @@ export default function TddfApiDataPage() {
                                     {file.archived_by && (
                                       <span className="text-[10px] text-muted-foreground whitespace-nowrap">by {file.archived_by}</span>
                                     )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (confirm(`Are you sure you want to delete archived file "${file.filename}"?`)) {
+                                          try {
+                                            await deleteFilesMutation.mutateAsync([file.id]);
+                                            toast({ title: "Archived file deleted successfully" });
+                                            refetchSearch();
+                                          } catch (error: any) {
+                                            toast({ 
+                                              title: "Failed to delete archived file", 
+                                              description: error.message,
+                                              variant: "destructive" 
+                                            });
+                                          }
+                                        }
+                                      }}
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      data-testid={`button-delete-archive-${file.id}`}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
