@@ -29,6 +29,7 @@ The UI/UX emphasizes a modern, professional, and intuitive experience using Tail
 - **Terminal Management**: Efficient UPSERT logic for terminal imports with unique constraint on `v_number` to prevent duplicates and automatic update of `last_update` timestamp and `update_source`. Terminal CSV file type detection improved.
 - **Analytics**: Comprehensive daily merchant breakdown dashboard with full record type details, optimized with multiple performance indexes on TDDF JSONB records for date-based queries. Includes a compact monthly calendar heat map for terminal activity.
 - **Dashboard Consistency**: Standardized `mcc` property usage across backend caching and frontend display to ensure accurate reporting of Merchant Category Code metrics.
+- **MCC Calculation Fix (Nov 5, 2025)**: Corrected MCC merchant count from 0 to 359 by updating SQL query logic to use `merchant_type != '3'` (exclude only ACH) instead of `IN ('0', '1')` which didn't match actual merchant data types ('8000', '1000', '3000', etc.). Fixed frontend typo (.mmc → .mcc) in HomeDashboardEnhanced.tsx across all 9 metric references.
 
 ## External Dependencies
 
