@@ -2561,6 +2561,12 @@ export default function TddfApiDataPage() {
   const [autoStep6Enabled, setAutoStep6Enabled] = useState<boolean>(false);
   const [autoStep7Enabled, setAutoStep7Enabled] = useState<boolean>(false);
 
+  // Load Auto 4-5 setting on mount
+  const { data: auto45Setting } = useQuery({
+    queryKey: ['/api/mms-watcher/auto45-status'],
+    enabled: true
+  });
+
   // Load Auto Step 6 setting on mount
   const { data: autoStep6Setting } = useQuery<AutoStep6Setting>({
     queryKey: ['/api/uploader/auto-step6-setting'],
@@ -2575,6 +2581,12 @@ export default function TddfApiDataPage() {
 
   // Update local state when API data loads
   useEffect(() => {
+    if ((auto45Setting as any)?.enabled !== undefined) {
+      setAuto45Enabled((auto45Setting as any).enabled);
+    }
+  }, [auto45Setting]);
+
+  useEffect(() => {
     if (autoStep6Setting?.autoStep6Enabled !== undefined) {
       setAutoStep6Enabled(autoStep6Setting.autoStep6Enabled);
     }
@@ -2586,6 +2598,41 @@ export default function TddfApiDataPage() {
       setAutoStep7Enabled(autoStep7Setting.autoStep7Enabled);
     }
   }, [autoStep7Setting]);
+
+  // Mutation to toggle Auto 4-5
+  const saveAuto45Setting = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      return apiRequest('/api/mms-watcher/auto45-toggle', {
+        method: 'POST',
+        body: JSON.stringify({ enabled }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: (data: any, enabled: boolean) => {
+      toast({
+        title: enabled ? "Auto 4-5 Enabled" : "Auto 4-5 Disabled",
+        description: enabled 
+          ? "Files will automatically progress through identification and encoding" 
+          : "Files will stop at 'uploaded' phase and require manual processing",
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/mms-watcher/auto45-status'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to toggle Auto 4-5 setting",
+        variant: "destructive"
+      });
+      console.error('Error toggling Auto 4-5:', error);
+    }
+  });
+
+  // Handle Auto 4-5 toggle change
+  const handleAuto45Change = async (enabled: boolean) => {
+    setAuto45Enabled(enabled); // Update local state immediately for responsive UI
+    saveAuto45Setting.mutate(enabled);
+  };
 
   // Mutation to save Auto Step 6 setting
   const saveAutoStep6Setting = useMutation<AutoStep6SettingResponse, Error, boolean>({
@@ -4652,6 +4699,27 @@ export default function TddfApiDataPage() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Auto 4-5 Encode Switch */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Zap className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <div className="font-medium text-purple-800">Auto 4-5 Encode</div>
+                        <div className="text-sm text-purple-600">
+                          Automatic file identification and encoding (Steps 4-5)
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={auto45Enabled}
+                      onCheckedChange={handleAuto45Change}
+                      disabled={saveAuto45Setting.isPending}
+                      data-testid="switch-auto-45"
+                    />
+                  </div>
                 </div>
 
                 {/* Auto 6 Json Encode Switch */}
