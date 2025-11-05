@@ -2,27 +2,37 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.1.5
-Last Updated: November 05, 2025 - 7:10 PM CST
+Version: 1.2.0
+Last Updated: November 05, 2025 - 8:45 PM CST
 Status: PRODUCTION READY - TESTED
 ================================================================================
 
-Automated batch file uploader with API key authentication.
+Automated batch file uploader with API key authentication and folder management.
 Supports config files, command-line parameters, and three actions:
   - ping: Test server connectivity (NO API key required)
   - status: Check upload queue status (requires API key)
-  - upload: Batch upload files from a directory (requires API key)
+  - upload: Batch upload files from inbox folder (requires API key)
 
 Features:
+  - Automatic folder structure (inbox/logs/processed)
+  - Files uploaded from 'inbox' folder automatically
+  - Successfully uploaded files moved to 'processed' folder
+  - Duplicate filename handling (appends (1), (2), etc.)
   - Host approval status display with color coding
-  - Detailed connection logging to mms-uploader.log
+  - Detailed connection logging to logs/mms-uploader.log
   - Client fingerprint tracking with hostname
   - Automatic retry with exponential backoff
-  - JSON upload reports
+  - JSON upload reports saved to logs folder
   - Timestamp display on ping
   - Verbose mode (-v flag)
   - Optional API key for ping (validates if provided)
   - Version display in output and logs
+
+Folder Structure:
+  <folder>/
+    ├── inbox/          Files to upload (scans this folder)
+    ├── logs/           Log files and upload reports
+    └── processed/      Successfully uploaded files moved here
 """
 
 import argparse
@@ -32,18 +42,21 @@ import sys
 import time
 import socket
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.1.5"
+VERSION = "1.2.0"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
 MAX_RETRIES = 3
-LOG_FILE = "mms-uploader.log"
+INBOX_FOLDER = "inbox"
+LOGS_FOLDER = "logs"
+PROCESSED_FOLDER = "processed"
 
 
 class Colors:
@@ -60,7 +73,7 @@ class Colors:
 
 
 class MMSUploader:
-    """MMS Batch File Uploader"""
+    """MMS Batch File Uploader with Folder Management"""
     
     def __init__(self, url: str, api_key: Optional[str] = None, folder: Optional[str] = None,
                  batch_size: int = DEFAULT_BATCH_SIZE,
@@ -68,7 +81,7 @@ class MMSUploader:
                  verbose: bool = False):
         self.url = url.rstrip('/')
         self.api_key = api_key
-        self.folder = folder
+        self.base_folder = Path(folder) if folder else Path.cwd()
         self.batch_size = batch_size
         self.polling_interval = polling_interval
         self.verbose = verbose
@@ -79,16 +92,37 @@ class MMSUploader:
         self.user_agent = f"MMS-BatchUploader/{VERSION} (Python; {self.hostname})"
         self.headers["User-Agent"] = self.user_agent
         
-        # Setup logging
+        # Setup folder structure
+        self._ensure_folder_structure()
+        
+        # Setup logging (after folder structure is created)
         self._setup_logging()
     
+    def _ensure_folder_structure(self):
+        """Create inbox, logs, and processed folders if they don't exist"""
+        self.inbox_folder = self.base_folder / INBOX_FOLDER
+        self.logs_folder = self.base_folder / LOGS_FOLDER
+        self.processed_folder = self.base_folder / PROCESSED_FOLDER
+        
+        # Create folders if they don't exist
+        for folder_path, folder_name in [
+            (self.inbox_folder, "inbox"),
+            (self.logs_folder, "logs"),
+            (self.processed_folder, "processed")
+        ]:
+            if not folder_path.exists():
+                folder_path.mkdir(parents=True, exist_ok=True)
+                print(f"{Colors.GREEN}✓ Created folder: {folder_path}{Colors.RESET}")
+    
     def _setup_logging(self):
-        """Setup logging to file and console"""
+        """Setup logging to logs folder"""
+        log_file = self.logs_folder / "mms-uploader.log"
+        
         self.logger = logging.getLogger('MMS-Uploader')
         self.logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
         
-        # File handler
-        fh = logging.FileHandler(LOG_FILE)
+        # File handler (logs to logs folder)
+        fh = logging.FileHandler(log_file)
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter(
             '%(asctime)s - %(levelname)s - %(message)s',
@@ -103,9 +137,13 @@ class MMSUploader:
             ch.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
             self.logger.addHandler(ch)
         
-        # Log version when logger is initialized
+        # Log version and folder structure when logger is initialized
         self.logger.info(f"=== MMS Batch Uploader v{VERSION} Started ===")
         self.logger.info(f"Hostname: {self.hostname}")
+        self.logger.info(f"Base folder: {self.base_folder}")
+        self.logger.info(f"Inbox folder: {self.inbox_folder}")
+        self.logger.info(f"Logs folder: {self.logs_folder}")
+        self.logger.info(f"Processed folder: {self.processed_folder}")
     
     def _print_colored(self, message: str, color: str = Colors.WHITE):
         """Print colored output to terminal"""
@@ -118,6 +156,41 @@ class MMSUploader:
                 return f"{size_bytes:.2f} {unit}"
             size_bytes /= 1024.0
         return f"{size_bytes:.2f} TB"
+    
+    def _get_unique_filename(self, destination_folder: Path, filename: str) -> Path:
+        """Get unique filename in destination folder by appending (1), (2), etc. if needed"""
+        base_path = destination_folder / filename
+        
+        if not base_path.exists():
+            return base_path
+        
+        # File exists, find unique name
+        name_stem = Path(filename).stem
+        name_suffix = Path(filename).suffix
+        counter = 1
+        
+        while True:
+            new_filename = f"{name_stem} ({counter}){name_suffix}"
+            new_path = destination_folder / new_filename
+            if not new_path.exists():
+                self.logger.info(f"Duplicate detected: {filename} → {new_filename}")
+                return new_path
+            counter += 1
+    
+    def _move_to_processed(self, file_path: Path) -> bool:
+        """Move successfully uploaded file to processed folder"""
+        try:
+            destination_path = self._get_unique_filename(self.processed_folder, file_path.name)
+            shutil.move(str(file_path), str(destination_path))
+            
+            self.logger.info(f"Moved to processed: {file_path.name} → {destination_path.name}")
+            self._print_colored(f"  ↳ Moved to processed: {destination_path.name}", Colors.GRAY)
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to move {file_path.name} to processed: {e}")
+            self._print_colored(f"  ⚠ Warning: Could not move file to processed: {str(e)}", Colors.YELLOW)
+            return False
     
     def ping(self) -> bool:
         """Test server connectivity with detailed client info"""
@@ -442,22 +515,20 @@ class MMSUploader:
                 return False
     
     def upload_batch(self) -> Dict[str, Any]:
-        """Upload files in batches"""
+        """Upload files from inbox folder in batches"""
         self._print_colored(f"\n=== MMS Batch Uploader v{VERSION} - Batch Upload ===", Colors.CYAN)
-        if not self.folder:
-            self._print_colored("Error: No folder specified for upload", Colors.RED)
+        
+        # Always use inbox folder
+        if not self.inbox_folder.exists():
+            self._print_colored(f"Error: Inbox folder not found: {self.inbox_folder}", Colors.RED)
             return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
         
-        folder_path = Path(self.folder)
-        if not folder_path.exists():
-            self._print_colored(f"Error: Folder not found: {self.folder}", Colors.RED)
-            return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
-        
-        # Find all files
-        files = [f for f in folder_path.iterdir() if f.is_file()]
+        # Find all files in inbox folder
+        files = [f for f in self.inbox_folder.iterdir() if f.is_file()]
         
         if not files:
-            self._print_colored("\nNo files found to upload.", Colors.YELLOW)
+            self._print_colored(f"\nNo files found in inbox folder: {self.inbox_folder}", Colors.YELLOW)
+            self.logger.info("No files in inbox folder to upload")
             return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
         
         # Display header
@@ -467,7 +538,9 @@ class MMSUploader:
         
         self._print_colored("\nConfiguration:", Colors.YELLOW)
         self._print_colored(f"  Server: {self.url}", Colors.WHITE)
-        self._print_colored(f"  Folder: {self.folder}", Colors.WHITE)
+        self._print_colored(f"  Base Folder: {self.base_folder}", Colors.WHITE)
+        self._print_colored(f"  Inbox: {self.inbox_folder}", Colors.WHITE)
+        self._print_colored(f"  Processed: {self.processed_folder}", Colors.WHITE)
         self._print_colored(f"  Batch Size: {self.batch_size}", Colors.WHITE)
         self._print_colored(f"  Polling Interval: {self.polling_interval}s", Colors.WHITE)
         
@@ -527,9 +600,16 @@ class MMSUploader:
             # Upload batch
             for file_path in batch:
                 success = self._upload_file(file_path)
+                
+                # Move to processed folder if upload succeeded
+                moved = False
+                if success:
+                    moved = self._move_to_processed(file_path)
+                
                 results["uploads"].append({
                     "fileName": file_path.name,
                     "success": success,
+                    "movedToProcessed": moved,
                     "error": None if success else "Upload failed"
                 })
                 
@@ -553,11 +633,13 @@ class MMSUploader:
                 if not upload['success']:
                     self._print_colored(f"  - {upload['fileName']}: {upload['error']}", Colors.RED)
         
-        # Save report
-        report_path = Path(self.folder) / f"upload-report_{int(time.time())}.json"
+        # Save report to logs folder
+        report_filename = f"upload-report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        report_path = self.logs_folder / report_filename
         with open(report_path, 'w') as f:
             json.dump(results, f, indent=2)
         self._print_colored(f"\nReport saved to: {report_path}", Colors.GRAY)
+        self.logger.info(f"Upload report saved: {report_filename}")
         
         return results
 
@@ -663,7 +745,7 @@ Configuration File (config.json):
     uploader.logger.info(f"MMS Batch Uploader v{VERSION} Started")
     uploader.logger.info(f"Server: {url}")
     uploader.logger.info(f"Hostname: {uploader.hostname}")
-    uploader.logger.info(f"Log file: {LOG_FILE}")
+    uploader.logger.info(f"Log file: {uploader.logs_folder / 'mms-uploader.log'}")
     uploader.logger.info("=" * 60)
     
     # Execute action
