@@ -45,7 +45,7 @@ import { heatMapCacheProcessingStats, connectionLog, ipBlocklist } from "@shared
 import { backfillUniversalTimestamps } from "./services/universal-timestamp";
 import { parseTddfFilename, formatProcessingTime } from "./utils/tddfFilename";
 import { logger } from "../shared/logger";
-import { getClientIp } from "./routes/middleware";
+import { getClientIp, isHostApproved } from "./routes/middleware";
 
 // Business day extraction utility for TDDF filenames
 function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
@@ -395,20 +395,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const apiKey = req.headers['x-api-key'] as string;
       const clientIp = getClientIp(req);
+      const userAgent = req.headers['user-agent'] || '';
       let authMethod = 'none';
       let keyStatus = 'not_provided';
       let keyUsername: string | undefined;
+      let apiUserId: number | undefined;
+      let hostApprovalStatus: string | null = null;
+      
+      // Extract hostname from User-Agent (e.g., "MMS-BatchUploader/1.1.3 (Python; VSB-L-LARRY)")
+      const hostnameMatch = userAgent.match(/\((?:[^;]+;\s*)?([^)]+)\)/);
+      const hostname = hostnameMatch ? hostnameMatch[1].trim() : null;
       
       // Check if API key provided
       if (apiKey) {
         const apiUser = await storage.getApiUserByKey(apiKey);
         if (apiUser) {
           keyUsername = apiUser.username;
+          apiUserId = apiUser.id;
           
           if (apiUser.is_active) {
             authMethod = 'api_key';
             keyStatus = 'valid';
             await storage.updateApiUserUsage(apiUser.id, clientIp);
+            
+            // Check/create host approval if hostname detected
+            if (hostname) {
+              const apiKeyPrefix = apiKey.substring(0, 20);
+              const existingApproval = await storage.getHostApproval(hostname, apiKeyPrefix);
+              
+              if (existingApproval) {
+                // Update last seen
+                await storage.createOrUpdateHostApproval({
+                  hostname,
+                  apiKeyPrefix,
+                  apiUserId,
+                  ipAddress: clientIp,
+                  userAgent
+                });
+                hostApprovalStatus = existingApproval.status;
+              } else {
+                // Auto-create pending approval record
+                const newApproval = await storage.createOrUpdateHostApproval({
+                  hostname,
+                  apiKeyPrefix,
+                  apiUserId,
+                  ipAddress: clientIp,
+                  userAgent
+                });
+                hostApprovalStatus = newApproval.status;
+              }
+            }
           } else {
             keyStatus = 'inactive';
           }
@@ -429,6 +465,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authMethod: authMethod,
         keyStatus: keyStatus,
         keyUser: keyUsername,
+        hostApproval: hostApprovalStatus,
+        hostname: hostname,
         message: 'MMS Batch Uploader API is operational',
         client: {
           ip: clientIp,
@@ -769,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Start upload - Create database record and generate storage key
-  app.post("/api/uploader/start", isAuthenticatedOrApiKey, async (req, res) => {
+  app.post("/api/uploader/start", isAuthenticatedOrApiKey, isHostApproved, async (req, res) => {
     try {
       const { filename, fileSize, sessionId, keep = false } = req.body;
       const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -814,7 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload file content to Replit Object Storage
-  app.post("/api/uploader/:id/upload", isAuthenticatedOrApiKey, upload.single('file'), async (req, res) => {
+  app.post("/api/uploader/:id/upload", isAuthenticatedOrApiKey, isHostApproved, upload.single('file'), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -915,7 +953,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chunked upload endpoint for large files (>25MB)
-  app.post("/api/uploader/:id/upload-chunk", isAuthenticatedOrApiKey, upload.single('chunk'), async (req, res) => {
+  app.post("/api/uploader/:id/upload-chunk", isAuthenticatedOrApiKey, isHostApproved, upload.single('chunk'), async (req, res) => {
     try {
       const { id } = req.params;
       const { chunkIndex, totalChunks } = req.body;

@@ -115,6 +115,77 @@ export async function isAuthenticatedOrApiKey(req: Request, res: Response, next:
   res.status(401).json({ error: "Authentication required (session or API key)" });
 }
 
+// Host approval middleware - checks if hostname + API key combination is approved
+export async function isHostApproved(req: Request, res: Response, next: NextFunction) {
+  // Only check for API key users (session users bypass this check)
+  const apiKey = req.headers['x-api-key'] as string;
+  
+  if (!apiKey) {
+    // Session authenticated - allow through
+    return next();
+  }
+  
+  try {
+    // Extract hostname from User-Agent (e.g., "MMS-BatchUploader/1.1.3 (Python; VSB-L-LARRY)")
+    const userAgent = req.headers['user-agent'] || '';
+    const hostnameMatch = userAgent.match(/\((?:[^;]+;\s*)?([^)]+)\)/);
+    const hostname = hostnameMatch ? hostnameMatch[1].trim() : null;
+    
+    if (!hostname) {
+      return res.status(403).json({ 
+        error: "Host approval required",
+        message: "Unable to determine hostname from User-Agent. Please ensure your client sends hostname information."
+      });
+    }
+    
+    // Check host approval status
+    const apiKeyPrefix = apiKey.substring(0, 20);
+    const approval = await storage.getHostApproval(hostname, apiKeyPrefix);
+    
+    if (!approval) {
+      return res.status(403).json({ 
+        error: "Host approval required",
+        message: `Host "${hostname}" with this API key is not registered. Contact administrator for approval.`,
+        hostname: hostname,
+        status: "not_registered"
+      });
+    }
+    
+    if (approval.status === 'pending') {
+      return res.status(403).json({ 
+        error: "Host approval pending",
+        message: `Host "${hostname}" with this API key is pending approval. Contact administrator.`,
+        hostname: hostname,
+        status: "pending"
+      });
+    }
+    
+    if (approval.status === 'denied') {
+      return res.status(403).json({ 
+        error: "Host approval denied",
+        message: `Host "${hostname}" with this API key has been denied access. Contact administrator.`,
+        hostname: hostname,
+        status: "denied"
+      });
+    }
+    
+    if (approval.status === 'approved') {
+      // Approved - allow through
+      return next();
+    }
+    
+    // Unknown status
+    return res.status(500).json({ 
+      error: "Unknown approval status",
+      message: "Contact administrator"
+    });
+    
+  } catch (error) {
+    console.error('Host approval check error:', error);
+    res.status(500).json({ error: "Host approval check failed" });
+  }
+}
+
 // Global processing pause state
 let processingPaused = false;
 
