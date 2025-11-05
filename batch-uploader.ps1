@@ -2,76 +2,133 @@
 .SYNOPSIS
     MMS Batch File Uploader - Automated batch upload with API key authentication
 .DESCRIPTION
-    Uploads files from a directory to MMS in batches of 5, with automatic chunking for large files
+    Uploads files from a directory to MMS in batches, with automatic chunking for large files
     Polls server for queue status between batches to avoid overwhelming the system
-.PARAMETER Mode
-    Operation mode: ping, status, upload
-.PARAMETER ConfigFile
-    Path to configuration JSON file (default: config.json)
+.PARAMETER Url
+    MMS server URL (e.g., https://myapp.replit.dev)
+.PARAMETER Key
+    API key for authentication
+.PARAMETER Folder
+    Directory containing files to upload (required for -Upload mode)
+.PARAMETER Ping
+    Test server connectivity
+.PARAMETER Status
+    Check upload queue status
+.PARAMETER Upload
+    Start batch upload
+.PARAMETER Config
+    Optional config file path (command-line params override config values)
+.PARAMETER BatchSize
+    Number of files per batch (default: 5)
+.PARAMETER Polling
+    Polling interval in seconds (default: 10)
 .EXAMPLE
-    .\batch-uploader.ps1 -Mode ping
-    .\batch-uploader.ps1 -Mode status
-    .\batch-uploader.ps1 -Mode upload -ConfigFile "C:\path\to\config.json"
+    .\batch-uploader.ps1 -Url https://myapp.replit.dev -Key xxxxx -Ping
+.EXAMPLE
+    .\batch-uploader.ps1 -Url https://myapp.replit.dev -Key xxxxx -Status
+.EXAMPLE
+    .\batch-uploader.ps1 -Url https://myapp.replit.dev -Folder C:\support\upload -Key xxxxx -Upload
+.EXAMPLE
+    .\batch-uploader.ps1 -Config config.json -Upload
 #>
 
 param(
-    [Parameter(Mandatory=$true)]
-    [ValidateSet("ping", "status", "upload")]
-    [string]$Mode,
+    [Parameter(Mandatory=$false)]
+    [string]$Url,
     
     [Parameter(Mandatory=$false)]
-    [string]$ConfigFile = "config.json"
+    [string]$Key,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$Folder,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$Ping,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$Status,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$Upload,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$Config,
+    
+    [Parameter(Mandatory=$false)]
+    [int]$BatchSize = 5,
+    
+    [Parameter(Mandatory=$false)]
+    [int]$Polling = 10,
+    
+    [Parameter(Mandatory=$false)]
+    [int]$MaxRetries = 3,
+    
+    [Parameter(Mandatory=$false)]
+    [int]$ChunkSizeMB = 25
 )
 
 # Script configuration
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "Continue"
 
-# Load configuration
-function Load-Config {
-    param([string]$ConfigPath)
-    
-    if (-not (Test-Path $ConfigPath)) {
-        Write-Error "Configuration file not found: $ConfigPath"
-        Write-Host "`nPlease create a config.json file with the following structure:" -ForegroundColor Yellow
-        Write-Host @"
-{
-    "apiKey": "your-api-key-here",
-    "serverUrl": "https://your-replit-url.replit.app",
-    "uploadDirectory": "C:\\path\\to\\files",
-    "batchSize": 5,
-    "pollingInterval": 10,
-    "maxRetries": 3,
-    "chunkSize": 26214400
-}
-"@ -ForegroundColor Cyan
-        exit 1
-    }
-    
+# Determine operation mode
+$mode = $null
+if ($Ping) { $mode = "ping" }
+elseif ($Status) { $mode = "status" }
+elseif ($Upload) { $mode = "upload" }
+
+# Load configuration from file if specified
+$configData = $null
+if ($Config -and (Test-Path $Config)) {
     try {
-        $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
-        
-        # Validate required fields
-        $required = @("apiKey", "serverUrl")
-        foreach ($field in $required) {
-            if (-not $config.$field) {
-                Write-Error "Missing required configuration field: $field"
-                exit 1
-            }
-        }
-        
-        # Set defaults
-        if (-not $config.batchSize) { $config.batchSize = 5 }
-        if (-not $config.pollingInterval) { $config.pollingInterval = 10 }
-        if (-not $config.maxRetries) { $config.maxRetries = 3 }
-        if (-not $config.chunkSize) { $config.chunkSize = 26214400 } # 25MB
-        
-        return $config
+        $configData = Get-Content $Config -Raw | ConvertFrom-Json
+        Write-Host "Loaded configuration from: $Config" -ForegroundColor Gray
     }
     catch {
-        Write-Error "Failed to load configuration: $_"
-        exit 1
+        Write-Warning "Failed to load config file: $_"
     }
+}
+
+# Build final configuration (command-line overrides config file)
+$script:ServerUrl = if ($Url) { $Url } elseif ($configData.serverUrl) { $configData.serverUrl } else { $null }
+$script:ApiKey = if ($Key) { $Key } elseif ($configData.apiKey) { $configData.apiKey } else { $null }
+$script:UploadFolder = if ($Folder) { $Folder } elseif ($configData.uploadDirectory) { $configData.uploadDirectory } else { $null }
+$script:BatchSize = if ($BatchSize -ne 5) { $BatchSize } elseif ($configData.batchSize) { $configData.batchSize } else { 5 }
+$script:PollingInterval = if ($Polling -ne 10) { $Polling } elseif ($configData.pollingInterval) { $configData.pollingInterval } else { 10 }
+$script:MaxRetries = if ($MaxRetries -ne 3) { $MaxRetries } elseif ($configData.maxRetries) { $configData.maxRetries } else { 3 }
+$script:ChunkSize = if ($ChunkSizeMB -ne 25) { $ChunkSizeMB * 1MB } elseif ($configData.chunkSize) { $configData.chunkSize } else { 26214400 }
+
+# Validate required parameters
+if (-not $mode) {
+    Write-Host "ERROR: Operation mode required" -ForegroundColor Red
+    Write-Host "`nUsage:" -ForegroundColor Yellow
+    Write-Host "  .\batch-uploader.ps1 -Url <url> -Key <api-key> -Ping" -ForegroundColor White
+    Write-Host "  .\batch-uploader.ps1 -Url <url> -Key <api-key> -Status" -ForegroundColor White
+    Write-Host "  .\batch-uploader.ps1 -Url <url> -Folder <path> -Key <api-key> -Upload" -ForegroundColor White
+    Write-Host "`nOr use config file:" -ForegroundColor Yellow
+    Write-Host "  .\batch-uploader.ps1 -Config config.json -Upload" -ForegroundColor White
+    exit 1
+}
+
+if (-not $script:ServerUrl) {
+    Write-Error "Server URL required (-Url or config file)"
+    exit 1
+}
+
+if (-not $script:ApiKey) {
+    Write-Error "API key required (-Key or config file)"
+    exit 1
+}
+
+if ($mode -eq "upload" -and -not $script:UploadFolder) {
+    Write-Error "Upload folder required for -Upload mode (-Folder or config file)"
+    exit 1
+}
+
+# Normalize URL (remove trailing slash and /mmsuploader if present)
+$script:ServerUrl = $script:ServerUrl.TrimEnd('/')
+if ($script:ServerUrl -match '/mmsuploader$') {
+    $script:ServerUrl = $script:ServerUrl -replace '/mmsuploader$', ''
 }
 
 # Make HTTP request with API key
@@ -84,7 +141,7 @@ function Invoke-ApiRequest {
         [string]$ContentType = "application/json"
     )
     
-    $Headers["X-API-Key"] = $script:Config.apiKey
+    $Headers["X-API-Key"] = $script:ApiKey
     
     try {
         $params = @{
@@ -117,10 +174,10 @@ function Invoke-ApiRequest {
 # Ping server
 function Test-Connection {
     Write-Host "`n=== MMS Server Ping ===" -ForegroundColor Cyan
-    Write-Host "Server: $($script:Config.serverUrl)" -ForegroundColor Gray
+    Write-Host "Server: $($script:ServerUrl)" -ForegroundColor Gray
     
     try {
-        $url = "$($script:Config.serverUrl)/api/uploader/ping"
+        $url = "$($script:ServerUrl)/api/uploader/ping"
         $response = Invoke-ApiRequest -Url $url -Method GET
         
         Write-Host "`nStatus: " -NoNewline -ForegroundColor Green
@@ -145,7 +202,7 @@ function Get-BatchStatus {
     param([bool]$DisplayOutput = $true)
     
     try {
-        $url = "$($script:Config.serverUrl)/api/uploader/batch-status"
+        $url = "$($script:ServerUrl)/api/uploader/batch-status"
         $response = Invoke-ApiRequest -Url $url -Method GET
         
         if ($DisplayOutput) {
@@ -197,12 +254,12 @@ function Wait-ForReady {
                 return $false
             }
             
-            Write-Host "System busy (Processing: $($status.processing_count), Queued: $($status.queued_count)). Waiting $($script:Config.pollingInterval) seconds..." -ForegroundColor Yellow
-            Start-Sleep -Seconds $script:Config.pollingInterval
+            Write-Host "System busy (Processing: $($status.processing_count), Queued: $($status.queued_count)). Waiting $($script:PollingInterval) seconds..." -ForegroundColor Yellow
+            Start-Sleep -Seconds $script:PollingInterval
         }
         catch {
             Write-Warning "Failed to check status: $($_.Exception.Message)"
-            Start-Sleep -Seconds $script:Config.pollingInterval
+            Start-Sleep -Seconds $script:PollingInterval
         }
     }
 }
@@ -214,7 +271,7 @@ function Start-UploadSession {
         [long]$FileSize
     )
     
-    $url = "$($script:Config.serverUrl)/api/uploader/start"
+    $url = "$($script:ServerUrl)/api/uploader/start"
     $body = @{
         filename = $FileName
         fileSize = $FileSize
@@ -233,7 +290,7 @@ function Send-FileContent {
         [string]$FilePath
     )
     
-    $url = "$($script:Config.serverUrl)/api/uploader/$UploadId/upload"
+    $url = "$($script:ServerUrl)/api/uploader/$UploadId/upload"
     
     # Create multipart form data
     $boundary = [System.Guid]::NewGuid().ToString()
@@ -250,7 +307,7 @@ function Send-FileContent {
     ) -join "`r`n"
     
     $headers = @{
-        "X-API-Key" = $script:Config.apiKey
+        "X-API-Key" = $script:ApiKey
     }
     
     $response = Invoke-RestMethod -Uri $url -Method POST -Headers $headers `
@@ -268,7 +325,7 @@ function Send-FileChunk {
         [int]$TotalChunks
     )
     
-    $url = "$($script:Config.serverUrl)/api/uploader/$UploadId/upload-chunk"
+    $url = "$($script:ServerUrl)/api/uploader/$UploadId/upload-chunk"
     
     $boundary = [System.Guid]::NewGuid().ToString()
     
@@ -290,7 +347,7 @@ function Send-FileChunk {
     ) -join "`r`n"
     
     $headers = @{
-        "X-API-Key" = $script:Config.apiKey
+        "X-API-Key" = $script:ApiKey
     }
     
     $response = Invoke-RestMethod -Uri $url -Method POST -Headers $headers `
@@ -320,15 +377,15 @@ function Upload-File {
         Write-Host "  Upload ID: $uploadId" -ForegroundColor Gray
         
         # Determine if chunking is needed
-        if ($fileSize -gt $script:Config.chunkSize) {
+        if ($fileSize -gt $script:ChunkSize) {
             # Chunked upload
-            $totalChunks = [math]::Ceiling($fileSize / $script:Config.chunkSize)
+            $totalChunks = [math]::Ceiling($fileSize / $script:ChunkSize)
             Write-Host "  Using chunked upload ($totalChunks chunks)" -ForegroundColor Yellow
             
             $fileStream = [System.IO.File]::OpenRead($FilePath)
             try {
                 for ($i = 0; $i -lt $totalChunks; $i++) {
-                    $chunkSize = [math]::Min($script:Config.chunkSize, $fileSize - ($i * $script:Config.chunkSize))
+                    $chunkSize = [math]::Min($script:ChunkSize, $fileSize - ($i * $script:ChunkSize))
                     $chunk = New-Object byte[] $chunkSize
                     $bytesRead = $fileStream.Read($chunk, 0, $chunkSize)
                     
@@ -356,13 +413,13 @@ function Upload-File {
         }
     }
     catch {
-        if ($RetryCount -lt $script:Config.maxRetries) {
-            Write-Host "  ✗ Upload failed, retrying ($($RetryCount + 1)/$($script:Config.maxRetries))..." -ForegroundColor Yellow
+        if ($RetryCount -lt $script:MaxRetries) {
+            Write-Host "  ✗ Upload failed, retrying ($($RetryCount + 1)/$($script:MaxRetries))..." -ForegroundColor Yellow
             Start-Sleep -Seconds 5
             return Upload-File -FilePath $FilePath -RetryCount ($RetryCount + 1)
         }
         else {
-            Write-Host "  ✗ Upload failed after $($script:Config.maxRetries) retries" -ForegroundColor Red
+            Write-Host "  ✗ Upload failed after $($script:MaxRetries) retries" -ForegroundColor Red
             return @{
                 Success = $false
                 FileName = $fileName
@@ -374,13 +431,8 @@ function Upload-File {
 
 # Main batch upload function
 function Start-BatchUpload {
-    if (-not $script:Config.uploadDirectory) {
-        Write-Error "uploadDirectory not specified in config"
-        exit 1
-    }
-    
-    if (-not (Test-Path $script:Config.uploadDirectory)) {
-        Write-Error "Upload directory not found: $($script:Config.uploadDirectory)"
+    if (-not (Test-Path $script:UploadFolder)) {
+        Write-Error "Upload folder not found: $($script:UploadFolder)"
         exit 1
     }
     
@@ -389,10 +441,10 @@ function Start-BatchUpload {
     Write-Host "╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
     
     Write-Host "`nConfiguration:" -ForegroundColor Yellow
-    Write-Host "  Server: $($script:Config.serverUrl)" -ForegroundColor White
-    Write-Host "  Directory: $($script:Config.uploadDirectory)" -ForegroundColor White
-    Write-Host "  Batch Size: $($script:Config.batchSize)" -ForegroundColor White
-    Write-Host "  Polling Interval: $($script:Config.pollingInterval) seconds" -ForegroundColor White
+    Write-Host "  Server: $($script:ServerUrl)" -ForegroundColor White
+    Write-Host "  Folder: $($script:UploadFolder)" -ForegroundColor White
+    Write-Host "  Batch Size: $($script:BatchSize)" -ForegroundColor White
+    Write-Host "  Polling Interval: $($script:PollingInterval) seconds" -ForegroundColor White
     
     # Test connection first
     Write-Host "`nTesting connection..." -ForegroundColor Yellow
@@ -402,7 +454,7 @@ function Start-BatchUpload {
     }
     
     # Get list of files
-    $files = Get-ChildItem -Path $script:Config.uploadDirectory -File | Where-Object {
+    $files = Get-ChildItem -Path $script:UploadFolder -File | Where-Object {
         $_.Extension -in @('.csv', '.tsv', '.json', '.txt', '.TSYSO', '.tsyso')
     }
     
@@ -422,12 +474,12 @@ function Start-BatchUpload {
     }
     
     $batchNumber = 0
-    $totalBatches = [math]::Ceiling($files.Count / $script:Config.batchSize)
+    $totalBatches = [math]::Ceiling($files.Count / $script:BatchSize)
     
     # Process files in batches
-    for ($i = 0; $i -lt $files.Count; $i += $script:Config.batchSize) {
+    for ($i = 0; $i -lt $files.Count; $i += $script:BatchSize) {
         $batchNumber++
-        $batch = $files[$i..([math]::Min($i + $script:Config.batchSize - 1, $files.Count - 1))]
+        $batch = $files[$i..([math]::Min($i + $script:BatchSize - 1, $files.Count - 1))]
         
         Write-Host "`n╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
         Write-Host "║  BATCH $batchNumber / $totalBatches ($($batch.Count) file(s))" -ForegroundColor Magenta
@@ -471,15 +523,13 @@ function Start-BatchUpload {
     }
     
     # Save report
-    $reportPath = Join-Path $script:Config.uploadDirectory "upload-report_$(Get-Date -Format 'yyyyMMddHHmmss').json"
+    $reportPath = Join-Path $script:UploadFolder "upload-report_$(Get-Date -Format 'yyyyMMddHHmmss').json"
     $results | ConvertTo-Json -Depth 10 | Set-Content $reportPath
     Write-Host "`nReport saved to: $reportPath" -ForegroundColor Gray
 }
 
 # Main entry point
-$script:Config = Load-Config -ConfigPath $ConfigFile
-
-switch ($Mode) {
+switch ($mode) {
     "ping" {
         Test-Connection
     }

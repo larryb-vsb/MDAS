@@ -30,6 +30,7 @@ The UI/UX emphasizes a modern, professional, and intuitive experience using Tail
 - **Analytics**: Comprehensive daily merchant breakdown dashboard with full record type details, optimized with multiple performance indexes on TDDF JSONB records for date-based queries. Includes a compact monthly calendar heat map for terminal activity.
 - **Dashboard Consistency**: Standardized `mcc` property usage across backend caching and frontend display to ensure accurate reporting of Merchant Category Code metrics.
 - **MCC Calculation Fix (Nov 5, 2025)**: Corrected MCC merchant count from 0 to 359 by updating SQL query logic to use `merchant_type != '3'` (exclude only ACH) instead of `IN ('0', '1')` which didn't match actual merchant data types ('8000', '1000', '3000', etc.). Fixed frontend typo (.mmc → .mcc) in HomeDashboardEnhanced.tsx across all 9 metric references.
+- **PowerShell Batch Uploader (Nov 5, 2025)**: Comprehensive PowerShell-based batch file uploader with API key authentication, automatic chunking for large files (>25MB), queue status monitoring, and retry logic. Supports both command-line parameters and optional config file. Includes new API endpoints: GET /api/uploader/ping (connectivity test) and GET /api/uploader/batch-status (queue metrics). Upload endpoints (/api/uploader/start, /api/uploader/:id/upload, /api/uploader/:id/upload-chunk) enhanced with flexible authentication supporting both session cookies and API key headers.
 
 ## External Dependencies
 

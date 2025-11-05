@@ -12,6 +12,7 @@ PowerShell-based batch file uploader for the Merchant Management System (MMS). U
 - ✅ **Progress Tracking** - Real-time upload progress and status
 - ✅ **Connectivity Testing** - Ping and status check commands
 - ✅ **Upload Reports** - Generates JSON reports for each batch upload session
+- ✅ **Flexible Configuration** - Command-line parameters or config file
 
 ## Prerequisites
 
@@ -31,47 +32,18 @@ PowerShell-based batch file uploader for the Merchant Management System (MMS). U
 6. Set permissions to include upload access
 7. Copy the generated API key (save it securely - it won't be shown again)
 
-### 2. Configure the Script
+### 2. Test Connection (Command-Line)
 
-1. Copy `config.example.json` to `config.json`
-2. Edit `config.json` with your settings:
-
-```json
-{
-  "apiKey": "tddf_1234567890abcdef",
-  "serverUrl": "https://your-app.replit.app",
-  "uploadDirectory": "C:\\Users\\YourName\\Documents\\TDDF_Files",
-  "batchSize": 5,
-  "pollingInterval": 10,
-  "maxRetries": 3,
-  "chunkSize": 26214400
-}
-```
-
-**Configuration Options:**
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `apiKey` | Yes | - | Your MMS API key from TDDF API Keys tab |
-| `serverUrl` | Yes | - | Your MMS server URL (without trailing slash) |
-| `uploadDirectory` | Yes* | - | Directory containing files to upload (*required for upload mode) |
-| `batchSize` | No | 5 | Number of files to upload per batch |
-| `pollingInterval` | No | 10 | Seconds to wait between status checks |
-| `maxRetries` | No | 3 | Number of retry attempts for failed uploads |
-| `chunkSize` | No | 26214400 | Chunk size in bytes (25MB default) |
-
-### 3. Test Connection
-
-Test connectivity before uploading:
+Test connectivity using command-line parameters:
 
 ```powershell
-.\batch-uploader.ps1 -Mode ping
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Ping
 ```
 
 Expected output:
 ```
 === MMS Server Ping ===
-Server: https://your-app.replit.app
+Server: https://your-app.replit.dev
 
 Status: OK
 Version: 1.0.0
@@ -83,12 +55,12 @@ Timestamp: 2025-11-05T08:30:15.123Z
 ✓ Connection successful!
 ```
 
-### 4. Check Queue Status
+### 3. Check Queue Status
 
 View current upload queue status:
 
 ```powershell
-.\batch-uploader.ps1 -Mode status
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Status
 ```
 
 Expected output:
@@ -108,19 +80,92 @@ Capacity:
   Timestamp: 2025-11-05T08:30:15.123Z
 ```
 
-### 5. Upload Files
+### 4. Upload Files (Command-Line)
 
-Start batch upload:
-
-```powershell
-.\batch-uploader.ps1 -Mode upload
-```
-
-Or use a custom config file:
+Upload files from a directory:
 
 ```powershell
-.\batch-uploader.ps1 -Mode upload -ConfigFile "C:\path\to\custom-config.json"
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -Upload
 ```
+
+## Usage Options
+
+### Command-Line Parameters (Recommended)
+
+**Ping Server:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Ping
+```
+
+**Check Status:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Status
+```
+
+**Upload Files:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -Upload
+```
+
+**Custom Batch Size:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -BatchSize 10 -Upload
+```
+
+**Custom Polling Interval:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -Polling 5 -Upload
+```
+
+### Config File (Optional)
+
+For repeated use, create a config file to avoid typing parameters:
+
+1. Copy `config.example.json` to `config.json`
+2. Edit `config.json` with your settings:
+
+```json
+{
+  "apiKey": "tddf_1234567890abcdef",
+  "serverUrl": "https://your-app.replit.dev",
+  "uploadDirectory": "C:\\support\\upload",
+  "batchSize": 5,
+  "pollingInterval": 10,
+  "maxRetries": 3,
+  "chunkSize": 26214400
+}
+```
+
+3. Run commands using config file:
+
+```powershell
+.\batch-uploader.ps1 -Config config.json -Ping
+.\batch-uploader.ps1 -Config config.json -Status
+.\batch-uploader.ps1 -Config config.json -Upload
+```
+
+**Note:** Command-line parameters override config file values:
+
+```powershell
+# Use config.json but override the folder
+.\batch-uploader.ps1 -Config config.json -Folder C:\different\path -Upload
+```
+
+### Command-Line Parameters
+
+| Parameter | Alias | Required | Description |
+|-----------|-------|----------|-------------|
+| `-Url` | | Conditional | MMS server URL (required unless using -Config) |
+| `-Key` | | Conditional | API key (required unless using -Config) |
+| `-Folder` | | Conditional | Upload directory (required for -Upload mode) |
+| `-Ping` | | Mode | Test server connectivity |
+| `-Status` | | Mode | Check upload queue status |
+| `-Upload` | | Mode | Start batch upload |
+| `-Config` | | Optional | Config file path (overridden by command-line params) |
+| `-BatchSize` | | Optional | Files per batch (default: 5) |
+| `-Polling` | | Optional | Polling interval in seconds (default: 10) |
+| `-MaxRetries` | | Optional | Retry attempts (default: 3) |
+| `-ChunkSizeMB` | | Optional | Chunk size in MB (default: 25) |
 
 ## Upload Process
 
