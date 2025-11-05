@@ -2467,7 +2467,7 @@ export function registerTddfFilesRoutes(app: Express) {
 
       console.log(`[FILENAME-SEARCH] Searching for: "${search}" in uploads and archive tables`);
 
-      // Search in uploads table
+      // Search in uploads table (exclude deleted files)
       const uploadsResult = await pool.query(`
         SELECT 
           id,
@@ -2487,6 +2487,7 @@ export function registerTddfFilesRoutes(app: Express) {
           storage_path
         FROM ${uploadsTableName}
         WHERE filename ILIKE $1
+          AND deleted_at IS NULL
         ORDER BY start_time DESC
         LIMIT 50
       `, [searchTerm]);
