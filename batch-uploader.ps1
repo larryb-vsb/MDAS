@@ -367,7 +367,7 @@ function Upload-File {
     $fileSize = (Get-Item $FilePath).Length
     $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
     
-    Write-Host "`nUploading: $fileName ($($fileSizeMB) MB)" -ForegroundColor Cyan
+    Write-Host "`nUploading: $fileName - $fileSizeMB MB" -ForegroundColor Cyan
     
     try {
         # Start upload session
@@ -380,7 +380,7 @@ function Upload-File {
         if ($fileSize -gt $script:ChunkSize) {
             # Chunked upload
             $totalChunks = [math]::Ceiling($fileSize / $script:ChunkSize)
-            Write-Host "  Using chunked upload ($($totalChunks) chunks)" -ForegroundColor Yellow
+            Write-Host "  Using chunked upload - $totalChunks chunks" -ForegroundColor Yellow
             
             $fileStream = [System.IO.File]::OpenRead($FilePath)
             try {
