@@ -1,6 +1,6 @@
 # MMS Batch File Uploader
 
-PowerShell-based batch file uploader for the Merchant Management System (MMS). Uploads files in batches of 5 with automatic chunking for large files, queue status monitoring, and API key authentication.
+**Python and PowerShell-based batch file uploader** for the Merchant Management System (MMS). Uploads files in batches with automatic chunking for large files, queue status monitoring, and API key authentication.
 
 ## Features
 
@@ -8,21 +8,47 @@ PowerShell-based batch file uploader for the Merchant Management System (MMS). U
 - ✅ **Batch Upload** - Uploads files in configurable batches (default: 5 files)
 - ✅ **Automatic Chunking** - Handles large files (>25MB) with automatic chunking
 - ✅ **Queue Management** - Polls server status and waits for capacity
-- ✅ **Retry Logic** - Automatic retry on failure (configurable)
+- ✅ **Retry Logic** - Automatic retry on failure (up to 3 retries)
 - ✅ **Progress Tracking** - Real-time upload progress and status
 - ✅ **Connectivity Testing** - Ping and status check commands
 - ✅ **Upload Reports** - Generates JSON reports for each batch upload session
 - ✅ **Flexible Configuration** - Command-line parameters or config file
+- ✅ **Cross-Platform** - Python version works on Windows, Mac, and Linux
+
+## Which Version Should I Use?
+
+- **Python (`batch-uploader.py`)** - **RECOMMENDED**
+  - ✅ More reliable and tested
+  - ✅ Cross-platform (Windows, Mac, Linux)
+  - ✅ Better error messages
+  - ✅ Easier to test and debug
+  
+- **PowerShell (`batch-uploader.ps1`)** - Windows Only
+  - ⚠️ Windows PowerShell only
+  - ⚠️ May have compatibility issues
 
 ## Prerequisites
 
+### Python Version (Recommended)
+- Python 3.7 or higher
+- `requests` library (install via `pip install requests`)
+- Active MMS API key (generated from TDDF API Data page)
+- Network access to your MMS instance
+
+### PowerShell Version
 - Windows PowerShell 5.1 or PowerShell 7+
 - Active MMS API key (generated from TDDF API Data page)
 - Network access to your MMS instance
 
-## Quick Start
+## Quick Start (Python - Recommended)
 
-### 1. Get Your API Key
+### 1. Install Python Dependencies
+
+```bash
+pip install requests
+```
+
+### 2. Get Your API Key
 
 1. Log in to MMS web interface
 2. Navigate to **TDDF API Data** page
@@ -36,12 +62,16 @@ PowerShell-based batch file uploader for the Merchant Management System (MMS). U
    - **DO NOT use "undefined"** - if you see this, the key wasn't copied correctly
    - Save it securely - it won't be shown again!
 
-### 2. Test Connection (Command-Line)
+### 3. Test Connection
 
-Test connectivity using command-line parameters:
+**Python:**
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --key mms_xxxxx --ping
+```
 
+**PowerShell:**
 ```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Ping
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key mms_xxxxx -Ping
 ```
 
 Expected output:
@@ -50,126 +80,141 @@ Expected output:
 Server: https://your-app.replit.dev
 
 Status: OK
-Version: 1.0.0
 Environment: development
-Auth Method: api_key
 Message: MMS Batch Uploader API is operational
-Timestamp: 2025-11-05T08:30:15.123Z
 
 ✓ Connection successful!
 ```
 
-### 3. Check Queue Status
+### 4. Check Queue Status
 
-View current upload queue status:
+**Python:**
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --key mms_xxxxx --status
+```
 
+**PowerShell:**
 ```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Status
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key mms_xxxxx -Status
 ```
 
 Expected output:
 ```
 === Upload Queue Status ===
-Ready for Upload: YES
+Server: https://your-app.replit.dev
 
 Queue Metrics:
-  Processing: 2
-  Queued: 1
+  Active: 2
+  Waiting: 1
   Completed: 45
-  Errors: 0
-  Total (24h): 48
+  Failed: 0
 
 Capacity:
-  Available: 7 / 10
-  Timestamp: 2025-11-05T08:30:15.123Z
+  Max Concurrent: 10
+  Is Busy: False
 ```
 
-### 4. Upload Files (Command-Line)
+### 5. Upload Files
 
-Upload files from a directory:
+**Python:**
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --key mms_xxxxx --folder /path/to/files --upload
+```
 
+**PowerShell:**
 ```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -Upload
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key mms_xxxxx -Upload
 ```
 
 ## Usage Options
 
-### Command-Line Parameters (Recommended)
+### Python - Command-Line Parameters (Recommended)
 
 **Ping Server:**
-```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Ping
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --key mms_xxxxx --ping
 ```
 
 **Check Status:**
-```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key xxxxx -Status
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --key mms_xxxxx --status
 ```
 
 **Upload Files:**
-```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -Upload
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --folder /path/to/files --key mms_xxxxx --upload
 ```
 
 **Custom Batch Size:**
-```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -BatchSize 10 -Upload
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --folder /path/to/files --key mms_xxxxx --batch-size 10 --upload
 ```
 
 **Custom Polling Interval:**
-```powershell
-.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\upload -Key xxxxx -Polling 5 -Upload
+```bash
+python batch-uploader.py --url https://your-app.replit.dev --folder /path/to/files --key mms_xxxxx --polling-interval 5 --upload
 ```
 
-### Config File (Optional)
+### Python - Config File (Optional)
 
-For repeated use, create a config file to avoid typing parameters:
+For repeated use, create a config file:
 
-1. Copy `config.example.json` to `config.json`
-2. Edit `config.json` with your settings:
-
+**uploader-config.json:**
 ```json
 {
-  "apiKey": "tddf_1234567890abcdef",
-  "serverUrl": "https://your-app.replit.dev",
-  "uploadDirectory": "C:\\support\\upload",
+  "url": "https://your-app.replit.dev",
+  "key": "mms_your_api_key_here",
+  "folder": "/path/to/upload/folder",
   "batchSize": 5,
-  "pollingInterval": 10,
-  "maxRetries": 3,
-  "chunkSize": 26214400
+  "pollingInterval": 10
 }
 ```
 
-3. Run commands using config file:
+Run commands using config file:
 
-```powershell
-.\batch-uploader.ps1 -Config config.json -Ping
-.\batch-uploader.ps1 -Config config.json -Status
-.\batch-uploader.ps1 -Config config.json -Upload
+```bash
+python batch-uploader.py --config uploader-config.json --ping
+python batch-uploader.py --config uploader-config.json --status
+python batch-uploader.py --config uploader-config.json --upload
 ```
 
 **Note:** Command-line parameters override config file values:
 
-```powershell
-# Use config.json but override the folder
-.\batch-uploader.ps1 -Config config.json -Folder C:\different\path -Upload
+```bash
+# Use config but override the folder
+python batch-uploader.py --config uploader-config.json --folder /different/path --upload
 ```
 
-### Command-Line Parameters
+### Python - Command-Line Parameters
 
-| Parameter | Alias | Required | Description |
-|-----------|-------|----------|-------------|
-| `-Url` | | Conditional | MMS server URL (required unless using -Config) |
-| `-Key` | | Conditional | API key (required unless using -Config) |
-| `-Folder` | | Conditional | Upload directory (required for -Upload mode) |
-| `-Ping` | | Mode | Test server connectivity |
-| `-Status` | | Mode | Check upload queue status |
-| `-Upload` | | Mode | Start batch upload |
-| `-Config` | | Optional | Config file path (overridden by command-line params) |
-| `-BatchSize` | | Optional | Files per batch (default: 5) |
-| `-Polling` | | Optional | Polling interval in seconds (default: 10) |
-| `-MaxRetries` | | Optional | Retry attempts (default: 3) |
-| `-ChunkSizeMB` | | Optional | Chunk size in MB (default: 25) |
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--url` | Conditional | MMS server URL (required unless using --config) |
+| `--key` | Conditional | API key (required unless using --config) |
+| `--folder` | Conditional | Upload directory (required for --upload mode) |
+| `--ping` | Mode | Test server connectivity |
+| `--status` | Mode | Check upload queue status |
+| `--upload` | Mode | Start batch upload |
+| `--config` | Optional | Config file path (CLI params override config) |
+| `--batch-size` | Optional | Files per batch (default: 5) |
+| `--polling-interval` | Optional | Polling interval in seconds (default: 10) |
+
+### PowerShell - Command-Line Parameters
+
+**Ping Server:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key mms_xxxxx -Ping
+```
+
+**Check Status:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Key mms_xxxxx -Status
+```
+
+**Upload Files:**
+```powershell
+.\batch-uploader.ps1 -Url https://your-app.replit.dev -Folder C:\support\\upload -Key mms_xxxxx -Upload
+``
 
 ## Upload Process
 
