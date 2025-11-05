@@ -4965,13 +4965,13 @@ export default function TddfApiDataPage() {
                         onClick={() => {
                           const completedFiles = selectedUploads.filter(id => {
                             const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                            return upload && upload.currentPhase === 'completed';
+                            return upload && (upload.currentPhase === 'completed' || upload.currentPhase === 'encoded');
                           });
                           
                           if (completedFiles.length === 0) {
                             toast({ 
                               title: "No eligible files selected", 
-                              description: "Please select files that are 'completed' for Step 7 archiving",
+                              description: "Please select files that have been processed ('encoded' or 'completed') for Step 7 archiving",
                               variant: "destructive" 
                             });
                             return;
@@ -4983,7 +4983,7 @@ export default function TddfApiDataPage() {
                         className="bg-blue-600 hover:bg-blue-700 text-white"
                         disabled={archiveMutation.isPending || !selectedUploads.some(id => {
                           const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                          return upload && upload.currentPhase === 'completed';
+                          return upload && (upload.currentPhase === 'completed' || upload.currentPhase === 'encoded');
                         })}
                         data-testid="button-manual-step7-archive"
                       >
