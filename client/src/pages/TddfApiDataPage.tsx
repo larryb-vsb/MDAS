@@ -2990,6 +2990,32 @@ export default function TddfApiDataPage() {
     refetchInterval: 5000, // Refresh every 5 seconds
   });
 
+  // Fetch host approvals
+  const { data: hostApprovals } = useQuery<any>({
+    queryKey: ["/api/tddf-api/monitoring/host-approvals"],
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
+  // Approve/deny host mutation
+  const updateHostApprovalMutation = useMutation({
+    mutationFn: ({ id, status, notes }: { id: number; status: string; notes?: string }) =>
+      apiRequest(`/api/tddf-api/monitoring/host-approvals/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status, notes }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring/host-approvals"] });
+      toast({ title: "Host approval updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update host approval",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch merchant lookup map for displaying merchant names
   const { data: merchantLookupMap = {}, isLoading: merchantLookupLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/merchants/lookup-map"],
@@ -6488,6 +6514,117 @@ export default function TddfApiDataPage() {
                   </TableBody>
                 </Table>
               </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Host Approvals Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Host Approvals</CardTitle>
+              <CardDescription>Approve or deny hostname + API key combinations for uploads</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hostname</TableHead>
+                    <TableHead>API Key</TableHead>
+                    <TableHead>IP Address</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead>Last Seen</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {hostApprovals?.map((approval: any) => (
+                    <TableRow key={approval.id}>
+                      <TableCell className="font-mono font-semibold">{approval.hostname}</TableCell>
+                      <TableCell className="text-sm">
+                        {approval.api_key_name || 'Unknown'}
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({approval.api_key_prefix}...)
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {approval.last_seen_ip || approval.ip_address || 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {approval.status === 'approved' && (
+                          <Badge variant="default" className="bg-green-600">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Approved
+                          </Badge>
+                        )}
+                        {approval.status === 'pending' && (
+                          <Badge variant="secondary">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending
+                          </Badge>
+                        )}
+                        {approval.status === 'denied' && (
+                          <Badge variant="destructive">
+                            <X className="h-3 w-3 mr-1" />
+                            Denied
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {format(new Date(approval.requested_at), "MMM d, h:mm a")}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {approval.last_seen_at 
+                          ? format(new Date(approval.last_seen_at), "MMM d, h:mm a")
+                          : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {approval.status !== 'approved' && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-7 px-2 bg-green-600 hover:bg-green-700"
+                              onClick={() => updateHostApprovalMutation.mutate({ 
+                                id: approval.id, 
+                                status: 'approved',
+                                notes: `Approved by admin`
+                              })}
+                              disabled={updateHostApprovalMutation.isPending}
+                              data-testid={`button-approve-${approval.id}`}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Approve
+                            </Button>
+                          )}
+                          {approval.status !== 'denied' && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2"
+                              onClick={() => updateHostApprovalMutation.mutate({ 
+                                id: approval.id, 
+                                status: 'denied',
+                                notes: `Denied by admin`
+                              })}
+                              disabled={updateHostApprovalMutation.isPending}
+                              data-testid={`button-deny-${approval.id}`}
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Deny
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )) || (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        No host approval requests
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
