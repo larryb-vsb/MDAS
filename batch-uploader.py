@@ -2,8 +2,8 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.1.3
-Last Updated: November 05, 2025 - 6:25 PM CST
+Version: 1.1.4
+Last Updated: November 05, 2025 - 6:45 PM CST
 Status: PRODUCTION READY
 ================================================================================
 
@@ -14,6 +14,7 @@ Supports config files, command-line parameters, and three actions:
   - upload: Batch upload files from a directory (requires API key)
 
 Features:
+  - Host approval status display with color coding
   - Detailed connection logging to mms-uploader.log
   - Client fingerprint tracking with hostname
   - Automatic retry with exponential backoff
@@ -37,7 +38,7 @@ from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
@@ -157,6 +158,9 @@ class MMSUploader:
             response.raise_for_status()
             data = response.json()
             
+            # Store ping data for later checks
+            self._last_ping_data = data
+            
             # Log response details
             self.logger.info(f"Service status: {data.get('serviceStatus', 'Unknown')}")
             self.logger.info(f"Environment: {data.get('environment', 'Unknown')}")
@@ -165,6 +169,13 @@ class MMSUploader:
             self.logger.info(f"Version: {data.get('version', 'Unknown')}")
             if data.get('keyUser'):
                 self.logger.info(f"Key user: {data.get('keyUser')}")
+            
+            # Log host approval status
+            host_approval = data.get('hostApproval')
+            detected_hostname = data.get('hostname')
+            if host_approval:
+                self.logger.info(f"Host approval status: {host_approval}")
+                self.logger.info(f"Detected hostname: {detected_hostname}")
             
             # Display to console
             self._print_colored("\nClient Information:", Colors.YELLOW)
@@ -200,6 +211,32 @@ class MMSUploader:
                 self._print_colored(f"  Status: Not provided", Colors.GRAY)
             elif key_status == 'session_auth':
                 self._print_colored(f"  Status: Session authenticated", Colors.CYAN)
+            
+            # Host approval status
+            host_approval = data.get('hostApproval')
+            detected_hostname = data.get('hostname')
+            
+            if host_approval is not None:
+                self._print_colored("\nHost Approval Status:", Colors.YELLOW)
+                self._print_colored(f"  Hostname: {detected_hostname}", Colors.GRAY)
+                
+                if host_approval == 'approved':
+                    self._print_colored(f"  Status: ✓ APPROVED", Colors.GREEN)
+                    self._print_colored(f"  Access: Ready to upload files", Colors.GREEN)
+                elif host_approval == 'pending':
+                    self._print_colored(f"  Status: ⏳ PENDING", Colors.YELLOW)
+                    self._print_colored(f"  Access: Awaiting administrator approval", Colors.YELLOW)
+                    self._print_colored(f"  Action: Contact administrator to approve this host", Colors.CYAN)
+                elif host_approval == 'denied':
+                    self._print_colored(f"  Status: ✗ DENIED", Colors.RED)
+                    self._print_colored(f"  Access: Upload blocked by administrator", Colors.RED)
+                    self._print_colored(f"  Action: Contact administrator for access", Colors.CYAN)
+                else:
+                    self._print_colored(f"  Status: {host_approval}", Colors.GRAY)
+            elif self.api_key:
+                self._print_colored("\nHost Approval Status:", Colors.YELLOW)
+                self._print_colored(f"  Status: Not registered yet", Colors.GRAY)
+                self._print_colored(f"  Note: First connection will create approval request", Colors.GRAY)
             
             self._print_colored(f"\n  Response Time: {elapsed:.2f}s", Colors.GRAY)
             self._print_colored(f"  Message: {data.get('message', 'No message')}", Colors.GRAY)
@@ -434,11 +471,28 @@ class MMSUploader:
         self._print_colored(f"  Batch Size: {self.batch_size}", Colors.WHITE)
         self._print_colored(f"  Polling Interval: {self.polling_interval}s", Colors.WHITE)
         
-        # Test connection
+        # Test connection and check host approval
         self._print_colored("\nTesting connection...", Colors.YELLOW)
-        if not self.ping():
+        ping_result = self.ping()
+        if not ping_result:
             self._print_colored("\nConnection test failed. Aborting upload.", Colors.RED)
             return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
+        
+        # Check host approval status (if using API key)
+        if self.api_key and hasattr(self, '_last_ping_data'):
+            host_approval = self._last_ping_data.get('hostApproval')
+            if host_approval == 'pending':
+                self._print_colored("\n✗ Upload blocked: Host approval is PENDING", Colors.RED)
+                self._print_colored("Your hostname + API key combination is awaiting administrator approval.", Colors.YELLOW)
+                self._print_colored("Contact your administrator to approve this host for uploads.", Colors.CYAN)
+                return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
+            elif host_approval == 'denied':
+                self._print_colored("\n✗ Upload blocked: Host approval is DENIED", Colors.RED)
+                self._print_colored("Your hostname + API key combination has been denied access.", Colors.YELLOW)
+                self._print_colored("Contact your administrator for access approval.", Colors.CYAN)
+                return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
+            elif host_approval == 'approved':
+                self._print_colored("\n✓ Host approval verified: Upload authorized", Colors.GREEN)
         
         self._print_colored(f"\nFound {len(files)} file(s) to upload", Colors.GREEN)
         
