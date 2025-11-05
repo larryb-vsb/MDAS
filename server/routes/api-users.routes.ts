@@ -80,13 +80,13 @@ export function registerApiUserRoutes(app: Express) {
       
       const apiUsers = await storage.getApiUsers();
       
-      // Map backend fields to frontend-compatible format
+      // Map backend fields (snake_case from DB) to frontend-compatible format
       const formattedKeys = apiUsers.map(user => ({
         ...user,
         keyName: user.username,
-        keyPrefix: user.apiKey?.substring(0, 8) || 'mms_',
-        apiKey: user.apiKey,
-        requestCount: user.requestCount || 0,
+        keyPrefix: user.api_key?.substring(0, 8) || 'mms_',  // Database column is api_key
+        apiKey: user.api_key,  // Provide camelCase for frontend
+        requestCount: user.request_count || 0,  // Database column is request_count
         rateLimitPerMinute: 100 // Default value for now
       }));
       
@@ -111,12 +111,13 @@ export function registerApiUserRoutes(app: Express) {
         isActive: req.body.isActive !== undefined ? req.body.isActive : true
       });
       
-      // Return with frontend-compatible field names
+      // Database returns snake_case columns, map to frontend-compatible field names
       res.status(201).json({
         ...apiUser,
         keyName: apiUser.username,
-        keyPrefix: apiUser.apiKey?.substring(0, 8) || 'mms_',
-        key: apiUser.apiKey,
+        keyPrefix: apiUser.api_key?.substring(0, 8) || 'mms_',
+        key: apiUser.api_key,  // Database column is api_key (snake_case)
+        apiKey: apiUser.api_key,  // Also provide camelCase for consistency
         rateLimitPerMinute: 100 // Default value
       });
     } catch (error) {
