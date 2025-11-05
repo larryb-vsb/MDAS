@@ -2522,6 +2522,7 @@ export default function TddfApiDataPage() {
   });
   const [createdApiKey, setCreatedApiKey] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [copiedKeyId, setCopiedKeyId] = useState<number | null>(null);
   const [isCreateKeyDialogOpen, setIsCreateKeyDialogOpen] = useState(false);
   const [deleteKeyId, setDeleteKeyId] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -3305,10 +3306,15 @@ export default function TddfApiDataPage() {
     }
   };
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, keyId?: number) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (keyId !== undefined) {
+      setCopiedKeyId(keyId);
+      setTimeout(() => setCopiedKeyId(null), 2000);
+    } else {
+      setTimeout(() => setCopied(false), 2000);
+    }
     toast({ title: "Copied to clipboard" });
   };
 
@@ -6171,11 +6177,11 @@ export default function TddfApiDataPage() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => copyToClipboard(key.keyPrefix)}
+                              onClick={() => copyToClipboard(key.keyPrefix, key.id)}
                               title="Copy key prefix"
                               data-testid={`button-copy-key-${key.id}`}
                             >
-                              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              {copiedKeyId === key.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                             </Button>
                             <Button 
                               variant="ghost" 

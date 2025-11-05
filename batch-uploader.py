@@ -2,8 +2,8 @@
 """
 ================================================================================
 MMS Batch File Uploader (Python)
-Version: 1.0.0Q
-Last Updated: November 05, 2025 - 3:00 PM CST
+Version: 1.1.0
+Last Updated: November 05, 2025 - 5:45 PM CST
 Status: PRODUCTION READY
 ================================================================================
 
@@ -12,6 +12,12 @@ Supports config files, command-line parameters, and three actions:
   - ping: Test server connectivity
   - status: Check upload queue status
   - upload: Batch upload files from a directory
+
+Features:
+  - Detailed connection logging
+  - Client fingerprint tracking
+  - Automatic retry with exponential backoff
+  - JSON upload reports
 """
 
 import argparse
@@ -19,16 +25,20 @@ import json
 import os
 import sys
 import time
+import socket
+import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
 MAX_RETRIES = 3
+LOG_FILE = "mms-uploader.log"
 
 
 class Colors:
@@ -49,13 +59,42 @@ class MMSUploader:
     
     def __init__(self, url: str, api_key: str, folder: Optional[str] = None,
                  batch_size: int = DEFAULT_BATCH_SIZE,
-                 polling_interval: int = DEFAULT_POLLING_INTERVAL):
+                 polling_interval: int = DEFAULT_POLLING_INTERVAL,
+                 verbose: bool = False):
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.folder = folder
         self.batch_size = batch_size
         self.polling_interval = polling_interval
+        self.verbose = verbose
         self.headers = {"X-API-Key": api_key}
+        self.hostname = socket.gethostname()
+        self.user_agent = f"MMS-BatchUploader/{VERSION} (Python; {self.hostname})"
+        self.headers["User-Agent"] = self.user_agent
+        
+        # Setup logging
+        self._setup_logging()
+    
+    def _setup_logging(self):
+        """Setup logging to file and console"""
+        self.logger = logging.getLogger('MMS-Uploader')
+        self.logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
+        
+        # File handler
+        fh = logging.FileHandler(LOG_FILE)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        ))
+        self.logger.addHandler(fh)
+        
+        # Console handler (only for errors if not verbose)
+        if self.verbose:
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.DEBUG)
+            ch.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+            self.logger.addHandler(ch)
     
     def _print_colored(self, message: str, color: str = Colors.WHITE):
         """Print colored output to terminal"""
@@ -70,59 +109,109 @@ class MMSUploader:
         return f"{size_bytes:.2f} TB"
     
     def ping(self) -> bool:
-        """Test server connectivity"""
+        """Test server connectivity with detailed client info"""
         self._print_colored("\n=== MMS Server Ping ===", Colors.CYAN)
         self._print_colored(f"Server: {self.url}", Colors.GRAY)
         
+        # Log connection attempt
+        self.logger.info(f"Attempting connection to {self.url}")
+        self.logger.info(f"Client: {self.hostname}")
+        self.logger.info(f"User-Agent: {self.user_agent}")
+        self.logger.info(f"API Key: {self.api_key[:20]}...")
+        
         try:
+            # Make request
+            endpoint = f"{self.url}/api/uploader/ping"
+            self.logger.debug(f"GET {endpoint}")
+            start_time = time.time()
+            
             response = requests.get(
-                f"{self.url}/api/uploader/ping",
+                endpoint,
                 headers=self.headers,
                 timeout=10
             )
+            
+            elapsed = time.time() - start_time
+            self.logger.info(f"Response received in {elapsed:.2f}s - Status: {response.status_code}")
+            
             response.raise_for_status()
             data = response.json()
             
-            self._print_colored(f"\nStatus: {data.get('status', 'Unknown')}", Colors.GREEN)
-            self._print_colored(f"Environment: {data.get('environment', 'Unknown')}", Colors.GRAY)
-            self._print_colored(f"Message: {data.get('message', 'No message')}", Colors.GRAY)
-            self._print_colored("\n✓ Connection successful!", Colors.GREEN)
+            # Log response details
+            self.logger.info(f"Server status: {data.get('status', 'Unknown')}")
+            self.logger.info(f"Environment: {data.get('environment', 'Unknown')}")
+            self.logger.info(f"Auth method: {data.get('authMethod', 'Unknown')}")
+            self.logger.info(f"Version: {data.get('version', 'Unknown')}")
+            
+            # Display to console
+            self._print_colored("\nClient Information:", Colors.YELLOW)
+            self._print_colored(f"  Hostname: {self.hostname}", Colors.WHITE)
+            self._print_colored(f"  User-Agent: {self.user_agent}", Colors.GRAY)
+            self._print_colored(f"  API Key: {self.api_key[:20]}...", Colors.GRAY)
+            
+            self._print_colored("\nServer Response:", Colors.YELLOW)
+            self._print_colored(f"  Status: {data.get('status', 'Unknown')}", Colors.GREEN)
+            self._print_colored(f"  Environment: {data.get('environment', 'Unknown')}", Colors.GRAY)
+            self._print_colored(f"  Auth Method: {data.get('authMethod', 'none')}", Colors.CYAN)
+            self._print_colored(f"  Version: {data.get('version', 'Unknown')}", Colors.GRAY)
+            self._print_colored(f"  Message: {data.get('message', 'No message')}", Colors.GRAY)
+            self._print_colored(f"  Response Time: {elapsed:.2f}s", Colors.GRAY)
+            
+            if data.get('authMethod') == 'api_key':
+                self._print_colored("\n✓ Connection successful! (Authenticated)", Colors.GREEN)
+            else:
+                self._print_colored("\n✓ Connection successful! (Not authenticated)", Colors.YELLOW)
+            
+            self.logger.info("Ping successful")
             return True
             
         except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP Error {e.response.status_code}: {e}")
             if e.response.status_code == 401:
                 self._print_colored("\n✗ Authentication failed!", Colors.RED)
                 self._print_colored("Please check your API key.", Colors.YELLOW)
+                self.logger.error("Authentication failed - invalid API key")
             else:
                 self._print_colored(f"\n✗ HTTP Error: {e.response.status_code}", Colors.RED)
                 self._print_colored(str(e), Colors.RED)
             return False
             
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error: {e}")
             self._print_colored("\n✗ Connection failed!", Colors.RED)
             self._print_colored("Could not connect to the server. Check the URL.", Colors.YELLOW)
             return False
             
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"Timeout error: {e}")
             self._print_colored("\n✗ Connection timeout!", Colors.RED)
             self._print_colored("Server did not respond in time.", Colors.YELLOW)
             return False
             
         except Exception as e:
+            self.logger.error(f"Unexpected error: {type(e).__name__} - {e}")
             self._print_colored(f"\n✗ Unexpected error: {type(e).__name__}", Colors.RED)
             self._print_colored(str(e), Colors.RED)
             return False
     
     def get_status(self) -> Optional[Dict[str, Any]]:
         """Get upload queue status"""
+        self.logger.info("Requesting batch status")
         try:
+            endpoint = f"{self.url}/api/uploader/batch-status"
+            self.logger.debug(f"GET {endpoint}")
+            
             response = requests.get(
-                f"{self.url}/api/uploader/batch-status",
+                endpoint,
                 headers=self.headers,
                 timeout=10
             )
+            
+            self.logger.info(f"Status response: {response.status_code}")
             response.raise_for_status()
             data = response.json()
+            
+            self.logger.debug(f"Queue data: {json.dumps(data, indent=2)}")
             
             self._print_colored("\n=== Upload Queue Status ===", Colors.CYAN)
             self._print_colored(f"Server: {self.url}", Colors.GRAY)
@@ -141,6 +230,7 @@ class MMSUploader:
             return data
             
         except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error getting status: {e}")
             if e.response.status_code == 401:
                 self._print_colored("\n✗ Authentication failed!", Colors.RED)
             else:
@@ -148,6 +238,7 @@ class MMSUploader:
             return None
             
         except Exception as e:
+            self.logger.error(f"Error getting status: {e}")
             self._print_colored(f"\n✗ Error getting status: {str(e)}", Colors.RED)
             return None
     
@@ -410,6 +501,7 @@ Configuration File (config.json):
     parser.add_argument('--ping', action='store_true', help='Test server connectivity')
     parser.add_argument('--status', action='store_true', help='Check upload queue status')
     parser.add_argument('--upload', action='store_true', help='Start batch upload')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
     parser.add_argument('--version', action='version', version=f'%(prog)s {VERSION}')
     
     args = parser.parse_args()
@@ -452,8 +544,17 @@ Configuration File (config.json):
         api_key=api_key,
         folder=folder,
         batch_size=batch_size,
-        polling_interval=polling_interval
+        polling_interval=polling_interval,
+        verbose=args.verbose
     )
+    
+    # Log startup
+    uploader.logger.info("=" * 60)
+    uploader.logger.info(f"MMS Batch Uploader v{VERSION} Started")
+    uploader.logger.info(f"Server: {url}")
+    uploader.logger.info(f"Hostname: {uploader.hostname}")
+    uploader.logger.info(f"Log file: {LOG_FILE}")
+    uploader.logger.info("=" * 60)
     
     # Execute action
     if args.ping:

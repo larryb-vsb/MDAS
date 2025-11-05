@@ -1130,6 +1130,31 @@ export const apiUsers = pgTable(getTableName("api_users"), {
   };
 });
 
+// Client Registrations table - tracks client fingerprints for API key approval
+export const clientRegistrations = pgTable(getTableName("client_registrations"), {
+  id: serial("id").primaryKey(),
+  apiUserId: integer("api_user_id").notNull(), // Foreign key to api_users
+  clientIp: text("client_ip").notNull(), // Client IP address
+  hostname: text("hostname"), // Client hostname if available
+  userAgent: text("user_agent"), // Client user agent string
+  fingerprint: text("fingerprint").notNull(), // Unique fingerprint hash (IP + hostname)
+  status: text("status").notNull().default("pending"), // pending, approved, denied
+  firstSeen: timestamp("first_seen").defaultNow().notNull(),
+  lastSeen: timestamp("last_seen").defaultNow().notNull(),
+  requestCount: integer("request_count").default(0),
+  approvedBy: text("approved_by"), // Username of admin who approved
+  approvedAt: timestamp("approved_at"),
+  deniedBy: text("denied_by"), // Username of admin who denied
+  deniedAt: timestamp("denied_at"),
+  notes: text("notes"), // Admin notes about this client
+}, (table) => {
+  return {
+    fingerprintIdx: index("client_registrations_fingerprint_idx").on(table.fingerprint),
+    apiUserIdIdx: index("client_registrations_api_user_id_idx").on(table.apiUserId),
+    statusIdx: index("client_registrations_status_idx").on(table.status),
+  };
+});
+
 // Zod schemas for users
 export const usersSchema = createInsertSchema(users);
 export const insertUserSchema = usersSchema.omit({ id: true, createdAt: true, lastLogin: true });
