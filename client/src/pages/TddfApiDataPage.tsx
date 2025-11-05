@@ -354,39 +354,6 @@ function QueueStatusMonitor() {
     staleTime: 3000
   });
 
-  const {data: auto45Status} = useQuery({
-    queryKey: ['/api/mms-watcher/auto45-status'],
-    refetchInterval: 5000
-  });
-
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  const toggleAuto45 = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      return apiRequest(`/api/mms-watcher/auto45-toggle`, {
-        method: 'POST',
-        body: JSON.stringify({ enabled })
-      });
-    },
-    onSuccess: (data: any, enabled: boolean) => {
-      toast({
-        title: enabled ? "Auto 4-5 Enabled" : "Auto 4-5 Disabled",
-        description: enabled 
-          ? "Files will automatically progress from uploaded → identified → encoded" 
-          : "Files will stop at 'uploaded' phase and require manual processing"
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/mms-watcher/auto45-status'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to toggle Auto 4-5",
-        variant: "destructive"
-      });
-    }
-  });
-
   if (isLoading || !queueStatus) {
     return (
       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
@@ -399,31 +366,12 @@ function QueueStatusMonitor() {
   const totals = status.totals || {};
   const metrics = status.processingMetrics || {};
   const estimates = status.estimates || {};
-  const auto45Enabled = (auto45Status as any)?.enabled || false;
 
   const hasQueue = totals.uploaded > 0 || totals.identified > 0 || totals.encoded > 0;
   const isProcessing = totals.processing > 0 || totals.encoding > 0;
 
   return (
     <div className="space-y-3">
-      {/* Auto 4-5 Control */}
-      <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <div className="flex items-center gap-3">
-          <Zap className="h-5 w-5 text-purple-600" />
-          <div>
-            <div className="font-medium text-purple-800">Auto 4-5 Encode</div>
-            <div className="text-sm text-purple-600">
-              Automatic file identification and encoding (Steps 4-5)
-            </div>
-          </div>
-        </div>
-        <Switch
-          checked={auto45Enabled}
-          onCheckedChange={(checked) => toggleAuto45.mutate(checked)}
-          disabled={toggleAuto45.isPending}
-        />
-      </div>
-
       {/* Queue Status Overview */}
       {hasQueue && (
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
