@@ -927,10 +927,19 @@ export class DatabaseStorage implements IStorage {
     const apiKey = `mms_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     
     const result = await pool.query(`
-      INSERT INTO ${apiUsersTableName} (name, api_key, is_active, created_at)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO ${apiUsersTableName} 
+        (username, api_key, description, permissions, is_active, created_at, last_used)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [insertApiUser.name, apiKey, insertApiUser.isActive || true, new Date()]);
+    `, [
+      insertApiUser.username,
+      apiKey,
+      insertApiUser.description || null,
+      JSON.stringify(insertApiUser.permissions || ['read']),
+      insertApiUser.isActive !== undefined ? insertApiUser.isActive : true,
+      new Date(),
+      null
+    ]);
     
     return result.rows[0];
   }
@@ -945,9 +954,17 @@ export class DatabaseStorage implements IStorage {
     const values = [];
     let paramIndex = 1;
     
-    if (userData.name !== undefined) {
-      updates.push(`name = $${paramIndex++}`);
-      values.push(userData.name);
+    if (userData.username !== undefined) {
+      updates.push(`username = $${paramIndex++}`);
+      values.push(userData.username);
+    }
+    if (userData.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(userData.description);
+    }
+    if (userData.permissions !== undefined) {
+      updates.push(`permissions = $${paramIndex++}`);
+      values.push(JSON.stringify(userData.permissions));
     }
     if (userData.isActive !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);

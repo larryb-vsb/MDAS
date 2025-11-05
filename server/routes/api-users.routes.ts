@@ -79,7 +79,18 @@ export function registerApiUserRoutes(app: Express) {
       }
       
       const apiUsers = await storage.getApiUsers();
-      res.json(apiUsers);
+      
+      // Map backend fields to frontend-compatible format
+      const formattedKeys = apiUsers.map(user => ({
+        ...user,
+        keyName: user.username,
+        keyPrefix: user.apiKey?.substring(0, 8) || 'mms_',
+        apiKey: user.apiKey,
+        requestCount: user.requestCount || 0,
+        rateLimitPerMinute: 100 // Default value for now
+      }));
+      
+      res.json(formattedKeys);
     } catch (error) {
       console.error("Error fetching API keys:", error);
       res.status(500).json({ error: "Failed to fetch API keys" });
@@ -92,12 +103,22 @@ export function registerApiUserRoutes(app: Express) {
         return res.status(403).json({ error: "Forbidden: Admin access required" });
       }
       
+      // Map frontend fields to database schema fields
       const apiUser = await storage.createApiUser({
-        ...req.body,
-        createdBy: req.user?.username || "System"
+        username: req.body.keyName || req.body.username,
+        description: req.body.description || null,
+        permissions: req.body.permissions || ['read'],
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true
       });
       
-      res.status(201).json(apiUser);
+      // Return with frontend-compatible field names
+      res.status(201).json({
+        ...apiUser,
+        keyName: apiUser.username,
+        keyPrefix: apiUser.apiKey?.substring(0, 8) || 'mms_',
+        key: apiUser.apiKey,
+        rateLimitPerMinute: 100 // Default value
+      });
     } catch (error) {
       console.error("Error creating API key:", error);
       res.status(500).json({ error: "Failed to create API key" });

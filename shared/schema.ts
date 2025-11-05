@@ -1115,21 +1115,17 @@ export const users = pgTable(getTableName("users"), {
 // API Users table for TDDF uploader client keys
 export const apiUsers = pgTable(getTableName("api_users"), {
   id: serial("id").primaryKey(),
-  clientName: text("client_name").notNull(), // Friendly name for the client
+  username: text("username").notNull(), // Friendly name for the client (matches existing DB column)
   apiKey: text("api_key").notNull().unique(), // Generated API key
   description: text("description"), // Description of what this key is for
-  permissions: text("permissions").array().notNull().default(['tddf:upload']), // Array of permissions
-  isActive: boolean("is_active").notNull().default(true),
+  permissions: jsonb("permissions"), // JSONB permissions (matches existing DB column)
+  isActive: boolean("is_active"), // Active status
+  createdAt: timestamp("created_at"), // Creation timestamp
   lastUsed: timestamp("last_used"), // Track when key was last used
-  requestCount: integer("request_count").notNull().default(0), // Track API usage
-  createdBy: text("created_by").notNull(), // Which admin user created this key
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at"), // Optional expiration date
-  ipWhitelist: text("ip_whitelist").array(), // Optional IP restrictions
+  requestCount: integer("request_count").default(0), // Track API usage
 }, (table) => {
   return {
     apiKeyIdx: index("api_users_api_key_idx").on(table.apiKey),
-    activeIdx: index("api_users_active_idx").on(table.isActive),
   };
 });
 
