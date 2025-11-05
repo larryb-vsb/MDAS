@@ -1354,7 +1354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { processAllRecordsToMasterTable } = await import("./tddf-json-encoder");
   const { ReplitStorageService } = await import('./replit-storage-service');
 
-  // Manual Step 7 Archive endpoint for completed files
+  // Manual Step 7 Archive endpoint for encoded or completed files
   app.post("/api/uploader/manual-step7-archive", isAuthenticated, async (req, res) => {
     console.log("[MANUAL-STEP7] API endpoint reached with body:", req.body);
     try {
@@ -1381,10 +1381,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          if (upload.currentPhase !== 'completed') {
+          if (upload.currentPhase !== 'completed' && upload.currentPhase !== 'encoded') {
             errors.push({ 
               uploadId, 
-              error: `File is in '${upload.currentPhase}' phase, only 'completed' files can be archived` 
+              error: `File is in '${upload.currentPhase}' phase, only 'encoded' or 'completed' files can be archived` 
             });
             continue;
           }
@@ -1408,7 +1408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errorCount: errors.length,
           validFiles: [],
           errors,
-          message: `No valid completed files found for archiving. ${errors.length} errors.`
+          message: `No valid encoded or completed files found for archiving. ${errors.length} errors.`
         });
       }
 

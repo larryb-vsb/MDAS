@@ -2499,36 +2499,69 @@ export function registerTddfCacheRoutes(app: Express) {
         ORDER BY current_phase
       `);
       
-      // Get processing rate from last 10 completed files
-      const processingRate = await pool.query(`
-        SELECT 
-          AVG(total_duration_seconds) as avg_processing_time,
-          AVG(total_records_processed) as avg_records_per_file,
-          AVG(records_per_second) as avg_records_per_second,
-          COUNT(*) as sample_size
-        FROM ${timingTableName}
-        WHERE completed_at >= NOW() - INTERVAL '1 hour'
-          AND total_records_processed > 0
-        ORDER BY completed_at DESC
-        LIMIT 10
-      `);
+      // Get processing rate from last 10 completed files (gracefully handle missing timing table)
+      let processingRate: any;
+      try {
+        processingRate = await pool.query(`
+          SELECT 
+            AVG(total_duration_seconds) as avg_processing_time,
+            AVG(total_records_processed) as avg_records_per_file,
+            AVG(records_per_second) as avg_records_per_second,
+            COUNT(*) as sample_size
+          FROM ${timingTableName}
+          WHERE completed_at >= NOW() - INTERVAL '1 hour'
+            AND total_records_processed > 0
+          ORDER BY completed_at DESC
+          LIMIT 10
+        `);
+      } catch (timingError: any) {
+        // Table doesn't exist - return empty metrics
+        if (timingError.code === '42P01') {
+          processingRate = { rows: [{ avg_processing_time: null, avg_records_per_file: null, avg_records_per_second: null, sample_size: 0 }] };
+        } else {
+          throw timingError;
+        }
+      }
       
-      // Get currently processing files with elapsed time
-      const currentlyProcessing = await pool.query(`
-        SELECT 
-          u.id,
-          u.filename,
-          u.current_phase,
-          u.final_file_type,
-          u.updated_at,
-          EXTRACT(EPOCH FROM (NOW() - u.updated_at)) as seconds_in_phase,
-          t.total_records_processed,
-          t.records_per_second
-        FROM ${uploaderTableName} u
-        LEFT JOIN ${timingTableName} t ON u.id = t.upload_id
-        WHERE u.current_phase IN ('encoding', 'processing')
-        ORDER BY u.updated_at ASC
-      `);
+      // Get currently processing files with elapsed time (gracefully handle missing timing table)
+      let currentlyProcessing: any;
+      try {
+        currentlyProcessing = await pool.query(`
+          SELECT 
+            u.id,
+            u.filename,
+            u.current_phase,
+            u.final_file_type,
+            u.updated_at,
+            EXTRACT(EPOCH FROM (NOW() - u.updated_at)) as seconds_in_phase,
+            t.total_records_processed,
+            t.records_per_second
+          FROM ${uploaderTableName} u
+          LEFT JOIN ${timingTableName} t ON u.id = t.upload_id
+          WHERE u.current_phase IN ('encoding', 'processing')
+          ORDER BY u.updated_at ASC
+        `);
+      } catch (timingError: any) {
+        // Table doesn't exist - query without JOIN
+        if (timingError.code === '42P01') {
+          currentlyProcessing = await pool.query(`
+            SELECT 
+              id,
+              filename,
+              current_phase as current_phase,
+              final_file_type,
+              updated_at,
+              EXTRACT(EPOCH FROM (NOW() - updated_at)) as seconds_in_phase,
+              NULL as total_records_processed,
+              NULL as records_per_second
+            FROM ${uploaderTableName}
+            WHERE current_phase IN ('encoding', 'processing')
+            ORDER BY updated_at ASC
+          `);
+        } else {
+          throw timingError;
+        }
+      }
       
       // Get files stuck in phases (> 5 minutes)
       const stuckFiles = await pool.query(`
