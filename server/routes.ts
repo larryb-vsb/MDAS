@@ -2243,43 +2243,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchants: {
           total: totalMerchants,
           ach: achMerchants,
-          mmc: mccMerchants
+          mcc: mccMerchants
         },
         newMerchants30Day: {
           total: newAchMerchants + newMccMerchants,
           ach: newAchMerchants,
-          mmc: newMccMerchants
+          mcc: newMccMerchants
         },
         monthlyProcessingAmount: {
           ach: `$${achTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mmc: `$${tddfAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          mcc: `$${tddfAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         todayTransactions: {
           total: todayTddfCount + achTransactions,
           ach: achTransactions,
-          mmc: todayTddfCount
+          mcc: todayTddfCount
         },
         avgTransValue: {
           total: (achTransactions + tddfTransactions) > 0 ? Math.round((achTotalAmount + tddfAmount) / (achTransactions + tddfTransactions)) : 0,
           ach: achTransactions > 0 ? Math.round(achTotalAmount / achTransactions) : 0,
-          mmc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
+          mcc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
         },
         dailyProcessingAmount: {
           ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mmc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          mcc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         todayTotalTransaction: {
           ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mmc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          mcc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         totalRecords: {
           ach: achTransactions.toLocaleString(),
-          mmc: tddfTransactions.toLocaleString()
+          mcc: tddfTransactions.toLocaleString()
         },
         totalTerminals: {
           total: totalTerminals,
           ach: achTerminals,
-          mmc: mmcTerminals
+          mcc: mmcTerminals
         },
         cacheMetadata: {
           lastRefreshed: new Date().toISOString(),
