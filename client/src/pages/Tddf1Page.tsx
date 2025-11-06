@@ -28,6 +28,7 @@ import {
   Building2,
   X,
   Table as TableIcon,
+  Trash2,
 } from "lucide-react";
 import { format, addDays, subDays, isToday, getDay, setMonth, setYear, startOfMonth } from "date-fns";
 import { isNonProcessingDay, isFederalHoliday } from "@/lib/federal-holidays";
@@ -2553,16 +2554,28 @@ function Tddf1Page() {
                                           )}
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
-                                          <Badge
-                                            variant="outline"
-                                            className={
-                                              isDarkMode
-                                                ? "text-blue-400 border-blue-600"
-                                                : "text-blue-600 border-blue-400"
-                                            }
-                                          >
-                                            {file.totalRecords.toLocaleString()} records
-                                          </Badge>
+                                          <div className="flex items-center gap-2">
+                                            <Badge
+                                              variant="outline"
+                                              className={
+                                                isDarkMode
+                                                  ? "text-blue-400 border-blue-600"
+                                                  : "text-blue-600 border-blue-400"
+                                              }
+                                            >
+                                              {file.totalRecords.toLocaleString()} records
+                                            </Badge>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className={`h-7 w-7 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
+                                              onClick={() => console.log('Delete file:', file.uploadId)}
+                                              data-testid={`delete-file-${file.uploadId}`}
+                                              title="Delete this file"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
                                           {file.transactionAmounts > 0 && (
                                             <div
                                               className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
@@ -2686,16 +2699,28 @@ function Tddf1Page() {
                                           )}
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
-                                          <Badge
-                                            variant="outline"
-                                            className={
-                                              isDarkMode
-                                                ? "text-blue-400 border-blue-600"
-                                                : "text-blue-600 border-blue-400"
-                                            }
-                                          >
-                                            {file.totalRecords.toLocaleString()} records
-                                          </Badge>
+                                          <div className="flex items-center gap-2">
+                                            <Badge
+                                              variant="outline"
+                                              className={
+                                                isDarkMode
+                                                  ? "text-blue-400 border-blue-600"
+                                                  : "text-blue-600 border-blue-400"
+                                              }
+                                            >
+                                              {file.totalRecords.toLocaleString()} records
+                                            </Badge>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className={`h-7 w-7 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
+                                              onClick={() => console.log('Delete file:', file.uploadId)}
+                                              data-testid={`delete-file-${file.uploadId}`}
+                                              title="Delete this file"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
                                           {file.transactionAmounts > 0 && (
                                             <div
                                               className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
@@ -2802,16 +2827,28 @@ function Tddf1Page() {
                                 )}
                               </div>
                               <div className="flex flex-col items-end gap-2">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    isDarkMode
-                                      ? "text-blue-400 border-blue-600"
-                                      : "text-blue-600 border-blue-400"
-                                  }
-                                >
-                                  {file.totalRecords.toLocaleString()} records
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      isDarkMode
+                                        ? "text-blue-400 border-blue-600"
+                                        : "text-blue-600 border-blue-400"
+                                    }
+                                  >
+                                    {file.totalRecords.toLocaleString()} records
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`h-7 w-7 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
+                                    onClick={() => console.log('Delete file:', file.uploadId)}
+                                    data-testid={`delete-file-${file.uploadId}`}
+                                    title="Delete this file"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                                 {file.transactionAmounts > 0 && (
                                   <div
                                     className={`text-xs font-mono ${isDarkMode ? "text-green-400" : "text-green-600"}`}
