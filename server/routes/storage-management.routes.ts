@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { db } from "../db";
+import { db, pool } from "../db";
 import { count, desc, eq, sql, and, isNull, isNotNull } from "drizzle-orm";
 import { getTableName } from "../table-config";
 import { logger } from "../../shared/logger";
@@ -118,17 +118,17 @@ export function registerStorageManagementRoutes(app: Express) {
       }
 
       // Get total count
-      const countQuery = await db.execute(sql.raw(`
+      const countQuery = await pool.query(`
         SELECT COUNT(*) as total
         FROM ${tableName}
         ${whereClause}
-      `, params));
+      `, params);
 
       const total = parseInt((countQuery.rows[0] as any).total || '0');
 
       // Get objects
       params.push(limit, offset);
-      const objectsQuery = await db.execute(sql.raw(`
+      const objectsQuery = await pool.query(`
         SELECT 
           id,
           object_key,
@@ -145,7 +145,7 @@ export function registerStorageManagementRoutes(app: Express) {
         ${whereClause}
         ORDER BY created_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}
-      `, params));
+      `, params);
 
       const objects = objectsQuery.rows.map((row: any) => ({
         id: row.id,
@@ -341,11 +341,11 @@ export function registerStorageManagementRoutes(app: Express) {
       logger.info('[STORAGE-MGMT] Deleting objects', { count: objectIds.length });
 
       const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
-      const deleteResult = await db.execute(sql.raw(`
+      const deleteResult = await pool.query(`
         DELETE FROM ${tableName}
         WHERE id IN (${placeholders})
         RETURNING id
-      `, objectIds));
+      `, objectIds);
 
       const deletedCount = deleteResult.rows.length;
       logger.info(`[STORAGE-MGMT] Deleted ${deletedCount} objects`);
@@ -374,20 +374,20 @@ export function registerStorageManagementRoutes(app: Express) {
 
       // Get size info before deletion for reporting
       const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
-      const sizeQuery = await db.execute(sql.raw(`
+      const sizeQuery = await pool.query(`
         SELECT COALESCE(SUM(file_size_bytes), 0) as total_bytes
         FROM ${tableName}
         WHERE id IN (${placeholders})
-      `, objectIds));
+      `, objectIds);
 
       const totalBytes = parseFloat((sizeQuery.rows[0] as any).total_bytes || '0');
 
       // Delete the duplicates
-      const deleteResult = await db.execute(sql.raw(`
+      const deleteResult = await pool.query(`
         DELETE FROM ${tableName}
         WHERE id IN (${placeholders})
         RETURNING id
-      `, objectIds));
+      `, objectIds);
 
       const removedCount = deleteResult.rows.length;
       const spaceFreed = `${(totalBytes / 1024 / 1024).toFixed(2)} MB`;

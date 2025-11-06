@@ -28,6 +28,7 @@ import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerSettingsRoutes } from "./routes/settings.routes";
 import { registerSchemaRoutes } from "./routes/schema.routes";
 import { registerMccSchemaRoutes } from "./routes/mcc-schema.routes";
+import { registerStorageManagementRoutes } from "./routes/storage-management.routes";
 import databaseHealthRoutes from "./routes/database-health.routes";
 import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
@@ -385,6 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSettingsRoutes(app);
   registerSchemaRoutes(app);
   registerMccSchemaRoutes(app);
+  registerStorageManagementRoutes(app); // Storage management & cleanup
   app.use(databaseHealthRoutes); // Database health monitoring
   
   // Phase D: TDDF Routes
