@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut, Database } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut, Database, Trash2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -169,6 +169,41 @@ export default function Tddf1MonthlyView() {
 
   const handleRebuildCache = () => {
     rebuildMutation.mutate();
+  };
+
+  // Mutation for cleaning up duplicates for a specific date
+  const cleanupDuplicatesMutation = useMutation({
+    mutationFn: async (date: string) => {
+      const response = await fetch(`/api/duplicates/cleanup-by-date?date=${date}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to cleanup duplicates');
+      return response.json();
+    },
+    onSuccess: (data, date) => {
+      toast({
+        title: "Duplicates Cleaned Up",
+        description: `Removed ${data.removedCount || 0} duplicate file(s) for ${format(new Date(date), 'MMM dd, yyyy')}`,
+      });
+      // Refresh the monthly data
+      queryClient.invalidateQueries({ queryKey: ['tddf1-monthly'] });
+      queryClient.invalidateQueries({ queryKey: ['tddf1-monthly-comparison'] });
+      refetch();
+    },
+    onError: (error, date) => {
+      toast({
+        title: "Cleanup Failed",
+        description: `Could not clean up duplicates for ${format(new Date(date), 'MMM dd, yyyy')}: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleCleanupDuplicates = (date: string) => {
+    cleanupDuplicatesMutation.mutate(date);
   };
 
   const formatCurrency = (amount: number) => {
@@ -503,15 +538,17 @@ export default function Tddf1MonthlyView() {
       });
     } catch (error) {
       console.error('PDF generation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       console.error('Error details:', {
         monthlyData: !!monthlyData,
         comparisonData: !!comparisonData,
-        errorMessage: error.message,
-        errorStack: error.stack
+        errorMessage,
+        errorStack
       });
       toast({
         title: "PDF Generation Failed",
-        description: `Error: ${error.message || 'Unknown error'}. Please try again.`,
+        description: `Error: ${errorMessage}. Please try again.`,
         variant: "destructive",
       });
     }
@@ -879,6 +916,12 @@ export default function Tddf1MonthlyView() {
                         <span className="hidden sm:inline">BH Net Deposit</span>
                         <span className="sm:hidden">BH Net</span>
                       </th>
+                      <th className={`text-center py-1 sm:py-2 px-1 sm:px-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="hidden sm:inline">Actions</span>
+                        <span className="sm:hidden">
+                          <Trash2 className="h-3 w-3 mx-auto" />
+                        </span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -908,11 +951,18 @@ export default function Tddf1MonthlyView() {
                     })().map((day, index) => {
                       const isHighActivity = day.files > 3;
                       const rowBgClass = isHighActivity 
-                        ? (isDarkMode ? 'bg-yellow-900/30 hover:bg-yellow-900/40' : 'bg-yellow-50 hover:bg-yellow-100')
+                        ? (isDarkMode ? 'bg-yellow-900/30 hover:bg-yellow-900/50' : 'bg-yellow-50 hover:bg-yellow-100')
                         : (isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50');
                       
                       return (
-                        <tr key={`${day.date}-aggregated`} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'} ${rowBgClass} transition-colors`}>
+                        <tr 
+                          key={`${day.date}-aggregated`} 
+                          className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'} ${rowBgClass} transition-colors cursor-pointer`}
+                          onClick={() => {
+                            setLocation(`/tddf1?date=${day.date}`);
+                          }}
+                          data-testid={`monthly-row-${day.date}`}
+                        >
                           <td className={`py-1 sm:py-2 px-2 sm:px-4 font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                             <span className="hidden sm:inline">{format(new Date(day.date), 'EEE, MMM dd, yyyy')}</span>
                             <span className="sm:hidden">{format(new Date(day.date), 'EEE, MMM dd')}</span>
@@ -929,6 +979,22 @@ export default function Tddf1MonthlyView() {
                         <td className={`py-1 sm:py-2 px-1 sm:px-4 text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           <span className="hidden sm:inline">{formatCurrency(day.netDepositBh)}</span>
                           <span className="sm:hidden">${(day.netDepositBh/1000).toFixed(0)}k</span>
+                        </td>
+                        <td className="py-1 sm:py-2 px-1 sm:px-2 text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-6 w-6 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCleanupDuplicates(day.date);
+                            }}
+                            disabled={cleanupDuplicatesMutation.isPending}
+                            data-testid={`cleanup-duplicates-${day.date}`}
+                            title="Clean up duplicate files for this day"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </td>
                       </tr>
                       )

@@ -2741,6 +2741,89 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
+  // Clean up duplicates for a specific date
+  app.post("/api/duplicates/cleanup-by-date", isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.query;
+      
+      if (!date || typeof date !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: "Date parameter is required (format: YYYY-MM-DD)"
+        });
+      }
+      
+      console.log(`[DUPLICATE-CLEANUP-BY-DATE] Starting cleanup for date: ${date}`);
+      
+      const tableName = getTableName('uploader_uploads');
+      
+      // Find duplicate files for this specific date
+      const duplicateQuery = `
+        SELECT 
+          filename,
+          business_day,
+          COUNT(*) as upload_count,
+          array_agg(id ORDER BY start_time DESC) as upload_ids,
+          array_agg(start_time ORDER BY start_time DESC) as upload_times
+        FROM ${tableName}
+        WHERE business_day::date = $1::date
+          AND deleted_at IS NULL
+          AND is_archived = false
+        GROUP BY filename, business_day
+        HAVING COUNT(*) > 1
+      `;
+      
+      const duplicatesResult = await pool.query(duplicateQuery, [date]);
+      
+      if (duplicatesResult.rows.length === 0) {
+        console.log(`[DUPLICATE-CLEANUP-BY-DATE] No duplicates found for ${date}`);
+        return res.json({
+          success: true,
+          removedCount: 0,
+          message: `No duplicate files found for ${date}`
+        });
+      }
+      
+      let removedCount = 0;
+      
+      // For each duplicate group, mark all but the most recent as deleted
+      for (const duplicate of duplicatesResult.rows) {
+        const uploadIds = duplicate.upload_ids;
+        
+        // Keep the first one (most recent), mark the rest as deleted
+        const idsToDelete = uploadIds.slice(1);
+        
+        if (idsToDelete.length > 0) {
+          await pool.query(`
+            UPDATE ${tableName}
+            SET deleted_at = NOW(),
+                deleted_by = $1
+            WHERE id = ANY($2)
+          `, [req.user?.username || 'system', idsToDelete]);
+          
+          removedCount += idsToDelete.length;
+          console.log(`[DUPLICATE-CLEANUP-BY-DATE] Marked ${idsToDelete.length} duplicates of "${duplicate.filename}" as deleted`);
+        }
+      }
+      
+      console.log(`[DUPLICATE-CLEANUP-BY-DATE] Completed: ${removedCount} duplicate files marked as deleted for ${date}`);
+      
+      res.json({
+        success: true,
+        removedCount,
+        message: `Removed ${removedCount} duplicate file(s) for ${date}`,
+        duplicateGroups: duplicatesResult.rows.length
+      });
+      
+    } catch (error) {
+      console.error('[DUPLICATE-CLEANUP-BY-DATE] Error during cleanup:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to cleanup duplicates for date"
+      });
+    }
+  });
+
   // Clear TDDF JSON Database endpoint (truncated)
   app.delete("/api/tddf-json/clear-database", isAuthenticated, async (req, res) => {
     try {
