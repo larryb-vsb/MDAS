@@ -9,6 +9,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -466,6 +476,13 @@ function Tddf1Page() {
     name: string;
   } | null>(null);
   
+  // File deletion state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<{
+    uploadId: string;
+    filename: string;
+  } | null>(null);
+  
   // Month/year selection options for calendar
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 16 }, (_, i) => currentYear - 10 + i);
@@ -582,6 +599,48 @@ function Tddf1Page() {
       enabled: !!trackingUploadId && showProgressTracking,
       refetchInterval: trackingUploadId ? 2000 : false, // Poll every 2 seconds when tracking
     });
+
+  // File deletion mutation
+  const deleteFileMutation = useMutation({
+    mutationFn: async (uploadId: string) => {
+      return apiRequest("DELETE", `/api/uploader/uploads/${uploadId}`);
+    },
+    onSuccess: (data, uploadId) => {
+      toast({
+        title: "File deleted",
+        description: `Successfully deleted file: ${fileToDelete?.filename}`,
+      });
+      
+      // Invalidate queries to refresh the file list
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf1/files-by-date", selectedDateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf1/day-breakdown", selectedDateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf1/stats"] });
+      
+      // Close dialog and reset state
+      setDeleteConfirmOpen(false);
+      setFileToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle delete button click
+  const handleDeleteClick = (uploadId: string, filename: string) => {
+    setFileToDelete({ uploadId, filename });
+    setDeleteConfirmOpen(true);
+  };
+
+  // Confirm deletion
+  const handleConfirmDelete = () => {
+    if (fileToDelete) {
+      deleteFileMutation.mutate(fileToDelete.uploadId);
+    }
+  };
 
   // Draggable circles state
   const containerRef = useRef<HTMLDivElement>(null);
@@ -2569,7 +2628,7 @@ function Tddf1Page() {
                                               variant="ghost"
                                               size="sm"
                                               className={`h-7 w-7 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
-                                              onClick={() => console.log('Delete file:', file.uploadId)}
+                                              onClick={() => handleDeleteClick(file.uploadId, file.filename)}
                                               data-testid={`delete-file-${file.uploadId}`}
                                               title="Delete this file"
                                             >
@@ -2714,7 +2773,7 @@ function Tddf1Page() {
                                               variant="ghost"
                                               size="sm"
                                               className={`h-7 w-7 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
-                                              onClick={() => console.log('Delete file:', file.uploadId)}
+                                              onClick={() => handleDeleteClick(file.uploadId, file.filename)}
                                               data-testid={`delete-file-${file.uploadId}`}
                                               title="Delete this file"
                                             >
@@ -2917,6 +2976,48 @@ function Tddf1Page() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* File Deletion Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className={isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={isDarkMode ? "text-gray-100" : "text-gray-900"}>
+              Delete File
+            </AlertDialogTitle>
+            <AlertDialogDescription className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+              Are you sure you want to delete this file?
+              <div className={`mt-3 p-3 rounded ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}`}>
+                <div className={`font-mono text-sm ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
+                  {fileToDelete?.filename}
+                </div>
+              </div>
+              <div className="mt-3 text-sm font-semibold text-red-600 dark:text-red-400">
+                This action cannot be undone. The file will be marked as deleted.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteConfirmOpen(false);
+                setFileToDelete(null);
+              }}
+              className={isDarkMode ? "bg-gray-700 hover:bg-gray-600 text-gray-100" : ""}
+              data-testid="cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteFileMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="confirm-delete"
+            >
+              {deleteFileMutation.isPending ? "Deleting..." : "Delete File"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
