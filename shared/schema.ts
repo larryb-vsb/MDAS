@@ -1625,6 +1625,23 @@ export const uploaderMastercardDiEditRecords = pgTable(getTableName("uploader_ma
   processingStatusIdx: index("uploader_mastercard_di_processing_status_idx").on(table.processingStatus)
 }));
 
+// Master object keys table - tracks all objects in Replit object storage
+export const masterObjectKeys = pgTable(getTableName("master_object_keys"), {
+  id: serial("id").primaryKey(),
+  objectKey: text("object_key").notNull().unique(), // Unique storage object key
+  fileSizeBytes: integer("file_size_bytes").notNull(), // File size in bytes
+  lineCount: integer("line_count"), // Number of lines in the file
+  status: text("status").notNull().default("active"), // active, archived, deleted, failed
+  uploadId: text("upload_id").references(() => uploaderUploads.id, { onDelete: "set null" }), // Optional reference to upload
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  objectKeyIdx: index("master_object_keys_object_key_idx").on(table.objectKey),
+  statusIdx: index("master_object_keys_status_idx").on(table.status),
+  uploadIdIdx: index("master_object_keys_upload_id_idx").on(table.uploadId),
+  createdAtIdx: index("master_object_keys_created_at_idx").on(table.createdAt)
+}));
+
 // Zod schemas for uploader tables
 export const uploaderUploadsSchema = createInsertSchema(uploaderUploads);
 export const insertUploaderUploadSchema = uploaderUploadsSchema.omit({ 
@@ -1651,6 +1668,13 @@ export const insertUploaderMastercardDiEditRecordSchema = uploaderMastercardDiEd
   createdAt: true 
 });
 
+export const masterObjectKeysSchema = createInsertSchema(masterObjectKeys);
+export const insertMasterObjectKeySchema = masterObjectKeysSchema.omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true
+});
+
 // Zod schemas for processing timing logs
 export const insertProcessingTimingLogSchema = createInsertSchema(processingTimingLogs).omit({ 
   id: true, 
@@ -1666,6 +1690,8 @@ export type UploaderTddfJsonbRecord = typeof uploaderTddfJsonbRecords.$inferSele
 export type InsertUploaderTddfJsonbRecord = typeof uploaderTddfJsonbRecords.$inferInsert;
 export type UploaderMastercardDiEditRecord = typeof uploaderMastercardDiEditRecords.$inferSelect;
 export type InsertUploaderMastercardDiEditRecord = typeof uploaderMastercardDiEditRecords.$inferInsert;
+export type MasterObjectKey = typeof masterObjectKeys.$inferSelect;
+export type InsertMasterObjectKey = z.infer<typeof insertMasterObjectKeySchema>;
 export type ProcessingTimingLog = typeof processingTimingLogs.$inferSelect;
 export type InsertProcessingTimingLog = z.infer<typeof insertProcessingTimingLogSchema>;
 

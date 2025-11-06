@@ -188,6 +188,14 @@ export function registerStorageManagementRoutes(app: Express) {
           FROM ${sql.raw(tableName)}
           GROUP BY filename
           HAVING COUNT(*) > 1
+        ),
+        newest_per_file AS (
+          SELECT 
+            SUBSTRING(object_key FROM '[^/]+$') as filename,
+            MAX(created_at) as max_created_at
+          FROM ${sql.raw(tableName)}
+          WHERE SUBSTRING(object_key FROM '[^/]+$') IN (SELECT filename FROM duplicate_files)
+          GROUP BY filename
         )
         SELECT 
           df.filename,
@@ -206,12 +214,13 @@ export function registerStorageManagementRoutes(app: Express) {
                 (SELECT current_phase FROM ${sql.raw(uploadsTable)} WHERE id = mk.upload_id LIMIT 1),
                 'N/A'
               ),
-              'isNewest', mk.created_at = MAX(mk.created_at) OVER (PARTITION BY SUBSTRING(mk.object_key FROM '[^/]+$'))
+              'isNewest', mk.created_at = npf.max_created_at
             )
             ORDER BY mk.created_at DESC
           ) as objects
         FROM duplicate_files df
         INNER JOIN ${sql.raw(tableName)} mk ON SUBSTRING(mk.object_key FROM '[^/]+$') = df.filename
+        LEFT JOIN newest_per_file npf ON npf.filename = df.filename
         GROUP BY df.filename, df.occurrence_count, df.potential_savings_bytes
         ORDER BY df.occurrence_count DESC, df.potential_savings_bytes DESC
       `);
