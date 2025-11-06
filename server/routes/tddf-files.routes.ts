@@ -642,6 +642,54 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
+  // Soft-delete an uploaded file
+  app.delete("/api/uploader/uploads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const uploadId = req.params.id;
+      const username = (req.user as any)?.username || 'system';
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      console.log(`[FILE-DELETE] Soft-deleting upload file: ${uploadId} by user: ${username}`);
+      
+      // Check if file exists and is not already deleted
+      const existingFileResult = await pool.query(`
+        SELECT id, filename, deleted_at FROM ${uploadsTableName} WHERE id = $1
+      `, [uploadId]);
+      
+      if (existingFileResult.rows.length === 0) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      const file = existingFileResult.rows[0];
+      
+      if (file.deleted_at) {
+        return res.status(400).json({ error: "File has already been deleted" });
+      }
+      
+      // Soft-delete the file by setting deleted_at and deleted_by
+      await pool.query(`
+        UPDATE ${uploadsTableName}
+        SET deleted_at = NOW(),
+            deleted_by = $2,
+            last_updated = NOW()
+        WHERE id = $1
+      `, [uploadId, username]);
+      
+      console.log(`[FILE-DELETE] Successfully soft-deleted file: ${file.filename} (${uploadId})`);
+      
+      res.json({ 
+        success: true, 
+        message: `File "${file.filename}" deleted successfully`,
+        uploadId: uploadId
+      });
+    } catch (error) {
+      console.error('[FILE-DELETE] Error soft-deleting upload file:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete file" 
+      });
+    }
+  });
+
   // Export TDDF records to CSV
   app.get("/api/tddf/export", isAuthenticated, async (req, res) => {
     try {
