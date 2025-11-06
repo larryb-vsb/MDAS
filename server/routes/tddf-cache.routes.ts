@@ -1298,6 +1298,7 @@ export function registerTddfCacheRoutes(app: Express) {
           FROM ${masterTableName} r
           JOIN ${uploaderTableName} u ON r.upload_id = u.id
           WHERE split_part(u.filename, '_', 4) = $1
+            AND u.deleted_at IS NULL
           GROUP BY u.filename, u.id
           ORDER BY u.created_at DESC
         `, [filenameDateStr]);
@@ -1365,6 +1366,7 @@ export function registerTddfCacheRoutes(app: Express) {
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
         WHERE split_part(u.filename, '_', 4) = $1
+          AND u.deleted_at IS NULL
       `, [filenameDateStr]);
       
       const filesResult = await pool.query(`
@@ -1375,6 +1377,7 @@ export function registerTddfCacheRoutes(app: Express) {
         FROM ${masterTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
         WHERE split_part(u.filename, '_', 4) = $1
+          AND u.deleted_at IS NULL
         GROUP BY u.filename, u.id
         ORDER BY u.created_at DESC
       `, [filenameDateStr]);
@@ -1658,6 +1661,7 @@ export function registerTddfCacheRoutes(app: Express) {
             to_date(split_part(u.filename, '_', 4), 'MMDDYYYY'),
             'YYYY-MM-DD'
           ) = $1
+          AND u.deleted_at IS NULL
         GROUP BY u.id, u.filename, u.start_time, u.uploaded_at, u.encoding_complete, u.file_size, u.business_day,
                  fbd.primary_batch_date, fbd.max_batch_date, ftd.min_transaction_date, ftd.max_transaction_date
         ORDER BY u.start_time DESC

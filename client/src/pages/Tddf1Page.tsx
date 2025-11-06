@@ -2901,7 +2901,7 @@ function Tddf1Page() {
                                     variant="ghost"
                                     size="sm"
                                     className={`h-7 w-7 p-0 ${isDarkMode ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}
-                                    onClick={() => console.log('Delete file:', file.uploadId)}
+                                    onClick={() => handleDeleteClick(file.uploadId, file.filename)}
                                     data-testid={`delete-file-${file.uploadId}`}
                                     title="Delete this file"
                                   >
@@ -2985,17 +2985,14 @@ function Tddf1Page() {
               Delete File
             </AlertDialogTitle>
             <AlertDialogDescription className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
-              Are you sure you want to delete this file?
-              <div className={`mt-3 p-3 rounded ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}`}>
-                <div className={`font-mono text-sm ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
-                  {fileToDelete?.filename}
-                </div>
-              </div>
-              <div className="mt-3 text-sm font-semibold text-red-600 dark:text-red-400">
-                This action cannot be undone. The file will be marked as deleted.
-              </div>
+              Are you sure you want to delete this file? This action cannot be undone. The file will be marked as deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className={`mb-4 p-3 rounded ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}`}>
+            <div className={`font-mono text-sm ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
+              {fileToDelete?.filename}
+            </div>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel
               onClick={() => {
