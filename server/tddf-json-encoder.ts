@@ -143,6 +143,15 @@ function calculateUniversalTimestamp(
 // TDDF Field Position Specifications
 // DT Record (Detail Transaction) - Fixed-width format
 // Positions updated to match TDDF specification (converting 1-based TDDF positions to 0-based array indices)
+//
+// TERMINAL ID EXTRACTION AND V-NUMBER CONVERSION:
+// - Terminal IDs are extracted from TDDF positions 277-284 (8 characters)
+// - Raw terminal IDs typically start with '7' (most common) or '0' 
+// - Example raw TDDF terminal IDs: "75679867", "00183380"
+// - For storage in api_terminals table, first digit is replaced with 'V'
+// - Conversion: 75679867 → V5679867, 00183380 → V0183380
+// - The v_number field stores the converted V-format (VXXXXXXX)
+// - The terminal_id field preserves the original 8-digit format (7XXXXXXX or 0XXXXXXX)
 const DT_FIELD_SPECS = {
   sequenceNumber: { start: 0, end: 7, type: 'string' },           // TDDF 1-7
   entryRunNumber: { start: 7, end: 13, type: 'string' },          // TDDF 8-13
@@ -471,7 +480,8 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
           terminalId: extractedFields.terminalId,
           groupNumber: extractedFields.groupNumber,
           mccCode: extractedFields.mccCode,
-          transactionDate: timestampData.parsedDatetime
+          transactionDate: timestampData.parsedDatetime,
+          lineNumber: lineNumber
         });
       }
       
@@ -541,7 +551,7 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     // Process merchants and terminals from DT records
     if (dtRecordsForMerchantProcessing.length > 0) {
       console.log(`[STEP-6-MERCHANTS] Processing ${dtRecordsForMerchantProcessing.length} DT records for merchant/terminal updates`);
-      const merchantStats = await updateMerchantsAndTerminalsFromDT(dtRecordsForMerchantProcessing, upload.filename);
+      const merchantStats = await updateMerchantsAndTerminalsFromDT(dtRecordsForMerchantProcessing, upload.filename, upload.id);
       merchantsCreated = merchantStats.merchantsCreated;
       merchantsUpdated = merchantStats.merchantsUpdated;
       terminalsCreated = merchantStats.terminalsCreated;
@@ -722,7 +732,8 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
  */
 async function updateMerchantsAndTerminalsFromDT(
   dtRecords: any[],
-  sourceFilename: string
+  sourceFilename: string,
+  uploadId: string
 ): Promise<{
   merchantsCreated: number;
   merchantsUpdated: number;
@@ -864,16 +875,28 @@ async function updateMerchantsAndTerminalsFromDT(
       // Process terminals for this merchant
       for (const terminalId of Array.from(data.terminals)) {
         try {
-          // TDDF terminals start with '7' - convert to V-number format for storage
-          // Format: 7XXXXXXX -> VXXXXXXX (matching existing terminal pattern)
-          const vNumber = terminalId.startsWith('7') ? 'V' + terminalId.substring(1) : terminalId;
+          // TDDF terminals start with '7' or '0' - convert to V-number format for storage
+          // Format: 7XXXXXXX -> VXXXXXXX or 0XXXXXXX -> VXXXXXXX (matching existing terminal pattern)
+          const vNumber = (terminalId.startsWith('7') || terminalId.startsWith('0')) 
+            ? 'V' + terminalId.substring(1) 
+            : terminalId;
           
           // Check if terminal exists
           const checkTerminalQuery = `SELECT id FROM ${terminalsTableName} WHERE v_number = $1`;
           const existingTerminal = await batchPool.query(checkTerminalQuery, [vNumber]);
           
+          // Get line number from first transaction for this terminal (for audit trail)
+          const terminalLineNumber = dtRecords.find(r => r.terminalId === terminalId)?.lineNumber || 0;
+          const updateSource = `TDDF: ${sourceFilename} Line: ${terminalLineNumber}`;
+          const createdUpdatedBy = `STEP6:${uploadId}`;
+          
+          // Log warning if no line number found for terminal
+          if (terminalLineNumber === 0) {
+            console.warn(`[STEP-6-MERCHANTS] No DT record found for terminal ${terminalId}, using line 0 in audit trail`);
+          }
+          
           if (existingTerminal.rows.length > 0) {
-            // Update existing terminal
+            // Update existing terminal with audit trail
             const updateTerminalQuery = `
               UPDATE ${terminalsTableName}
               SET 
@@ -881,7 +904,11 @@ async function updateMerchantsAndTerminalsFromDT(
                 dba_name = COALESCE($3, dba_name),
                 mcc = COALESCE($4, mcc),
                 status = 'Active',
-                record_status = 'Active'
+                record_status = 'Active',
+                last_update = NOW(),
+                update_source = $5,
+                updated_by = $6,
+                updated_at = NOW()
               WHERE v_number = $1
             `;
             
@@ -889,17 +916,21 @@ async function updateMerchantsAndTerminalsFromDT(
               vNumber,
               merchantAccountNumber,
               data.merchantName,
-              data.mccCode
+              data.mccCode,
+              updateSource,
+              createdUpdatedBy
             ]);
             
             terminalsUpdated++;
           } else {
-            // Insert new terminal
+            // Insert new terminal with audit trail
             const insertTerminalQuery = `
               INSERT INTO ${terminalsTableName} (
                 v_number, pos_merchant_number, dba_name, mcc, 
-                terminal_id, status, record_status
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                terminal_id, status, record_status,
+                update_source, created_by, updated_by,
+                last_update, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW())
             `;
             
             await batchPool.query(insertTerminalQuery, [
@@ -907,9 +938,12 @@ async function updateMerchantsAndTerminalsFromDT(
               merchantAccountNumber,
               data.merchantName,
               data.mccCode,
-              terminalId, // Store original terminal ID with '7' prefix
+              terminalId, // Store original terminal ID with '7' or '0' prefix
               'Active',
-              'Active'
+              'Active',
+              updateSource,
+              createdUpdatedBy,
+              createdUpdatedBy
             ]);
             
             terminalsCreated++;
