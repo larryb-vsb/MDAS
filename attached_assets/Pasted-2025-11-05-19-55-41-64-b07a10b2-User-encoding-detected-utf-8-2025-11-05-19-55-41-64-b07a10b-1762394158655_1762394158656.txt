@@ -1,0 +1,180 @@
+2025-11-05 19:55:41.64
+b07a10b2
+User
+encoding_detected: 'utf-8',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+storage_key: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+bucket_name: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+encoding_status: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+encoding_time_ms: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+json_records_created: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+processing_errors: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+keep_for_review: false,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+created_at: 2025-11-06T01:54:50.135Z,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+updated_at: 2025-11-06T01:54:50.171Z,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+upload_status: 'started',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+start_time: 2025-11-06T01:54:50.171Z,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+current_phase: 'encoded',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+last_updated: 2025-11-06T01:55:27.618Z,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+created_by: 'system',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+server_id: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+upload_progress: 100,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+chunked_upload: false,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+chunk_count: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+chunks_uploaded: 0,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+upload_started_at: 2025-11-06T01:55:00.040Z,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+storage_path: 'prod-uploader/2025-11-06/uploader_1762394090135_berdb2gjs/VERMNTSB.6759_TDDF_2400_10152025_004915.TSYSO',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+detected_file_type: 'tddf',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+user_classified_type: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+final_file_type: 'tddf',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+data_size: 15712866,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+compression_used: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+validation_errors: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+file_content: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+s3_bucket: 'default-replit-bucket',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+s3_key: 'prod-uploader/2025-11-06/uploader_1762394090135_berdb2gjs/VERMNTSB.6759_TDDF_2400_10152025_004915.TSYSO',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+s3_url: 'replit-object-storage://default/prod-uploader/2025-11-06/uploader_1762394090135_berdb2gjs/VERMNTSB.6759_TDDF_2400_10152025_004915.TSYSO',
+2025-11-05 19:55:41.64
+b07a10b2
+User
+s3_etag: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+failed_at: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+tddf_records_created: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+encoding_complete: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+phase: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+encoding_completion_time: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+encoding_notes: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+processing_server_id: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+status_message: null,
+2025-11-05 19:55:41.64
+b07a10b2
+User
+processing_log_path: null
+2025-11-05 19:55:41.64
+b07a10b2
+User
+}
+2025-11-05 19:55:41.64
+b07a10b2
+User
+[MMS-WATCHER] [AUTO-STEP6] Found encoded files: true
+2025-11-05 19:55:41.64
+b07a10b2
+User
+[MMS-WATCHER] [AUTO-STEP6] Processing encoded files

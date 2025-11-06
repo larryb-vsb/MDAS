@@ -1,0 +1,108 @@
+6:16.90
+b07a10b2
+User
+file_processing_time: '010357',
+2025-11-05 19:56:20.04
+b07a10b2
+User
+[ERROR] Error checking IP blocklist: error: column "notes" does not exist
+2025-11-05 19:56:20.04
+b07a10b2
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-05 19:56:20.04
+b07a10b2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-05 19:56:20.04
+b07a10b2
+User
+at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2025-11-05 19:56:20.04
+b07a10b2
+User
+at async file:///home/runner/workspace/dist/index.js:36947:23 {
+2025-11-05 19:56:20.04
+b07a10b2
+User
+length: 105,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+severity: 'ERROR',
+2025-11-05 19:56:20.04
+b07a10b2
+User
+code: '42703',
+2025-11-05 19:56:20.04
+b07a10b2
+User
+detail: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+hint: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+position: '93',
+2025-11-05 19:56:20.04
+b07a10b2
+User
+internalPosition: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+internalQuery: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+where: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+schema: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+table: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+column: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+dataType: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+constraint: undefined,
+2025-11-05 19:56:20.04
+b07a10b2
+User
+file: 'parse_relation.c',
+2025-11-05 19:56:20.04
+b07a10b2
+User
+line: '3716',
+2025-11-05 19:56:20.04
+b07a10b2
+User
+routine: 'errorMissingColumn'
+2025-11-05 19:56:20.04
+b07a10b2
+User
+}
+2025-11-05 19:56:20.20
+b07a10b2
+User
+[STEP-6-PROCESSING] Inserted batch: 16000 master records, 16000 API records
+2025-11-05 19:56:20.24
+b07a10b2
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-11-05 19:56:20.24
+b07a10b2
+User
+[UPLOADER] Creating new upload: VERMNTSB.6759_
