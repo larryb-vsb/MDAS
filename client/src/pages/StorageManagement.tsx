@@ -26,8 +26,6 @@ import {
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
-import TddfObjectTotals from "@/components/storage/TddfObjectTotals";
-import StorageObjectProcessor from "@/components/storage/StorageObjectProcessor";
 
 // TypeScript interfaces for Storage Management
 interface StorageStats {
@@ -595,12 +593,6 @@ export default function StorageManagement() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* TDDF Object Totals Section */}
-          <TddfObjectTotals />
-          
-          {/* Storage Object Processor Section */}
-          <StorageObjectProcessor />
-          
           {statsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
