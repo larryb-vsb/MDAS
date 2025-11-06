@@ -381,6 +381,137 @@ function DuplicatesTab() {
   );
 }
 
+// Replit Storage Card Component
+interface ReplitStorageInfo {
+  bucketName: string;
+  environment: string;
+  folderPrefix: string;
+  available: boolean;
+  totalObjects: number;
+  devUploaderObjects: number;
+  prodUploaderObjects: number;
+  databaseFiles: number;
+  syncStatus: string;
+  error?: string;
+}
+
+function ReplitStorageCard() {
+  const { data: storageInfo, isLoading } = useQuery<ReplitStorageInfo>({
+    queryKey: ['/api/storage/replit-storage-info']
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="animate-pulse">
+        <CardHeader className="bg-gray-100 h-20"></CardHeader>
+        <CardContent className="bg-gray-50 h-24"></CardContent>
+      </Card>
+    );
+  }
+
+  if (!storageInfo) {
+    return null;
+  }
+
+  // Handle unavailable or error states
+  if (!storageInfo.available || storageInfo.syncStatus === 'unavailable' || storageInfo.syncStatus === 'error') {
+    return (
+      <Card className="border-orange-200 bg-orange-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            Replit Storage - Unavailable
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {storageInfo.error || 'Storage service is not configured or unavailable'}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-3 border rounded-lg bg-white">
+              <div className="text-sm font-medium text-muted-foreground">
+                Environment: <Badge variant="outline">{storageInfo.environment}</Badge>
+              </div>
+            </div>
+            <div className="text-center p-3 border rounded-lg bg-white">
+              <div className="text-sm font-medium text-muted-foreground">
+                Bucket: {storageInfo.bucketName}
+              </div>
+            </div>
+            <div className="text-center p-3 border rounded-lg bg-white">
+              <Badge variant="destructive">
+                {storageInfo.syncStatus === 'error' ? 'Error' : 'Unavailable'}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Determine sync status badge
+  let syncBadge;
+  if (storageInfo.syncStatus === 'synced') {
+    syncBadge = <Badge variant="default" className="text-sm bg-green-600">✓ Synced</Badge>;
+  } else if (storageInfo.syncStatus === 'out-of-sync') {
+    syncBadge = <Badge variant="destructive" className="text-sm">⚠ Out of Sync</Badge>;
+  } else {
+    syncBadge = <Badge variant="secondary" className="text-sm">Unknown</Badge>;
+  }
+
+  // Show environment-specific object count
+  const currentEnvCount = storageInfo.environment === 'production' 
+    ? storageInfo.prodUploaderObjects 
+    : storageInfo.devUploaderObjects;
+
+  return (
+    <Card className="border-blue-200 bg-blue-50/30">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-green-600" />
+          Replit Storage
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Bucket: {storageInfo.bucketName}
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="text-center p-3 border rounded-lg bg-white">
+            <div className="text-2xl font-bold text-blue-600">{storageInfo.totalObjects}</div>
+            <p className="text-xs text-muted-foreground">Total Object Storage</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Dev: {storageInfo.devUploaderObjects} | Prod: {storageInfo.prodUploaderObjects}
+            </p>
+          </div>
+          <div className="text-center p-3 border rounded-lg bg-white">
+            <div className="text-2xl font-bold text-purple-600">{storageInfo.databaseFiles}</div>
+            <p className="text-xs text-muted-foreground">Files (Database)</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {storageInfo.environment} env
+            </p>
+          </div>
+          <div className="text-center p-3 border rounded-lg bg-white">
+            {syncBadge}
+            <p className="text-xs text-muted-foreground mt-1">Sync Status</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {currentEnvCount} in {storageInfo.environment}
+            </p>
+          </div>
+          <div className="text-center p-3 border rounded-lg bg-white">
+            <div className="text-sm font-medium text-muted-foreground">
+              Environment: <Badge variant="outline">{storageInfo.environment}</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Folder: {storageInfo.folderPrefix}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function StorageManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -593,6 +724,9 @@ export default function StorageManagement() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* Replit Storage Status Card */}
+          <ReplitStorageCard />
+
           {statsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (

@@ -3,6 +3,7 @@ import { db, pool } from "../db";
 import { count, desc, eq, sql, and, isNull, isNotNull } from "drizzle-orm";
 import { getTableName } from "../table-config";
 import { logger } from "../../shared/logger";
+import { ReplitStorageService } from "../replit-storage-service";
 
 // Middleware for authentication check
 function isAuthenticated(req: any, res: any, next: any) {
@@ -412,6 +413,124 @@ export function registerStorageManagementRoutes(app: Express) {
     } catch (error: any) {
       logger.error('[STORAGE-MGMT] Remove duplicates failed:', error);
       res.status(500).json({ error: 'Failed to remove duplicates' });
+    }
+  });
+
+  // ===== REPLIT STORAGE INFO ENDPOINT =====
+  app.get('/api/storage/replit-storage-info', isAuthenticated, async (req, res) => {
+    try {
+      logger.info('[STORAGE-MGMT] Getting Replit Storage info');
+
+      // Get configuration status with error handling
+      let configStatus;
+      try {
+        configStatus = ReplitStorageService.getConfigStatus();
+      } catch (configError: any) {
+        logger.error('[STORAGE-MGMT] Storage service configuration failed:', configError);
+        return res.json({
+          bucketName: 'N/A',
+          environment: process.env.NODE_ENV || 'development',
+          folderPrefix: 'N/A',
+          available: false,
+          totalObjects: 0,
+          devUploaderObjects: 0,
+          prodUploaderObjects: 0,
+          databaseFiles: 0,
+          syncStatus: 'unavailable',
+          error: 'Storage service not configured'
+        });
+      }
+      
+      // Initialize response data
+      let totalObjects = 0;
+      let devUploaderObjects = 0;
+      let prodUploaderObjects = 0;
+      let storageError: string | null = null;
+      
+      // Try to list files if storage is configured
+      if (configStatus.available) {
+        try {
+          // List files in both environments - use explicit prefixes
+          // dev-uploader and prod-uploader are the actual folder structures used
+          const devFiles = await ReplitStorageService.listFiles('dev-uploader/');
+          devUploaderObjects = devFiles.length;
+          
+          const prodFiles = await ReplitStorageService.listFiles('prod-uploader/');
+          prodUploaderObjects = prodFiles.length;
+          
+          totalObjects = devUploaderObjects + prodUploaderObjects;
+          
+          logger.info(`[STORAGE-MGMT] Object counts - Dev: ${devUploaderObjects}, Prod: ${prodUploaderObjects}, Total: ${totalObjects}`);
+        } catch (listError: any) {
+          logger.error('[STORAGE-MGMT] Failed to list storage files:', listError);
+          storageError = listError.message || 'Failed to list storage objects';
+        }
+      }
+      
+      // Get database file counts - both total and per-environment
+      const dbFilesQuery = await db.execute(sql`
+        SELECT COUNT(*) as total_files
+        FROM ${sql.raw(uploadsTable)}
+      `);
+      const dbFilesTotal = parseInt((dbFilesQuery.rows[0] as any)?.total_files || '0');
+      
+      // Get environment-specific database count
+      // In the uploader_uploads table, files are stored with storage_path containing the environment prefix
+      const currentEnv = configStatus.environment;
+      const envPrefix = currentEnv === 'production' ? 'prod-uploader/' : 'dev-uploader/';
+      
+      const dbFilesEnvQuery = await db.execute(sql`
+        SELECT COUNT(*) as env_files
+        FROM ${sql.raw(uploadsTable)}
+        WHERE storage_path LIKE ${envPrefix + '%'}
+      `);
+      const dbFilesEnv = parseInt((dbFilesEnvQuery.rows[0] as any)?.env_files || '0');
+      
+      // Calculate environment-specific sync status
+      const envObjectCount = currentEnv === 'production' ? prodUploaderObjects : devUploaderObjects;
+      
+      // Determine sync status based on availability and counts
+      let syncStatus: string;
+      if (!configStatus.available || storageError) {
+        syncStatus = 'unavailable';
+      } else if (envObjectCount === dbFilesEnv) {
+        syncStatus = 'synced';
+      } else {
+        syncStatus = 'out-of-sync';
+      }
+      
+      logger.info(`[STORAGE-MGMT] Sync check - Env: ${currentEnv}, Storage: ${envObjectCount}, DB: ${dbFilesEnv}, Status: ${syncStatus}`);
+      
+      const storageInfo = {
+        bucketName: configStatus.bucket,
+        environment: configStatus.environment,
+        folderPrefix: configStatus.folderPrefix,
+        available: configStatus.available && !storageError,
+        totalObjects,
+        devUploaderObjects,
+        prodUploaderObjects,
+        databaseFiles: dbFilesEnv, // Use environment-specific count for display
+        syncStatus,
+        error: storageError
+      };
+
+      logger.info('[STORAGE-MGMT] Replit Storage info retrieved:', storageInfo);
+      res.json(storageInfo);
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] Failed to get Replit Storage info:', error);
+      // Return graceful degradation instead of 500 error
+      res.json({
+        bucketName: 'N/A',
+        environment: process.env.NODE_ENV || 'development',
+        folderPrefix: 'N/A',
+        available: false,
+        totalObjects: 0,
+        devUploaderObjects: 0,
+        prodUploaderObjects: 0,
+        databaseFiles: 0,
+        syncStatus: 'error',
+        error: error.message || 'Unknown error occurred'
+      });
     }
   });
 

@@ -46,12 +46,17 @@ export class ReplitStorageService {
     const environment = process.env.NODE_ENV || 'development';
     const folderPrefix = environment === 'production' ? 'prod-uploader' : 'dev-uploader';
     
-    console.log(`[REPLIT-STORAGE] Config status check - Environment: ${environment}, Prefix: ${folderPrefix}`);
+    // Get actual bucket ID from environment
+    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID || 
+                     process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID || 
+                     'default-replit-bucket';
+    
+    console.log(`[REPLIT-STORAGE] Config status check - Environment: ${environment}, Prefix: ${folderPrefix}, Bucket: ${bucketId}`);
     
     return {
       available: this.isConfigured(),
       service: 'Replit Object Storage',
-      bucket: 'default-replit-bucket',
+      bucket: bucketId,
       environment: environment,
       folderPrefix: folderPrefix
     };
