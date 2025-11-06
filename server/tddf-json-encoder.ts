@@ -885,8 +885,21 @@ async function updateMerchantsAndTerminalsFromDT(
           const checkTerminalQuery = `SELECT id FROM ${terminalsTableName} WHERE v_number = $1`;
           const existingTerminal = await batchPool.query(checkTerminalQuery, [vNumber]);
           
-          // Get line number from first transaction for this terminal (for audit trail)
-          const terminalLineNumber = dtRecords.find(r => r.terminalId === terminalId)?.lineNumber || 0;
+          // Get line number and most recent transaction date for this terminal
+          const terminalTransactions = dtRecords.filter(r => r.terminalId === terminalId);
+          const terminalLineNumber = terminalTransactions[0]?.lineNumber || 0;
+          
+          // Find most recent transaction date for last_activity_date
+          let lastActivityDate: Date | null = null;
+          for (const txn of terminalTransactions) {
+            if (txn.transactionDate) {
+              const txnDate = new Date(txn.transactionDate);
+              if (!lastActivityDate || txnDate > lastActivityDate) {
+                lastActivityDate = txnDate;
+              }
+            }
+          }
+          
           const updateSource = `TDDF: ${sourceFilename} Line: ${terminalLineNumber}`;
           const createdUpdatedBy = `STEP6:${uploadId}`;
           
@@ -896,7 +909,7 @@ async function updateMerchantsAndTerminalsFromDT(
           }
           
           if (existingTerminal.rows.length > 0) {
-            // Update existing terminal with audit trail
+            // Update existing terminal - PRESERVE terminal_id and v_number, only update merchant info and last_activity_date
             const updateTerminalQuery = `
               UPDATE ${terminalsTableName}
               SET 
@@ -906,8 +919,9 @@ async function updateMerchantsAndTerminalsFromDT(
                 status = 'Active',
                 record_status = 'Active',
                 last_update = NOW(),
-                update_source = $5,
-                updated_by = $6,
+                last_activity_date = COALESCE($5, last_activity_date),
+                update_source = $6,
+                updated_by = $7,
                 updated_at = NOW()
               WHERE v_number = $1
             `;
@@ -917,6 +931,7 @@ async function updateMerchantsAndTerminalsFromDT(
               merchantAccountNumber,
               data.merchantName,
               data.mccCode,
+              lastActivityDate, // Set last activity date from most recent transaction
               updateSource,
               createdUpdatedBy
             ]);
@@ -928,9 +943,10 @@ async function updateMerchantsAndTerminalsFromDT(
               INSERT INTO ${terminalsTableName} (
                 v_number, pos_merchant_number, dba_name, mcc, 
                 terminal_id, status, record_status,
+                last_activity_date,
                 update_source, created_by, updated_by,
                 last_update, created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW())
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), NOW())
             `;
             
             await batchPool.query(insertTerminalQuery, [
@@ -941,6 +957,7 @@ async function updateMerchantsAndTerminalsFromDT(
               terminalId, // Store original terminal ID with '7' or '0' prefix
               'Active',
               'Active',
+              lastActivityDate, // Set last activity date from most recent transaction
               updateSource,
               createdUpdatedBy,
               createdUpdatedBy
