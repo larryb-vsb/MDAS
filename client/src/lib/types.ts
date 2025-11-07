@@ -14,7 +14,19 @@ export interface DashboardStats {
   totalRevenue: number; // Total revenue (all time or monthly)
 }
 
-// Merchant stats types
+// Merchant batch info
+export interface MerchantBatchInfo {
+  filename: string | null;
+  date: Date | null;
+}
+
+// Merchant transaction info
+export interface MerchantTransactionInfo {
+  amount: number | null;
+  date: Date | null;
+}
+
+// Merchant stats types (legacy - kept for compatibility)
 export interface MerchantStats {
   transactions: number;
   revenue: number;
@@ -27,8 +39,8 @@ export interface Merchant {
   clientMID?: string | null;
   status: string;
   lastUpload: string;
-  dailyStats: MerchantStats;
-  monthlyStats: MerchantStats;
+  lastBatch?: MerchantBatchInfo;
+  lastTransaction?: MerchantTransactionInfo;
 }
 
 // Pagination type

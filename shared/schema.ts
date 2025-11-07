@@ -151,7 +151,13 @@ export const merchants = pgTable(getTableName("merchants"), {
   dateOfLastDeposit: timestamp("date_of_last_deposit"), // Date of Last Deposit
   transDestination: text("trans_destination"), // Trans Destination
   merchantEmailAddress: text("merchant_email_address"), // Merchant Email Address
-  chargebackEmailAddress: text("chargeback_email_address") // Chargeback Email Address
+  chargebackEmailAddress: text("chargeback_email_address"), // Chargeback Email Address
+  
+  // TDDF Last Batch and Transaction Tracking (Pre-cached for performance)
+  lastBatchFilename: text("last_batch_filename"), // Most recent TDDF filename processed for this merchant
+  lastBatchDate: timestamp("last_batch_date"), // Processing date of most recent TDDF batch
+  lastTransactionAmount: numeric("last_transaction_amount", { precision: 15, scale: 2 }), // Amount of most recent transaction
+  lastTransactionDate: timestamp("last_transaction_date") // Date/time of most recent transaction from TDDF
 }, (table) => ({
   // Time-based analytics indexes
   createdAtIdx: index("merchants_created_at_idx").on(table.createdAt),
@@ -161,6 +167,9 @@ export const merchants = pgTable(getTableName("merchants"), {
   merchantActivationDateIdx: index("merchants_merchant_activation_date_idx").on(table.merchantActivationDate),
   dateOfFirstDepositIdx: index("merchants_date_of_first_deposit_idx").on(table.dateOfFirstDeposit),
   dateOfLastDepositIdx: index("merchants_date_of_last_deposit_idx").on(table.dateOfLastDeposit),
+  // TDDF last batch/transaction indexes for fast sorting
+  lastBatchDateIdx: index("merchants_last_batch_date_idx").on(table.lastBatchDate),
+  lastTransactionDateIdx: index("merchants_last_transaction_date_idx").on(table.lastTransactionDate),
   // Composite indexes for common query patterns
   statusCreatedAtIdx: index("merchants_status_created_at_idx").on(table.status, table.createdAt),
   merchantTypeLastUploadIdx: index("merchants_type_last_upload_idx").on(table.merchantType, table.lastUploadDate)

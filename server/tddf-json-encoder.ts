@@ -758,6 +758,14 @@ async function updateMerchantsAndTerminalsFromDT(
     groupNumbers: Set<string>;
     firstSeen: Date | null;
     lastSeen: Date | null;
+    lastTransactionAmount?: number;
+    lastTransactionDate?: Date;
+  }>();
+  
+  // Track most recent transaction per merchant for last batch/transaction info
+  const merchantTransactionMap = new Map<string, {
+    amount: number;
+    date: Date;
   }>();
   
   // Process all DT records and collect unique merchants and terminals
@@ -818,6 +826,45 @@ async function updateMerchantsAndTerminalsFromDT(
     }
   }
   
+  // Second pass: Find most recent transaction amount and date for each merchant from actual DT data
+  // Batched query using DISTINCT ON to get latest transaction per merchant in a single query
+  const tddfJsonbTable = getTableName('tddf_jsonb');
+  const merchantAccountNumbers = Array.from(merchantDataMap.keys());
+  
+  if (merchantAccountNumbers.length > 0) {
+    try {
+      // Single batched query to get most recent transaction for ALL merchants in this file
+      const batchedTxnResult = await batchPool.query(`
+        SELECT DISTINCT ON (extracted_fields->>'merchantAccountNumber')
+          extracted_fields->>'merchantAccountNumber' as merchant_id,
+          (extracted_fields->>'transactionAmount')::numeric as amount,
+          (extracted_fields->>'transactionDate')::date as date
+        FROM ${tddfJsonbTable}
+        WHERE record_type = 'DT'
+          AND filename = $1
+          AND extracted_fields->>'merchantAccountNumber' = ANY($2)
+        ORDER BY 
+          extracted_fields->>'merchantAccountNumber',
+          (extracted_fields->>'transactionDate')::date DESC,
+          id DESC
+      `, [sourceFilename, merchantAccountNumbers]);
+      
+      // Map the results back to merchantDataMap
+      for (const row of batchedTxnResult.rows) {
+        const merchantData = merchantDataMap.get(row.merchant_id);
+        if (merchantData) {
+          merchantData.lastTransactionAmount = parseFloat(row.amount || '0');
+          merchantData.lastTransactionDate = row.date ? new Date(row.date) : undefined;
+        }
+      }
+      
+      console.log(`[STEP-6-MERCHANTS] Fetched last transaction data for ${batchedTxnResult.rows.length} merchants in single query`);
+    } catch (txnError: any) {
+      console.warn(`[STEP-6-MERCHANTS] Could not fetch last transactions (batched):`, txnError.message);
+      // Continue without transaction data rather than failing the entire batch
+    }
+  }
+  
   console.log(`[STEP-6-MERCHANTS] Processing ${merchantDataMap.size} unique merchants`);
   
   // Process each merchant - upsert into merchants table
@@ -831,7 +878,7 @@ async function updateMerchantsAndTerminalsFromDT(
       const existingResult = await batchPool.query(checkQuery, [merchantId]);
       
       if (existingResult.rows.length > 0) {
-        // Update existing merchant
+        // Update existing merchant with last batch and transaction tracking
         const updateQuery = `
           UPDATE ${merchantsTableName}
           SET 
@@ -839,7 +886,11 @@ async function updateMerchantsAndTerminalsFromDT(
             mcc = COALESCE($3, mcc),
             last_upload_date = NOW(),
             edit_date = NOW(),
-            updated_by = $4
+            updated_by = $4,
+            last_batch_filename = $5,
+            last_batch_date = NOW(),
+            last_transaction_amount = COALESCE($6, last_transaction_amount),
+            last_transaction_date = COALESCE($7, last_transaction_date)
           WHERE id = $1
         `;
         
@@ -847,17 +898,22 @@ async function updateMerchantsAndTerminalsFromDT(
           merchantId,
           data.merchantName,
           data.mccCode,
-          `TDDF_STEP6:${sourceFilename}`
+          `TDDF_STEP6:${sourceFilename}`,
+          sourceFilename,
+          data.lastTransactionAmount,
+          data.lastTransactionDate
         ]);
         
         merchantsUpdated++;
       } else {
-        // Insert new merchant
+        // Insert new merchant with last batch and transaction tracking
         const insertQuery = `
           INSERT INTO ${merchantsTableName} (
             id, name, mcc, status, created_at, last_upload_date, 
-            edit_date, updated_by, client_mid
-          ) VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW(), $5, $6)
+            edit_date, updated_by, client_mid,
+            last_batch_filename, last_batch_date,
+            last_transaction_amount, last_transaction_date
+          ) VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW(), $5, $6, $7, NOW(), $8, $9)
         `;
         
         await batchPool.query(insertQuery, [
@@ -866,7 +922,10 @@ async function updateMerchantsAndTerminalsFromDT(
           data.mccCode,
           'Active',
           `TDDF_STEP6:${sourceFilename}`,
-          merchantAccountNumber
+          merchantAccountNumber,
+          sourceFilename,
+          data.lastTransactionAmount,
+          data.lastTransactionDate
         ]);
         
         merchantsCreated++;

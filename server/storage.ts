@@ -1631,20 +1631,21 @@ export class DatabaseStorage implements IStorage {
           clientMID: merchant.client_mid,
           status: merchant.status,
           lastUpload,
-          dailyStats: stats.daily,
-          monthlyStats: stats.monthly
+          lastBatch: stats.lastBatch,
+          lastTransaction: stats.lastTransaction
         };
       }));
       
       // Apply in-memory sorting and pagination for transaction-based columns
       if (needsInMemorySort) {
         merchantsWithStats.sort((a, b) => {
-          const aValue = sortBy === 'dailyTransactions' 
-            ? a.dailyStats.transactions 
-            : a.monthlyStats.transactions;
-          const bValue = sortBy === 'dailyTransactions' 
-            ? b.dailyStats.transactions 
-            : b.monthlyStats.transactions;
+          // Sort by last transaction date or last batch date depending on sortBy
+          const aValue = sortBy === 'lastTransactionDate' 
+            ? (a.lastTransaction.date ? a.lastTransaction.date.getTime() : 0)
+            : (a.lastBatch.date ? a.lastBatch.date.getTime() : 0);
+          const bValue = sortBy === 'lastTransactionDate' 
+            ? (b.lastTransaction.date ? b.lastTransaction.date.getTime() : 0)
+            : (b.lastBatch.date ? b.lastBatch.date.getTime() : 0);
           
           return validatedSortOrder === 'asc' ? aValue - bValue : bValue - aValue;
         });
@@ -1883,14 +1884,14 @@ export class DatabaseStorage implements IStorage {
           chargebackEmailAddress: merchant.chargeback_email_address || null,
           merchantStatus: merchant.merchant_status || null,
           stats: {
-            daily: stats.daily,
-            monthly: stats.monthly
+            lastBatch: stats.lastBatch,
+            lastTransaction: stats.lastTransaction
           }
         },
         transactions: formattedTransactions,
         analytics: {
-          dailyStats: stats.daily,
-          monthlyStats: stats.monthly,
+          lastBatch: stats.lastBatch,
+          lastTransaction: stats.lastTransaction,
           transactionHistory
         }
       };
@@ -3021,8 +3022,54 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Calculate stats for a merchant
+  // Get pre-cached last batch and transaction stats for a merchant
   private async getMerchantStats(merchantId: string): Promise<{
+    lastBatch: { filename: string | null; date: Date | null };
+    lastTransaction: { amount: number | null; date: Date | null };
+  }> {
+    try {
+      // Query merchant record for pre-cached last batch and transaction data
+      const merchantsTableName = getTableName('merchants');
+      const merchantQuery = await db.execute(sql`
+        SELECT 
+          last_batch_filename,
+          last_batch_date,
+          last_transaction_amount,
+          last_transaction_date
+        FROM ${sql.identifier(merchantsTableName)} 
+        WHERE id = ${merchantId}
+        LIMIT 1
+      `);
+      
+      if (merchantQuery.rows.length === 0) {
+        return {
+          lastBatch: { filename: null, date: null },
+          lastTransaction: { amount: null, date: null }
+        };
+      }
+      
+      const row = merchantQuery.rows[0];
+      return {
+        lastBatch: {
+          filename: row.last_batch_filename || null,
+          date: row.last_batch_date ? new Date(row.last_batch_date) : null
+        },
+        lastTransaction: {
+          amount: row.last_transaction_amount ? parseFloat(row.last_transaction_amount.toString()) : null,
+          date: row.last_transaction_date ? new Date(row.last_transaction_date) : null
+        }
+      };
+    } catch (error) {
+      console.error(`Error getting merchant stats for ${merchantId}:`, error);
+      return {
+        lastBatch: { filename: null, date: null },
+        lastTransaction: { amount: null, date: null }
+      };
+    }
+  }
+  
+  // DEPRECATED: Old getMerchantStats logic - kept for reference
+  private async _legacyGetMerchantStats(merchantId: string): Promise<{
     daily: { transactions: number; revenue: number };
     monthly: { transactions: number; revenue: number };
   }> {

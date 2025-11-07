@@ -240,20 +240,20 @@ export default function MerchantList({
                   </TableHead>
                   <TableHead 
                     className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
-                    onClick={() => onSort("dailyTransactions")}
+                    onClick={() => onSort("lastBatchDate")}
                   >
                     <div className="flex items-center">
-                      Daily Stats
-                      {renderSortIcon("dailyTransactions")}
+                      Last Batch
+                      {renderSortIcon("lastBatchDate")}
                     </div>
                   </TableHead>
                   <TableHead 
                     className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
-                    onClick={() => onSort("monthlyTransactions")}
+                    onClick={() => onSort("lastTransactionDate")}
                   >
                     <div className="flex items-center">
-                      Monthly Stats
-                      {renderSortIcon("monthlyTransactions")}
+                      Last Transaction
+                      {renderSortIcon("lastTransactionDate")}
                     </div>
                   </TableHead>
                   <TableHead className="relative px-6 py-3">
@@ -354,12 +354,27 @@ export default function MerchantList({
                         {merchant.lastUpload}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{(merchant.dailyStats?.transactions || 0).toLocaleString()} transactions</div>
-                        <div className="text-sm text-gray-500">${(merchant.dailyStats?.revenue || 0).toLocaleString()} revenue</div>
+                        <div className="text-sm text-gray-900">{merchant.lastBatch?.filename || 'No data'}</div>
+                        <div className="text-sm text-gray-500">
+                          {merchant.lastBatch?.date 
+                            ? new Date(merchant.lastBatch.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : '-'
+                          }
+                        </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{(merchant.monthlyStats?.transactions || 0).toLocaleString()} transactions</div>
-                        <div className="text-sm text-gray-500">${(merchant.monthlyStats?.revenue || 0).toLocaleString()} revenue</div>
+                        <div className="text-sm text-gray-900">
+                          {merchant.lastTransaction?.amount 
+                            ? `$${merchant.lastTransaction.amount.toFixed(2)}` 
+                            : 'No data'
+                          }
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {merchant.lastTransaction?.date 
+                            ? new Date(merchant.lastTransaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : '-'
+                          }
+                        </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                         <div className="flex items-center justify-end space-x-3">
