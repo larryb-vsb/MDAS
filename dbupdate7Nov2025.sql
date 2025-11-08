@@ -438,6 +438,7 @@ CREATE INDEX IF NOT EXISTS idx_dev_tddf_jsonb_record_type ON dev_tddf_jsonb(reco
 CREATE INDEX IF NOT EXISTS idx_dev_tddf_jsonb_business_day ON dev_tddf_jsonb(business_day);
 CREATE INDEX IF NOT EXISTS idx_dev_tddf_jsonb_processing_status ON dev_tddf_jsonb(processing_status);
 CREATE INDEX IF NOT EXISTS idx_dev_tddf_jsonb_filename ON dev_tddf_jsonb(filename);
+CREATE INDEX IF NOT EXISTS idx_dev_tddf_jsonb_created_at ON dev_tddf_jsonb(created_at);
 
 -- JSONB Performance Indexes (safe for production data)
 CREATE INDEX IF NOT EXISTS idx_dev_tddf_jsonb_mcc ON dev_tddf_jsonb USING gin ((parsed_data->'merchantAccountNumber'));
