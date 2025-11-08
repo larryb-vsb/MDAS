@@ -3708,7 +3708,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endTime = new Date(Date.now() - (timeOffset * 60 * 60 * 1000));
       const startTime = new Date(endTime.getTime() - (hours * 60 * 60 * 1000));
       
-      // Query TDDF records grouped by minute
+      // For performance, limit to recent data only (last 24 hours max)
+      const maxLookback = new Date(Date.now() - (24 * 60 * 60 * 1000));
+      const effectiveStartTime = startTime < maxLookback ? maxLookback : startTime;
+      
+      // Query TDDF records grouped by minute with LIMIT for performance
       const chartData = await db.execute(sql`
         SELECT 
           DATE_TRUNC('minute', created_at) as minute,
@@ -3719,14 +3723,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(*) FILTER (WHERE record_type NOT IN ('DT', 'BH', 'P1', 'P2')) as other_records,
           COUNT(*) as total_records
         FROM ${sql.identifier(tddfTable)}
-        WHERE created_at >= ${startTime.toISOString()}
+        WHERE created_at >= ${effectiveStartTime.toISOString()}
           AND created_at <= ${endTime.toISOString()}
         GROUP BY DATE_TRUNC('minute', created_at)
-        ORDER BY minute ASC
+        ORDER BY minute DESC
+        LIMIT 1440
       `);
       
-      // Format data for chart component
-      const formattedData = chartData.rows.map((row: any) => ({
+      // Format data for chart component (reverse to get chronological order)
+      const formattedData = chartData.rows.reverse().map((row: any) => ({
         timestamp: new Date(row.minute).toISOString(),
         recordsPerMinute: parseInt(String(row.total_records || 0)),
         dtRecords: parseInt(String(row.dt_records || 0)),
