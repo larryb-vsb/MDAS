@@ -33,6 +33,23 @@ CREATE TABLE IF NOT EXISTS dev_system_settings (
     updated_by VARCHAR(100)
 );
 
+-- Add missing columns to existing dev_system_settings table (safe to re-run)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dev_system_settings' AND column_name='category') THEN
+        ALTER TABLE dev_system_settings ADD COLUMN category VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dev_system_settings' AND column_name='is_active') THEN
+        ALTER TABLE dev_system_settings ADD COLUMN is_active BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dev_system_settings' AND column_name='created_by') THEN
+        ALTER TABLE dev_system_settings ADD COLUMN created_by VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dev_system_settings' AND column_name='updated_by') THEN
+        ALTER TABLE dev_system_settings ADD COLUMN updated_by VARCHAR(100);
+    END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_dev_system_settings_key ON dev_system_settings(setting_key);
 CREATE INDEX IF NOT EXISTS idx_dev_system_settings_category ON dev_system_settings(category);
 CREATE INDEX IF NOT EXISTS idx_dev_system_settings_active ON dev_system_settings(is_active);
