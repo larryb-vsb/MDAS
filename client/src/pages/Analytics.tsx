@@ -28,6 +28,7 @@ interface AnalyticsData {
     cardAuthAmount: number;
     batchDeposits: number;
     batchDepositAmount: number;
+    year?: number;
   }>;
   merchantCategoryData: Array<{
     name: string;
@@ -132,17 +133,18 @@ export default function Analytics() {
                     isLoading={isLoading}
                     title="Transaction Volume"
                     description="Number of transactions processed over time"
-                    dataKey="transactions"
+                    dataKey="cardAuthorizations"
                     color="#8884d8"
+                    tooltipLabel="Transactions"
                   />
                   <AnalyticsTransactionChart 
                     data={analyticsData.transactionData}
                     isLoading={isLoading}
-                    title="Revenue Analysis"
-                    description="Revenue generated from transactions"
-                    dataKey="revenue"
+                    title="Deposit Analysis"
+                    description="Deposit amounts from batch processing"
+                    dataKey="batchDepositAmount"
                     color="#82ca9d"
-                    tooltipLabel="Revenue"
+                    tooltipLabel="Deposits"
                   />
                 </div>
                 

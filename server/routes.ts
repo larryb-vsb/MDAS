@@ -2961,7 +2961,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batchDepositAmount: data.bh.amount,
         // Totals for backwards compatibility with existing charts
         transactions: data.ach.count + data.dt.count + data.bh.count,
-        revenue: data.ach.amount + data.dt.amount + data.bh.amount
+        revenue: data.ach.amount + data.dt.amount + data.bh.amount,
+        year: now.getFullYear() // Add year for chart comparison
       }));
       
       // Sort data chronologically

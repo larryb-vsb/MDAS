@@ -30,6 +30,12 @@ interface TransactionData {
   transactions: number;
   revenue?: number;
   year?: number;
+  cardAuthorizations?: number;
+  cardAuthAmount?: number;
+  batchDeposits?: number;
+  batchDepositAmount?: number;
+  achDeposits?: number;
+  achAmount?: number;
 }
 
 interface AnalyticsTransactionChartProps {
@@ -60,8 +66,8 @@ export default function AnalyticsTransactionChart({
   const previousYearData = data?.filter(item => item.year === 2024) || [];
 
   const formatValue = (value: number) => {
-    if (dataKey === 'revenue') {
-      return `$${value.toLocaleString('en-US')}`;
+    if (dataKey === 'revenue' || dataKey === 'batchDepositAmount' || dataKey === 'cardAuthAmount' || dataKey === 'achAmount') {
+      return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return value.toLocaleString('en-US');
   };
@@ -197,7 +203,7 @@ export default function AnalyticsTransactionChart({
                 tickLine={false}
                 axisLine={{ stroke: '#E0E0E0' }}
                 tickFormatter={(value) => {
-                  if (dataKey === 'revenue') {
+                  if (dataKey === 'revenue' || dataKey === 'batchDepositAmount' || dataKey === 'cardAuthAmount' || dataKey === 'achAmount') {
                     return value >= 1000 ? `$${(value / 1000).toFixed(0)}k` : `$${value}`;
                   }
                   return value;
