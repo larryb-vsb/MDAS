@@ -3,20 +3,11 @@ import { db, pool } from "../db";
 import { sql } from "drizzle-orm";
 import { storage, isFallbackStorage } from "../storage";
 import { isAuthenticated } from "./middleware";
-import { backupHistory } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
-import multer from "multer";
-import fs from "fs";
-
-// Set up multer for file uploads with memory storage for buffer access
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for large TDDF files
-});
 
 export function registerSettingsRoutes(app: Express) {
-  // Upload and restore backup endpoint that works even in fallback mode
-  app.post("/api/settings/backup/restore-upload", upload.single('backupFile'), async (req, res) => {
+  // Endpoint to convert in-memory data to database
+  app.post("/api/settings/convert-memory-to-database", isAuthenticated, async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ success: false, error: "No file uploaded" });

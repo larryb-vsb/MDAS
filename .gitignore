@@ -53,3 +53,8 @@ temp/
 *.sqlite
 *.sqlite3
 *.db
+
+# Backup files
+backups/
+backup.json
+*.backup
