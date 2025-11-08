@@ -3,14 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import MerchantList from "@/components/merchants/MerchantList";
-import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
 import MccSchemaConfig from "@/components/merchants/MccSchemaConfig";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw, Building2, CreditCard, FileText, Settings, Store } from "lucide-react";
+import { RefreshCw, Building2, CreditCard, Settings, Store } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -233,7 +232,7 @@ export default function Merchants() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-[1000px]">
+          <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               All Merchants
@@ -245,10 +244,6 @@ export default function Merchants() {
             <TabsTrigger value="ach" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               ACH Merchants
-            </TabsTrigger>
-            <TabsTrigger value="tddf" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              TDDF Merchants
             </TabsTrigger>
             <TabsTrigger value="mcc-config" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -353,11 +348,6 @@ export default function Merchants() {
               sortDirection={sortDirection}
               onSort={handleSort}
             />
-          </TabsContent>
-          
-          
-          <TabsContent value="tddf" className="mt-6">
-            <TddfMerchantsTable />
           </TabsContent>
 
           <TabsContent value="mcc-config" className="mt-6">
