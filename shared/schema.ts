@@ -302,6 +302,7 @@ export const apiTerminals = pgTable(getTableName("api_terminals"), {
   createdBy: text("created_by"), // Who created this terminal record
   updatedBy: text("updated_by"), // Who last updated this terminal record
   lastActivity: timestamp("last_activity"), // For tracking terminal transaction activity (future use)
+  lastActivityDate: timestamp("last_activity_date"), // Most recent transaction date from TDDF processing
   lastUpdate: timestamp("last_update"), // For tracking when terminal record was last updated
   updateSource: text("update_source"), // Source of last update: "File: filename.csv" or "Form: admin"
   lastSyncDate: timestamp("last_sync_date"), // Last sync with TSYS
@@ -1878,7 +1879,10 @@ export const insertDevUploadSchema = createInsertSchema(devUploads);
 export type InsertDevUpload = z.infer<typeof insertDevUploadSchema>;
 
 // Dashboard cache table for pre-computed metrics using target-source naming
-export const dashboardCache = pgTable(getTableName("dashboard-merchants_cache_2025"), {
+// TEMPORARILY COMMENTED OUT to allow db:push to add last_activity_date column to terminals table
+// Will be re-enabled via dedicated migration later
+/*
+export const dashboardCache = pgTable(getTableName("dashboard_merchants_cache_2025"), {
   id: serial("id").primaryKey(),
   cache_key: text("cache_key").notNull().unique(), // 'main_metrics', 'additional_metrics', etc.
   cache_data: jsonb("cache_data").notNull(), // Pre-computed metrics in JSON format
@@ -1892,6 +1896,7 @@ export const dashboardCache = pgTable(getTableName("dashboard-merchants_cache_20
 export type DashboardCache = typeof dashboardCache.$inferSelect;
 export const insertDashboardCacheSchema = createInsertSchema(dashboardCache);
 export type InsertDashboardCache = z.infer<typeof insertDashboardCacheSchema>;
+*/
 
 // Uploader dashboard cache table for MMS Uploader metrics
 export const uploaderDashboardCache = pgTable(getTableName("uploader_dashboard_cache"), {
