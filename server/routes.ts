@@ -22,7 +22,6 @@ import { registerApiUserRoutes } from "./routes/api-users.routes";
 import { registerTddfFilesRoutes } from "./routes/tddf-files.routes";
 import { registerTddfRecordsRoutes } from "./routes/tddf-records.routes";
 import { registerTddfCacheRoutes } from "./routes/tddf-cache.routes";
-import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 import { registerSystemRoutes } from "./routes/system.routes";
 import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerSettingsRoutes } from "./routes/settings.routes";
@@ -208,10 +207,7 @@ import {
   uploadedFiles as uploadedFilesTable,
   auditLogs as auditLogsTable,
   systemLogs as systemLogsTable,
-  backupHistory,
-  InsertBackupHistory,
   schemaVersions,
-  backupSchedules as backupSchedulesTable,
   users as usersTable,
   apiTerminals as terminalsTable,
   tddfRecords as tddfRecordsTable,
@@ -369,9 +365,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register reprocessing skipped records routes
   registerReprocessSkippedRoutes(app);
-  
-  // Import the restore function from restore-env-backup
-  const { restoreBackupToEnvironment } = await import('./restore-env-backup');
   
   // Phase A: Core Business Routes  
   registerMerchantRoutes(app);
