@@ -2338,12 +2338,32 @@ export default function MerchantDetail() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Monthly Transactions</h3>
-                      <p className="mt-1 text-2xl font-semibold">{data?.analytics.monthlyStats.transactions || 0}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Last Batch</h3>
+                      <p className="mt-1 text-sm font-semibold">{data?.analytics.lastBatch?.filename || 'No data'}</p>
+                      <p className="text-xs text-gray-500">
+                        {data?.analytics.lastBatch?.date 
+                          ? new Date(data.analytics.lastBatch.date).toLocaleString('en-US', { 
+                              month: 'short', day: 'numeric', year: 'numeric', 
+                              hour: '2-digit', minute: '2-digit' 
+                            })
+                          : '-'}
+                      </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
-                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(parseFloat(data?.analytics.monthlyStats.revenue || '0'))}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Last Transaction</h3>
+                      <p className="mt-1 text-2xl font-semibold text-green-600">
+                        {data?.analytics.lastTransaction?.amount 
+                          ? formatCurrency(data.analytics.lastTransaction.amount) 
+                          : 'No data'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {data?.analytics.lastTransaction?.date 
+                          ? new Date(data.analytics.lastTransaction.date).toLocaleString('en-US', { 
+                              month: 'short', day: 'numeric', year: 'numeric', 
+                              hour: '2-digit', minute: '2-digit' 
+                            })
+                          : '-'}
+                      </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">Merchant Type</h3>

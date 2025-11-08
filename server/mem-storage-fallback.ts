@@ -207,18 +207,19 @@ export class MemStorageFallback implements IStorage {
     merchant: any;
     transactions: any[];
     analytics: {
-      dailyStats: {
-        transactions: number;
-        revenue: number;
-      };
-      monthlyStats: {
-        transactions: number;
-        revenue: number;
-      };
+      lastBatch: {
+        filename: string | null;
+        date: Date | null;
+      } | null;
+      lastTransaction: {
+        amount: number | null;
+        date: Date | null;
+      } | null;
       transactionHistory: {
         name: string;
         transactions: number;
         revenue: number;
+        year?: number;
       }[];
     };
   }> {
@@ -259,19 +260,13 @@ export class MemStorageFallback implements IStorage {
       type: t.type || 'Credit'
     }));
     
-    // Simple mock analytics
+    // Simple mock analytics with new structure
     return {
       merchant: formattedMerchant,
       transactions: formattedTransactions,
       analytics: {
-        dailyStats: {
-          transactions: 0,
-          revenue: 0
-        },
-        monthlyStats: {
-          transactions: 0,
-          revenue: 0
-        },
+        lastBatch: null,
+        lastTransaction: null,
         transactionHistory: []
       }
     };

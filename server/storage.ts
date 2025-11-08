@@ -266,18 +266,19 @@ export interface IStorage {
     merchant: any;
     transactions: any[];
     analytics: {
-      dailyStats: {
-        transactions: number;
-        revenue: number;
-      };
-      monthlyStats: {
-        transactions: number;
-        revenue: number;
-      };
+      lastBatch: {
+        filename: string | null;
+        date: Date | null;
+      } | null;
+      lastTransaction: {
+        amount: number | null;
+        date: Date | null;
+      } | null;
       transactionHistory: {
         name: string;
         transactions: number;
         revenue: number;
+        year?: number;
       }[];
     };
   }>;
