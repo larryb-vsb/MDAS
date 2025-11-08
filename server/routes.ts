@@ -3537,6 +3537,245 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // MODERN Processing Dashboard Endpoints - Query TDDF JSONB tables directly
+  
+  // Real-time processing statistics from dev_uploaded_files
+  app.get("/api/processing/real-time-stats", isAuthenticated, async (req, res) => {
+    try {
+      const filesTable = getTableName("uploaded_files");
+      const tddfTable = getTableName("tddf_jsonb");
+      
+      // Get file status counts from dev_uploaded_files
+      const fileStats = await db.execute(sql`
+        SELECT 
+          COUNT(*) FILTER (WHERE processing_status = 'completed') as completed_files,
+          COUNT(*) FILTER (WHERE processing_status = 'processing') as processing_files,
+          COUNT(*) FILTER (WHERE processing_status = 'queued' OR processing_status = 'pending') as queued_files,
+          COUNT(*) FILTER (WHERE processing_status = 'error' OR processing_status = 'failed') as error_files,
+          COUNT(*) as total_files
+        FROM ${sql.identifier(filesTable)}
+        WHERE file_type = 'tddf'
+          AND deleted = false
+      `);
+      
+      // Get TDDF record counts by type from last hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const recordStats = await db.execute(sql`
+        SELECT 
+          COUNT(*) FILTER (WHERE record_type = 'DT') as dt_records,
+          COUNT(*) FILTER (WHERE record_type = 'BH') as bh_records,
+          COUNT(*) FILTER (WHERE record_type = 'P1') as p1_records,
+          COUNT(*) FILTER (WHERE record_type NOT IN ('DT', 'BH', 'P1')) as other_records,
+          COUNT(*) as total_records
+        FROM ${sql.identifier(tddfTable)}
+        WHERE created_at >= ${oneHourAgo.toISOString()}
+      `);
+      
+      const files = fileStats.rows[0] as any || {};
+      const records = recordStats.rows[0] as any || {};
+      
+      res.json({
+        totalFiles: parseInt(String(files.total_files || 0)),
+        completedFiles: parseInt(String(files.completed_files || 0)),
+        processingFiles: parseInt(String(files.processing_files || 0)),
+        queuedFiles: parseInt(String(files.queued_files || 0)),
+        errorFiles: parseInt(String(files.error_files || 0)),
+        tddfOperations: {
+          dtRecordsProcessed: parseInt(String(records.dt_records || 0)),
+          bhRecordsProcessed: parseInt(String(records.bh_records || 0)),
+          p1RecordsProcessed: parseInt(String(records.p1_records || 0)),
+          otherRecordsProcessed: parseInt(String(records.other_records || 0)),
+          totalTddfRecords: parseInt(String(records.total_records || 0))
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching real-time stats:", error);
+      res.status(500).json({ error: "Failed to fetch processing statistics" });
+    }
+  });
+  
+  // Performance KPIs with record type breakdown
+  app.get("/api/processing/performance-kpis", isAuthenticated, async (req, res) => {
+    try {
+      const tddfTable = getTableName("tddf_jsonb");
+      
+      // Calculate records per minute from last 10 minutes
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const performanceStats = await db.execute(sql`
+        SELECT 
+          COUNT(*) FILTER (WHERE record_type = 'DT') as dt_count,
+          COUNT(*) FILTER (WHERE record_type = 'BH') as bh_count,
+          COUNT(*) FILTER (WHERE record_type = 'P1') as p1_count,
+          COUNT(*) FILTER (WHERE record_type = 'P2') as p2_count,
+          COUNT(*) FILTER (WHERE record_type NOT IN ('DT', 'BH', 'P1', 'P2')) as other_count,
+          COUNT(*) as total_count,
+          MIN(created_at) as earliest,
+          MAX(created_at) as latest
+        FROM ${sql.identifier(tddfTable)}
+        WHERE created_at >= ${tenMinutesAgo.toISOString()}
+      `);
+      
+      const stats = performanceStats.rows[0] as any || {};
+      const totalRecords = parseInt(String(stats.total_count || 0));
+      
+      // Calculate records per minute
+      let recordsPerMinute = 0;
+      if (stats.earliest && stats.latest && totalRecords > 0) {
+        const timeSpanMs = new Date(String(stats.latest)).getTime() - new Date(String(stats.earliest)).getTime();
+        const timeSpanMinutes = Math.max(timeSpanMs / 60000, 1); // At least 1 minute
+        recordsPerMinute = Math.round(totalRecords / timeSpanMinutes);
+      }
+      
+      res.json({
+        recordsPerMinute,
+        tddfPerMinute: recordsPerMinute,
+        dtRecordsProcessed: parseInt(String(stats.dt_count || 0)),
+        bhRecordsProcessed: parseInt(String(stats.bh_count || 0)),
+        p1RecordsProcessed: parseInt(String(stats.p1_count || 0)),
+        p2RecordsProcessed: parseInt(String(stats.p2_count || 0)),
+        otherRecordsProcessed: parseInt(String(stats.other_count || 0)),
+        totalRecordsLastTenMinutes: totalRecords,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching performance KPIs:", error);
+      res.status(500).json({ error: "Failed to fetch performance KPIs" });
+    }
+  });
+  
+  // Queue status with currently processing files
+  app.get("/api/uploads/queue-status", isAuthenticated, async (req, res) => {
+    try {
+      const filesTable = getTableName("uploaded_files");
+      
+      // Get queued and processing files
+      const queuedFiles = await db.execute(sql`
+        SELECT 
+          id,
+          original_filename,
+          processing_status,
+          processing_started_at,
+          records_processed,
+          records_skipped
+        FROM ${sql.identifier(filesTable)}
+        WHERE file_type = 'tddf'
+          AND deleted = false
+          AND processing_status IN ('queued', 'pending', 'processing')
+        ORDER BY 
+          CASE 
+            WHEN processing_status = 'processing' THEN 1
+            WHEN processing_status = 'queued' THEN 2
+            ELSE 3
+          END,
+          processing_started_at DESC NULLS LAST
+        LIMIT 50
+      `);
+      
+      const currentlyProcessing = queuedFiles.rows.find(f => f.processing_status === 'processing');
+      
+      res.json({
+        queueLength: queuedFiles.rows.length,
+        currentlyProcessing: currentlyProcessing ? {
+          id: currentlyProcessing.id,
+          originalFilename: currentlyProcessing.original_filename,
+          status: currentlyProcessing.processing_status,
+          startedAt: currentlyProcessing.processing_started_at,
+          recordsProcessed: currentlyProcessing.records_processed || 0,
+          recordsSkipped: currentlyProcessing.records_skipped || 0
+        } : null,
+        queuedFiles: queuedFiles.rows.map(f => ({
+          id: f.id,
+          filename: f.original_filename,
+          status: f.processing_status
+        })),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching queue status:", error);
+      res.status(500).json({ error: "Failed to fetch queue status" });
+    }
+  });
+
+  // Historical performance chart data grouped by minute
+  app.get("/api/processing/performance-chart-history", isAuthenticated, async (req, res) => {
+    try {
+      const tddfTable = getTableName("tddf_jsonb");
+      const hours = parseFloat(req.query.hours as string) || 0.5; // Default to 30 minutes
+      const timeOffset = parseFloat(req.query.timeOffset as string) || 0; // Time offset in hours
+      
+      // Calculate time range with offset
+      const endTime = new Date(Date.now() - (timeOffset * 60 * 60 * 1000));
+      const startTime = new Date(endTime.getTime() - (hours * 60 * 60 * 1000));
+      
+      // Query TDDF records grouped by minute
+      const chartData = await db.execute(sql`
+        SELECT 
+          DATE_TRUNC('minute', created_at) as minute,
+          COUNT(*) FILTER (WHERE record_type = 'DT') as dt_records,
+          COUNT(*) FILTER (WHERE record_type = 'BH') as bh_records,
+          COUNT(*) FILTER (WHERE record_type = 'P1') as p1_records,
+          COUNT(*) FILTER (WHERE record_type = 'P2') as p2_records,
+          COUNT(*) FILTER (WHERE record_type NOT IN ('DT', 'BH', 'P1', 'P2')) as other_records,
+          COUNT(*) as total_records
+        FROM ${sql.identifier(tddfTable)}
+        WHERE created_at >= ${startTime.toISOString()}
+          AND created_at <= ${endTime.toISOString()}
+        GROUP BY DATE_TRUNC('minute', created_at)
+        ORDER BY minute ASC
+      `);
+      
+      // Format data for chart component
+      const formattedData = chartData.rows.map((row: any) => ({
+        timestamp: new Date(row.minute).toISOString(),
+        recordsPerMinute: parseInt(String(row.total_records || 0)),
+        dtRecords: parseInt(String(row.dt_records || 0)),
+        bhRecords: parseInt(String(row.bh_records || 0)),
+        p1Records: parseInt(String(row.p1_records || 0)) + parseInt(String(row.p2_records || 0)), // Combine P1 and P2
+        otherRecords: parseInt(String(row.other_records || 0)),
+        skippedRecords: 0, // TDDF JSONB doesn't track skipped records separately
+        rawLines: parseInt(String(row.total_records || 0)),
+        formattedTime: new Date(row.minute).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZone: 'America/Chicago'
+        }),
+        formattedDateTime: new Date(row.minute).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZone: 'America/Chicago'
+        })
+      }));
+      
+      // Determine time range label
+      const timeRangeLabel = timeOffset > 0 
+        ? `${hours}h (${timeOffset}h ago)` 
+        : `${hours}h (live)`;
+      
+      res.json({
+        data: formattedData,
+        totalPoints: formattedData.length,
+        timeRange: timeRangeLabel,
+        timeOffset: timeOffset,
+        period: `${hours} hours`,
+        dataSource: 'dev_tddf_jsonb',
+        lastUpdated: new Date().toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          timeZone: 'America/Chicago'
+        })
+      });
+    } catch (error) {
+      console.error("Error getting performance chart history:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get historical data" 
+      });
+    }
+  });
+
   // Terminal management endpoints
   
   // Get all terminals
