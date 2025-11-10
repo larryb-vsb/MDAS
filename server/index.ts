@@ -262,6 +262,49 @@ app.use((req, res, next) => {
         console.error("Error ensuring admin user exists:", error);
       }
       
+      // Validate critical tables for connection logging and security features
+      try {
+        const { getTableName } = await import('../shared/schema');
+        const { sql } = await import('drizzle-orm');
+        
+        const criticalTables = ['connection_log', 'ip_blocklist', 'host_approvals'];
+        const missingTables = [];
+        
+        for (const tableName of criticalTables) {
+          const fullTableName = getTableName(tableName);
+          const exists = await db.execute(sql`
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public'
+                AND table_name = ${fullTableName}
+            );
+          `);
+          
+          const tableExists = exists.rows[0]?.exists || false;
+          
+          if (!tableExists) {
+            missingTables.push(fullTableName);
+          }
+        }
+        
+        if (missingTables.length > 0) {
+          console.log(`⚠️ [STARTUP] WARNING: ${missingTables.length} critical table(s) missing:`);
+          missingTables.forEach(table => console.log(`   - ${table}`));
+          console.log(`⚠️ [STARTUP] Features affected: Connection logging, IP blocking, Host approvals`);
+          console.log(`⚠️ [STARTUP] Fix: Run 'npm run db:push' to create missing tables`);
+          
+          await systemLogger.warn('Application', 'Critical tables missing at startup', {
+            missingTables,
+            environment: NODE_ENV,
+            fix: 'Run npm run db:push to create missing tables'
+          });
+        } else {
+          console.log("✅ [STARTUP] All critical tables validated successfully");
+        }
+      } catch (error) {
+        console.error("⚠️ [STARTUP] Error validating critical tables:", error);
+      }
+      
       // Initialize schema version tracking
       await initializeSchemaVersions().catch(err => {
         console.log("Warning: Could not initialize schema versions:", err.message);
