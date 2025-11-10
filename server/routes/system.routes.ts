@@ -3,8 +3,97 @@ import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { storage, isFallbackStorage } from "../storage";
 import { isAuthenticated, setProcessingPaused } from "./middleware";
+import { getTableName } from "../../shared/schema";
 
 export function registerSystemRoutes(app: Express) {
+  // TABLE VALIDATION: Check if required tables exist in database
+  app.get("/api/system/validate-tables", async (req, res) => {
+    try {
+      console.log("[TABLE-VALIDATION] Starting table validation check...");
+      
+      const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
+      
+      // List of critical tables required for connection logging, IP blocking, and host approvals
+      const requiredTables = [
+        { name: 'connection_log', description: 'Connection logging for security monitoring' },
+        { name: 'ip_blocklist', description: 'IP blocking for security' },
+        { name: 'host_approvals', description: 'Host approval system for batch uploaders' }
+      ];
+      
+      const results = [];
+      
+      for (const table of requiredTables) {
+        const fullTableName = getTableName(table.name);
+        
+        try {
+          const exists = await db.execute(sql`
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public'
+                AND table_name = ${fullTableName}
+            );
+          `);
+          
+          const tableExists = exists.rows[0]?.exists || false;
+          
+          results.push({
+            table: table.name,
+            fullName: fullTableName,
+            exists: tableExists,
+            description: table.description,
+            status: tableExists ? 'OK' : 'MISSING'
+          });
+          
+          if (!tableExists) {
+            console.log(`⚠️ [TABLE-VALIDATION] Missing table: ${fullTableName}`);
+          }
+        } catch (error: any) {
+          results.push({
+            table: table.name,
+            fullName: fullTableName,
+            exists: false,
+            description: table.description,
+            status: 'ERROR',
+            error: error?.message || 'Unknown error'
+          });
+        }
+      }
+      
+      const missingTables = results.filter(r => !r.exists);
+      const allTablesExist = missingTables.length === 0;
+      
+      const response = {
+        environment,
+        allTablesExist,
+        tablesChecked: results.length,
+        missingCount: missingTables.length,
+        tables: results,
+        ...(missingTables.length > 0 && {
+          fix: {
+            message: "Run database migration to create missing tables",
+            command: "npm run db:push",
+            missingTables: missingTables.map(t => t.fullName)
+          }
+        })
+      };
+      
+      if (!allTablesExist) {
+        console.log(`❌ [TABLE-VALIDATION] ${missingTables.length} table(s) missing in ${environment}:`, missingTables.map(t => t.fullName));
+      } else {
+        console.log(`✅ [TABLE-VALIDATION] All required tables exist in ${environment}`);
+      }
+      
+      res.json(response);
+      
+    } catch (error) {
+      console.error("[TABLE-VALIDATION] Error:", error);
+      res.status(500).json({
+        error: "Table validation failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // DATABASE CLEANUP: Drop users table and fix session table naming
   app.post("/api/system/cleanup-tables", async (req, res) => {
     try {
