@@ -292,8 +292,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           statusCode: statusCodeOverride || res.statusCode,
           responseTime: Date.now() - startTime
         });
-      } catch (error) {
-        logger.error('Failed to log connection:', error);
+      } catch (error: any) {
+        const tableName = getTableName('connection_log');
+        const errorDetails = {
+          message: error?.message || 'Unknown error',
+          code: error?.code,
+          detail: error?.detail,
+          table: tableName,
+          environment: process.env.REPLIT_DB_ENVIRONMENT || 'development',
+          endpoint: req.path,
+          method: req.method,
+          clientIp
+        };
+        
+        // Check if it's a missing table error
+        if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+          logger.error(`❌ CONNECTION LOG FAILED - TABLE MISSING: ${tableName} does not exist in ${errorDetails.environment}. Run database migration to create it.`, errorDetails);
+        } else if (error?.code?.startsWith('42')) {
+          logger.error(`❌ CONNECTION LOG FAILED - DATABASE SCHEMA ERROR:`, errorDetails);
+        } else {
+          logger.error(`❌ CONNECTION LOG FAILED - UNEXPECTED ERROR:`, errorDetails);
+        }
       }
     };
     
@@ -339,8 +358,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // IP not blocked - continue (will log on finish event)
       next();
       
-    } catch (error) {
-      logger.error('Error checking IP blocklist:', error);
+    } catch (error: any) {
+      const blocklistTable = getTableName('ip_blocklist');
+      const errorDetails = {
+        message: error?.message || 'Unknown error',
+        code: error?.code,
+        table: blocklistTable,
+        environment: process.env.REPLIT_DB_ENVIRONMENT || 'development',
+        clientIp
+      };
+      
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        logger.warn(`⚠️ IP BLOCKLIST CHECK SKIPPED - TABLE MISSING: ${blocklistTable} does not exist in ${errorDetails.environment}. IP blocking disabled until table is created.`, errorDetails);
+      } else {
+        logger.error('❌ IP BLOCKLIST CHECK FAILED:', errorDetails);
+      }
       // Continue on error (will log on finish event)
       next();
     }
