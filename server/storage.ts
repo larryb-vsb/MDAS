@@ -1042,43 +1042,59 @@ export class DatabaseStorage implements IStorage {
   async getConnectionHosts(): Promise<any[]> {
     const connectionLogTableName = getTableName('connection_log');
     
-    const result = await pool.query(`
-      SELECT 
-        client_ip,
-        COUNT(*) as total_requests,
-        MAX(timestamp) as last_seen,
-        COUNT(DISTINCT endpoint) as unique_endpoints,
-        BOOL_OR(authenticated) as has_authenticated,
-        ARRAY_AGG(DISTINCT user_agent) FILTER (WHERE user_agent IS NOT NULL) as user_agents
-      FROM ${connectionLogTableName}
-      GROUP BY client_ip
-      ORDER BY last_seen DESC
-      LIMIT 100
-    `);
-    
-    return result.rows;
+    try {
+      const result = await pool.query(`
+        SELECT 
+          client_ip,
+          COUNT(*) as total_requests,
+          MAX(timestamp) as last_seen,
+          COUNT(DISTINCT endpoint) as unique_endpoints,
+          BOOL_OR(authenticated) as has_authenticated,
+          ARRAY_AGG(DISTINCT user_agent) FILTER (WHERE user_agent IS NOT NULL) as user_agents
+        FROM ${connectionLogTableName}
+        GROUP BY client_ip
+        ORDER BY last_seen DESC
+        LIMIT 100
+      `);
+      
+      return result.rows;
+    } catch (error: any) {
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
+        throw new Error(`Connection log table '${connectionLogTableName}' does not exist in ${environment} environment. Run 'npm run db:push' to create required tables.`);
+      }
+      throw error;
+    }
   }
 
   async getConnectionLog(limit: number): Promise<any[]> {
     const connectionLogTableName = getTableName('connection_log');
     
-    const result = await pool.query(`
-      SELECT 
-        timestamp,
-        client_ip,
-        endpoint,
-        method,
-        user_agent,
-        api_key_used,
-        authenticated,
-        status_code,
-        response_time
-      FROM ${connectionLogTableName}
-      ORDER BY timestamp DESC
-      LIMIT $1
-    `, [limit]);
-    
-    return result.rows;
+    try {
+      const result = await pool.query(`
+        SELECT 
+          timestamp,
+          client_ip,
+          endpoint,
+          method,
+          user_agent,
+          api_key_used,
+          authenticated,
+          status_code,
+          response_time
+        FROM ${connectionLogTableName}
+        ORDER BY timestamp DESC
+        LIMIT $1
+      `, [limit]);
+      
+      return result.rows;
+    } catch (error: any) {
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
+        throw new Error(`Connection log table '${connectionLogTableName}' does not exist in ${environment} environment. Run 'npm run db:push' to create required tables.`);
+      }
+      throw error;
+    }
   }
 
   // @ENVIRONMENT-CRITICAL - Host approval operations
@@ -1138,16 +1154,24 @@ export class DatabaseStorage implements IStorage {
   async getHostApprovals(): Promise<any[]> {
     const hostApprovalsTableName = getTableName('host_approvals');
     
-    const result = await pool.query(`
-      SELECT 
-        ha.*,
-        au.username as api_key_name
-      FROM ${hostApprovalsTableName} ha
-      LEFT JOIN ${getTableName('api_users')} au ON ha.api_user_id = au.id
-      ORDER BY ha.requested_at DESC
-    `);
-    
-    return result.rows;
+    try {
+      const result = await pool.query(`
+        SELECT 
+          ha.*,
+          au.username as api_key_name
+        FROM ${hostApprovalsTableName} ha
+        LEFT JOIN ${getTableName('api_users')} au ON ha.api_user_id = au.id
+        ORDER BY ha.requested_at DESC
+      `);
+      
+      return result.rows;
+    } catch (error: any) {
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
+        throw new Error(`Host approvals table '${hostApprovalsTableName}' does not exist in ${environment} environment. Run 'npm run db:push' to create required tables.`);
+      }
+      throw error;
+    }
   }
   
   // Helper function to generate search index
