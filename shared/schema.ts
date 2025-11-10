@@ -24,7 +24,8 @@
  * - 2.7.1: PATCH - Pre-deployment validation and schema synchronization fix for production readiness with comprehensive environment detection improvements  
  * - 2.8.0: MINOR FEATURE - Comprehensive Pre-Caching Tables System with dedicated page-specific tables, last update date/time tracking, metadata capture, and standardized performance optimization architecture
  */
-import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index, unique, primaryKey } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1568,8 +1569,11 @@ export const uploaderTddfJsonbRecords = pgTable(getTableName("uploader_tddf_json
 }));
 
 // TDDF JSONB storage table for fast batch encoding (Stage 5)
+// NOTE: This table uses quarterly partitioning on tddf_processing_date
+// Partitioning is managed via manual SQL migrations (Drizzle cannot create partitioned tables)
+// See migrations/partition_tddf_jsonb_v2.sql for partition structure
 export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
-  id: serial("id").primaryKey(),
+  id: serial("id").notNull(), // Part of composite primary key
   uploadId: text("upload_id").notNull(), // Reference to uploader_uploads.id
   filename: text("filename").notNull(),
   recordType: text("record_type").notNull(), // DT, BH, P1, P2, etc.
@@ -1581,12 +1585,14 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   processingTimeMs: integer("processing_time_ms").default(0), // Processing duration
   // Universal TDDF processing datetime fields extracted from filename
   tddfProcessingDatetime: timestamp("tddf_processing_datetime"), // Full datetime from filename (e.g., 2025-07-14T08:33:32)
-  tddfProcessingDate: date("tddf_processing_date"), // Date portion for sorting/pagination
+  tddfProcessingDate: date("tddf_processing_date").notNull().default(sql`CURRENT_DATE`), // PARTITION KEY - Part of composite primary key
   // Universal timestamp fields for chronological ordering (Larry B. feature)
   parsedDatetime: timestamp("parsed_datetime"), // Universal chronological timestamp for every record
   recordTimeSource: text("record_time_source"), // Documents timestamp origin: "dt_line", "bh_line", "file_timestamp", "file_timestamp + line_offset", "ingest_time"
   createdAt: timestamp("created_at").defaultNow().notNull()
 }, (table) => ({
+  // Composite primary key required for partitioned tables
+  pk: primaryKey({ columns: [table.id, table.tddfProcessingDate] }),
   uploadIdIdx: index("tddf_jsonb_upload_id_idx").on(table.uploadId),
   recordTypeIdx: index("tddf_jsonb_record_type_idx").on(table.recordType),
   lineNumberIdx: index("tddf_jsonb_line_number_idx").on(table.lineNumber),
@@ -1598,7 +1604,9 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   parsedDatetimeIdx: index("tddf_jsonb_parsed_datetime_idx").on(table.parsedDatetime),
   recordTimeSourceIdx: index("tddf_jsonb_record_time_source_idx").on(table.recordTimeSource),
   // Index for duplicate detection
-  rawLineHashIdx: index("tddf_jsonb_raw_line_hash_idx").on(table.rawLineHash)
+  rawLineHashIdx: index("tddf_jsonb_raw_line_hash_idx").on(table.rawLineHash),
+  // Index for id-only queries across partitions
+  idIdx: index("tddf_jsonb_id_idx").on(table.id)
 }));
 
 // Processing timing logs table for performance tracking
