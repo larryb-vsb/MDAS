@@ -2994,21 +2994,24 @@ export default function TddfApiDataPage() {
   });
 
   // Fetch connection hosts
-  const { data: connectionHosts } = useQuery<any>({
+  const { data: connectionHosts, error: hostsError, isError: hostsIsError } = useQuery<any>({
     queryKey: ["/api/tddf-api/monitoring/hosts"],
     refetchInterval: 10000, // Refresh every 10 seconds
+    retry: 1, // Only retry once for missing tables
   });
 
   // Fetch connection log
-  const { data: connectionLog } = useQuery<any>({
+  const { data: connectionLog, error: connectionLogError, isError: connectionLogIsError } = useQuery<any>({
     queryKey: ["/api/tddf-api/monitoring/connections"],
     refetchInterval: 5000, // Refresh every 5 seconds
+    retry: 1, // Only retry once for missing tables
   });
 
   // Fetch host approvals
-  const { data: hostApprovals } = useQuery<any>({
+  const { data: hostApprovals, error: hostApprovalsError, isError: hostApprovalsIsError } = useQuery<any>({
     queryKey: ["/api/tddf-api/monitoring/host-approvals"],
     refetchInterval: 5000, // Refresh every 5 seconds
+    retry: 1, // Only retry once for missing tables
   });
 
   // Approve/deny host mutation
@@ -6544,7 +6547,24 @@ export default function TddfApiDataPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {connectionHosts?.map((host: any, index: number) => (
+                  {hostsIsError ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium text-yellow-800">Connection Log Table Missing</p>
+                            <p className="text-sm text-yellow-700 mt-1">
+                              {(hostsError as any)?.message || 'Unable to load connection host data. Required database tables may not exist.'}
+                            </p>
+                            <p className="text-xs text-yellow-600 mt-2">
+                              Fix: Run <code className="bg-yellow-100 px-1 py-0.5 rounded">npm run db:push</code> to create missing tables
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : connectionHosts?.map((host: any, index: number) => (
                     <TableRow key={index}>
                       <TableCell className="font-mono">{host.client_ip}</TableCell>
                       <TableCell>{host.total_requests}</TableCell>
@@ -6591,7 +6611,24 @@ export default function TddfApiDataPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {connectionLog?.map((log: any, index: number) => (
+                    {connectionLogIsError ? (
+                      <TableRow>
+                        <TableCell colSpan={7}>
+                          <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="font-medium text-yellow-800">Connection Log Table Missing</p>
+                              <p className="text-sm text-yellow-700 mt-1">
+                                {(connectionLogError as any)?.message || 'Unable to load connection log data. Required database tables may not exist.'}
+                              </p>
+                              <p className="text-xs text-yellow-600 mt-2">
+                                Fix: Run <code className="bg-yellow-100 px-1 py-0.5 rounded">npm run db:push</code> to create missing tables
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : connectionLog?.map((log: any, index: number) => (
                       <TableRow key={index}>
                         <TableCell className="text-xs">{format(new Date(log.timestamp), "MMM d, h:mm:ss a")}</TableCell>
                         <TableCell className="font-mono text-xs">{log.client_ip}</TableCell>
@@ -6648,7 +6685,24 @@ export default function TddfApiDataPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {hostApprovals?.map((approval: any) => (
+                  {hostApprovalsIsError ? (
+                    <TableRow>
+                      <TableCell colSpan={7}>
+                        <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium text-yellow-800">Host Approvals Table Missing</p>
+                            <p className="text-sm text-yellow-700 mt-1">
+                              {(hostApprovalsError as any)?.message || 'Unable to load host approvals data. Required database tables may not exist.'}
+                            </p>
+                            <p className="text-xs text-yellow-600 mt-2">
+                              Fix: Run <code className="bg-yellow-100 px-1 py-0.5 rounded">npm run db:push</code> to create missing tables
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : hostApprovals?.map((approval: any) => (
                     <TableRow key={approval.id}>
                       <TableCell className="font-mono font-semibold">{approval.hostname}</TableCell>
                       <TableCell className="text-sm">
