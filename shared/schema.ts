@@ -2246,29 +2246,23 @@ export const tddfJsonRecordTypeCountsPreCache = pgTable(getTableName("tddf_json_
 // TDDF1 Totals Table - Comprehensive breakdown tracking
 export const tddf1Totals = pgTable(getTableName("tddf1_totals"), {
   id: serial("id").primaryKey(),
+  processingDate: date("processing_date").notNull(), // Date for daily grouping and sorting
+  fileDate: date("file_date"), // Date extracted from filename for filtering
   total_files: integer("total_files").notNull().default(0),
   total_records: integer("total_records").notNull().default(0),
-  total_transaction_value: numeric("total_transaction_value", { precision: 15, scale: 2 }).notNull().default('0'),
-  record_type_breakdown: jsonb("record_type_breakdown").notNull().default('{}'),
-  active_tables: text("active_tables").array().notNull().default([]),
-  last_processed_date: timestamp("last_processed_date"),
-  
-  // Enhanced fields for comprehensive tracking
-  file_name: text("file_name"), // Current processing file name
-  processing_duration_ms: integer("processing_duration_ms"), // Processing time in milliseconds
-  total_tddf_lines: integer("total_tddf_lines").default(0), // Total lines in TDDF file
-  total_json_lines_inserted: integer("total_json_lines_inserted").default(0), // Lines inserted into JSON table
-  processing_start_time: timestamp("processing_start_time"), // When processing started
-  processing_end_time: timestamp("processing_end_time"), // When processing ended
-  validation_summary: jsonb("validation_summary").default('{}'), // Validation results breakdown
-  performance_metrics: jsonb("performance_metrics").default('{}'), // Performance tracking data
-  
+  dtTransactionAmounts: numeric("dt_transaction_amounts", { precision: 15, scale: 2 }).default('0'),
+  bhNetDeposits: numeric("bh_net_deposits", { precision: 15, scale: 2 }).default('0'),
+  recordBreakdown: jsonb("record_breakdown"),
+  lastUpdated: timestamp("last_updated").defaultNow(),
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
-  fileNameIdx: index("tddf1_totals_file_name_idx").on(table.file_name),
-  lastProcessedIdx: index("tddf1_totals_last_processed_idx").on(table.last_processed_date),
-  processingTimeIdx: index("tddf1_totals_processing_time_idx").on(table.processing_duration_ms)
+  // Composite index for monthly queries - optimizes date range filtering and sorting
+  fileDateProcessingDateIdx: index("tddf1_totals_file_date_processing_date_idx")
+    .on(table.fileDate, table.processingDate, table.created_at),
+  // Individual indexes for other query patterns
+  processingDateIdx: index("tddf1_totals_processing_date_idx").on(table.processingDate),
+  fileDateIdx: index("tddf1_totals_file_date_idx").on(table.fileDate)
 }));
 
 // Pre-Cache Table Types and Schemas
