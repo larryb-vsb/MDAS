@@ -1223,6 +1223,28 @@ export function registerTddfRecordsRoutes(app: Express) {
       const limitNum = parseInt(limit as string);
       const offset = (pageNum - 1) * limitNum;
       
+      // Build ORDER BY clause based on sortBy parameter
+      let orderByClause: string;
+      let limitOffsetClause: string;
+      
+      if (sortBy === 'merchantName') {
+        // Sort by merchant name directly (text field)
+        orderByClause = `n.merchant_name ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
+        limitOffsetClause = `LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+        // Don't push sortBy to values array for merchantName
+      } else {
+        // Sort by numeric fields using CASE statement
+        orderByClause = `CASE 
+          WHEN $${paramCount + 1} = 'authorizationTotal' THEN s.authorization_total
+          WHEN $${paramCount + 1} = 'netDepositTotal' THEN s.net_deposit_total
+          WHEN $${paramCount + 1} = 'totalRecords' THEN s.total_records
+          WHEN $${paramCount + 1} = 'dtCount' THEN s.dt_count
+          WHEN $${paramCount + 1} = 'bhCount' THEN s.bh_count
+          ELSE s.authorization_total
+        END ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
+        limitOffsetClause = `LIMIT $${paramCount + 2} OFFSET $${paramCount + 3}`;
+      }
+      
       // Main query to aggregate daily merchant data with record type breakdowns
       // Uses existing indexes on merchant_account and record_type
       const dataQuery = `
@@ -1275,24 +1297,16 @@ export function registerTddfRecordsRoutes(app: Express) {
           n.merchant_name
         FROM merchant_daily_stats s
         LEFT JOIN unique_merchant_names n ON s.merchant_account_number = n.merchant_account_number
-        ORDER BY 
-          CASE 
-            WHEN $${paramCount + 1} = 'merchantName' THEN NULL
-            WHEN $${paramCount + 1} = 'authorizationTotal' THEN s.authorization_total
-            WHEN $${paramCount + 1} = 'netDepositTotal' THEN s.net_deposit_total
-            WHEN $${paramCount + 1} = 'totalRecords' THEN s.total_records
-            WHEN $${paramCount + 1} = 'dtCount' THEN s.dt_count
-            WHEN $${paramCount + 1} = 'bhCount' THEN s.bh_count
-            ELSE s.authorization_total
-          END ${sortOrder === 'asc' ? 'ASC' : 'DESC'},
-          CASE 
-            WHEN $${paramCount + 1} = 'merchantName' THEN n.merchant_name
-            ELSE NULL
-          END ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
-        LIMIT $${paramCount + 2} OFFSET $${paramCount + 3}
+        ORDER BY ${orderByClause}
+        ${limitOffsetClause}
       `;
       
-      values.push(sortBy as string, limitNum, offset);
+      // Push values based on sortBy type
+      if (sortBy === 'merchantName') {
+        values.push(limitNum, offset);
+      } else {
+        values.push(sortBy as string, limitNum, offset);
+      }
       
       // Get total count
       const countQuery = `
