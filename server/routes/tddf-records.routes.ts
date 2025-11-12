@@ -1277,12 +1277,17 @@ export function registerTddfRecordsRoutes(app: Express) {
         LEFT JOIN unique_merchant_names n ON s.merchant_account_number = n.merchant_account_number
         ORDER BY 
           CASE 
+            WHEN $${paramCount + 1} = 'merchantName' THEN NULL
             WHEN $${paramCount + 1} = 'authorizationTotal' THEN s.authorization_total
             WHEN $${paramCount + 1} = 'netDepositTotal' THEN s.net_deposit_total
             WHEN $${paramCount + 1} = 'totalRecords' THEN s.total_records
             WHEN $${paramCount + 1} = 'dtCount' THEN s.dt_count
             WHEN $${paramCount + 1} = 'bhCount' THEN s.bh_count
             ELSE s.authorization_total
+          END ${sortOrder === 'asc' ? 'ASC' : 'DESC'},
+          CASE 
+            WHEN $${paramCount + 1} = 'merchantName' THEN n.merchant_name
+            ELSE NULL
           END ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
         LIMIT $${paramCount + 2} OFFSET $${paramCount + 3}
       `;
