@@ -1,15 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import React from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker, ExternalLink } from "lucide-react";
+import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker, ExternalLink, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProcessingStatus from "@/components/settings/ProcessingStatus";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfDuplicateWidget from "@/components/processing/TddfDuplicateWidget";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 // Processing Status Widget
 function ProcessingStatusWidget() {
@@ -433,6 +437,101 @@ function FileProcessorStatusWidget() {
   );
 }
 
+// Stuck File Reset Button Component
+function StuckFileResetButton() {
+  const { toast } = useToast();
+  const [open, setOpen] = React.useState(false);
+
+  const { data: stuckFilesStats } = useQuery({
+    queryKey: ['/api/admin/stuck-files-stats'],
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/admin/reset-stuck-step6-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: `Reset ${data.filesReset} stuck file(s). ${data.slotsCleared} slot(s) cleared.`,
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stuck-files-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploads/queue-status'] });
+      setOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset stuck files",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const stuckCount = (stuckFilesStats as any)?.stuckCount || 0;
+  const hasStuckFiles = stuckCount > 0;
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button 
+          variant={hasStuckFiles ? "destructive" : "outline"} 
+          size="sm" 
+          className="flex items-center gap-2"
+          data-testid="button-reset-stuck-files"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Reset Stuck Files
+          {hasStuckFiles && (
+            <Badge variant="secondary" className="ml-1">
+              {stuckCount}
+            </Badge>
+          )}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent data-testid="dialog-reset-stuck-files">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reset Stuck Files?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {hasStuckFiles ? (
+              <>
+                Found <strong>{stuckCount}</strong> file(s) stuck in processing for more than 10 minutes.
+                <br /><br />
+                This will:
+                <ul className="list-disc pl-6 mt-2 space-y-1">
+                  <li>Move stuck files back to "encoded" phase for retry</li>
+                  <li>Clear any held processing slots</li>
+                  <li>Preserve retry count and add audit notes</li>
+                </ul>
+                <br />
+                The files will be retried automatically by the MMS Watcher.
+              </>
+            ) : (
+              "No stuck files found. All files are processing normally."
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel data-testid="button-cancel-reset">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => resetMutation.mutate()}
+            disabled={!hasStuckFiles || resetMutation.isPending}
+            data-testid="button-confirm-reset"
+          >
+            {resetMutation.isPending ? "Resetting..." : `Reset ${stuckCount} File(s)`}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function ProcessingPage() {
   return (
     <MainLayout>
@@ -445,6 +544,7 @@ export default function ProcessingPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <StuckFileResetButton />
             <Link href="/processing-dashboard-v2">
               <Button variant="outline" size="sm" className="flex items-center gap-2">
                 <ExternalLink className="h-4 w-4" />

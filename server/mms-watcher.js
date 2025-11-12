@@ -2263,6 +2263,26 @@ class MMSWatcher {
     }
   }
 
+  // Admin method: Clear stuck files from active slots
+  clearStuckFilesFromSlots(uploadIds) {
+    if (!uploadIds || uploadIds.length === 0) {
+      console.log('[MMS-WATCHER] [ADMIN] No upload IDs provided to clear from slots');
+      return { cleared: 0 };
+    }
+
+    let clearedCount = 0;
+    for (const uploadId of uploadIds) {
+      if (this.step6ActiveSlots.has(uploadId)) {
+        this.step6ActiveSlots.delete(uploadId);
+        clearedCount++;
+        console.log(`[MMS-WATCHER] [ADMIN] ✅ Cleared stuck file from slot: ${uploadId}`);
+      }
+    }
+
+    console.log(`[MMS-WATCHER] [ADMIN] Cleared ${clearedCount} stuck file(s) from slots (${this.step6ActiveSlots.size} slots remaining)`);
+    return { cleared: clearedCount, remainingSlots: this.step6ActiveSlots.size };
+  }
+
   // Stage 7: Step 7 Auto Archive Service - Archive completed files
   async processCompletedFiles() {
     try {
