@@ -87,23 +87,43 @@ export function registerAdminRoutes(app: Express) {
         
         console.log(`[ADMIN-RESET] Resetting ${file.filename} (stuck for ${stuckMinutes} minutes, retry ${currentRetries}/3) from ${targetPhase} → ${resetToPhase}`);
         
-        // Move back to appropriate phase for retry (with phase guard to prevent race conditions)
-        await pool.query(`
-          UPDATE ${uploadTableName}
-          SET 
-            current_phase = $1,
-            processing_warnings = $2,
-            last_warning_at = NOW(),
-            warning_count = COALESCE(warning_count, 0) + 1,
-            last_updated = NOW()
-          WHERE id = $3
-            AND current_phase = $4
-        `, [
-          resetToPhase,
-          `Admin reset: File stuck in ${targetPhase} for ${stuckMinutes} minutes - moved back to ${resetToPhase} for retry (attempt ${currentRetries + 1}/3)`,
-          file.id,
-          targetPhase
-        ]);
+        // Only increment warning_count for processing/error resets (actual failures)
+        // validating/identified resets are normal flow retries, not warnings
+        const isWarning = targetPhase === 'processing' || targetPhase === 'error';
+        
+        if (isWarning) {
+          // Move back to appropriate phase for retry (with warning telemetry)
+          await pool.query(`
+            UPDATE ${uploadTableName}
+            SET 
+              current_phase = $1,
+              processing_warnings = $2,
+              last_warning_at = NOW(),
+              warning_count = COALESCE(warning_count, 0) + 1,
+              last_updated = NOW()
+            WHERE id = $3
+              AND current_phase = $4
+          `, [
+            resetToPhase,
+            `Admin reset: File stuck in ${targetPhase} for ${stuckMinutes} minutes - moved back to ${resetToPhase} for retry (attempt ${currentRetries + 1}/3)`,
+            file.id,
+            targetPhase
+          ]);
+        } else {
+          // Move back without incrementing warnings (normal retry for validating/identified)
+          await pool.query(`
+            UPDATE ${uploadTableName}
+            SET 
+              current_phase = $1,
+              last_updated = NOW()
+            WHERE id = $2
+              AND current_phase = $3
+          `, [
+            resetToPhase,
+            file.id,
+            targetPhase
+          ]);
+        }
         
         resetResults.push({
           id: file.id,

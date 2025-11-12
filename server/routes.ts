@@ -841,6 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Reset error files back to encoded phase for retry
   app.post("/api/uploader/reset-errors", isAuthenticated, async (req, res) => {
+    const client = await pool.connect();
     try {
       const { fileIds } = req.body;
       const username = (req.user as any)?.username || 'system';
@@ -852,22 +853,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[UPLOADER-RESET-ERRORS] Resetting ${fileIds.length} error files to encoded phase - requested by: ${username}`);
       
-      // Find files currently in error phase
+      await client.query('BEGIN');
+      
+      // Find files currently in error phase (within transaction)
       const errorFilesQuery = `
         SELECT id, filename, current_phase, retry_count
         FROM ${uploadsTableName}
         WHERE id = ANY($1::text[])
           AND current_phase = 'error'
+        FOR UPDATE
       `;
       
-      const errorFilesResult = await pool.query(errorFilesQuery, [fileIds]);
+      const errorFilesResult = await client.query(errorFilesQuery, [fileIds]);
       const errorFiles = errorFilesResult.rows;
       
       if (errorFiles.length === 0) {
+        await client.query('ROLLBACK');
         return res.json({
           success: true,
           message: "No files in error phase found",
           filesReset: 0,
+          skipped: fileIds.length,
           warnings: [`${fileIds.length} file(s) requested but none were in error phase`]
         });
       }
@@ -876,14 +882,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Reset each file back to encoded phase
       const resetResults = [];
+      const skippedFiles = [];
       
       for (const file of errorFiles) {
         const currentRetries = file.retry_count || 0;
         
         console.log(`[UPLOADER-RESET-ERRORS] Resetting ${file.filename} (retry ${currentRetries}/3)`);
         
-        // Move back to encoded phase for retry
-        await pool.query(`
+        // Move back to encoded phase for retry (with phase guard)
+        const updateResult = await client.query(`
           UPDATE ${uploadsTableName}
           SET 
             current_phase = 'encoded',
@@ -894,28 +901,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
             AND current_phase = 'error'
         `, [file.id]);
         
-        resetResults.push({
-          id: file.id,
-          filename: file.filename,
-          retryCount: currentRetries
-        });
+        if (updateResult.rowCount === 0) {
+          // Race condition: file was moved by another process
+          console.log(`[UPLOADER-RESET-ERRORS] ⚠️ Skipped ${file.filename} - already moved by another process`);
+          skippedFiles.push({
+            id: file.id,
+            filename: file.filename,
+            reason: 'File no longer in error phase (race condition)'
+          });
+        } else {
+          resetResults.push({
+            id: file.id,
+            filename: file.filename,
+            retryCount: currentRetries
+          });
+        }
       }
       
-      console.log(`[UPLOADER-RESET-ERRORS] ✅ Reset complete - ${resetResults.length} files moved to encoded phase`);
+      await client.query('COMMIT');
+      console.log(`[UPLOADER-RESET-ERRORS] ✅ Reset complete - ${resetResults.length} files moved to encoded phase, ${skippedFiles.length} skipped`);
+      
+      // Return 409 if all files were skipped due to race conditions
+      if (resetResults.length === 0 && skippedFiles.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: "All files were already moved by another process",
+          filesReset: 0,
+          skipped: skippedFiles.length,
+          skippedFiles
+        });
+      }
       
       res.json({
         success: true,
         message: `Successfully reset ${resetResults.length} file(s) from error to encoded phase`,
         filesReset: resetResults.length,
-        files: resetResults
+        skipped: skippedFiles.length,
+        files: resetResults,
+        ...(skippedFiles.length > 0 && { skippedFiles })
       });
       
     } catch (error) {
+      await client.query('ROLLBACK');
       console.error('[UPLOADER-RESET-ERRORS] Error resetting error files:', error);
       res.status(500).json({
         error: "Failed to reset error files",
         details: error instanceof Error ? error.message : 'Unknown error'
       });
+    } finally {
+      client.release();
     }
   });
 
