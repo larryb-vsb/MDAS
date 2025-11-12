@@ -9,6 +9,10 @@ import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
 const MAX_STEP6_RETRIES = 3; // Maximum number of retry attempts before marking file as failed
 const STEP6_TIMEOUT_MS = 300000; // 5 minutes timeout for Step 6 processing
 
+// Step 6 Concurrency Configuration
+const MAX_STEP6_CONCURRENT_FILES = parseInt(process.env.MAX_STEP6_CONCURRENT_FILES) || 3; // Max files processing simultaneously
+const STEP6_INTERVAL_MS = parseInt(process.env.STEP6_INTERVAL_MS) || 60000; // Check interval (60 seconds)
+
 class MMSWatcher {
   constructor(storage) {
     this.storage = storage;
@@ -20,10 +24,23 @@ class MMSWatcher {
     this.duplicateCleanup = new JsonbDuplicateCleanup();
     this.auto45Enabled = false; // Auto 4-5 processing DISABLED by default - user must enable manually
     this.manual45Queue = new Set(); // Manual processing queue for single-step progression
+    
+    // Step 6 Concurrency Management
+    this.isStep6SweepRunning = false; // Prevents overlapping Step 6 intervals
+    this.step6ActiveSlots = new Set(); // Track active processing slots (upload IDs)
+    this.step6QueuedFiles = []; // Files waiting for available slot
+    this.step6ProcessingMetrics = {
+      totalProcessed: 0,
+      totalQueued: 0,
+      totalSlotWaitTimeMs: 0,
+      peakQueueSize: 0
+    };
+    
     console.log('[MMS-WATCHER] Watcher service initialized');
     console.log('[MMS-WATCHER] 🔧 MERCHANT DETAIL DETECTION CODE IS LOADED - Ready to detect DACQ_MER_DTL files');
     console.log(`[MMS-WATCHER] Auto 4-5 initialized to: ${this.auto45Enabled ? 'ENABLED' : 'DISABLED'}`);
     console.log(`[MMS-WATCHER] Step 6 retry limits: MAX_RETRIES=${MAX_STEP6_RETRIES}, TIMEOUT=${STEP6_TIMEOUT_MS}ms`);
+    console.log(`[MMS-WATCHER] Step 6 concurrency: MAX_CONCURRENT=${MAX_STEP6_CONCURRENT_FILES}, INTERVAL=${STEP6_INTERVAL_MS}ms`);
   }
 
   start() {
@@ -84,6 +101,13 @@ class MMSWatcher {
     // Step 6 Processing Service - Independent from Auto 4-5
     this.step6ProcessingIntervalId = setInterval(async () => {
       try {
+        // Guard: Skip if previous sweep still running
+        if (this.isStep6SweepRunning) {
+          console.log('[MMS-WATCHER] [AUTO-STEP6] ⏭️  Skipping interval - previous sweep still running');
+          console.log(`[MMS-WATCHER] [AUTO-STEP6] 📊 Active slots: ${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES}, Queued: ${this.step6QueuedFiles.length}`);
+          return;
+        }
+        
         // Check if Auto Step 6 is enabled by querying system settings directly
         const { db } = await import('./db.js');
         const { sql } = await import('drizzle-orm');
@@ -113,7 +137,7 @@ class MMSWatcher {
       } catch (error) {
         console.error('[MMS-WATCHER] [AUTO-STEP6] Error in Step 6 processing interval:', error);
       }
-    }, 60000); // Check every 60 seconds for Step 6 processing
+    }, STEP6_INTERVAL_MS); // Use configurable interval
     
     // Step 7 Auto Archive Service - Independent interval
     this.step7ArchiveIntervalId = setInterval(async () => {
@@ -2006,156 +2030,236 @@ class MMSWatcher {
     }
   }
 
-  // Stage 6: Step 6 Processing Service - Process encoded files to completion
+  // Step 6 Slot Management Helpers
+  canAcquireSlot() {
+    return this.step6ActiveSlots.size < MAX_STEP6_CONCURRENT_FILES;
+  }
+
+  acquireSlot(uploadId) {
+    if (!this.canAcquireSlot()) {
+      return false;
+    }
+    this.step6ActiveSlots.add(uploadId);
+    console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔓 Acquired slot for ${uploadId} (${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES} active)`);
+    return true;
+  }
+
+  releaseSlot(uploadId) {
+    const wasActive = this.step6ActiveSlots.delete(uploadId);
+    if (wasActive) {
+      console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔒 Released slot for ${uploadId} (${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES} active)`);
+    }
+    return wasActive;
+  }
+
+  enqueueFile(upload) {
+    this.step6QueuedFiles.push({
+      upload,
+      queuedAt: Date.now()
+    });
+    this.step6ProcessingMetrics.totalQueued++;
+    this.step6ProcessingMetrics.peakQueueSize = Math.max(this.step6ProcessingMetrics.peakQueueSize, this.step6QueuedFiles.length);
+    console.log(`[MMS-WATCHER] [STEP6-QUEUE] 📥 Queued ${upload.filename} (queue size: ${this.step6QueuedFiles.length})`);
+  }
+
+  dequeueFile() {
+    if (this.step6QueuedFiles.length === 0) {
+      return null;
+    }
+    const queuedItem = this.step6QueuedFiles.shift();
+    const waitTimeMs = Date.now() - queuedItem.queuedAt;
+    this.step6ProcessingMetrics.totalSlotWaitTimeMs += waitTimeMs;
+    console.log(`[MMS-WATCHER] [STEP6-QUEUE] 📤 Dequeued ${queuedItem.upload.filename} after ${waitTimeMs}ms wait (${this.step6QueuedFiles.length} remaining)`);
+    return queuedItem.upload;
+  }
+
+  // Stage 6: Step 6 Processing Service - Process encoded files to completion with concurrency limiting
   async processEncodedFiles() {
+    // Guard: Set sweep running flag
+    this.isStep6SweepRunning = true;
+    
     try {
-      // Check if Auto Step 6 is enabled by querying system settings directly
-      const { db } = await import('./db.js');
-      const { sql } = await import('drizzle-orm');
-      const { getTableName } = await import('./table-config.js');
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] 🔄 Starting Step 6 sweep (slots: ${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES}, queued: ${this.step6QueuedFiles.length})`);
       
-      const result = await db.execute(sql`
-        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
-        WHERE setting_key = 'auto_step6_enabled'
-      `);
+      // Step 1: Process queued files first (fill available slots)
+      await this.processQueuedFiles();
       
-      const autoStep6Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
-      
-      if (!autoStep6Enabled) {
-        console.log(`[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 is disabled, skipping encoded file processing`);
-        return; // Auto Step 6 is disabled, skip processing
-      }
-      
-      // Find files in "encoded" phase that need Step 6 processing
+      // Step 2: Find new encoded files
       const encodedFiles = await this.storage.getUploaderUploads({
         phase: 'encoded'
       });
 
-      console.log(`[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 enabled - Found ${encodedFiles.length} files in 'encoded' phase`);
-      
       if (encodedFiles.length === 0) {
-        return; // No files to process
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] No new encoded files found`);
+        return;
       }
 
-      // Filter for TDDF files that need Step 6 processing (merchant files stop at encoded and never reach Step 6)
+      // Filter for TDDF files only
       const tddfFiles = encodedFiles.filter(upload => 
         upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf'
       );
 
       if (tddfFiles.length === 0) {
-        return; // No TDDF files to process
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] No new TDDF files found (${encodedFiles.length} total encoded files)`);
+        return;
       }
 
-      console.log(`[MMS-WATCHER] [AUTO-STEP6] Processing ${tddfFiles.length} encoded TDDF files for Step 6 completion...`);
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] Found ${tddfFiles.length} new TDDF files to process`);
 
+      // Step 3: Process or queue each new file based on slot availability
       for (const upload of tddfFiles) {
-        try {
-          // Check retry count - skip if max retries exceeded
-          const currentRetries = upload.retryCount || 0;
-          if (currentRetries >= MAX_STEP6_RETRIES) {
-            console.warn(`[MMS-WATCHER] [AUTO-STEP6] ⚠️  Skipping ${upload.filename} - max retries exceeded (${currentRetries}/${MAX_STEP6_RETRIES})`);
-            
-            // Move to failed status with clear error message
-            await this.storage.updateUploaderPhase(upload.id, 'failed', {
-              failedAt: new Date(),
-              processingErrors: `Step 6 processing failed after ${MAX_STEP6_RETRIES} retry attempts`,
-              processingNotes: JSON.stringify({
-                reason: 'max_retries_exceeded',
-                retryCount: currentRetries,
-                maxRetries: MAX_STEP6_RETRIES,
-                failedAt: new Date().toISOString()
-              })
-            });
-            continue; // Skip to next file
-          }
+        // Check retry count - skip if max retries exceeded
+        const currentRetries = upload.retryCount || 0;
+        if (currentRetries >= MAX_STEP6_RETRIES) {
+          console.warn(`[MMS-WATCHER] [AUTO-STEP6] ⚠️  Skipping ${upload.filename} - max retries exceeded (${currentRetries}/${MAX_STEP6_RETRIES})`);
           
-          console.log(`[MMS-WATCHER] [AUTO-STEP6] Starting Step 6 processing for: ${upload.filename} (${upload.id}) [Retry ${currentRetries}/${MAX_STEP6_RETRIES}]`);
-          
-          // Update to processing phase first
-          await this.storage.updateUploaderPhase(upload.id, 'processing', {
-            processingStartedAt: new Date(),
-            processingNotes: `Step 6 processing started by MMS Watcher at ${new Date().toISOString()} (Attempt ${currentRetries + 1}/${MAX_STEP6_RETRIES})`
+          // Move to failed status with clear error message
+          await this.storage.updateUploaderPhase(upload.id, 'failed', {
+            failedAt: new Date(),
+            processingErrors: `Step 6 processing failed after ${MAX_STEP6_RETRIES} retry attempts`,
+            processingNotes: JSON.stringify({
+              reason: 'max_retries_exceeded',
+              retryCount: currentRetries,
+              maxRetries: MAX_STEP6_RETRIES,
+              failedAt: new Date().toISOString()
+            })
           });
-
-          // Get file content from Replit Object Storage
-          const { ReplitStorageService } = await import('./replit-storage-service.js');
-          const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
-          
-          // Import and run Step 6 processing with timeout protection
-          const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
-          
-          // Wrap Step 6 processing with timeout using Promise.race
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Step 6 processing timeout')), STEP6_TIMEOUT_MS);
+          continue; // Skip to next file
+        }
+        
+        // Try to acquire slot - if available, process immediately; otherwise queue
+        if (this.canAcquireSlot()) {
+          // Slot available - start processing (fire and forget)
+          this.processStep6File(upload).catch(err => {
+            console.error(`[MMS-WATCHER] [AUTO-STEP6] Unhandled error in processStep6File for ${upload.filename}:`, err);
           });
-          
-          const processingPromise = processAllRecordsToMasterTable(fileContent, upload);
-          
-          const step6Results = await Promise.race([processingPromise, timeoutPromise]);
-          
-          if (step6Results.success) {
-            // Update to completed phase with Step 6 results - RESET retry count on success
-            await this.storage.updateUploaderPhase(upload.id, 'completed', {
-              processingCompletedAt: new Date(),
-              processingStatus: 'completed',
-              processingNotes: `Step 6 completed by MMS Watcher: ${step6Results.totalRecords} records processed to master table in ${step6Results.processingTimeMs}ms`,
-              totalRecordsProcessed: step6Results.totalRecords,
-              masterRecordsCreated: step6Results.masterRecords,
-              apiRecordsCreated: step6Results.apiRecords,
-              skippedLines: step6Results.skippedLines,
-              step6ProcessingTimeMs: step6Results.processingTimeMs,
-              completedAt: new Date(),
-              retryCount: 0 // Reset retry count on success
-            });
-
-            console.log(`[MMS-WATCHER] [AUTO-STEP6] ✅ Step 6 completed for: ${upload.filename} -> ${step6Results.totalRecords} total records processed in ${step6Results.processingTimeMs}ms`);
-          } else {
-            throw new Error(step6Results.error || 'Step 6 processing failed');
-          }
-        } catch (error) {
-          console.error(`[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing file ${upload.filename}:`, error.message);
-          
-          // Increment retry count
-          const newRetryCount = (upload.retryCount || 0) + 1;
-          
-          // Check if this was a timeout error
-          const isTimeout = error.message === 'Step 6 processing timeout';
-          
-          if (newRetryCount >= MAX_STEP6_RETRIES) {
-            // Max retries reached - move to failed status
-            console.error(`[MMS-WATCHER] [AUTO-STEP6] ❌ Max retries reached for ${upload.filename}, moving to failed status`);
-            await this.storage.updateUploaderPhase(upload.id, 'failed', {
-              failedAt: new Date(),
-              retryCount: newRetryCount,
-              lastRetryAt: new Date(),
-              processingErrors: isTimeout 
-                ? `Step 6 processing timeout after ${STEP6_TIMEOUT_MS / 1000} seconds (${MAX_STEP6_RETRIES} attempts)` 
-                : `Step 6 processing failed: ${error.message} (${MAX_STEP6_RETRIES} attempts)`,
-              processingNotes: JSON.stringify({
-                reason: isTimeout ? 'processing_timeout' : 'processing_error',
-                retryCount: newRetryCount,
-                maxRetries: MAX_STEP6_RETRIES,
-                errorMessage: error.message,
-                failedAt: new Date().toISOString()
-              })
-            });
-          } else {
-            // Not max retries yet - move back to encoded for retry
-            console.warn(`[MMS-WATCHER] [AUTO-STEP6] ⚠️  Retry ${newRetryCount}/${MAX_STEP6_RETRIES} for ${upload.filename}, moving back to encoded for retry`);
-            await this.storage.updateUploaderPhase(upload.id, 'encoded', {
-              retryCount: newRetryCount,
-              lastRetryAt: new Date(),
-              processingWarnings: isTimeout 
-                ? `Step 6 timeout (${STEP6_TIMEOUT_MS / 1000}s) - will retry (${newRetryCount}/${MAX_STEP6_RETRIES})`
-                : `Step 6 error: ${error.message} - will retry (${newRetryCount}/${MAX_STEP6_RETRIES})`,
-              lastWarningAt: new Date(),
-              warningCount: (upload.warningCount || 0) + 1
-            });
-          }
+        } else {
+          // No slots available - queue for later
+          this.enqueueFile(upload);
         }
       }
+      
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] 📊 Sweep complete - Active: ${this.step6ActiveSlots.size}, Queued: ${this.step6QueuedFiles.length}`);
+      
     } catch (error) {
-      console.error('[MMS-WATCHER] [AUTO-STEP6] Error processing encoded files:', error);
+      console.error('[MMS-WATCHER] [AUTO-STEP6] Error in Step 6 sweep:', error);
+    } finally {
+      // Always clear sweep running flag
+      this.isStep6SweepRunning = false;
+    }
+  }
+
+  // Process queued files when slots become available
+  async processQueuedFiles() {
+    while (this.step6QueuedFiles.length > 0 && this.canAcquireSlot()) {
+      const upload = this.dequeueFile();
+      if (upload) {
+        // Start processing (fire and forget)
+        this.processStep6File(upload).catch(err => {
+          console.error(`[MMS-WATCHER] [AUTO-STEP6] Unhandled error in processStep6File for ${upload.filename}:`, err);
+        });
+      }
+    }
+  }
+
+  // Process a single Step 6 file with slot management
+  async processStep6File(upload) {
+    // Acquire slot (should always succeed due to prior checks, but guard anyway)
+    if (!this.acquireSlot(upload.id)) {
+      console.error(`[MMS-WATCHER] [STEP6-SLOT] ❌ Failed to acquire slot for ${upload.filename} - re-queuing`);
+      this.enqueueFile(upload);
+      return;
+    }
+
+    try {
+      const currentRetries = upload.retryCount || 0;
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] 🚀 Starting Step 6 processing for: ${upload.filename} (${upload.id}) [Retry ${currentRetries}/${MAX_STEP6_RETRIES}]`);
+      
+      // Update to processing phase
+      await this.storage.updateUploaderPhase(upload.id, 'processing', {
+        processingStartedAt: new Date(),
+        processingNotes: `Step 6 processing started by MMS Watcher at ${new Date().toISOString()} (Attempt ${currentRetries + 1}/${MAX_STEP6_RETRIES})`
+      });
+
+      // Get file content from storage
+      const { ReplitStorageService } = await import('./replit-storage-service.js');
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+      
+      // Process with timeout protection
+      const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Step 6 processing timeout')), STEP6_TIMEOUT_MS);
+      });
+      
+      const processingPromise = processAllRecordsToMasterTable(fileContent, upload);
+      const step6Results = await Promise.race([processingPromise, timeoutPromise]);
+      
+      if (step6Results.success) {
+        // Success - update to completed
+        await this.storage.updateUploaderPhase(upload.id, 'completed', {
+          processingCompletedAt: new Date(),
+          processingStatus: 'completed',
+          processingNotes: `Step 6 completed by MMS Watcher: ${step6Results.totalRecords} records processed to master table in ${step6Results.processingTimeMs}ms`,
+          totalRecordsProcessed: step6Results.totalRecords,
+          masterRecordsCreated: step6Results.masterRecords,
+          apiRecordsCreated: step6Results.apiRecords,
+          skippedLines: step6Results.skippedLines,
+          step6ProcessingTimeMs: step6Results.processingTimeMs,
+          completedAt: new Date(),
+          retryCount: 0 // Reset retry count on success
+        });
+
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] ✅ Step 6 completed for: ${upload.filename} -> ${step6Results.totalRecords} records in ${step6Results.processingTimeMs}ms`);
+        this.step6ProcessingMetrics.totalProcessed++;
+      } else {
+        throw new Error(step6Results.error || 'Step 6 processing failed');
+      }
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing ${upload.filename}:`, error.message);
+      
+      const newRetryCount = (upload.retryCount || 0) + 1;
+      const isTimeout = error.message === 'Step 6 processing timeout';
+      
+      if (newRetryCount >= MAX_STEP6_RETRIES) {
+        // Max retries - mark as failed
+        console.error(`[MMS-WATCHER] [AUTO-STEP6] ❌ Max retries reached for ${upload.filename}`);
+        await this.storage.updateUploaderPhase(upload.id, 'failed', {
+          failedAt: new Date(),
+          retryCount: newRetryCount,
+          lastRetryAt: new Date(),
+          processingErrors: isTimeout 
+            ? `Step 6 timeout after ${STEP6_TIMEOUT_MS / 1000}s (${MAX_STEP6_RETRIES} attempts)` 
+            : `Step 6 failed: ${error.message} (${MAX_STEP6_RETRIES} attempts)`,
+          processingNotes: JSON.stringify({
+            reason: isTimeout ? 'processing_timeout' : 'processing_error',
+            retryCount: newRetryCount,
+            maxRetries: MAX_STEP6_RETRIES,
+            errorMessage: error.message,
+            failedAt: new Date().toISOString()
+          })
+        });
+      } else {
+        // Retry - move back to encoded
+        console.warn(`[MMS-WATCHER] [AUTO-STEP6] ⚠️  Retry ${newRetryCount}/${MAX_STEP6_RETRIES} for ${upload.filename}`);
+        await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          retryCount: newRetryCount,
+          lastRetryAt: new Date(),
+          processingWarnings: isTimeout 
+            ? `Step 6 timeout (${STEP6_TIMEOUT_MS / 1000}s) - will retry (${newRetryCount}/${MAX_STEP6_RETRIES})`
+            : `Step 6 error: ${error.message} - will retry (${newRetryCount}/${MAX_STEP6_RETRIES})`,
+          lastWarningAt: new Date(),
+          warningCount: (upload.warningCount || 0) + 1
+        });
+      }
+    } finally {
+      // Always release slot
+      this.releaseSlot(upload.id);
+      
+      // Process queued files if any are waiting
+      if (this.step6QueuedFiles.length > 0) {
+        await this.processQueuedFiles();
+      }
     }
   }
 
