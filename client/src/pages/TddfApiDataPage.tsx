@@ -4971,9 +4971,12 @@ export default function TddfApiDataPage() {
                       <SelectItem value="uploading">Uploading</SelectItem>
                       <SelectItem value="uploaded">Uploaded</SelectItem>
                       <SelectItem value="identified">Identified</SelectItem>
+                      <SelectItem value="validating">Validating</SelectItem>
                       <SelectItem value="encoding">Encoding</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="encoded">Encoded</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>
                     </SelectContent>
                   </Select>
