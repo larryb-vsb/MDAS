@@ -7,14 +7,26 @@ const STUCK_FILE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
 export function registerAdminRoutes(app: Express) {
   
-  // Reset stuck Step 6 files
+  // Reset stuck Step 6 files (supports multiple phases)
   app.post("/api/admin/reset-stuck-step6-files", isAuthenticated, async (req, res) => {
     try {
-      const { fileIds, thresholdMinutes } = req.body;
+      const { fileIds, thresholdMinutes, phase } = req.body;
       const username = (req.user as any)?.username || 'system';
       const thresholdMs = thresholdMinutes ? thresholdMinutes * 60 * 1000 : STUCK_FILE_THRESHOLD_MS;
       
-      console.log(`[ADMIN-RESET] Starting stuck file reset - threshold: ${thresholdMs / 60000} minutes, requested by: ${username}`);
+      // Default to 'processing' for backward compatibility
+      const targetPhase = phase || 'processing';
+      
+      // Validate phase
+      const validPhases = ['validating', 'identified', 'processing', 'error'];
+      if (!validPhases.includes(targetPhase)) {
+        return res.status(400).json({
+          error: "Invalid phase",
+          validPhases
+        });
+      }
+      
+      console.log(`[ADMIN-RESET] Starting stuck file reset - phase: ${targetPhase}, threshold: ${thresholdMs / 60000} minutes, requested by: ${username}`);
       
       let stuckFiles = [];
       
@@ -26,23 +38,23 @@ export function registerAdminRoutes(app: Express) {
           SELECT id, filename, current_phase, retry_count, start_time
           FROM ${uploadTableName}
           WHERE id = ANY($1::text[])
-            AND current_phase = 'processing'
-        `, [fileIds]);
+            AND current_phase = $2
+        `, [fileIds, targetPhase]);
         stuckFiles = result.rows;
       } else {
-        // Find all stuck files
+        // Find all stuck files in the specified phase
         const cutoffTime = new Date(Date.now() - thresholdMs);
         const uploadTableName = getTableName('uploader_uploads');
         const result = await pool.query(`
           SELECT id, filename, current_phase, retry_count, start_time
           FROM ${uploadTableName}
-          WHERE current_phase = 'processing'
-            AND start_time < $1
+          WHERE current_phase = $1
+            AND start_time < $2
           ORDER BY start_time ASC
-        `, [cutoffTime]);
+        `, [targetPhase, cutoffTime]);
         stuckFiles = result.rows;
         
-        console.log(`[ADMIN-RESET] Found ${stuckFiles.length} stuck files older than ${thresholdMs / 60000} minutes`);
+        console.log(`[ADMIN-RESET] Found ${stuckFiles.length} stuck ${targetPhase} files older than ${thresholdMs / 60000} minutes`);
       }
       
       if (stuckFiles.length === 0) {
@@ -54,6 +66,16 @@ export function registerAdminRoutes(app: Express) {
         });
       }
       
+      // Determine reset target phase based on current stuck phase
+      const phaseResetMap: Record<string, string> = {
+        'validating': 'uploaded',
+        'identified': 'uploaded',
+        'processing': 'encoded',
+        'error': 'encoded'
+      };
+      
+      const resetToPhase = phaseResetMap[targetPhase];
+      
       // Reset each stuck file
       const uploadTableName = getTableName('uploader_uploads');
       const resetResults = [];
@@ -63,29 +85,33 @@ export function registerAdminRoutes(app: Express) {
         const stuckDuration = Date.now() - new Date(file.start_time).getTime();
         const stuckMinutes = Math.floor(stuckDuration / 60000);
         
-        console.log(`[ADMIN-RESET] Resetting ${file.filename} (stuck for ${stuckMinutes} minutes, retry ${currentRetries}/3)`);
+        console.log(`[ADMIN-RESET] Resetting ${file.filename} (stuck for ${stuckMinutes} minutes, retry ${currentRetries}/3) from ${targetPhase} → ${resetToPhase}`);
         
-        // Move back to encoded phase for retry (with phase guard to prevent race conditions)
+        // Move back to appropriate phase for retry (with phase guard to prevent race conditions)
         await pool.query(`
           UPDATE ${uploadTableName}
           SET 
-            current_phase = 'encoded',
-            processing_warnings = $1,
+            current_phase = $1,
+            processing_warnings = $2,
             last_warning_at = NOW(),
             warning_count = COALESCE(warning_count, 0) + 1,
             last_updated = NOW()
-          WHERE id = $2
-            AND current_phase = 'processing'
+          WHERE id = $3
+            AND current_phase = $4
         `, [
-          `Admin reset: File stuck in processing for ${stuckMinutes} minutes - moved back to encoded for retry (attempt ${currentRetries + 1}/3)`,
-          file.id
+          resetToPhase,
+          `Admin reset: File stuck in ${targetPhase} for ${stuckMinutes} minutes - moved back to ${resetToPhase} for retry (attempt ${currentRetries + 1}/3)`,
+          file.id,
+          targetPhase
         ]);
         
         resetResults.push({
           id: file.id,
           filename: file.filename,
           stuckMinutes,
-          retryCount: currentRetries
+          retryCount: currentRetries,
+          fromPhase: targetPhase,
+          toPhase: resetToPhase
         });
       }
       
@@ -115,12 +141,22 @@ export function registerAdminRoutes(app: Express) {
     }
   });
   
-  // Get stuck file statistics
+  // Get stuck file statistics (supports multiple phases)
   app.get("/api/admin/stuck-files-stats", isAuthenticated, async (req, res) => {
     try {
       const thresholdMinutes = parseInt(req.query.thresholdMinutes as string) || 10;
+      const phase = req.query.phase as string || 'processing';
       const thresholdMs = thresholdMinutes * 60 * 1000;
       const cutoffTime = new Date(Date.now() - thresholdMs);
+      
+      // Validate phase
+      const validPhases = ['validating', 'identified', 'processing', 'error'];
+      if (!validPhases.includes(phase)) {
+        return res.status(400).json({
+          error: "Invalid phase",
+          validPhases
+        });
+      }
       
       const uploadTableName = getTableName('uploader_uploads');
       const result = await pool.query(`
@@ -132,10 +168,10 @@ export function registerAdminRoutes(app: Express) {
           start_time,
           EXTRACT(EPOCH FROM (NOW() - start_time)) / 60 as stuck_minutes
         FROM ${uploadTableName}
-        WHERE current_phase = 'processing'
-          AND start_time < $1
+        WHERE current_phase = $1
+          AND start_time < $2
         ORDER BY start_time ASC
-      `, [cutoffTime]);
+      `, [phase, cutoffTime]);
       
       const stuckFiles = result.rows.map((row: any) => ({
         id: row.id,
