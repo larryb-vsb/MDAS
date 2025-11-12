@@ -839,6 +839,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset error files back to encoded phase for retry
+  app.post("/api/uploader/reset-errors", isAuthenticated, async (req, res) => {
+    try {
+      const { fileIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: fileIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER-RESET-ERRORS] Resetting ${fileIds.length} error files to encoded phase - requested by: ${username}`);
+      
+      // Find files currently in error phase
+      const errorFilesQuery = `
+        SELECT id, filename, current_phase, retry_count
+        FROM ${uploadsTableName}
+        WHERE id = ANY($1::text[])
+          AND current_phase = 'error'
+      `;
+      
+      const errorFilesResult = await pool.query(errorFilesQuery, [fileIds]);
+      const errorFiles = errorFilesResult.rows;
+      
+      if (errorFiles.length === 0) {
+        return res.json({
+          success: true,
+          message: "No files in error phase found",
+          filesReset: 0,
+          warnings: [`${fileIds.length} file(s) requested but none were in error phase`]
+        });
+      }
+      
+      console.log(`[UPLOADER-RESET-ERRORS] Found ${errorFiles.length} files in error phase`);
+      
+      // Reset each file back to encoded phase
+      const resetResults = [];
+      
+      for (const file of errorFiles) {
+        const currentRetries = file.retry_count || 0;
+        
+        console.log(`[UPLOADER-RESET-ERRORS] Resetting ${file.filename} (retry ${currentRetries}/3)`);
+        
+        // Move back to encoded phase for retry
+        await pool.query(`
+          UPDATE ${uploadsTableName}
+          SET 
+            current_phase = 'encoded',
+            processing_errors = NULL,
+            failed_at = NULL,
+            last_updated = NOW()
+          WHERE id = $1
+            AND current_phase = 'error'
+        `, [file.id]);
+        
+        resetResults.push({
+          id: file.id,
+          filename: file.filename,
+          retryCount: currentRetries
+        });
+      }
+      
+      console.log(`[UPLOADER-RESET-ERRORS] ✅ Reset complete - ${resetResults.length} files moved to encoded phase`);
+      
+      res.json({
+        success: true,
+        message: `Successfully reset ${resetResults.length} file(s) from error to encoded phase`,
+        filesReset: resetResults.length,
+        files: resetResults
+      });
+      
+    } catch (error) {
+      console.error('[UPLOADER-RESET-ERRORS] Error resetting error files:', error);
+      res.status(500).json({
+        error: "Failed to reset error files",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Start upload - Create database record and generate storage key
   app.post("/api/uploader/start", isAuthenticatedOrApiKey, isHostApproved, async (req, res) => {
     try {
