@@ -1040,9 +1040,9 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
-      // Start transaction and set query timeout to 30 seconds
+      // Start transaction and set query timeout to 2 minutes
       await client.query('BEGIN');
-      await client.query(`SET LOCAL statement_timeout = '30s'`);
+      await client.query(`SET LOCAL statement_timeout = '120s'`);
       
       // Get aggregated totals for the entire month from master table
       // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
@@ -1214,9 +1214,9 @@ export function registerTddfCacheRoutes(app: Express) {
       const previousDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
       const previousMonth = `${previousDate.getFullYear()}-${(previousDate.getMonth() + 1).toString().padStart(2, '0')}`;
       
-      // Start transaction and set query timeout to 30 seconds
+      // Start transaction and set query timeout to 2 minutes
       await client.query('BEGIN');
-      await client.query(`SET LOCAL statement_timeout = '30s'`);
+      await client.query(`SET LOCAL statement_timeout = '120s'`);
       
       // Helper function to get month data from master table
       const getMonthData = async (targetMonth: string) => {
