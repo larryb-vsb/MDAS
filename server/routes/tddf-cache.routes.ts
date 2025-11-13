@@ -1019,6 +1019,8 @@ export function registerTddfCacheRoutes(app: Express) {
   app.get('/api/tddf1/monthly-totals', isAuthenticated, async (req, res) => {
     console.log('📅 Getting TDDF1 monthly totals');
     
+    const client = await pool.connect();
+    
     try {
       const { month } = req.query; // Expected format: 'YYYY-MM'
       
@@ -1038,9 +1040,13 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
+      // Start transaction and set query timeout to 30 seconds
+      await client.query('BEGIN');
+      await client.query(`SET LOCAL statement_timeout = '30s'`);
+      
       // Get aggregated totals for the entire month from master table
       // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
-      const monthlyTotals = await pool.query(`
+      const monthlyTotals = await client.query(`
         SELECT 
           COUNT(*) as total_records,
           COUNT(DISTINCT upload_id) as total_files,
@@ -1089,7 +1095,7 @@ export function registerTddfCacheRoutes(app: Express) {
       // Get daily breakdown - aggregate by date
       // Count files by filename date (matching daily Data Files tab logic)
       // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
-      const dailyBreakdown = await pool.query(`
+      const dailyBreakdown = await client.query(`
         SELECT 
           COALESCE(
             CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
@@ -1121,7 +1127,7 @@ export function registerTddfCacheRoutes(app: Express) {
       `, [startDate, endDate]);
       
       // Count files by filename date for each day (matching Data Files tab logic)
-      const fileCountsByDate = await pool.query(`
+      const fileCountsByDate = await client.query(`
         SELECT 
           to_char(
             to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
@@ -1169,16 +1175,26 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`📅 [MONTHLY] Aggregated data for ${month}: ${result.totalFiles} files, ${result.totalRecords} records, $${result.totalTransactionValue.toLocaleString()} transaction value, $${result.totalNetDepositBh.toLocaleString()} net deposit`);
       
+      // Commit transaction
+      await client.query('COMMIT');
+      
       res.json(result);
     } catch (error: any) {
+      // Rollback transaction on error
+      await client.query('ROLLBACK');
       console.error('❌ Error fetching TDDF1 monthly totals:', error);
       res.status(500).json({ error: error.message });
+    } finally {
+      // Always release the client back to the pool
+      client.release();
     }
   });
 
   // TDDF1 Monthly Comparison - Current and Previous Month - Query master table directly
   app.get('/api/tddf1/monthly-comparison', isAuthenticated, async (req, res) => {
     console.log('📅 Getting TDDF1 monthly comparison');
+    
+    const client = await pool.connect();
     
     try {
       const { month } = req.query; // Expected format: 'YYYY-MM'
@@ -1198,6 +1214,10 @@ export function registerTddfCacheRoutes(app: Express) {
       const previousDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
       const previousMonth = `${previousDate.getFullYear()}-${(previousDate.getMonth() + 1).toString().padStart(2, '0')}`;
       
+      // Start transaction and set query timeout to 30 seconds
+      await client.query('BEGIN');
+      await client.query(`SET LOCAL statement_timeout = '30s'`);
+      
       // Helper function to get month data from master table
       const getMonthData = async (targetMonth: string) => {
         const [yr, mth] = targetMonth.split('-');
@@ -1207,7 +1227,7 @@ export function registerTddfCacheRoutes(app: Express) {
         
         // Get daily breakdown for the month from master table
         // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
-        const dailyBreakdown = await pool.query(`
+        const dailyBreakdown = await client.query(`
           SELECT 
             COALESCE(
               CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
@@ -1257,6 +1277,9 @@ export function registerTddfCacheRoutes(app: Express) {
       
       console.log(`📅 [COMPARISON] Current month (${month}): ${currentMonthData.length} days, Previous month (${previousMonth}): ${previousMonthData.length} days`);
       
+      // Commit transaction
+      await client.query('COMMIT');
+      
       res.json({
         currentMonth: {
           month,
@@ -1268,8 +1291,13 @@ export function registerTddfCacheRoutes(app: Express) {
         }
       });
     } catch (error: any) {
+      // Rollback transaction on error
+      await client.query('ROLLBACK');
       console.error('❌ Error fetching TDDF1 monthly comparison:', error);
       res.status(500).json({ error: error.message });
+    } finally {
+      // Always release the client back to the pool
+      client.release();
     }
   });
 
