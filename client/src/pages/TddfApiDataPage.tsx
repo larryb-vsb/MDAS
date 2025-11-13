@@ -2690,6 +2690,20 @@ export default function TddfApiDataPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Helper function to format milliseconds to h:m:s
+  const formatWaitingTime = (ms: number): string => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+  };
+
   // Fetch schemas
   const { data: schemas = [], isLoading: schemasLoading } = useQuery<TddfApiSchema[]>({
     queryKey: ["/api/tddf-api/schemas"],
@@ -6188,10 +6202,10 @@ export default function TddfApiDataPage() {
                               </code>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {elapsedSeconds}s
+                              {formatWaitingTime(progress.elapsedMs)}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {Math.round(progress.elapsedMs / 1000)}s
+                              {formatWaitingTime(progress.elapsedMs)}
                             </TableCell>
                           </TableRow>
                         );
@@ -6215,7 +6229,7 @@ export default function TddfApiDataPage() {
                             {item.queuedAt ? format(new Date(item.queuedAt), "MMM d, HH:mm:ss") : "-"}
                           </TableCell>
                           <TableCell>
-                            {item.waitingMs ? `${Math.round(item.waitingMs / 1000)}s` : "-"}
+                            {item.waitingMs ? formatWaitingTime(item.waitingMs) : "-"}
                           </TableCell>
                         </TableRow>
                       ))}
