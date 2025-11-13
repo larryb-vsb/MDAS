@@ -35,6 +35,8 @@ class MMSWatcher {
       totalSlotWaitTimeMs: 0,
       peakQueueSize: 0
     };
+    // Track processing progress for active files: uploadId -> { filename, totalLines, processedRecords, startedAt }
+    this.step6Progress = new Map();
     
     console.log('[MMS-WATCHER] Watcher service initialized');
     console.log('[MMS-WATCHER] 🔧 MERCHANT DETAIL DETECTION CODE IS LOADED - Ready to detect DACQ_MER_DTL files');
@@ -2183,6 +2185,14 @@ class MMSWatcher {
       const currentRetries = upload.retryCount || 0;
       console.log(`[MMS-WATCHER] [AUTO-STEP6] 🚀 Starting Step 6 processing for: ${upload.filename} (${upload.id}) [Retry ${currentRetries}/${MAX_STEP6_RETRIES}]`);
       
+      // Initialize progress tracking
+      this.step6Progress.set(upload.id, {
+        filename: upload.filename,
+        totalLines: upload.lineCount || 0,
+        processedRecords: 0,
+        startedAt: Date.now()
+      });
+      
       // Update to processing phase
       await this.storage.updateUploaderPhase(upload.id, 'processing', {
         processingStartedAt: new Date(),
@@ -2193,14 +2203,22 @@ class MMSWatcher {
       const { ReplitStorageService } = await import('./replit-storage-service.js');
       const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
       
-      // Process with timeout protection
+      // Process with timeout protection and progress callback
       const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
+      
+      // Create progress callback
+      const onBatchProgress = (processedCount, batchSize) => {
+        const progress = this.step6Progress.get(upload.id);
+        if (progress) {
+          progress.processedRecords = processedCount;
+        }
+      };
       
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Step 6 processing timeout')), STEP6_TIMEOUT_MS);
       });
       
-      const processingPromise = processAllRecordsToMasterTable(fileContent, upload);
+      const processingPromise = processAllRecordsToMasterTable(fileContent, upload, { onBatchProgress });
       const step6Results = await Promise.race([processingPromise, timeoutPromise]);
       
       if (step6Results.success) {
@@ -2261,8 +2279,9 @@ class MMSWatcher {
         });
       }
     } finally {
-      // Always release slot
+      // Always release slot and clean up progress tracking
       this.releaseSlot(upload.id);
+      this.step6Progress.delete(upload.id);
       
       // Process queued files if any are waiting
       if (this.step6QueuedFiles.length > 0) {
@@ -2282,6 +2301,7 @@ class MMSWatcher {
     for (const uploadId of uploadIds) {
       if (this.step6ActiveSlots.has(uploadId)) {
         this.step6ActiveSlots.delete(uploadId);
+        this.step6Progress.delete(uploadId); // Clean up progress tracking
         clearedCount++;
         console.log(`[MMS-WATCHER] [ADMIN] ✅ Cleared stuck file from slot: ${uploadId}`);
       }
@@ -2309,11 +2329,32 @@ class MMSWatcher {
       waitingMs: Date.now() - item.queuedAt
     }));
 
+    // Build progress snapshot (immutable copy)
+    const progressSnapshot = [];
+    for (const [uploadId, progress] of this.step6Progress.entries()) {
+      // Calculate percentage and clamp to [0, 100] range
+      let percentComplete = 0;
+      if (progress.totalLines > 0) {
+        const rawPercent = Math.round((progress.processedRecords / progress.totalLines) * 100);
+        percentComplete = Math.max(0, Math.min(100, rawPercent)); // Clamp to [0, 100]
+      }
+      
+      progressSnapshot.push({
+        uploadId,
+        filename: progress.filename,
+        totalLines: progress.totalLines,
+        processedRecords: progress.processedRecords,
+        percentComplete,
+        elapsedMs: Date.now() - progress.startedAt
+      });
+    }
+
     return {
       activeSlots: {
         count: this.step6ActiveSlots.size,
         max: MAX_STEP6_CONCURRENT_FILES,
-        uploadIds: activeSlotIds
+        uploadIds: activeSlotIds,
+        progress: progressSnapshot
       },
       queue: {
         count: this.step6QueuedFiles.length,

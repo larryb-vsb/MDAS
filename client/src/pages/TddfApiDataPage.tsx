@@ -2803,6 +2803,7 @@ export default function TddfApiDataPage() {
   // Extract Step 6 queue and active slots
   const step6Queue = step6Status?.queue?.files || [];
   const step6ActiveSlots = step6Status?.activeSlots?.uploadIds || [];
+  const step6Progress = step6Status?.activeSlots?.progress || [];
 
   // Fetch precached dashboard stats for Step 6 processing metrics
   const { data: dashboardStats = {}, isLoading: dashboardStatsLoading } = useQuery<any>({
@@ -6148,28 +6149,53 @@ export default function TddfApiDataPage() {
                     </TableRow>
                   ) : (
                     <>
-                      {step6ActiveSlots.map((uploadId: string) => (
-                        <TableRow key={uploadId} className="bg-blue-50 dark:bg-blue-950">
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
-                              <span className="text-blue-800 dark:text-blue-200">Processing...</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="default" className="bg-blue-600">
-                              Active
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                              {uploadId}
-                            </code>
-                          </TableCell>
-                          <TableCell>-</TableCell>
-                          <TableCell>-</TableCell>
-                        </TableRow>
-                      ))}
+                      {step6Progress.map((progress: any) => {
+                        const elapsedSeconds = Math.round(progress.elapsedMs / 1000);
+                        const recordsPerSecond = elapsedSeconds > 0 
+                          ? Math.round(progress.processedRecords / elapsedSeconds) 
+                          : 0;
+                        
+                        return (
+                          <TableRow key={progress.uploadId} className="bg-blue-50 dark:bg-blue-950">
+                            <TableCell className="font-medium">
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                                  <span className="text-blue-800 dark:text-blue-200 text-sm font-medium">
+                                    {progress.filename || 'Processing...'}
+                                  </span>
+                                </div>
+                                <div className="w-full bg-white dark:bg-gray-800 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${progress.percentComplete}%` }}
+                                  />
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {progress.processedRecords.toLocaleString()} / {progress.totalLines.toLocaleString()} records ({progress.percentComplete}%)
+                                  {recordsPerSecond > 0 && ` • ${recordsPerSecond.toLocaleString()} rec/sec`}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="default" className="bg-blue-600">
+                                Active
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                {progress.uploadId}
+                              </code>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {elapsedSeconds}s
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {Math.round(progress.elapsedMs / 1000)}s
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {step6Queue.map((item: any) => (
                         <TableRow key={item.uploadId}>
                           <TableCell className="font-medium max-w-xs truncate">
