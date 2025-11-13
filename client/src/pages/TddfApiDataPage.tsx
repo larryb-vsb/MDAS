@@ -2784,8 +2784,25 @@ export default function TddfApiDataPage() {
     refetchInterval: 5000 // Real-time updates every 5 seconds
   });
 
+  // Fetch Step 6 queue status from MMS Watcher
+  const { data: step6Status = {}, isLoading: step6Loading } = useQuery<any>({
+    queryKey: ["/api/admin/step6-status"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/step6-status", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch Step 6 queue status');
+      return response.json();
+    },
+    refetchInterval: 3000 // Real-time updates every 3 seconds
+  });
+
   // Extract queue data from processing status for compatibility
   const queue = Array.isArray(processingStatus?.activeProcessing) ? processingStatus.activeProcessing : [];
+  
+  // Extract Step 6 queue and active slots
+  const step6Queue = step6Status?.queue?.files || [];
+  const step6ActiveSlots = step6Status?.activeSlots?.uploadIds || [];
 
   // Fetch precached dashboard stats for Step 6 processing metrics
   const { data: dashboardStats = {}, isLoading: dashboardStatsLoading } = useQuery<any>({
@@ -6100,87 +6117,83 @@ export default function TddfApiDataPage() {
           <Card>
             <CardHeader>
               <CardTitle>Queue Status</CardTitle>
-              <CardDescription>Real-time processing queue monitoring</CardDescription>
+              <CardDescription>
+                Real-time Step 6 processing queue monitoring 
+                ({step6ActiveSlots.length}/{step6Status?.activeSlots?.max || 3} active slots, {step6Queue.length} queued)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>File</TableHead>
-                    <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>File Size</TableHead>
-                    <TableHead>Attempts</TableHead>
-                    <TableHead>Queued</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>Processing Time</TableHead>
-                    <TableHead>Error Details</TableHead>
+                    <TableHead>Upload ID</TableHead>
+                    <TableHead>Queued At</TableHead>
+                    <TableHead>Waiting Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {queueLoading ? (
+                  {step6Loading ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center">
+                      <TableCell colSpan={5} className="text-center">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
-                  ) : queue.length === 0 ? (
+                  ) : step6ActiveSlots.length === 0 && step6Queue.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
                         No items in processing queue
                       </TableCell>
                     </TableRow>
                   ) : (
-                    queue.map((item: any) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium max-w-xs truncate">
-                          {item.filename || `File ${item.file_id}`}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={item.priority > 75 ? "destructive" : item.priority > 50 ? "secondary" : "outline"}>
-                            {item.priority || 75}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(item.status)}>
-                            {item.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-muted-foreground">
-                            {formatFileSize(Number(item.file_size || 0))}
-                          </div>
-                        </TableCell>
-                        <TableCell>{item.attempts || 0}/{item.max_attempts || 3}</TableCell>
-                        <TableCell>
-                          {item.created_at ? format(new Date(item.created_at), "MMM d, HH:mm") : "Unknown"}
-                        </TableCell>
-                        <TableCell>
-                          {item.started_at ? format(new Date(item.started_at), "MMM d, HH:mm") : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {item.started_at && item.completed_at ? (
-                            `${Math.round((new Date(item.completed_at).getTime() - new Date(item.started_at).getTime()) / 1000)}s`
-                          ) : item.started_at ? (
-                            <div className="flex items-center gap-1">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              <span className="text-sm">Processing...</span>
+                    <>
+                      {step6ActiveSlots.map((uploadId: string) => (
+                        <TableRow key={uploadId} className="bg-blue-50 dark:bg-blue-950">
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                              <span className="text-blue-800 dark:text-blue-200">Processing...</span>
                             </div>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell className="max-w-xs">
-                          {item.error_details ? (
-                            <div className="text-sm text-red-600 truncate" title={item.error_details}>
-                              {item.error_details}
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="default" className="bg-blue-600">
+                              Active
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                              {uploadId}
+                            </code>
+                          </TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>-</TableCell>
+                        </TableRow>
+                      ))}
+                      {step6Queue.map((item: any) => (
+                        <TableRow key={item.uploadId}>
+                          <TableCell className="font-medium max-w-xs truncate">
+                            {item.filename || 'Unknown file'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              Queued
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                              {item.uploadId}
+                            </code>
+                          </TableCell>
+                          <TableCell>
+                            {item.queuedAt ? format(new Date(item.queuedAt), "MMM d, HH:mm:ss") : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {item.waitingMs ? `${Math.round(item.waitingMs / 1000)}s` : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   )}
                 </TableBody>
               </Table>
