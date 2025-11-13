@@ -324,7 +324,11 @@ function parseFieldValue(rawValue: string, type: string): any {
  * Also populates enhanced tddApiRecords schema with full capabilities
  * NOW INCLUDES: Merchant and Terminal table updates from DT records
  */
-export async function processAllRecordsToMasterTable(fileContent: string, upload: UploaderUpload): Promise<any> {
+export async function processAllRecordsToMasterTable(
+  fileContent: string, 
+  upload: UploaderUpload,
+  options?: { onBatchProgress?: (processedCount: number, batchSize: number) => void }
+): Promise<any> {
   const startTime = Date.now();
   const startTimeDate = new Date();
   console.log(`[STEP-6-PROCESSING] Starting comprehensive processing for ${upload.filename} - ALL records to master table`);
@@ -490,6 +494,12 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
         await insertMasterTableBatch(tddfJsonbTable, masterTableBatch);
         await insertApiRecordsBatch(apiRecordsTable, apiRecordsBatch);
         console.log(`[STEP-6-PROCESSING] Inserted batch: ${masterRecordCount} master records, ${apiRecordCount} API records`);
+        
+        // Report progress if callback provided
+        if (options?.onBatchProgress) {
+          options.onBatchProgress(masterRecordCount, masterTableBatch.length);
+        }
+        
         masterTableBatch.length = 0;
         apiRecordsBatch.length = 0;
       }
@@ -499,6 +509,11 @@ export async function processAllRecordsToMasterTable(fileContent: string, upload
     if (masterTableBatch.length > 0) {
       await insertMasterTableBatch(tddfJsonbTable, masterTableBatch);
       await insertApiRecordsBatch(apiRecordsTable, apiRecordsBatch);
+      
+      // Report final progress if callback provided
+      if (options?.onBatchProgress) {
+        options.onBatchProgress(masterRecordCount, masterTableBatch.length);
+      }
     }
     
     console.log(`[STEP-6-VALIDATION] Starting duplicate validation and cleanup...`);
