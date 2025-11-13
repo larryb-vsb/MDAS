@@ -1828,38 +1828,37 @@ class MMSWatcher {
         updated_at: new Date()
       };
       
-      // Insert into totals table using the correct simplified structure
+      // Insert into totals table using the correct column names
       const query = `
         INSERT INTO ${totalsTableName} (
-          processing_date, total_files, total_records, total_transactions, 
-          total_authorizations, net_deposit, record_breakdown, created_at, last_updated
+          file_date, total_files, total_records, total_transaction_amounts, 
+          total_net_deposits, bh_records, dt_records
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9
+          $1, $2, $3, $4, $5, $6, $7
         )
-        ON CONFLICT (processing_date) DO UPDATE SET
+        ON CONFLICT (file_date) DO UPDATE SET
           total_files = ${totalsTableName}.total_files + EXCLUDED.total_files,
           total_records = ${totalsTableName}.total_records + EXCLUDED.total_records,
-          total_transactions = ${totalsTableName}.total_transactions + EXCLUDED.total_transactions,
-          total_authorizations = ${totalsTableName}.total_authorizations + EXCLUDED.total_authorizations,
-          net_deposit = ${totalsTableName}.net_deposit + EXCLUDED.net_deposit,
-          record_breakdown = EXCLUDED.record_breakdown,
-          last_updated = EXCLUDED.last_updated
+          total_transaction_amounts = ${totalsTableName}.total_transaction_amounts + EXCLUDED.total_transaction_amounts,
+          total_net_deposits = ${totalsTableName}.total_net_deposits + EXCLUDED.total_net_deposits,
+          bh_records = ${totalsTableName}.bh_records + EXCLUDED.bh_records,
+          dt_records = ${totalsTableName}.dt_records + EXCLUDED.dt_records,
+          updated_at = CURRENT_TIMESTAMP
       `;
       
       // Calculate transaction totals from encoding results
-      const transactionTotal = encodingResults.recordCounts?.byType?.DT || 0;
+      const dtRecords = encodingResults.recordCounts?.byType?.DT || 0;
+      const bhRecords = encodingResults.recordCounts?.byType?.BH || 0;
       const authorizationTotal = encodingResults.totalTransactionAmount || 0;
       
       const values = [
-        fileDate, // processing_date
+        fileDate, // file_date
         1, // total_files (always 1 per file)
         encodingResults.totalRecords || 0, // total_records
-        transactionTotal, // total_transactions (DT records)
-        authorizationTotal, // total_authorizations
-        authorizationTotal, // net_deposit (same as authorizations for now)
-        JSON.stringify(encodingResults.recordCounts?.byType || {}), // record_breakdown
-        new Date(), // created_at
-        new Date() // last_updated
+        authorizationTotal, // total_transaction_amounts
+        authorizationTotal, // total_net_deposits (same as authorizations for now)
+        bhRecords, // bh_records
+        dtRecords // dt_records
       ];
       
       const pool = this.storage.pool || this.storage;
@@ -1950,7 +1949,7 @@ class MMSWatcher {
       // Check if this individual file already has a cache entry
       const existingEntry = await pool.query(`
         SELECT id FROM ${totalsTableName} 
-        WHERE processing_date = $1 
+        WHERE file_date = $1 
           AND (record_breakdown->>'source_file' = $2 OR 
                record_breakdown->>'table_name' = $3)
       `, [processingDate, filename, tableName]);
@@ -1983,18 +1982,13 @@ class MMSWatcher {
         // Insert individual cache entry
         await pool.query(`
           INSERT INTO ${totalsTableName} 
-          (processing_date, total_files, total_records, total_transactions, total_authorizations, net_deposit, record_breakdown)
-          VALUES ($1, 1, $2, $3, $4, $4, $5)
+          (file_date, total_files, total_records, total_transaction_amounts, total_net_deposits, bh_records, dt_records)
+          VALUES ($1, 1, $2, $3, $4, 0, 0)
         `, [
           processingDate,
           parseInt(stats.total_records),
-          parseInt(stats.total_transactions),
           parseFloat(stats.total_authorizations),
-          JSON.stringify({
-            ...stats.record_breakdown,
-            source_file: filename,
-            table_name: tableName
-          })
+          parseFloat(stats.total_authorizations)
         ]);
         
         console.log(`[MMS-WATCHER] [CACHE-FIX] ✅ Created individual cache entry for ${filename}: ${stats.total_records} records, $${stats.total_authorizations}`);
