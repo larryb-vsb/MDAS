@@ -528,69 +528,53 @@ export async function processAllRecordsToMasterTable(
       WHERE id = $1
     `, [upload.id]);
     
-    // Validation phase with error recovery
+    // Validation phase - duplicate cleanup and merchant processing
     let duplicatesRemoved = 0;
     let recordsAfterCleanup = 0;
-    try {
-      // Count records before cleanup
-      const beforeCountResult = await batchPool.query(`
-        SELECT COUNT(*) as count FROM ${tddfJsonbTable} WHERE upload_id = $1
-      `, [upload.id]);
-      const recordsBeforeCleanup = parseInt(beforeCountResult.rows[0]?.count || '0', 10);
-      
-      // Remove duplicate records (keep newest based on MAX(id))
-      // Optimized: Single-pass deletion using CTE with ROW_NUMBER() window function
-      const deleteResult = await batchPool.query(`
-        WITH duplicates_to_delete AS (
-          SELECT id
-          FROM (
-            SELECT 
-              id,
-              ROW_NUMBER() OVER (
-                PARTITION BY raw_line_hash 
-                ORDER BY id DESC
-              ) as row_num
-            FROM ${tddfJsonbTable}
-            WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
-          ) ranked
-          WHERE row_num > 1
-        )
-        DELETE FROM ${tddfJsonbTable}
-        WHERE id IN (SELECT id FROM duplicates_to_delete)
-      `, [upload.id]);
-      
-      duplicatesRemoved = deleteResult.rowCount || 0;
-      recordsAfterCleanup = recordsBeforeCleanup - duplicatesRemoved;
-      
-      console.log(`[STEP-6-VALIDATION] ✅ Duplicate cleanup completed:`);
-      console.log(`[STEP-6-VALIDATION] - Records before: ${recordsBeforeCleanup}`);
-      console.log(`[STEP-6-VALIDATION] - Duplicates removed: ${duplicatesRemoved}`);
-      console.log(`[STEP-6-VALIDATION] - Records after: ${recordsAfterCleanup}`);
-      
-      // Process merchants and terminals from DT records
-      if (dtRecordsForMerchantProcessing.length > 0) {
-        console.log(`[STEP-6-MERCHANTS] Processing ${dtRecordsForMerchantProcessing.length} DT records for merchant/terminal updates`);
-        const merchantStats = await updateMerchantsAndTerminalsFromDT(dtRecordsForMerchantProcessing, upload.filename, upload.id);
-        merchantsCreated = merchantStats.merchantsCreated;
-        merchantsUpdated = merchantStats.merchantsUpdated;
-        terminalsCreated = merchantStats.terminalsCreated;
-        terminalsUpdated = merchantStats.terminalsUpdated;
-      }
-    } catch (validationError: any) {
-      console.error(`[STEP-6-VALIDATION] ❌ Validation error for ${upload.filename}:`, validationError.message);
-      
-      // Revert to encoded status for retry
-      await batchPool.query(`
-        UPDATE ${uploaderTableName}
-        SET current_phase = 'encoded',
-            status_message = $1,
-            retry_count = COALESCE(retry_count, 0) + 1,
-            last_retry_at = NOW(),
-            last_updated = NOW()
-        WHERE id = $2
-      `, [`Validation failed: ${validationError.message} - will retry`, upload.id]);
-      
-      throw new Error(`Validation phase failed: ${validationError.message}`);
+    
+    // Count records before cleanup
+    const beforeCountResult = await batchPool.query(`
+      SELECT COUNT(*) as count FROM ${tddfJsonbTable} WHERE upload_id = $1
+    `, [upload.id]);
+    const recordsBeforeCleanup = parseInt(beforeCountResult.rows[0]?.count || '0', 10);
+    
+    // Remove duplicate records (keep newest based on MAX(id))
+    // Optimized: Single-pass deletion using CTE with ROW_NUMBER() window function
+    const deleteResult = await batchPool.query(`
+      WITH duplicates_to_delete AS (
+        SELECT id
+        FROM (
+          SELECT 
+            id,
+            ROW_NUMBER() OVER (
+              PARTITION BY raw_line_hash 
+              ORDER BY id DESC
+            ) as row_num
+          FROM ${tddfJsonbTable}
+          WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
+        ) ranked
+        WHERE row_num > 1
+      )
+      DELETE FROM ${tddfJsonbTable}
+      WHERE id IN (SELECT id FROM duplicates_to_delete)
+    `, [upload.id]);
+    
+    duplicatesRemoved = deleteResult.rowCount || 0;
+    recordsAfterCleanup = recordsBeforeCleanup - duplicatesRemoved;
+    
+    console.log(`[STEP-6-VALIDATION] ✅ Duplicate cleanup completed:`);
+    console.log(`[STEP-6-VALIDATION] - Records before: ${recordsBeforeCleanup}`);
+    console.log(`[STEP-6-VALIDATION] - Duplicates removed: ${duplicatesRemoved}`);
+    console.log(`[STEP-6-VALIDATION] - Records after: ${recordsAfterCleanup}`);
+    
+    // Process merchants and terminals from DT records
+    if (dtRecordsForMerchantProcessing.length > 0) {
+      console.log(`[STEP-6-MERCHANTS] Processing ${dtRecordsForMerchantProcessing.length} DT records for merchant/terminal updates`);
+      const merchantStats = await updateMerchantsAndTerminalsFromDT(dtRecordsForMerchantProcessing, upload.filename, upload.id);
+      merchantsCreated = merchantStats.merchantsCreated;
+      merchantsUpdated = merchantStats.merchantsUpdated;
+      terminalsCreated = merchantStats.terminalsCreated;
+      terminalsUpdated = merchantStats.terminalsUpdated;
     }
     
     const endTime = Date.now();
@@ -662,7 +646,26 @@ export async function processAllRecordsToMasterTable(
     };
     
   } catch (error: any) {
-    console.error(`[STEP-6-PROCESSING] Error processing ${upload.filename}:`, error);
+    console.error(`[STEP-6-PROCESSING] ❌ Error processing ${upload.filename}:`, error);
+    
+    // Revert upload status to 'encoded' for automatic retry
+    try {
+      const { getTableName: getUploaderTableName } = await import("./table-config");
+      const uploaderTableName = getUploaderTableName('uploader_uploads');
+      await batchPool.query(`
+        UPDATE ${uploaderTableName}
+        SET current_phase = 'encoded',
+            status_message = $1,
+            retry_count = COALESCE(retry_count, 0) + 1,
+            last_retry_at = NOW(),
+            last_updated = NOW()
+        WHERE id = $2
+      `, [`Validation failed: ${error.message} - will retry`, upload.id]);
+      
+      console.log(`[STEP-6-RECOVERY] File reverted to 'encoded' status for retry (retry_count incremented)`);
+    } catch (revertError: any) {
+      console.error(`[STEP-6-RECOVERY] Failed to revert file status:`, revertError);
+    }
     
     // Update timing log with failure status
     if (timingLogId) {
@@ -682,13 +685,8 @@ export async function processAllRecordsToMasterTable(
       }
     }
     
-    return {
-      success: false,
-      error: error.message || 'Step 6 processing failed',
-      totalRecords: 0,
-      masterRecords: 0,
-      apiRecords: 0
-    };
+    // Re-throw to allow caller to handle
+    throw error;
   }
 }
 
