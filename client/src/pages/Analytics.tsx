@@ -131,20 +131,20 @@ export default function Analytics() {
                   <AnalyticsTransactionChart 
                     data={analyticsData.transactionData}
                     isLoading={isLoading}
-                    title="Transaction Volume"
-                    description="Number of transactions processed over time"
-                    dataKey="cardAuthorizations"
-                    color="#8884d8"
-                    tooltipLabel="Transactions"
+                    title="ACH Deposit Volume"
+                    description="Number of ACH deposits to sub-merchants over time"
+                    dataKey="achDeposits"
+                    color="#3b82f6"
+                    tooltipLabel="ACH Deposits"
                   />
                   <AnalyticsTransactionChart 
                     data={analyticsData.transactionData}
                     isLoading={isLoading}
-                    title="Deposit Analysis"
-                    description="Deposit amounts from batch processing"
-                    dataKey="batchDepositAmount"
-                    color="#82ca9d"
-                    tooltipLabel="Deposits"
+                    title="ACH Deposit Amount"
+                    description="Total ACH deposit amounts processed over time"
+                    dataKey="achAmount"
+                    color="#10b981"
+                    tooltipLabel="Amount ($)"
                   />
                 </div>
                 
@@ -166,8 +166,8 @@ export default function Analytics() {
                 <TimeSeriesBreakdown 
                   data={analyticsData.transactionData}
                   isLoading={isLoading}
-                  title="Transaction Breakdown by Time"
-                  description="Analysis of transaction counts and amounts by time period (using transaction dates)"
+                  title="ACH Transaction Breakdown by Time"
+                  description="Analysis of ACH deposit counts and amounts by time period"
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -186,11 +186,11 @@ export default function Analytics() {
                 <AnalyticsTransactionChart 
                   data={analyticsData.transactionData}
                   isLoading={isLoading}
-                  title="Revenue Trends"
-                  description="Detailed view of revenue over time"
-                  dataKey="revenue"
-                  color="#82ca9d"
-                  tooltipLabel="Revenue"
+                  title="ACH Revenue Trends"
+                  description="Detailed view of ACH deposit amounts over time"
+                  dataKey="achAmount"
+                  color="#10b981"
+                  tooltipLabel="ACH Amount ($)"
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
