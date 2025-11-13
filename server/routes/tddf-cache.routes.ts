@@ -1039,6 +1039,7 @@ export function registerTddfCacheRoutes(app: Express) {
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
       // Get aggregated totals for the entire month from master table
+      // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
       const monthlyTotals = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
@@ -1055,15 +1056,22 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as total_transaction_value
         FROM ${masterTableName}
         WHERE (
-          (record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
-          OR
-          (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
-          OR
-          (record_type IN ('G2', 'E1', 'P1', 'P2', 'DR', 'AD') AND upload_id IN (
-            SELECT DISTINCT upload_id FROM ${masterTableName}
-            WHERE record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2
-          ))
-        )
+            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+            OR
+            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+            OR
+            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+             AND record_type IN ('G2', 'E1', 'P1', 'P2', 'DR', 'AD') AND upload_id IN (
+              SELECT DISTINCT upload_id FROM ${masterTableName}
+              WHERE tddf_processing_date >= $1::date 
+                AND tddf_processing_date <= $2::date
+                AND record_type = 'BH' 
+                AND extracted_fields->>'batchDate' >= $1 
+                AND extracted_fields->>'batchDate' <= $2
+            ))
+          )
       `, [startDate, endDate]);
       
       const summary = monthlyTotals.rows[0];
@@ -1080,6 +1088,7 @@ export function registerTddfCacheRoutes(app: Express) {
       
       // Get daily breakdown - aggregate by date
       // Count files by filename date (matching daily Data Files tab logic)
+      // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
       const dailyBreakdown = await pool.query(`
         SELECT 
           COALESCE(
@@ -1092,10 +1101,12 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
         FROM ${masterTableName}
         WHERE (
-          (record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
-          OR
-          (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
-        )
+            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+            OR
+            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+          )
         GROUP BY COALESCE(
           CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
                WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
@@ -1195,6 +1206,7 @@ export function registerTddfCacheRoutes(app: Express) {
         const endDate = `${yr}-${mth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         
         // Get daily breakdown for the month from master table
+        // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
         const dailyBreakdown = await pool.query(`
           SELECT 
             COALESCE(
@@ -1208,10 +1220,12 @@ export function registerTddfCacheRoutes(app: Express) {
             COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
           FROM ${masterTableName}
           WHERE (
-            (record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
-            OR
-            (record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
-          )
+              (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+               AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+              OR
+              (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+               AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+            )
           GROUP BY COALESCE(
             CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
                  WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
