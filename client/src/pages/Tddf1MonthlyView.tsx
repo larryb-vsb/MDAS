@@ -694,7 +694,9 @@ export default function Tddf1MonthlyView() {
                     <p className={`text-sm ${isDarkMode ? 'text-yellow-300' : 'text-yellow-700'} text-center`}>
                       ⏱️ This is taking longer than expected...
                       <br />
-                      <span className="text-xs opacity-75">Large datasets may take up to 30 seconds to load</span>
+                      <span className="text-xs opacity-75">Elapsed time: {loadingDuration}s</span>
+                      <br />
+                      <span className="text-xs opacity-75">Large datasets may take up to 2 minutes to load</span>
                     </p>
                   </div>
                 )}
