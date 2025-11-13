@@ -216,4 +216,88 @@ export function registerAdminRoutes(app: Express) {
       });
     }
   });
+
+  // Get Step 6 queue status
+  app.get("/api/admin/step6-status", isAuthenticated, async (req, res) => {
+    try {
+      const mmsWatcher = (req.app.locals as any).mmsWatcher;
+      
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          error: "MMS Watcher service not available"
+        });
+      }
+
+      const status = mmsWatcher.getStep6Status();
+      res.json(status);
+      
+    } catch (error) {
+      console.error('[ADMIN] Error getting Step 6 status:', error);
+      res.status(500).json({
+        error: "Failed to get Step 6 status",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Clear Step 6 queue
+  app.post("/api/admin/step6-clear-queue", isAuthenticated, async (req, res) => {
+    try {
+      const mmsWatcher = (req.app.locals as any).mmsWatcher;
+      const username = (req.user as any)?.username || 'system';
+      
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          error: "MMS Watcher service not available"
+        });
+      }
+
+      console.log(`[ADMIN] Clearing Step 6 queue - requested by: ${username}`);
+      const result = mmsWatcher.clearStep6Queue();
+      
+      res.json({
+        success: true,
+        message: `Cleared ${result.cleared} items from Step 6 queue`,
+        ...result
+      });
+      
+    } catch (error) {
+      console.error('[ADMIN] Error clearing Step 6 queue:', error);
+      res.status(500).json({
+        error: "Failed to clear Step 6 queue",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Clear stuck files from Step 6 active slots
+  app.post("/api/admin/step6-clear-slots", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      const mmsWatcher = (req.app.locals as any).mmsWatcher;
+      const username = (req.user as any)?.username || 'system';
+      
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          error: "MMS Watcher service not available"
+        });
+      }
+
+      console.log(`[ADMIN] Clearing stuck slots - requested by: ${username}, uploadIds:`, uploadIds);
+      const result = mmsWatcher.clearStuckFilesFromSlots(uploadIds);
+      
+      res.json({
+        success: true,
+        message: `Cleared ${result.cleared} stuck file(s) from active slots`,
+        ...result
+      });
+      
+    } catch (error) {
+      console.error('[ADMIN] Error clearing stuck slots:', error);
+      res.status(500).json({
+        error: "Failed to clear stuck slots",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 }

@@ -2047,6 +2047,19 @@ class MMSWatcher {
   }
 
   enqueueFile(upload) {
+    // Guard: Check if already in active slots
+    if (this.step6ActiveSlots.has(upload.id)) {
+      console.log(`[MMS-WATCHER] [STEP6-QUEUE] ⚠️  Skipping queue - ${upload.filename} already in active slot`);
+      return false;
+    }
+    
+    // Guard: Check if already queued
+    const isAlreadyQueued = this.step6QueuedFiles.some(item => item.upload.id === upload.id);
+    if (isAlreadyQueued) {
+      console.log(`[MMS-WATCHER] [STEP6-QUEUE] ⚠️  Skipping queue - ${upload.filename} already queued`);
+      return false;
+    }
+    
     this.step6QueuedFiles.push({
       upload,
       queuedAt: Date.now()
@@ -2054,6 +2067,7 @@ class MMSWatcher {
     this.step6ProcessingMetrics.totalQueued++;
     this.step6ProcessingMetrics.peakQueueSize = Math.max(this.step6ProcessingMetrics.peakQueueSize, this.step6QueuedFiles.length);
     console.log(`[MMS-WATCHER] [STEP6-QUEUE] 📥 Queued ${upload.filename} (queue size: ${this.step6QueuedFiles.length})`);
+    return true;
   }
 
   dequeueFile() {
@@ -2275,6 +2289,38 @@ class MMSWatcher {
 
     console.log(`[MMS-WATCHER] [ADMIN] Cleared ${clearedCount} stuck file(s) from slots (${this.step6ActiveSlots.size} slots remaining)`);
     return { cleared: clearedCount, remainingSlots: this.step6ActiveSlots.size };
+  }
+
+  // Admin method: Clear Step 6 queue
+  clearStep6Queue() {
+    const clearedCount = this.step6QueuedFiles.length;
+    this.step6QueuedFiles = [];
+    console.log(`[MMS-WATCHER] [ADMIN] ✅ Cleared ${clearedCount} items from Step 6 queue`);
+    return { cleared: clearedCount };
+  }
+
+  // Admin method: Get Step 6 status
+  getStep6Status() {
+    const activeSlotIds = Array.from(this.step6ActiveSlots);
+    const queuedFileIds = this.step6QueuedFiles.map(item => ({
+      uploadId: item.upload.id,
+      filename: item.upload.filename,
+      queuedAt: item.queuedAt,
+      waitingMs: Date.now() - item.queuedAt
+    }));
+
+    return {
+      activeSlots: {
+        count: this.step6ActiveSlots.size,
+        max: MAX_STEP6_CONCURRENT_FILES,
+        uploadIds: activeSlotIds
+      },
+      queue: {
+        count: this.step6QueuedFiles.length,
+        files: queuedFileIds.slice(0, 10) // Show first 10 for preview
+      },
+      metrics: this.step6ProcessingMetrics
+    };
   }
 
   // Stage 7: Step 7 Auto Archive Service - Archive completed files
