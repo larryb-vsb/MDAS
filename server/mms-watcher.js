@@ -510,18 +510,55 @@ class MMSWatcher {
         LIMIT 10
       `);
       
+      // Structured telemetry for recovery metrics
+      const recoveryMetrics = {
+        detected: 0,
+        skipped_active_worker: 0,
+        force_released_stale: 0,
+        reset_to_encoded: 0,
+        marked_failed: 0,
+        sample_durations: []
+      };
+      
       if (stuckInValidating.rows.length > 0) {
+        recoveryMetrics.detected = stuckInValidating.rows.length;
         console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found ${stuckInValidating.rows.length} files stuck in validating phase`);
         
         for (const upload of stuckInValidating.rows) {
           const retryCount = upload.retry_count || 0;
-          const stuckMinutes = Math.floor((Date.now() - new Date(upload.last_updated).getTime()) / 60000);
+          const stuckDurationMs = Date.now() - new Date(upload.last_updated).getTime();
+          const stuckMinutes = Math.floor(stuckDurationMs / 60000);
+          recoveryMetrics.sample_durations.push(stuckMinutes);
+          
+          // Check if file is currently being processed by a Step 6 worker
+          const isActiveWorker = this.step6ActiveSlots.has(upload.id);
+          const workerStartTime = this.step6Progress.get(upload.id)?.startTime;
+          const workerActiveMs = workerStartTime ? Date.now() - workerStartTime : 0;
+          
+          // Decision tree for concurrent processing guards
+          if (isActiveWorker) {
+            const STALE_WORKER_THRESHOLD = 10 * 60 * 1000; // 10 minutes = 2× standard timeout
+            
+            if (workerActiveMs < STALE_WORKER_THRESHOLD) {
+              // Active worker still running within acceptable timeframe - skip recovery
+              console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] ⚠️  Skipping ${upload.filename} - active worker processing (${Math.floor(workerActiveMs / 60000)} min)`);
+              recoveryMetrics.skipped_active_worker++;
+              continue;
+            } else {
+              // Worker stale (>10 min) - force release slot and proceed with recovery
+              console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] 🔓 Force-releasing stale worker slot for ${upload.filename} (${Math.floor(workerActiveMs / 60000)} min active)`);
+              this.step6ActiveSlots.delete(upload.id);
+              this.step6Progress.delete(upload.id);
+              recoveryMetrics.force_released_stale++;
+            }
+          }
           
           console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] File ${upload.filename} stuck in validating for ${stuckMinutes} minutes (retry ${retryCount}/3)`);
           
           if (retryCount >= 3) {
             // Max retries exceeded, mark as failed
-            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Max retries exceeded for ${upload.filename}, marking as failed`);
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] ❌ Max retries exceeded for ${upload.filename}, marking as failed`);
+            recoveryMetrics.marked_failed++;
             
             await this.storage.updateUploaderUpload(upload.id, {
               currentPhase: 'failed',
@@ -530,12 +567,15 @@ class MMSWatcher {
                 pipeline_recovery: true,
                 recovered_from: 'stuck_in_validating',
                 reason: `Validation phase stuck for ${stuckMinutes} minutes after ${retryCount} retries`,
-                recovered_at: new Date().toISOString()
+                recovered_at: new Date().toISOString(),
+                was_active_worker: isActiveWorker,
+                worker_active_duration_ms: workerActiveMs
               })
             });
           } else {
             // Revert to encoded for retry
-            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Recovering ${upload.filename} from validating → encoded for retry (attempt ${retryCount + 1}/3)`);
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] ✅ Recovering ${upload.filename} from validating → encoded for retry (attempt ${retryCount + 1}/3)`);
+            recoveryMetrics.reset_to_encoded++;
             
             await this.storage.updateUploaderUpload(upload.id, {
               currentPhase: 'encoded',
@@ -546,11 +586,16 @@ class MMSWatcher {
                 pipeline_recovery: true,
                 recovered_from: 'stuck_in_validating',
                 stuck_duration_minutes: stuckMinutes,
-                recovered_at: new Date().toISOString()
+                recovered_at: new Date().toISOString(),
+                was_active_worker: isActiveWorker,
+                worker_active_duration_ms: workerActiveMs
               })
             });
           }
         }
+        
+        // Log recovery metrics summary
+        console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] 📊 Validating recovery metrics:`, JSON.stringify(recoveryMetrics, null, 2));
       }
       
     } catch (error) {
