@@ -68,6 +68,7 @@ export default function Tddf1MonthlyView() {
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [loadingDuration, setLoadingDuration] = useState(0);
   const { user, logoutMutation } = useAuth();
 
   // Initialize theme from user preference on component mount
@@ -101,7 +102,7 @@ export default function Tddf1MonthlyView() {
     updateThemeMutation.mutate(newTheme);
   };
 
-  const { data: monthlyData, isLoading, refetch } = useQuery({
+  const { data: monthlyData, isLoading, error: monthlyError, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
     queryFn: async (): Promise<MonthlyTotals> => {
       const response = await fetch(`/api/tddf1/monthly-totals?month=${format(currentMonth, 'yyyy-MM')}`, {
@@ -115,6 +116,17 @@ export default function Tddf1MonthlyView() {
       return response.json();
     }
   });
+
+  // Track loading duration for timeout warning
+  useEffect(() => {
+    if (isLoading) {
+      setLoadingDuration(0);
+      const timer = setInterval(() => {
+        setLoadingDuration(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isLoading]);
 
   const { data: comparisonData, isLoading: comparisonLoading } = useQuery({
     queryKey: ['tddf1-monthly-comparison', format(currentMonth, 'yyyy-MM')],
@@ -631,19 +643,64 @@ export default function Tddf1MonthlyView() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="pb-2">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-6 sm:h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-full"></div>
-              </CardContent>
-            </Card>
-          ))}
+      {monthlyError ? (
+        <Card className={`${isDarkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'} transition-colors p-8`}>
+          <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className={`text-6xl ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>⚠️</div>
+            <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>
+              Failed to Load {format(currentMonth, 'MMMM yyyy')} Data
+            </h3>
+            <p className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'} max-w-md`}>
+              {monthlyError instanceof Error ? monthlyError.message : 'An unexpected error occurred while loading the monthly data. Please try again.'}
+            </p>
+            <Button
+              onClick={() => refetch()}
+              className={`${isDarkMode ? 'bg-red-700 hover:bg-red-600' : 'bg-red-600 hover:bg-red-700'} text-white`}
+              data-testid="button-retry-load"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </Card>
+      ) : isLoading ? (
+        <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader className="pb-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-6 sm:h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {/* Loading Overlay */}
+          <div className={`absolute inset-0 flex items-center justify-center ${isDarkMode ? 'bg-gray-900/80' : 'bg-white/80'} backdrop-blur-sm rounded-lg`}>
+            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg p-8 shadow-2xl max-w-md mx-4`}>
+              <div className="flex flex-col items-center space-y-4">
+                <div className="relative">
+                  <div className={`w-16 h-16 border-4 ${isDarkMode ? 'border-purple-500/30' : 'border-purple-200'} border-t-purple-600 rounded-full animate-spin`}></div>
+                </div>
+                <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                  Loading {format(currentMonth, 'MMMM yyyy')}
+                </h3>
+                {loadingDuration >= 5 && (
+                  <div className={`${isDarkMode ? 'bg-yellow-900/30 border-yellow-700' : 'bg-yellow-50 border-yellow-200'} border rounded-lg p-4 max-w-sm`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-yellow-300' : 'text-yellow-700'} text-center`}>
+                      ⏱️ This is taking longer than expected...
+                      <br />
+                      <span className="text-xs opacity-75">Large datasets may take up to 30 seconds to load</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       ) : monthlyData ? (
         <>

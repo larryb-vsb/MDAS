@@ -1062,17 +1062,17 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as total_transaction_value
         FROM ${masterTableName}
         WHERE (
-            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
              AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
             OR
-            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
              AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
             OR
-            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
              AND record_type IN ('G2', 'E1', 'P1', 'P2', 'DR', 'AD') AND upload_id IN (
               SELECT DISTINCT upload_id FROM ${masterTableName}
-              WHERE tddf_processing_date >= $1::date 
-                AND tddf_processing_date <= $2::date
+              WHERE tddf_processing_date >= $1 
+                AND tddf_processing_date <= $2
                 AND record_type = 'BH' 
                 AND extracted_fields->>'batchDate' >= $1 
                 AND extracted_fields->>'batchDate' <= $2
@@ -1107,10 +1107,10 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
         FROM ${masterTableName}
         WHERE (
-            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
              AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
             OR
-            (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
              AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
           )
         GROUP BY COALESCE(
@@ -1240,10 +1240,10 @@ export function registerTddfCacheRoutes(app: Express) {
             COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
           FROM ${masterTableName}
           WHERE (
-              (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
                AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
               OR
-              (tddf_processing_date >= $1::date AND tddf_processing_date <= $2::date 
+              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
                AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
             )
           GROUP BY COALESCE(
