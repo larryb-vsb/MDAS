@@ -499,6 +499,60 @@ class MMSWatcher {
         }
       }
       
+      // Check for stuck files in validating phase (over 5 minutes)
+      const stuckInValidating = await this.storage.pool.query(`
+        SELECT id, filename, current_phase, last_updated, retry_count, line_count
+        FROM ${this.storage.getTableName('uploader_uploads')}
+        WHERE current_phase = 'validating' 
+          AND last_updated < NOW() - INTERVAL '5 minutes'
+          AND deleted_at IS NULL
+          AND is_archived = false
+        LIMIT 10
+      `);
+      
+      if (stuckInValidating.rows.length > 0) {
+        console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found ${stuckInValidating.rows.length} files stuck in validating phase`);
+        
+        for (const upload of stuckInValidating.rows) {
+          const retryCount = upload.retry_count || 0;
+          const stuckMinutes = Math.floor((Date.now() - new Date(upload.last_updated).getTime()) / 60000);
+          
+          console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] File ${upload.filename} stuck in validating for ${stuckMinutes} minutes (retry ${retryCount}/3)`);
+          
+          if (retryCount >= 3) {
+            // Max retries exceeded, mark as failed
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Max retries exceeded for ${upload.filename}, marking as failed`);
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              currentPhase: 'failed',
+              failedAt: new Date(),
+              processingNotes: JSON.stringify({
+                pipeline_recovery: true,
+                recovered_from: 'stuck_in_validating',
+                reason: `Validation phase stuck for ${stuckMinutes} minutes after ${retryCount} retries`,
+                recovered_at: new Date().toISOString()
+              })
+            });
+          } else {
+            // Revert to encoded for retry
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Recovering ${upload.filename} from validating → encoded for retry (attempt ${retryCount + 1}/3)`);
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              currentPhase: 'encoded',
+              statusMessage: `Validation recovery: retrying after ${stuckMinutes} min stuck (attempt ${retryCount + 1}/3)`,
+              retryCount: retryCount + 1,
+              lastRetryAt: new Date(),
+              processingNotes: JSON.stringify({
+                pipeline_recovery: true,
+                recovered_from: 'stuck_in_validating',
+                stuck_duration_minutes: stuckMinutes,
+                recovered_at: new Date().toISOString()
+              })
+            });
+          }
+        }
+      }
+      
     } catch (error) {
       console.error('[MMS-WATCHER] [PIPELINE-RECOVERY] Error checking pipeline status:', error);
     }
