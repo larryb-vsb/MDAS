@@ -6202,8 +6202,8 @@ export default function TddfApiDataPage() {
                             {item.filename || 'Unknown file'}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">
-                              Queued
+                            <Badge variant={item.status === 'validating' ? 'secondary' : 'outline'}>
+                              {item.status === 'validating' ? 'Validating' : 'Queued'}
                             </Badge>
                           </TableCell>
                           <TableCell>

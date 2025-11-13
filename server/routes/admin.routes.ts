@@ -229,7 +229,36 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const status = mmsWatcher.getStep6Status();
-      res.json(status);
+      
+      // Also fetch validating files from database
+      const uploadTableName = getTableName('uploader_uploads');
+      const validatingResult = await pool.query(`
+        SELECT id, filename, start_time
+        FROM ${uploadTableName}
+        WHERE current_phase = 'validating'
+        ORDER BY start_time ASC
+        LIMIT 50
+      `);
+      
+      // Add validating files to the queue
+      const validatingFiles = validatingResult.rows.map((row: any) => ({
+        uploadId: row.id,
+        filename: row.filename,
+        queuedAt: new Date(row.start_time).getTime(),
+        waitingMs: Date.now() - new Date(row.start_time).getTime(),
+        status: 'validating'
+      }));
+      
+      // Combine with existing queue files
+      const combinedQueue = [...validatingFiles, ...status.queue.files];
+      
+      res.json({
+        ...status,
+        queue: {
+          count: combinedQueue.length,
+          files: combinedQueue
+        }
+      });
       
     } catch (error) {
       console.error('[ADMIN] Error getting Step 6 status:', error);
