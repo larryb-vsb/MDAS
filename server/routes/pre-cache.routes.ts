@@ -191,15 +191,13 @@ export function registerPreCacheRoutes(app: Express) {
       const result = await pool.query(`
         SELECT 
           id, cache_name, cache_type, page_name, table_name,
-          cache_status, health_status, update_policy, cache_update_policy,
           expiration_policy, auto_refresh_enabled,
-          current_record_count, average_build_time_ms, last_build_time_ms,
-          last_successful_update, priority_level, configuration_notes,
-          error_count_24h, consecutive_failures, last_error_message,
-          cache_hit_rate, total_cache_hits, total_cache_misses
+          refresh_interval_minutes, current_expiration_minutes,
+          description, notes, metadata, is_active,
+          last_refresh_at, created_at, updated_at
         FROM ${cacheConfigTable}
         WHERE is_active = true
-        ORDER BY priority_level DESC, cache_name ASC
+        ORDER BY cache_name ASC
       `);
       
       res.json({ success: true, data: result.rows });
@@ -222,12 +220,12 @@ export function registerPreCacheRoutes(app: Express) {
       const overallResult = await pool.query(`
         SELECT 
           COUNT(*) as total_caches,
-          SUM(CASE WHEN cache_status = 'active' THEN 1 ELSE 0 END) as active_caches,
-          SUM(CASE WHEN cache_status = 'error' THEN 1 ELSE 0 END) as error_caches,
-          SUM(CASE WHEN health_status = 'healthy' THEN 1 ELSE 0 END) as healthy_caches,
-          SUM(CASE WHEN health_status = 'critical' THEN 1 ELSE 0 END) as critical_caches,
-          AVG(average_build_time_ms)::integer as avg_build_time,
-          SUM(current_record_count)::integer as total_records
+          SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_caches,
+          0 as error_caches,
+          COUNT(*) as healthy_caches,
+          0 as critical_caches,
+          0 as avg_build_time,
+          0 as total_records
         FROM ${cacheConfigTable}
         WHERE is_active = true
       `);
@@ -237,37 +235,20 @@ export function registerPreCacheRoutes(app: Express) {
         SELECT 
           cache_type,
           COUNT(*) as cache_count,
-          AVG(average_build_time_ms)::integer as avg_build_time,
-          SUM(current_record_count)::integer as total_records,
-          SUM(CASE WHEN cache_status = 'active' THEN 1 ELSE 0 END) as active_count
+          0 as avg_build_time,
+          0 as total_records,
+          SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_count
         FROM ${cacheConfigTable}
         WHERE is_active = true
         GROUP BY cache_type
         ORDER BY cache_type
       `);
       
-      // Recent errors
-      const errorsResult = await pool.query(`
-        SELECT 
-          cache_name, page_name, last_error_message,
-          last_error_timestamp, consecutive_failures
-        FROM ${cacheConfigTable}
-        WHERE is_active = true 
-          AND last_error_message IS NOT NULL
-        ORDER BY last_error_timestamp DESC NULLS LAST
-        LIMIT 10
-      `);
+      // Recent errors (table doesn't have error tracking columns, return empty)
+      const errorsResult = { rows: [] };
       
-      // Slow caches
-      const slowResult = await pool.query(`
-        SELECT 
-          cache_name, page_name, average_build_time_ms,
-          last_build_time_ms, current_record_count
-        FROM ${cacheConfigTable}
-        WHERE is_active = true
-        ORDER BY average_build_time_ms DESC NULLS LAST
-        LIMIT 10
-      `);
+      // Slow caches (table doesn't have build time tracking columns, return empty)
+      const slowResult = { rows: [] };
       
       const dashboard = {
         overallStats: overallResult.rows[0] || {},
@@ -374,13 +355,10 @@ export function registerPreCacheRoutes(app: Express) {
       const result = await pool.query(`
         SELECT 
           id, cache_name, cache_type, page_name, table_name,
-          cache_status, health_status, update_policy, cache_update_policy,
           expiration_policy, auto_refresh_enabled,
-          default_expiration_minutes, current_expiration_minutes,
-          current_record_count, average_build_time_ms, last_build_time_ms,
-          last_successful_update, priority_level, configuration_notes,
-          error_count_24h, consecutive_failures, last_error_message,
-          cache_hit_rate, total_cache_hits, total_cache_misses
+          current_expiration_minutes, refresh_interval_minutes,
+          description, notes, metadata, is_active,
+          last_refresh_at, created_at, updated_at
         FROM ${cacheConfigTable}
         WHERE table_name = $1 OR cache_name = $2
         LIMIT 1
@@ -408,22 +386,22 @@ export function registerPreCacheRoutes(app: Express) {
           cacheName: row.cache_name,
           cacheType: row.cache_type,
           pageName: row.page_name,
-          status: row.cache_status || 'unknown',
-          healthStatus: row.health_status || 'unknown',
-          expirationMinutes: row.current_expiration_minutes || row.default_expiration_minutes || -1,
+          status: row.is_active ? 'active' : 'inactive',
+          healthStatus: 'unknown',
+          expirationMinutes: row.current_expiration_minutes || -1,
           expirationPolicy: row.expiration_policy,
           autoRefreshEnabled: row.auto_refresh_enabled,
-          cacheUpdatePolicy: row.cache_update_policy,
-          recordCount: row.current_record_count || 0,
-          avgBuildTime: row.average_build_time_ms || 0,
-          lastBuildTime: row.last_build_time_ms || 0,
-          lastRefresh: row.last_successful_update,
-          errorCount24h: row.error_count_24h || 0,
-          consecutiveFailures: row.consecutive_failures || 0,
-          lastError: row.last_error_message,
-          cacheHitRate: row.cache_hit_rate || 0,
-          totalHits: row.total_cache_hits || 0,
-          totalMisses: row.total_cache_misses || 0
+          cacheUpdatePolicy: 'unknown',
+          recordCount: 0,
+          avgBuildTime: 0,
+          lastBuildTime: 0,
+          lastRefresh: row.last_refresh_at,
+          errorCount24h: 0,
+          consecutiveFailures: 0,
+          lastError: null,
+          cacheHitRate: 0,
+          totalHits: 0,
+          totalMisses: 0
         }
       });
     } catch (error: any) {

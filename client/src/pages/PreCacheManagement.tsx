@@ -898,7 +898,9 @@ function MonthlyCacheManagement() {
   // Rebuild specific month mutation
   const rebuildMonthMutation = useMutation({
     mutationFn: async ({ year, month }: { year: number; month: number }) => {
-      return apiRequest('POST', `/api/pre-cache/monthly-cache/${year}/${month}/rebuild`);
+      return apiRequest(`/api/pre-cache/monthly-cache/${year}/${month}/rebuild`, {
+        method: 'POST'
+      });
     },
     onSuccess: (_, variables) => {
       toast({
