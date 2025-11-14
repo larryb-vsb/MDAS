@@ -8,6 +8,7 @@
 import { pool } from "../db";
 import { getTableName } from "../table-config";
 import { v4 as uuidv4 } from 'uuid';
+import { rebuildJobTracker } from './rebuild-job-tracker';
 
 interface MonthlyCacheData {
   year: number;
@@ -56,8 +57,18 @@ export class PreCacheService {
    */
   static async buildMonthlyCache(options: CacheRebuildOptions): Promise<{ success: boolean; jobId: string; buildTimeMs: number }> {
     const { year, month, triggeredBy = 'manual', triggeredByUser, triggerReason = 'user_request' } = options;
+    
+    // Check if this month is already being rebuilt
+    if (rebuildJobTracker.isRebuilding(year, month)) {
+      const existingJob = rebuildJobTracker.getJobStatus(year, month);
+      throw new Error(`Cache rebuild already in progress for ${year}-${month.toString().padStart(2, '0')} (Job ${existingJob?.jobId})`);
+    }
+    
     const jobId = uuidv4();
     const startTime = Date.now();
+    
+    // Start tracking this job
+    rebuildJobTracker.startJob(jobId, year, month, triggeredBy, triggeredByUser);
     
     const client = await pool.connect();
     
@@ -143,6 +154,9 @@ export class PreCacheService {
         WHERE job_id = $5
       `, ['completed', buildTimeMs, monthlyData.totals.totalRecords, monthlyData.dailyBreakdown.length, jobId]);
       
+      // Mark job as complete in tracker
+      rebuildJobTracker.completeJob(year, month);
+      
       console.log(`[PRE-CACHE] ✅ Monthly cache built for ${year}-${month.toString().padStart(2, '0')} in ${buildTimeMs}ms`);
       
       return { success: true, jobId, buildTimeMs };
@@ -150,6 +164,9 @@ export class PreCacheService {
     } catch (error: any) {
       const buildTimeMs = Date.now() - startTime;
       console.error(`[PRE-CACHE] ❌ Failed to build monthly cache for ${year}-${month}:`, error);
+      
+      // Mark job as errored in tracker
+      rebuildJobTracker.errorJob(year, month, error.message);
       
       // Update pre-cache run record as failed
       const cacheRunsTable = getTableName('pre_cache_runs');
