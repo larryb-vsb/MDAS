@@ -8,6 +8,7 @@
 import type { Express } from "express";
 import { isAuthenticated } from "../routes";
 import { PreCacheService } from "../services/pre-cache-service";
+import { rebuildJobTracker } from "../services/rebuild-job-tracker";
 import { pool } from "../db";
 import { getTableName } from "../table-config";
 
@@ -38,6 +39,20 @@ export function registerPreCacheRoutes(app: Express) {
       res.json({ success: true, months });
     } catch (error: any) {
       console.error('[PRE-CACHE] Error listing monthly caches:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  /**
+   * Get rebuild status for all months
+   * GET /api/pre-cache/rebuild-status
+   */
+  app.get('/api/pre-cache/rebuild-status', isAuthenticated, async (req, res) => {
+    try {
+      const jobsMap = rebuildJobTracker.getJobsMap();
+      res.json({ success: true, jobs: jobsMap });
+    } catch (error: any) {
+      console.error('[PRE-CACHE] Error fetching rebuild status:', error);
       res.status(500).json({ error: error.message });
     }
   });
