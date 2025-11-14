@@ -10,6 +10,7 @@ import { pool, db } from "./db";
 import { tddfApiProcessor } from "./services/tddf-api-processor";
 import { migrateDatabase } from "./database-migrate";
 import { systemLogger } from './system-logger';
+import { initializePreCacheJob } from "./services/pre-cache-job";
 
 // Setup comprehensive process monitoring for Replit scaling events and infrastructure changes
 function setupProcessMonitoring() {
@@ -323,6 +324,11 @@ app.use((req, res, next) => {
       
       // Start the TDDF API processor service
       await tddfApiProcessor.initialize();
+      
+      // Start the pre-cache job service
+      await initializePreCacheJob().catch(err => {
+        console.log("Warning: Could not initialize pre-cache job:", err.message);
+      });
 
       // Start processing watcher service - TEMPORARILY DISABLED FOR TDDF TESTING
       // The ScanlyWatcher is causing database connection errors due to missing column mappings

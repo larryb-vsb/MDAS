@@ -37,6 +37,7 @@ import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migratio
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { registerMicrosoftAuthRoutes } from "./routes/microsoft-auth.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
+import { registerPreCacheRoutes } from "./routes/pre-cache.routes";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
 import { NODE_ENV } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
@@ -401,6 +402,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes
   registerAdminRoutes(app);
+  
+  // Register pre-cache management routes
+  registerPreCacheRoutes(app);
   
   // Phase A: Core Business Routes  
   registerMerchantRoutes(app);
