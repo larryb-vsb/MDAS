@@ -1,0 +1,4 @@
+V Number,POS Merchant #,Record Status,DBA Name,MCC,Agent,Chain,Store,Terminal,BIN,Daily Auth,Dial Pay,Encryption,PRR,SSL,Tokenization,Board Date,Terminal Visa
+V0400119,7300011421,Open,Test Terminal 119,5999,Agent001,Chain1,Store1,Terminal1,123456,1000,Yes,AES256,Standard,Yes,Yes,2024-01-15,Enabled
+V0400120,7300011421,Closed,Test Terminal 120,5999,Agent001,Chain1,Store2,Terminal2,123456,1000,Yes,AES256,Standard,Yes,Yes,2024-01-16,Enabled
+V0400121,7300011421,Open,Test Terminal 121 Updated,5999,Agent002,Chain2,Store3,Terminal3,123456,2000,Yes,AES256,Premium,Yes,Yes,2024-01-17,Enabled

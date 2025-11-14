@@ -1,0 +1,4 @@
+V Number,POS Merchant #,BIN,DBA Name,Daily Auth,Dial Pay,Encryption,PRR,MCC,SSL,Tokenization,Agent,Chain,Store,Terminal,Record Status,Board Date,Terminal Visa
+VAR123456,12345678,411111,Test Terminal Shop,5000,Y,Y,Standard,5411,Y,Y,Agent Smith,CHAIN01,001,TRM001,Active,2024-01-15,Y
+VAR123457,12345679,422222,Demo Payment Terminal,10000,N,Y,Premium,5812,Y,Y,Agent Jones,CHAIN02,002,TRM002,Active,2024-02-20,Y
+VAR123458,12345680,433333,Sample POS Terminal,7500,Y,N,Standard,5999,N,Y,Agent Brown,CHAIN03,003,TRM003,Inactive,2024-03-10,N

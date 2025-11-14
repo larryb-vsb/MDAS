@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Real TDDF Data API</title>
+</head>
+<body>
+    <h1>Test Real TDDF Data API</h1>
+    <button onclick="testAPI()" style="padding: 10px; background: #007bff; color: white; border: none; cursor: pointer;">
+        Test Real Data API
+    </button>
+    <button onclick="reEncode()" style="padding: 10px; background: #28a745; color: white; border: none; cursor: pointer; margin-left: 10px;">
+        Re-Encode with Real Data
+    </button>
+    
+    <div id="results" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.textContent = 'Testing API with real data...';
+            
+            try {
+                const response = await fetch('/api/uploader/uploader_1753770043406_rxjr75vpv/jsonb-data?limit=5', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    resultsDiv.textContent = `❌ Error: ${response.status}`;
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                const summary = `✅ API Response Success!
+
+Records Found: ${data.data ? data.data.length : 0}
+Total Count: ${data.pagination ? data.pagination.total : 'N/A'}
+
+First Record Analysis:
+${data.data && data.data[0] ? `
+- Record Type: ${data.data[0].record_type}
+- Raw Line: ${(data.data[0].record_data.rawLine || '').substring(0, 50)}...
+- Merchant Account: ${data.data[0].record_data.extractedFields?.merchantAccountNumber || 'N/A'}
+- Amount: $${data.data[0].record_data.extractedFields?.transactionAmount || 'N/A'}
+- Date: ${data.data[0].record_data.extractedFields?.transactionDate || 'N/A'}
+
+Sample Raw TDDF Line:
+${data.data[0].record_data.rawLine || 'No raw line'}
+` : 'No records found'}
+
+Data Check:
+${data.data && data.data[0] ? 
+  (data.data[0].record_data.rawLine?.includes('026666') ? '✅ REAL DATA - Contains actual merchant account numbers!' : '❌ Still test data') 
+  : '❌ No data'}`;
+                
+                resultsDiv.textContent = summary;
+                
+            } catch (error) {
+                resultsDiv.textContent = `❌ Failed: ${error.message}`;
+            }
+        }
+        
+        async function reEncode() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.textContent = 'Re-encoding with real data...';
+            
+            try {
+                const response = await fetch('/api/uploader/uploader_1753770043406_rxjr75vpv/re-encode', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    resultsDiv.textContent = `❌ Re-encode failed: ${response.status}`;
+                    return;
+                }
+                
+                const result = await response.json();
+                resultsDiv.textContent = `✅ Re-encode Success!
+
+${result.message}
+Records Inserted: ${result.recordsInserted}
+Table: ${result.tableName}
+
+Now test the API to see real data...`;
+                
+            } catch (error) {
+                resultsDiv.textContent = `❌ Re-encode failed: ${error.message}`;
+            }
+        }
+        
+        // Auto-run after 2 seconds
+        setTimeout(testAPI, 2000);
+    </script>
+</body>
+</html>

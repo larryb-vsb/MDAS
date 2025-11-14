@@ -323,8 +323,8 @@ function PreCacheTablesOverview({ onViewCache }: { onViewCache: (cacheName: stri
                         {getTableStatusBadge(table.status, table.recordCount)}
                       </div>
                       <div className="flex items-center space-x-4 mt-1 text-xs text-muted-foreground">
-                        <span>{table.recordCount.toLocaleString()} records</span>
-                        <span>Updated {table.age}</span>
+                        <span>{(table.recordCount || 0).toLocaleString()} records</span>
+                        <span>Updated {table.age || 'Never'}</span>
                         {table.size && <span>{table.size}</span>}
                         {table.expirationDuration && (
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
@@ -1008,7 +1008,7 @@ function CacheConfigurationManagement() {
                       <div className="text-right">
                         <div className="font-medium">{formatBuildTime(type.avg_build_time)}</div>
                         <div className="text-sm text-muted-foreground">
-                          {type.total_records.toLocaleString()} records
+                          {(type.total_records || 0).toLocaleString()} records
                         </div>
                       </div>
                     </div>
@@ -1087,7 +1087,7 @@ function CacheConfigurationManagement() {
                         <TableCell>
                           <Badge variant="outline">{setting.update_policy}</Badge>
                         </TableCell>
-                        <TableCell>{setting.current_record_count.toLocaleString()}</TableCell>
+                        <TableCell>{(setting.current_record_count || 0).toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">{setting.priority_level}</Badge>
                         </TableCell>
