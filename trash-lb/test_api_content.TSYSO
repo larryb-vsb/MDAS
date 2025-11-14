@@ -1,0 +1,4 @@
+01000424          VERMONT STATE BANK                05/12/2025  001356                          
+02000515          BATCH HEADER                      05/12/2025  0001    00000001        
+03001623D         TEST TRANSACTION DATA             05/12/2025  001.50  AUTH123456      
+04002034          FOOTER RECORD                     05/12/2025  0001                    

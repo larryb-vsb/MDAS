@@ -1,0 +1,4 @@
+Transaction ID,Merchant Name,Amount,Date,Type
+TEST001,Test Development Merchant,100.50,2024-07-19,Sale
+TEST002,Another Dev Merchant,250.75,2024-07-19,Sale
+TEST003,Development Store,75.25,2024-07-19,Sale
