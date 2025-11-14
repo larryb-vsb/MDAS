@@ -69,6 +69,41 @@ export function registerPreCacheRoutes(app: Express) {
   });
   
   /**
+   * Rebuild cache for a specific month
+   * POST /api/pre-cache/monthly-cache/:year/:month/rebuild
+   */
+  app.post('/api/pre-cache/monthly-cache/:year/:month/rebuild', isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      const month = parseInt(req.params.month);
+      const username = (req.user as any)?.username || 'system';
+      
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return res.status(400).json({ error: 'Invalid year or month parameters' });
+      }
+      
+      console.log(`[PRE-CACHE] Rebuilding cache for ${year}-${month.toString().padStart(2, '0')} requested by ${username}`);
+      
+      const result = await PreCacheService.buildMonthlyCache(year, month, 'manual', username);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: `Successfully rebuilt cache for ${year}-${month.toString().padStart(2, '0')}`,
+          data: result
+        });
+      } else {
+        res.status(500).json({ 
+          error: result.error || 'Failed to rebuild cache'
+        });
+      }
+    } catch (error: any) {
+      console.error('[PRE-CACHE] Error rebuilding monthly cache:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  /**
    * Refresh specific cache table
    * POST /api/pre-cache/refresh-table/:tableName
    */

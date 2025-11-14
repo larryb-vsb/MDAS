@@ -877,6 +877,300 @@ function CacheConfigurationManagement() {
   );
 }
 
+// Monthly Cache Management Component
+function MonthlyCacheManagement() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  
+  // Fetch list of all monthly caches
+  const { data: monthsData, isLoading: monthsLoading, error: monthsError } = useQuery({
+    queryKey: ['/api/pre-cache/monthly-cache'],
+  });
+  
+  // Fetch detail for selected month
+  const { data: detailData, isLoading: detailLoading } = useQuery({
+    queryKey: ['/api/pre-cache/monthly-cache', selectedMonth?.year, selectedMonth?.month],
+    enabled: !!selectedMonth && showDetailDialog,
+  });
+  
+  // Rebuild specific month mutation
+  const rebuildMonthMutation = useMutation({
+    mutationFn: async ({ year, month }: { year: number; month: number }) => {
+      return apiRequest('POST', `/api/pre-cache/monthly-cache/${year}/${month}/rebuild`);
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "Cache Rebuilt",
+        description: `Successfully rebuilt cache for ${variables.year}-${variables.month.toString().padStart(2, '0')}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pre-cache/monthly-cache'] });
+      if (selectedMonth) {
+        queryClient.invalidateQueries({ queryKey: ['/api/pre-cache/monthly-cache', selectedMonth.year, selectedMonth.month] });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Rebuild Failed",
+        description: error.message || "Failed to rebuild cache",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  };
+  
+  const formatRecordCount = (value: number) => {
+    return value.toLocaleString();
+  };
+  
+  const formatDuration = (ms: number) => {
+    return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
+  };
+  
+  const formatMonthName = (year: number, month: number) => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[month - 1]} ${year}`;
+  };
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
+  
+  const viewMonthDetail = (year: number, month: number) => {
+    setSelectedMonth({ year, month });
+    setShowDetailDialog(true);
+  };
+  
+  const months = monthsData?.months || [];
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Database className="w-5 h-5" />
+          <span>Monthly TDDF Cache Entries</span>
+        </CardTitle>
+        <CardDescription>
+          View and manage cached monthly merchant processing data. {months.length} months cached.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {monthsLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+        ) : monthsError ? (
+          <div className="p-4 bg-destructive/10 text-destructive rounded-md">
+            <p className="font-semibold">Error loading monthly caches</p>
+            <p className="text-sm">{(monthsError as Error).message}</p>
+          </div>
+        ) : months.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            <Database className="w-12 h-12 mx-auto mb-2 opacity-20" />
+            <p>No monthly caches found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Month</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Files</TableHead>
+                  <TableHead className="text-right">Total Records</TableHead>
+                  <TableHead className="text-right">BH Records</TableHead>
+                  <TableHead className="text-right">DT Records</TableHead>
+                  <TableHead className="text-right">Transaction Amount</TableHead>
+                  <TableHead className="text-right">Net Deposits</TableHead>
+                  <TableHead className="text-right">Build Time</TableHead>
+                  <TableHead className="text-right">Last Refresh</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {months.map((month: any) => (
+                  <TableRow 
+                    key={`${month.year}-${month.month}`}
+                    data-testid={`row-monthly-cache-${month.year}-${month.month}`}
+                  >
+                    <TableCell className="font-medium" data-testid={`text-month-${month.year}-${month.month}`}>
+                      {formatMonthName(month.year, month.month)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={month.status === 'active' ? 'default' : 'secondary'}
+                        data-testid={`badge-status-${month.year}-${month.month}`}
+                      >
+                        {month.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-files-${month.year}-${month.month}`}>
+                      {formatRecordCount(month.totalFiles)}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-total-records-${month.year}-${month.month}`}>
+                      {formatRecordCount(month.totalRecords)}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-bh-records-${month.year}-${month.month}`}>
+                      {formatRecordCount(month.bhRecords)}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-dt-records-${month.year}-${month.month}`}>
+                      {formatRecordCount(month.dtRecords)}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-transaction-amount-${month.year}-${month.month}`}>
+                      {formatCurrency(month.totalTransactionAmount)}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-net-deposits-${month.year}-${month.month}`}>
+                      {formatCurrency(month.totalNetDeposits)}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-build-time-${month.year}-${month.month}`}>
+                      {formatDuration(month.buildTimeMs)}
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground" data-testid={`text-last-refresh-${month.year}-${month.month}`}>
+                      {formatDate(month.lastRefresh)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => viewMonthDetail(month.year, month.month)}
+                          data-testid={`button-view-${month.year}-${month.month}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => rebuildMonthMutation.mutate({ year: month.year, month: month.month })}
+                          disabled={rebuildMonthMutation.isPending}
+                          data-testid={`button-rebuild-${month.year}-${month.month}`}
+                        >
+                          <RefreshCw className={`w-4 h-4 ${rebuildMonthMutation.isPending ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+      
+      {/* Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedMonth && `Monthly Cache Detail - ${formatMonthName(selectedMonth.year, selectedMonth.month)}`}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {detailLoading ? (
+            <div className="space-y-4">
+              <div className="h-24 bg-muted animate-pulse rounded" />
+              <div className="h-48 bg-muted animate-pulse rounded" />
+            </div>
+          ) : detailData?.data ? (
+            <Tabs defaultValue="summary" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="summary">Summary</TabsTrigger>
+                <TabsTrigger value="totals">Totals JSON</TabsTrigger>
+                <TabsTrigger value="daily">Daily Breakdown JSON</TabsTrigger>
+                <TabsTrigger value="comparison">Comparison JSON</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="summary" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Files & Records</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Files:</span>
+                        <span className="font-semibold">{formatRecordCount(detailData.data.totalFiles)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Records:</span>
+                        <span className="font-semibold">{formatRecordCount(detailData.data.totalRecords)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">BH Records:</span>
+                        <span className="font-semibold">{formatRecordCount(detailData.data.bhRecords)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">DT Records:</span>
+                        <span className="font-semibold">{formatRecordCount(detailData.data.dtRecords)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Financial Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Transaction Amount:</span>
+                        <span className="font-semibold">{formatCurrency(detailData.data.totalTransactionAmount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Net Deposits:</span>
+                        <span className="font-semibold">{formatCurrency(detailData.data.totalNetDeposits)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Build Time:</span>
+                        <span className="font-semibold">{formatDuration(detailData.data.buildTimeMs)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Status:</span>
+                        <Badge variant={detailData.data.status === 'active' ? 'default' : 'secondary'}>
+                          {detailData.data.status}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="totals" className="space-y-2">
+                <div className="relative">
+                  <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto max-h-96">
+                    {JSON.stringify(detailData.data.totals, null, 2)}
+                  </pre>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="daily" className="space-y-2">
+                <div className="relative">
+                  <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto max-h-96">
+                    {JSON.stringify(detailData.data.dailyBreakdown, null, 2)}
+                  </pre>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="comparison" className="space-y-2">
+                <div className="relative">
+                  <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto max-h-96">
+                    {JSON.stringify(detailData.data.comparison, null, 2)}
+                  </pre>
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -916,9 +1210,10 @@ function CacheConfigurationManagement() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tables">Pre-Cache Tables</TabsTrigger>
+          <TabsTrigger value="monthly-cache">Monthly Cache</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="heat-map">Heat Map Cache</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -1023,6 +1318,10 @@ function CacheConfigurationManagement() {
 
         <TabsContent value="tables" className="space-y-6">
           <PreCacheTablesOverview onViewCache={handleViewCache} />
+        </TabsContent>
+
+        <TabsContent value="monthly-cache" className="space-y-6">
+          <MonthlyCacheManagement />
         </TabsContent>
 
         <TabsContent value="configuration" className="space-y-6">
