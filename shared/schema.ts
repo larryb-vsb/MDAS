@@ -2823,10 +2823,110 @@ export const tddf1Merchants = pgTable(getTableName("tddf1_merchants"), {
   lastSeenIdx: index("tddf1_merchants_last_seen_idx").on(table.lastSeenDate)
 }));
 
+// TDDF1 Monthly Cache - Pre-calculated monthly merchant processing data
+export const tddf1MonthlyCache = pgTable(getTableName("tddf1_monthly_cache"), {
+  id: serial("id").primaryKey(),
+  
+  // Month identification
+  year: integer("year").notNull(),
+  month: integer("month").notNull(), // 1-12
+  cache_key: text("cache_key").notNull().unique(), // Format: 'monthly_YYYY_MM'
+  
+  // Pre-calculated monthly totals
+  totals_json: jsonb("totals_json"), // Monthly totals data (transactions, deposits, files)
+  daily_breakdown_json: jsonb("daily_breakdown_json"), // Daily breakdown for calendar view
+  comparison_json: jsonb("comparison_json"), // Month-over-month comparison data
+  
+  // Aggregated metrics (for quick queries without parsing JSON)
+  total_transaction_amount: numeric("total_transaction_amount", { precision: 15, scale: 2 }).default('0'),
+  total_net_deposits: numeric("total_net_deposits", { precision: 15, scale: 2 }).default('0'),
+  total_files: integer("total_files").default(0),
+  total_records: integer("total_records").default(0),
+  bh_records: integer("bh_records").default(0),
+  dt_records: integer("dt_records").default(0),
+  
+  // Cache metadata
+  build_time_ms: integer("build_time_ms").notNull().default(0),
+  status: text("status").default("active").notNull(), // active, building, expired, error
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  
+  // Audit tracking
+  refresh_requested_by: text("refresh_requested_by"),
+  triggered_by: text("triggered_by").default("manual"), // manual, auto, scheduled
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearMonthIdx: index("tddf1_monthly_cache_year_month_idx").on(table.year, table.month),
+  cacheKeyIdx: index("tddf1_monthly_cache_key_idx").on(table.cache_key),
+  statusIdx: index("tddf1_monthly_cache_status_idx").on(table.status),
+  lastRefreshIdx: index("tddf1_monthly_cache_refresh_idx").on(table.last_refresh_datetime),
+  yearMonthUnique: unique("tddf1_monthly_cache_year_month_unique").on(table.year, table.month)
+}));
+
+// Pre-Cache Run History - Track all cache rebuild executions
+export const preCacheRuns = pgTable(getTableName("pre_cache_runs"), {
+  id: serial("id").primaryKey(),
+  
+  // Run identification
+  job_id: text("job_id").notNull().unique(), // UUID for this run
+  cache_name: text("cache_name").notNull(), // e.g., 'tddf1_monthly_cache', 'dashboard_cache'
+  cache_type: text("cache_type").notNull(), // monthly, daily, records, heat_map
+  
+  // Scope (for monthly/yearly caches)
+  year: integer("year"),
+  month: integer("month"),
+  date_range_start: date("date_range_start"),
+  date_range_end: date("date_range_end"),
+  
+  // Execution details
+  status: text("status").default("pending").notNull(), // pending, running, completed, failed
+  started_at: timestamp("started_at"),
+  completed_at: timestamp("completed_at"),
+  duration_ms: integer("duration_ms"),
+  
+  // Results
+  records_processed: integer("records_processed").default(0),
+  records_cached: integer("records_cached").default(0),
+  cache_size_bytes: integer("cache_size_bytes"),
+  
+  // Error tracking
+  error_message: text("error_message"),
+  error_details: jsonb("error_details"),
+  retry_count: integer("retry_count").default(0),
+  
+  // Trigger information
+  triggered_by: text("triggered_by").default("manual").notNull(), // manual, scheduled, auto_invalidation
+  triggered_by_user: text("triggered_by_user"),
+  trigger_reason: text("trigger_reason"), // e.g., 'new_file_processed', 'scheduled_rebuild', 'user_request'
+  
+  created_at: timestamp("created_at").defaultNow().notNull()
+}, (table) => ({
+  jobIdIdx: index("pre_cache_runs_job_id_idx").on(table.job_id),
+  cacheNameIdx: index("pre_cache_runs_cache_name_idx").on(table.cache_name),
+  statusIdx: index("pre_cache_runs_status_idx").on(table.status),
+  yearMonthIdx: index("pre_cache_runs_year_month_idx").on(table.year, table.month),
+  createdAtIdx: index("pre_cache_runs_created_at_idx").on(table.created_at)
+}));
+
 export type Tddf1Merchant = typeof tddf1Merchants.$inferSelect;
 export const insertTddf1MerchantSchema = createInsertSchema(tddf1Merchants).omit({ 
   id: true, createdAt: true, lastUpdated: true 
 });
+
+export type Tddf1MonthlyCache = typeof tddf1MonthlyCache.$inferSelect;
+export const insertTddf1MonthlyCacheSchema = createInsertSchema(tddf1MonthlyCache).omit({
+  id: true, created_at: true, updated_at: true
+});
+
+export type PreCacheRun = typeof preCacheRuns.$inferSelect;
+export const insertPreCacheRunSchema = createInsertSchema(preCacheRuns).omit({
+  id: true, created_at: true
+});
+
+export type InsertTddf1MonthlyCache = z.infer<typeof insertTddf1MonthlyCacheSchema>;
+export type InsertPreCacheRun = z.infer<typeof insertPreCacheRunSchema>;
 export type InsertTddf1Merchant = z.infer<typeof insertTddf1MerchantSchema>;
 
 // ===== TDDF API Data System Tables =====
