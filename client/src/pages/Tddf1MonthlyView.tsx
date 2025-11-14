@@ -70,6 +70,7 @@ export default function Tddf1MonthlyView() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [loadingDuration, setLoadingDuration] = useState(0);
   const { user, logoutMutation } = useAuth();
+  const { toast } = useToast();
 
   // Initialize theme from user preference on component mount
   useEffect(() => {
@@ -159,23 +160,41 @@ export default function Tddf1MonthlyView() {
   // Mutation for rebuilding cache
   const rebuildMutation = useMutation({
     mutationFn: async () => {
-      const month = format(currentMonth, 'yyyy-MM');
-      const response = await fetch(`/api/tddf1/rebuild-totals-cache?month=${month}`, {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth() + 1;
+      
+      const response = await fetch(`/api/pre-cache/monthly-cache/${year}/${month}/rebuild`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         }
       });
-      if (!response.ok) throw new Error('Failed to rebuild cache');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to rebuild cache');
+      }
       return response.json();
     },
-    onSuccess: () => {
-      // Clear and refetch data after successful rebuild
-      queryClient.invalidateQueries({ queryKey: ['tddf1-monthly'] });
-      queryClient.invalidateQueries({ queryKey: ['tddf1-monthly-comparison'] });
-      queryClient.removeQueries({ queryKey: ['tddf1-monthly'] });
-      queryClient.removeQueries({ queryKey: ['tddf1-monthly-comparison'] });
-      refetch();
+    onSuccess: (data) => {
+      toast({
+        title: "Cache Rebuild Started",
+        description: `Rebuilding ${format(currentMonth, 'MMMM yyyy')} cache in background. You can check progress on the Pre-Cache Management page.`,
+        duration: 5000,
+      });
+      
+      // Schedule a refetch after a delay to show updated data
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['tddf1-monthly'] });
+        queryClient.invalidateQueries({ queryKey: ['tddf1-monthly-comparison'] });
+      }, 3000);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Rebuild Failed",
+        description: error.message,
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   });
 
@@ -472,8 +491,6 @@ export default function Tddf1MonthlyView() {
       </Page>
     </Document>
   );
-
-  const { toast } = useToast();
 
   const generatePDFReport = async () => {
     if (!monthlyData) {
