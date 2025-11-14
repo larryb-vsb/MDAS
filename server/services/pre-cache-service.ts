@@ -20,6 +20,10 @@ interface MonthlyCacheData {
     bhRecords: number;
     dtRecords: number;
   };
+  recordTypeBreakdown?: Array<{
+    recordType: string;
+    count: number;
+  }>;
   dailyBreakdown: Array<{
     date: string;
     files: number;
