@@ -84,19 +84,19 @@ export function registerPreCacheRoutes(app: Express) {
       
       console.log(`[PRE-CACHE] Rebuilding cache for ${year}-${month.toString().padStart(2, '0')} requested by ${username}`);
       
-      const result = await PreCacheService.buildMonthlyCache(year, month, 'manual', username);
+      const result = await PreCacheService.buildMonthlyCache({
+        year,
+        month,
+        triggeredBy: 'manual',
+        triggeredByUser: username,
+        triggerReason: 'user_request'
+      });
       
-      if (result.success) {
-        res.json({ 
-          success: true, 
-          message: `Successfully rebuilt cache for ${year}-${month.toString().padStart(2, '0')}`,
-          data: result
-        });
-      } else {
-        res.status(500).json({ 
-          error: result.error || 'Failed to rebuild cache'
-        });
-      }
+      res.json({ 
+        success: true, 
+        message: `Successfully rebuilt cache for ${year}-${month.toString().padStart(2, '0')}`,
+        data: result
+      });
     } catch (error: any) {
       console.error('[PRE-CACHE] Error rebuilding monthly cache:', error);
       res.status(500).json({ error: error.message });
