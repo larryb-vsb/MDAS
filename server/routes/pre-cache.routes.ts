@@ -29,6 +29,46 @@ export function registerPreCacheRoutes(app: Express) {
   });
   
   /**
+   * List all monthly cache entries
+   * GET /api/pre-cache/monthly-cache
+   */
+  app.get('/api/pre-cache/monthly-cache', isAuthenticated, async (req, res) => {
+    try {
+      const months = await PreCacheService.listMonthlyCaches();
+      res.json({ success: true, months });
+    } catch (error: any) {
+      console.error('[PRE-CACHE] Error listing monthly caches:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  /**
+   * Get detailed cache data for a specific month
+   * GET /api/pre-cache/monthly-cache/:year/:month
+   */
+  app.get('/api/pre-cache/monthly-cache/:year/:month', isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      const month = parseInt(req.params.month);
+      
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return res.status(400).json({ error: 'Invalid year or month parameters' });
+      }
+      
+      const cacheData = await PreCacheService.getMonthlyCacheDetail(year, month);
+      
+      if (!cacheData) {
+        return res.status(404).json({ error: 'Cache data not found for specified month' });
+      }
+      
+      res.json({ success: true, data: cacheData });
+    } catch (error: any) {
+      console.error('[PRE-CACHE] Error fetching monthly cache detail:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  /**
    * Refresh specific cache table
    * POST /api/pre-cache/refresh-table/:tableName
    */

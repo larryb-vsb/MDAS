@@ -364,19 +364,29 @@ export class PreCacheService {
       const tableName = getTableName(table.name);
       
       try {
-        const result = await pool.query(`
-          SELECT 
-            COUNT(*) as record_count,
-            MAX(updated_at) as last_refresh,
-            CASE 
-              WHEN status = 'active' THEN 'active'
-              WHEN status = 'expired' THEN 'expired'
-              WHEN status = 'building' THEN 'building'
-              ELSE 'stale'
-            END as status
-          FROM ${tableName}
-          WHERE status != 'error'
-        `);
+        // Query differently based on table type
+        let query = '';
+        if (table.name === 'tddf1_monthly_cache') {
+          query = `
+            SELECT 
+              COUNT(*) as record_count,
+              MAX(last_refresh_datetime) as last_refresh,
+              'active' as status
+            FROM ${tableName}
+            WHERE status = 'active'
+          `;
+        } else {
+          // For other tables that may not have the same schema
+          query = `
+            SELECT 
+              COUNT(*) as record_count,
+              MAX(updated_at) as last_refresh,
+              'unknown' as status
+            FROM ${tableName}
+          `;
+        }
+        
+        const result = await pool.query(query);
         
         const row = result.rows[0];
         const lastRefresh = row.last_refresh ? new Date(row.last_refresh) : null;
@@ -385,12 +395,16 @@ export class PreCacheService {
         const ageMinutes = Math.floor(ageMs / 60000);
         
         let age = 'Unknown';
-        if (ageMinutes < 60) {
-          age = `${ageMinutes} min ago`;
-        } else if (ageMinutes < 1440) {
-          age = `${Math.floor(ageMinutes / 60)} hours ago`;
+        if (lastRefresh) {
+          if (ageMinutes < 60) {
+            age = `${ageMinutes} min ago`;
+          } else if (ageMinutes < 1440) {
+            age = `${Math.floor(ageMinutes / 60)} hours ago`;
+          } else {
+            age = `${Math.floor(ageMinutes / 1440)} days ago`;
+          }
         } else {
-          age = `${Math.floor(ageMinutes / 1440)} days ago`;
+          age = 'Never';
         }
         
         results.push({
@@ -417,6 +431,90 @@ export class PreCacheService {
     }
     
     return results;
+  }
+  
+  /**
+   * List all cached months with summary data
+   */
+  static async listMonthlyCaches(): Promise<any[]> {
+    const monthlyCacheTable = getTableName('tddf1_monthly_cache');
+    
+    const result = await pool.query(`
+      SELECT 
+        year, month, cache_key, status,
+        total_files, total_records, bh_records, dt_records,
+        total_transaction_amount, total_net_deposits,
+        build_time_ms, last_refresh_datetime, 
+        refresh_requested_by, triggered_by
+      FROM ${monthlyCacheTable}
+      WHERE status = 'active'
+      ORDER BY year DESC, month DESC
+    `);
+    
+    return result.rows.map(row => ({
+      year: row.year,
+      month: row.month,
+      cacheKey: row.cache_key,
+      status: row.status,
+      totalFiles: row.total_files,
+      totalRecords: row.total_records,
+      bhRecords: row.bh_records,
+      dtRecords: row.dt_records,
+      totalTransactionAmount: parseFloat(row.total_transaction_amount || '0'),
+      totalNetDeposits: parseFloat(row.total_net_deposits || '0'),
+      buildTimeMs: row.build_time_ms,
+      lastRefresh: row.last_refresh_datetime,
+      refreshRequestedBy: row.refresh_requested_by,
+      triggeredBy: row.triggered_by
+    }));
+  }
+  
+  /**
+   * Get detailed cache data for a specific month
+   */
+  static async getMonthlyCacheDetail(year: number, month: number): Promise<any | null> {
+    const monthlyCacheTable = getTableName('tddf1_monthly_cache');
+    
+    const result = await pool.query(`
+      SELECT 
+        year, month, cache_key, status,
+        totals_json, daily_breakdown_json, comparison_json,
+        total_files, total_records, bh_records, dt_records,
+        total_transaction_amount, total_net_deposits,
+        build_time_ms, last_refresh_datetime,
+        refresh_requested_by, triggered_by, metadata,
+        created_at, updated_at
+      FROM ${monthlyCacheTable}
+      WHERE year = $1 AND month = $2
+    `, [year, month]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    const row = result.rows[0];
+    return {
+      year: row.year,
+      month: row.month,
+      cacheKey: row.cache_key,
+      status: row.status,
+      totals: row.totals_json,
+      dailyBreakdown: row.daily_breakdown_json,
+      comparison: row.comparison_json,
+      totalFiles: row.total_files,
+      totalRecords: row.total_records,
+      bhRecords: row.bh_records,
+      dtRecords: row.dt_records,
+      totalTransactionAmount: parseFloat(row.total_transaction_amount || '0'),
+      totalNetDeposits: parseFloat(row.total_net_deposits || '0'),
+      buildTimeMs: row.build_time_ms,
+      lastRefresh: row.last_refresh_datetime,
+      refreshRequestedBy: row.refresh_requested_by,
+      triggeredBy: row.triggered_by,
+      metadata: row.metadata,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
   
   /**
