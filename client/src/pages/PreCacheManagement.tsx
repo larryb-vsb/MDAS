@@ -1474,7 +1474,7 @@ function CacheConfigurationManagement() {
                 </div>
                 
                 <div className="text-sm text-gray-500">
-                  Age: {cacheDetails.age} | Records: {cacheDetails.records.toLocaleString()} | Size: {cacheDetails.size}
+                  Age: {cacheDetails.age || 'N/A'} | Records: {(cacheDetails.records || 0).toLocaleString()} | Size: {cacheDetails.size || 'N/A'}
                 </div>
               </div>
             ) : (
