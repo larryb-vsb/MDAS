@@ -1046,6 +1046,7 @@ export function registerTddfCacheRoutes(app: Express) {
       
       // Get aggregated totals for the entire month from master table
       // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
+      // Use $1,$2 for DATE columns and $3,$4 for JSONB text fields to avoid type conflicts
       const monthlyTotals = await client.query(`
         SELECT 
           COUNT(*) as total_records,
@@ -1063,10 +1064,10 @@ export function registerTddfCacheRoutes(app: Express) {
         FROM ${masterTableName}
         WHERE (
             (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
             OR
             (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
             OR
             (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
              AND record_type IN ('G2', 'E1', 'P1', 'P2', 'DR', 'AD') AND upload_id IN (
@@ -1074,11 +1075,11 @@ export function registerTddfCacheRoutes(app: Express) {
               WHERE tddf_processing_date >= $1 
                 AND tddf_processing_date <= $2
                 AND record_type = 'BH' 
-                AND extracted_fields->>'batchDate' >= $1 
-                AND extracted_fields->>'batchDate' <= $2
+                AND extracted_fields->>'batchDate' >= $3 
+                AND extracted_fields->>'batchDate' <= $4
             ))
           )
-      `, [startDate, endDate]);
+      `, [startDate, endDate, startDate, endDate]);
       
       const summary = monthlyTotals.rows[0];
       const recordTypeBreakdown: Record<string, number> = {
@@ -1095,6 +1096,7 @@ export function registerTddfCacheRoutes(app: Express) {
       // Get daily breakdown - aggregate by date
       // Count files by filename date (matching daily Data Files tab logic)
       // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
+      // Use $1,$2 for DATE columns and $3,$4 for JSONB text fields to avoid type conflicts
       const dailyBreakdown = await client.query(`
         SELECT 
           COALESCE(
@@ -1108,10 +1110,10 @@ export function registerTddfCacheRoutes(app: Express) {
         FROM ${masterTableName}
         WHERE (
             (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
             OR
             (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
           )
         GROUP BY COALESCE(
           CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
@@ -1124,7 +1126,7 @@ export function registerTddfCacheRoutes(app: Express) {
           END
         ) IS NOT NULL
         ORDER BY date
-      `, [startDate, endDate]);
+      `, [startDate, endDate, startDate, endDate]);
       
       // Count files by filename date for each day (matching Data Files tab logic)
       const fileCountsByDate = await client.query(`
@@ -1227,6 +1229,7 @@ export function registerTddfCacheRoutes(app: Express) {
         
         // Get daily breakdown for the month from master table
         // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
+        // Use $1,$2 for DATE columns and $3,$4 for JSONB text fields to avoid type conflicts
         const dailyBreakdown = await client.query(`
           SELECT 
             COALESCE(
@@ -1241,10 +1244,10 @@ export function registerTddfCacheRoutes(app: Express) {
           FROM ${masterTableName}
           WHERE (
               (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-               AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+               AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
               OR
               (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-               AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+               AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
             )
           GROUP BY COALESCE(
             CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
@@ -1257,7 +1260,7 @@ export function registerTddfCacheRoutes(app: Express) {
             END
           ) IS NOT NULL
           ORDER BY date
-        `, [startDate, endDate]);
+        `, [startDate, endDate, startDate, endDate]);
         
         return dailyBreakdown.rows.map((entry) => ({
           date: entry.date,
