@@ -64,8 +64,8 @@ interface BreadcrumbItem {
 interface DailyBreakdown {
   date: string;
   totalRecords: number;
-  recordTypes: Record<string, number>;
-  transactionValue: number;
+  recordTypeBreakdown: Record<string, number>;
+  totalTransactionValue: number;
   netDeposits?: number;
   fileCount: number;
   filesProcessed: Array<{
@@ -912,7 +912,7 @@ export default function History() {
                 </CardHeader>
                 <CardContent>
                   <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {dailyLoading ? '...' : formatCurrency(dailyData?.transactionValue || 0)}
+                    {dailyLoading ? '...' : formatCurrency(dailyData?.totalTransactionValue || 0)}
                   </div>
                   <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>DT Transaction Amounts</p>
                 </CardContent>
@@ -942,9 +942,9 @@ export default function History() {
               <CardContent>
                 {dailyLoading ? (
                   <div className="text-center py-8">Loading...</div>
-                ) : dailyData?.recordTypes && Object.keys(dailyData.recordTypes).length > 0 ? (
+                ) : dailyData?.recordTypeBreakdown && Object.keys(dailyData.recordTypeBreakdown).length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {Object.entries(dailyData.recordTypes)
+                    {Object.entries(dailyData.recordTypeBreakdown)
                       .filter(([_, count]) => count > 0)
                       .map(([type, count]) => {
                         const config = recordTypeConfig[type] || {
@@ -1028,7 +1028,7 @@ export default function History() {
             </Card>
 
             {/* Record Type Table */}
-            {dailyData?.recordTypes && Object.keys(dailyData.recordTypes).length > 0 && (
+            {dailyData?.recordTypeBreakdown && Object.keys(dailyData.recordTypeBreakdown).length > 0 && (
               <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
                 <CardHeader>
                   <CardTitle className={isDarkMode ? 'text-white' : ''}>Record Type Details</CardTitle>
@@ -1044,11 +1044,12 @@ export default function History() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Object.entries(dailyData.recordTypes)
-                          .filter(([_, count]) => count > 0)
+                        {Object.entries(dailyData.recordTypeBreakdown)
+                          .filter(([_, count]) => (count as number) > 0)
                           .sort(([_, a], [__, b]) => (b as number) - (a as number))
                           .map(([type, count]) => {
                             const config = recordTypeConfig[type];
+                            const countNum = count as number;
                             return (
                               <TableRow 
                                 key={type}
@@ -1060,10 +1061,10 @@ export default function History() {
                                   </span>
                                 </TableCell>
                                 <TableCell className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                  {count.toLocaleString()}
+                                  {countNum.toLocaleString()}
                                 </TableCell>
                                 <TableCell className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                  {((count / (dailyData.totalRecords || 1)) * 100).toFixed(2)}%
+                                  {((countNum / (dailyData.totalRecords || 1)) * 100).toFixed(2)}%
                                 </TableCell>
                               </TableRow>
                             );
