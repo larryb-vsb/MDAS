@@ -1154,6 +1154,7 @@ export function registerTddfCacheRoutes(app: Express) {
       `, [startDate, endDate, startDate, endDate]);
       
       // Count files by filename date for each day (matching Data Files tab logic)
+      // Exclude deleted files
       const fileCountsByDate = await client.query(`
         SELECT 
           to_char(
@@ -1163,6 +1164,7 @@ export function registerTddfCacheRoutes(app: Express) {
           COUNT(*) as files
         FROM ${uploaderTableName}
         WHERE split_part(filename, '_', 4) ~ '^\\d{8}$'
+          AND deleted_at IS NULL
           AND to_char(
             to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
             'YYYY-MM-DD'
