@@ -89,7 +89,8 @@ import {
   ChevronDown,
   ChevronRight,
   Archive,
-  HardDrive
+  HardDrive,
+  History
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -151,6 +152,11 @@ const navItems = [
     icon: <FileJson className="h-5 w-5 text-blue-400" />,
     label: "TDDF 1",
     href: "/tddf1"
+  },
+  {
+    icon: <History className="h-5 w-5 text-cyan-400" />,
+    label: "History",
+    href: "/history"
   },
   {
     icon: <Database className="h-5 w-5 text-purple-400" />,
