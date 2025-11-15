@@ -3,14 +3,17 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft } from 'lucide-react';
+import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
-import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths } from 'date-fns';
+import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import clsx from 'clsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tddf1MerchantVolumeTab } from '@/components/Tddf1MerchantVolumeTab';
 
 interface MonthlyTotals {
   month: string;
@@ -56,6 +59,22 @@ interface MonthlyComparison {
 interface BreadcrumbItem {
   label: string;
   path: string;
+}
+
+interface DailyBreakdown {
+  date: string;
+  totalRecords: number;
+  recordTypes: Record<string, number>;
+  transactionValue: number;
+  netDeposits?: number;
+  fileCount: number;
+  filesProcessed: Array<{
+    fileName: string;
+    tableName: string;
+    recordCount: number;
+  }>;
+  batchCount?: number;
+  authorizationCount?: number;
 }
 
 type ViewType = 'landing' | 'monthly' | 'quarterly' | 'daily';
@@ -325,6 +344,23 @@ export default function History() {
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  // Navigation helpers for daily view
+  const handlePreviousDay = () => {
+    if (!parsedRoute.date) return;
+    const prevDay = subDays(parsedRoute.date, 1);
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthName = monthNames[prevDay.getMonth()];
+    setLocation(`/history/${prevDay.getFullYear()}/${monthName}/${prevDay.getDate()}`);
+  };
+
+  const handleNextDay = () => {
+    if (!parsedRoute.date) return;
+    const nextDay = addDays(parsedRoute.date, 1);
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthName = monthNames[nextDay.getMonth()];
+    setLocation(`/history/${nextDay.getFullYear()}/${monthName}/${nextDay.getDate()}`);
   };
 
   // Prepare chart data
@@ -745,20 +781,331 @@ export default function History() {
     </Card>
   );
 
-  const renderDailyView = () => (
-    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
-      <CardHeader>
-        <CardTitle className={isDarkMode ? 'text-white' : ''}>
-          Daily View - {parsedRoute.date && format(parsedRoute.date, 'MMMM dd, yyyy')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-          Daily detail view coming soon. This will show all activity for {parsedRoute.date && format(parsedRoute.date, 'MMMM dd, yyyy')}.
-        </p>
-      </CardContent>
-    </Card>
-  );
+  const renderDailyView = () => {
+    if (!parsedRoute.date) return null;
+
+    const dateString = format(parsedRoute.date, 'yyyy-MM-dd');
+
+    // Fetch daily breakdown data
+    const { data: dailyData, isLoading: dailyLoading, refetch: refetchDaily } = useQuery<DailyBreakdown>({
+      queryKey: ['history-daily', dateString],
+      queryFn: async (): Promise<DailyBreakdown> => {
+        const response = await fetch(`/api/tddf1/day-breakdown?date=${dateString}`, {
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch daily data');
+        return response.json();
+      },
+      enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date
+    });
+
+    // Record type configuration for visualization
+    const recordTypeConfig: Record<string, { label: string; color: string; bgColor: string; textColor: string; description: string }> = {
+      BH: { label: 'BH', color: 'bg-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', description: 'Batch Headers' },
+      DT: { label: 'DT', color: 'bg-green-500', bgColor: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', description: 'Detail Transactions' },
+      G2: { label: 'G2', color: 'bg-purple-500', bgColor: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-700 dark:text-purple-300', description: 'Gateway Records' },
+      E1: { label: 'E1', color: 'bg-yellow-500', bgColor: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', description: 'Extension Records' },
+      P1: { label: 'P1', color: 'bg-pink-500', bgColor: 'bg-pink-50 dark:bg-pink-900/20', textColor: 'text-pink-700 dark:text-pink-300', description: 'Purchasing 1' },
+      P2: { label: 'P2', color: 'bg-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', description: 'Purchasing 2' },
+      DR: { label: 'DR', color: 'bg-red-500', bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', description: 'Disputes/Rejects' },
+      AD: { label: 'AD', color: 'bg-gray-500', bgColor: 'bg-gray-50 dark:bg-gray-900/20', textColor: 'text-gray-700 dark:text-gray-300', description: 'Additional Data' }
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Date Selector Header */}
+        <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+          <CardHeader>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className={isDarkMode ? 'text-white' : ''}>
+                    {format(parsedRoute.date, 'EEEE, MMMM dd, yyyy')}
+                  </CardTitle>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {dailyData ? `${dailyData.totalRecords.toLocaleString()} records • ${dailyData.fileCount} files` : 'Loading...'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousDay}
+                    data-testid="button-prev-day"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextDay}
+                    data-testid="button-next-day"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Tabs */}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className={clsx('grid w-full grid-cols-3', isDarkMode ? 'bg-gray-800' : '')}>
+            <TabsTrigger value="overview" data-testid="tab-daily-overview">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Daily Overview
+            </TabsTrigger>
+            <TabsTrigger value="table" data-testid="tab-table-view">
+              <TableIcon className="h-4 w-4 mr-2" />
+              Table View
+            </TabsTrigger>
+            <TabsTrigger value="merchants" data-testid="tab-merchant-volume">
+              <Building2 className="h-4 w-4 mr-2" />
+              Merchant Volume
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Daily Overview Tab */}
+          <TabsContent value="overview" className="space-y-4">
+            {/* Metrics Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Total Files
+                  </CardTitle>
+                  <FileText className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {dailyLoading ? '...' : dailyData?.fileCount.toLocaleString() || '0'}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Total Records
+                  </CardTitle>
+                  <Activity className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {dailyLoading ? '...' : dailyData?.totalRecords.toLocaleString() || '0'}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Authorizations
+                  </CardTitle>
+                  <TrendingUp className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {dailyLoading ? '...' : formatCurrency(dailyData?.transactionValue || 0)}
+                  </div>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>DT Transaction Amounts</p>
+                </CardContent>
+              </Card>
+
+              <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Net Deposits
+                  </CardTitle>
+                  <DollarSign className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {dailyLoading ? '...' : formatCurrency(dailyData?.netDeposits || 0)}
+                  </div>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>BH Net Deposits</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Record Type Breakdown */}
+            <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+              <CardHeader>
+                <CardTitle className={isDarkMode ? 'text-white' : ''}>Record Type Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dailyLoading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : dailyData?.recordTypes && Object.keys(dailyData.recordTypes).length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {Object.entries(dailyData.recordTypes)
+                      .filter(([_, count]) => count > 0)
+                      .map(([type, count]) => {
+                        const config = recordTypeConfig[type] || {
+                          label: type,
+                          bgColor: 'bg-gray-50',
+                          textColor: 'text-gray-700',
+                          description: type
+                        };
+
+                        return (
+                          <div
+                            key={type}
+                            className={`text-center rounded-lg p-4 border ${config.bgColor}`}
+                          >
+                            <div className={`text-2xl font-bold ${config.textColor}`}>
+                              {count.toLocaleString()}
+                            </div>
+                            <div className={`text-sm font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                              {config.label}
+                            </div>
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {config.description}
+                            </div>
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {((count / (dailyData.totalRecords || 1)) * 100).toFixed(1)}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className={`text-center py-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No record type data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Table View Tab */}
+          <TabsContent value="table" className="space-y-4">
+            <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+              <CardHeader>
+                <CardTitle className={isDarkMode ? 'text-white' : ''}>
+                  Files Processed - {format(parsedRoute.date, 'MMM d, yyyy')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dailyLoading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : dailyData?.filesProcessed && dailyData.filesProcessed.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className={isDarkMode ? 'border-gray-700' : 'border-gray-200'}>
+                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>File Name</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Record Count</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dailyData.filesProcessed.map((file, idx) => (
+                          <TableRow 
+                            key={idx}
+                            className={isDarkMode ? 'border-gray-700' : 'border-gray-200'}
+                          >
+                            <TableCell className={isDarkMode ? 'text-white' : 'text-gray-900'}>{file.fileName}</TableCell>
+                            <TableCell className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {file.recordCount.toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No files processed on this date
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Record Type Table */}
+            {dailyData?.recordTypes && Object.keys(dailyData.recordTypes).length > 0 && (
+              <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={isDarkMode ? 'text-white' : ''}>Record Type Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className={isDarkMode ? 'border-gray-700' : 'border-gray-200'}>
+                          <TableHead className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Record Type</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Count</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Percentage</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(dailyData.recordTypes)
+                          .filter(([_, count]) => count > 0)
+                          .sort(([_, a], [__, b]) => (b as number) - (a as number))
+                          .map(([type, count]) => {
+                            const config = recordTypeConfig[type];
+                            return (
+                              <TableRow 
+                                key={type}
+                                className={isDarkMode ? 'border-gray-700' : 'border-gray-200'}
+                              >
+                                <TableCell className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                                  <span className={config ? config.textColor : ''}>
+                                    {config?.label || type} - {config?.description || type}
+                                  </span>
+                                </TableCell>
+                                <TableCell className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {count.toLocaleString()}
+                                </TableCell>
+                                <TableCell className={`text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {((count / (dailyData.totalRecords || 1)) * 100).toFixed(2)}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Merchant Volume Tab */}
+          <TabsContent value="merchants" className="space-y-4">
+            <Tddf1MerchantVolumeTab selectedDate={parsedRoute.date} isDarkMode={isDarkMode} />
+          </TabsContent>
+        </Tabs>
+
+        {/* Toolbox */}
+        <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+          <CardHeader>
+            <CardTitle className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Toolbox</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchDaily()}
+                disabled={dailyLoading}
+                data-testid="button-refresh-daily"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${dailyLoading ? 'animate-spin' : ''}`} />
+                Refresh Data
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} transition-colors`}>
@@ -793,6 +1140,29 @@ export default function History() {
                     onClick={handleNextMonth}
                     data-testid="button-next-month"
                     title="Next Month"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              
+              {parsedRoute.viewType === 'daily' && parsedRoute.date && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousDay}
+                    data-testid="button-header-prev-day"
+                    title="Previous Day"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextDay}
+                    data-testid="button-header-next-day"
+                    title="Next Day"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
