@@ -3,13 +3,14 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database } from 'lucide-react';
+import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
-import { format, parse, startOfMonth, startOfQuarter, getQuarter } from 'date-fns';
+import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
+import clsx from 'clsx';
 
 interface MonthlyTotals {
   month: string;
@@ -293,6 +294,26 @@ export default function History() {
     refetchMonthly();
   };
 
+  const handlePreviousMonth = () => {
+    if (!parsedRoute.date) return;
+    const prevMonth = subMonths(parsedRoute.date, 1);
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthName = monthNames[prevMonth.getMonth()];
+    setLocation(`/history/${prevMonth.getFullYear()}/${monthName}`);
+  };
+
+  const handleNextMonth = () => {
+    if (!parsedRoute.date) return;
+    const nextMonth = addMonths(parsedRoute.date, 1);
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthName = monthNames[nextMonth.getMonth()];
+    setLocation(`/history/${nextMonth.getFullYear()}/${monthName}`);
+  };
+
+  const handleBackToDashboard = () => {
+    setLocation('/dashboard');
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -448,77 +469,86 @@ export default function History() {
       );
     }
 
+    const metricsConfig = [
+      {
+        title: 'Transaction Authorizations',
+        value: formatCurrency(monthlyData.totalTransactionValue),
+        subtitle: 'DT record totals',
+        icon: DollarSign,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700' : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200',
+        titleColor: isDarkMode ? 'text-purple-100' : 'text-purple-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-purple-900',
+        subtitleColor: isDarkMode ? 'text-purple-200' : 'text-purple-600',
+        iconColor: isDarkMode ? 'text-purple-300' : 'text-purple-600',
+        valueFontSize: 'text-xl sm:text-2xl',
+        testId: 'metric-transaction-auth'
+      },
+      {
+        title: 'Net Deposits',
+        value: formatCurrency(monthlyData.totalNetDepositBh),
+        subtitle: 'BH batch totals',
+        icon: DollarSign,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-orange-900 to-orange-800 border-orange-700' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200',
+        titleColor: isDarkMode ? 'text-orange-100' : 'text-orange-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-orange-900',
+        subtitleColor: isDarkMode ? 'text-orange-200' : 'text-orange-600',
+        iconColor: isDarkMode ? 'text-orange-300' : 'text-orange-600',
+        valueFontSize: 'text-xl sm:text-2xl',
+        testId: 'metric-net-deposits'
+      },
+      {
+        title: 'Total Files',
+        value: formatNumber(monthlyData.totalFiles),
+        subtitle: 'TDDF files processed',
+        icon: FileText,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200',
+        titleColor: isDarkMode ? 'text-blue-100' : 'text-blue-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-blue-900',
+        subtitleColor: isDarkMode ? 'text-blue-200' : 'text-blue-600',
+        iconColor: isDarkMode ? 'text-blue-300' : 'text-blue-600',
+        valueFontSize: 'text-2xl sm:text-3xl',
+        testId: 'metric-total-files'
+      },
+      {
+        title: 'Total Records',
+        value: formatNumber(monthlyData.totalRecords),
+        subtitle: 'All record types',
+        icon: TrendingUp,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-green-900 to-green-800 border-green-700' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200',
+        titleColor: isDarkMode ? 'text-green-100' : 'text-green-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-green-900',
+        subtitleColor: isDarkMode ? 'text-green-200' : 'text-green-600',
+        iconColor: isDarkMode ? 'text-green-300' : 'text-green-600',
+        valueFontSize: 'text-2xl sm:text-3xl',
+        testId: 'metric-total-records'
+      }
+    ];
+
     return (
       <div className="space-y-6">
         {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className={isDarkMode ? 'bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-blue-100' : 'text-blue-700'}`}>
-                Total Files
-              </CardTitle>
-              <FileText className={`h-4 w-4 ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-blue-900'}`}>
-                {formatNumber(monthlyData.totalFiles)}
-              </div>
-              <p className={`text-xs ${isDarkMode ? 'text-blue-200' : 'text-blue-600'} mt-1`}>
-                TDDF files processed
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={isDarkMode ? 'bg-gradient-to-br from-green-900 to-green-800 border-green-700' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-green-100' : 'text-green-700'}`}>
-                Total Records
-              </CardTitle>
-              <TrendingUp className={`h-4 w-4 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-green-900'}`}>
-                {formatNumber(monthlyData.totalRecords)}
-              </div>
-              <p className={`text-xs ${isDarkMode ? 'text-green-200' : 'text-green-600'} mt-1`}>
-                All record types
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={isDarkMode ? 'bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700' : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200'}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-purple-100' : 'text-purple-700'}`}>
-                Transaction Authorizations
-              </CardTitle>
-              <DollarSign className={`h-4 w-4 ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-purple-900'}`}>
-                {formatCurrency(monthlyData.totalTransactionValue)}
-              </div>
-              <p className={`text-xs ${isDarkMode ? 'text-purple-200' : 'text-purple-600'} mt-1`}>
-                DT record totals
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={isDarkMode ? 'bg-gradient-to-br from-orange-900 to-orange-800 border-orange-700' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200'}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-orange-100' : 'text-orange-700'}`}>
-                Net Deposits
-              </CardTitle>
-              <DollarSign className={`h-4 w-4 ${isDarkMode ? 'text-orange-300' : 'text-orange-600'}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-orange-900'}`}>
-                {formatCurrency(monthlyData.totalNetDepositBh)}
-              </div>
-              <p className={`text-xs ${isDarkMode ? 'text-orange-200' : 'text-orange-600'} mt-1`}>
-                BH batch totals
-              </p>
-            </CardContent>
-          </Card>
+          {metricsConfig.map((metric) => {
+            const IconComponent = metric.icon;
+            return (
+              <Card key={metric.testId} className={metric.gradient}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className={`text-sm font-medium ${metric.titleColor}`}>
+                    {metric.title}
+                  </CardTitle>
+                  <IconComponent className={`h-4 w-4 ${metric.iconColor}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`${metric.valueFontSize} font-bold ${metric.valueColor}`}>
+                    {metric.value}
+                  </div>
+                  <p className={`text-xs ${metric.subtitleColor} mt-1`}>
+                    {metric.subtitle}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Record Type Breakdown */}
@@ -637,26 +667,38 @@ export default function History() {
                   </tr>
                 </thead>
                 <tbody>
-                  {monthlyData.dailyBreakdown.map((day) => (
-                    <tr 
-                      key={day.date} 
-                      className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'} cursor-pointer`}
-                      onClick={() => {
-                        const date = new Date(day.date);
-                        const dayNum = date.getDate();
-                        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-                        const monthName = parsedRoute.monthName || monthNames[(parsedRoute.month || 1) - 1];
-                        setLocation(`/history/${parsedRoute.year}/${monthName}/${dayNum}`);
-                      }}
-                      data-testid={`row-day-${day.date}`}
-                    >
-                      <td className={`p-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{format(new Date(day.date), 'MMM dd, yyyy')}</td>
-                      <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{day.files}</td>
-                      <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatNumber(day.records)}</td>
-                      <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.transactionValue)}</td>
-                      <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.netDepositBh)}</td>
-                    </tr>
-                  ))}
+                  {monthlyData.dailyBreakdown.map((day) => {
+                    const shouldHighlight = day.files > 2;
+                    return (
+                      <tr 
+                        key={day.date} 
+                        className={clsx(
+                          'border-b cursor-pointer',
+                          shouldHighlight 
+                            ? isDarkMode 
+                              ? 'bg-amber-900/40 hover:bg-amber-900/60 border-amber-800' 
+                              : 'bg-amber-50 hover:bg-amber-100 border-amber-200'
+                            : isDarkMode 
+                              ? 'border-gray-700 hover:bg-gray-700' 
+                              : 'border-gray-100 hover:bg-gray-50'
+                        )}
+                        onClick={() => {
+                          const date = new Date(day.date);
+                          const dayNum = date.getDate();
+                          const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                          const monthName = parsedRoute.monthName || monthNames[(parsedRoute.month || 1) - 1];
+                          setLocation(`/history/${parsedRoute.year}/${monthName}/${dayNum}`);
+                        }}
+                        data-testid={`row-day-${day.date}`}
+                      >
+                        <td className={`p-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{format(new Date(day.date), 'MMM dd, yyyy')}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{day.files}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatNumber(day.records)}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.transactionValue)}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.netDepositBh)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -726,14 +768,49 @@ export default function History() {
           {renderBreadcrumbs()}
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {parsedRoute.viewType === 'landing' && 'History'}
-              {parsedRoute.viewType === 'monthly' && parsedRoute.date && format(parsedRoute.date, 'MMMM yyyy')}
-              {parsedRoute.viewType === 'quarterly' && `Q${parsedRoute.quarter} ${parsedRoute.year}`}
-              {parsedRoute.viewType === 'daily' && parsedRoute.date && format(parsedRoute.date, 'MMMM dd, yyyy')}
-            </h1>
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {parsedRoute.viewType === 'landing' && 'History'}
+                {parsedRoute.viewType === 'monthly' && parsedRoute.date && format(parsedRoute.date, 'MMMM yyyy')}
+                {parsedRoute.viewType === 'quarterly' && `Q${parsedRoute.quarter} ${parsedRoute.year}`}
+                {parsedRoute.viewType === 'daily' && parsedRoute.date && format(parsedRoute.date, 'MMMM dd, yyyy')}
+              </h1>
+              
+              {parsedRoute.viewType === 'monthly' && parsedRoute.date && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousMonth}
+                    data-testid="button-prev-month"
+                    title="Previous Month"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextMonth}
+                    data-testid="button-next-month"
+                    title="Next Month"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackToDashboard}
+                data-testid="button-back-dashboard"
+              >
+                <Home className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Dashboard</span>
+              </Button>
+              
               {parsedRoute.viewType === 'monthly' && (
                 <>
                   <Button
