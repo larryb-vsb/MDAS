@@ -199,28 +199,33 @@ export class PreCacheService {
     await client.query(`SET LOCAL statement_timeout = '120s'`);
     
     // Get monthly totals with separate parameters for DATE and JSONB text fields
+    // Filter out deleted/archived files by joining with uploaded_files
+    const uploadedFilesTable = getTableName('uploaded_files');
     const totalsResult = await client.query(`
       SELECT 
-        COUNT(DISTINCT upload_id) as total_files,
+        COUNT(DISTINCT t.upload_id) as total_files,
         COUNT(*) as total_records,
-        SUM(CASE WHEN record_type = 'BH' THEN 1 ELSE 0 END) as bh_records,
-        SUM(CASE WHEN record_type = 'DT' THEN 1 ELSE 0 END) as dt_records,
+        SUM(CASE WHEN t.record_type = 'BH' THEN 1 ELSE 0 END) as bh_records,
+        SUM(CASE WHEN t.record_type = 'DT' THEN 1 ELSE 0 END) as dt_records,
         COALESCE(SUM(CASE 
-          WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal 
+          WHEN t.record_type = 'DT' THEN (t.extracted_fields->>'transactionAmount')::decimal 
           ELSE 0 
         END), 0) as total_transaction_amount,
         COALESCE(SUM(CASE 
-          WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal 
+          WHEN t.record_type = 'BH' THEN (t.extracted_fields->>'netDeposit')::decimal 
           ELSE 0 
         END), 0) as total_net_deposits
-      FROM ${masterTableName}
-      WHERE (
-        (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-         AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
-        OR
-        (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-         AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
-      )
+      FROM ${masterTableName} t
+      INNER JOIN ${uploadedFilesTable} u ON t.upload_id::integer = u.id
+      WHERE u.deleted_at IS NULL
+        AND (u.is_archived IS NULL OR u.is_archived = false)
+        AND (
+          (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+           AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
+          OR
+          (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+           AND t.record_type = 'DT' AND t.extracted_fields->>'transactionDate' >= $3 AND t.extracted_fields->>'transactionDate' <= $4)
+        )
     `, [startDate, endDate, startDate, endDate]);
     
     const totals = {
@@ -233,35 +238,39 @@ export class PreCacheService {
     };
     
     // Get daily breakdown with separate parameters
+    // Filter out deleted/archived files by joining with uploaded_files
     const dailyResult = await client.query(`
       SELECT 
         COALESCE(
-          CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
-               WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+          CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
+               WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'
           END
         ) as date,
-        COUNT(DISTINCT upload_id) as files,
+        COUNT(DISTINCT t.upload_id) as files,
         COUNT(*) as records,
-        COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
-        COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposits,
-        SUM(CASE WHEN record_type = 'BH' THEN 1 ELSE 0 END) as bh_records,
-        SUM(CASE WHEN record_type = 'DT' THEN 1 ELSE 0 END) as dt_records
-      FROM ${masterTableName}
-      WHERE (
-        (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-         AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
-        OR
-        (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-         AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
-      )
+        COALESCE(SUM(CASE WHEN t.record_type = 'DT' THEN (t.extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
+        COALESCE(SUM(CASE WHEN t.record_type = 'BH' THEN (t.extracted_fields->>'netDeposit')::decimal END), 0) as net_deposits,
+        SUM(CASE WHEN t.record_type = 'BH' THEN 1 ELSE 0 END) as bh_records,
+        SUM(CASE WHEN t.record_type = 'DT' THEN 1 ELSE 0 END) as dt_records
+      FROM ${masterTableName} t
+      INNER JOIN ${uploadedFilesTable} u ON t.upload_id::integer = u.id
+      WHERE u.deleted_at IS NULL
+        AND (u.is_archived IS NULL OR u.is_archived = false)
+        AND (
+          (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+           AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
+          OR
+          (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+           AND t.record_type = 'DT' AND t.extracted_fields->>'transactionDate' >= $3 AND t.extracted_fields->>'transactionDate' <= $4)
+        )
       GROUP BY COALESCE(
-        CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
-             WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+        CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
+             WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'
         END
       )
       HAVING COALESCE(
-        CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
-             WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+        CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
+             WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'
         END
       ) IS NOT NULL
       ORDER BY date

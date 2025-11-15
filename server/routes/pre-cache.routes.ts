@@ -85,8 +85,11 @@ export function registerPreCacheRoutes(app: Express) {
   });
   
   /**
-   * Rebuild cache for a specific month
+   * Rebuild cache for a specific month (asynchronous)
    * POST /api/pre-cache/monthly-cache/:year/:month/rebuild
+   * 
+   * Returns immediately while rebuild runs in background.
+   * Poll /api/pre-cache/rebuild-status to track progress.
    */
   app.post('/api/pre-cache/monthly-cache/:year/:month/rebuild', isAuthenticated, async (req, res) => {
     try {
@@ -98,23 +101,42 @@ export function registerPreCacheRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid year or month parameters' });
       }
       
-      console.log(`[PRE-CACHE] Rebuilding cache for ${year}-${month.toString().padStart(2, '0')} requested by ${username}`);
+      // Check if already rebuilding (quick check to return 409 immediately)
+      if (rebuildJobTracker.isRebuilding(year, month)) {
+        return res.status(409).json({ 
+          error: 'Rebuild already in progress for this month',
+          status: 'rebuilding'
+        });
+      }
       
-      const result = await PreCacheService.buildMonthlyCache({
+      console.log(`[PRE-CACHE] Starting async rebuild for ${year}-${month.toString().padStart(2, '0')} requested by ${username}`);
+      
+      // Return immediately to client
+      res.json({ 
+        success: true, 
+        message: `Cache rebuild started for ${year}-${month.toString().padStart(2, '0')}`,
+        status: 'running'
+      });
+      
+      // Run rebuild in background (don't await)
+      // buildMonthlyCache handles its own job tracking via rebuildJobTracker
+      PreCacheService.buildMonthlyCache({
         year,
         month,
         triggeredBy: 'manual',
         triggeredByUser: username,
         triggerReason: 'user_request'
-      });
+      })
+        .then((result) => {
+          console.log(`[PRE-CACHE] Background rebuild completed for ${year}-${month.toString().padStart(2, '0')} (Job: ${result.jobId}) in ${result.buildTimeMs}ms`);
+        })
+        .catch((error: any) => {
+          console.error(`[PRE-CACHE] Background rebuild failed for ${year}-${month.toString().padStart(2, '0')}:`, error);
+          // Error is already logged by buildMonthlyCache, which handles rebuildJobTracker.errorJob()
+        });
       
-      res.json({ 
-        success: true, 
-        message: `Successfully rebuilt cache for ${year}-${month.toString().padStart(2, '0')}`,
-        data: result
-      });
     } catch (error: any) {
-      console.error('[PRE-CACHE] Error rebuilding monthly cache:', error);
+      console.error('[PRE-CACHE] Error starting rebuild:', error);
       res.status(500).json({ error: error.message });
     }
   });
