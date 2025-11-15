@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,11 +96,12 @@ interface PerformanceDashboard {
   lastUpdated: string;
 }
 
-function getStatusBadge(status: string) {
+function getStatusBadge(status: string, isRebuilding: boolean = false) {
   const statusConfig = {
     active: { color: "bg-green-100 text-green-800", icon: CheckCircle },
     inactive: { color: "bg-gray-100 text-gray-800", icon: Clock },
     building: { color: "bg-blue-100 text-blue-800", icon: RefreshCw },
+    rebuilding: { color: "bg-blue-100 text-blue-800", icon: RefreshCw },
     error: { color: "bg-red-100 text-red-800", icon: AlertTriangle },
     expired: { color: "bg-orange-100 text-orange-800", icon: Timer }
   };
@@ -110,7 +111,7 @@ function getStatusBadge(status: string) {
   
   return (
     <Badge className={config.color}>
-      <IconComponent className="w-3 h-3 mr-1" />
+      <IconComponent className={`w-3 h-3 mr-1 ${isRebuilding ? 'animate-spin' : ''}`} />
       {status}
     </Badge>
   );
@@ -889,6 +890,19 @@ function MonthlyCacheManagement() {
     queryKey: ['/api/pre-cache/monthly-cache'],
   });
   
+  // Poll rebuild status
+  const { data: rebuildStatusData } = useQuery({
+    queryKey: ['/api/pre-cache/rebuild-status'],
+    refetchInterval: (data) => {
+      // Poll every 5 seconds if there are active jobs, otherwise every 30 seconds
+      const jobs = data?.jobs || {};
+      const hasActiveJobs = Object.values(jobs).some((job: any) => job.status === 'running');
+      return hasActiveJobs ? 5000 : 30000;
+    },
+    gcTime: 0,
+    staleTime: 0,
+  });
+  
   // Fetch detail for selected month
   const { data: detailData, isLoading: detailLoading } = useQuery({
     queryKey: ['/api/pre-cache/monthly-cache', selectedMonth?.year, selectedMonth?.month],
@@ -904,9 +918,12 @@ function MonthlyCacheManagement() {
     },
     onSuccess: (_, variables) => {
       toast({
-        title: "Cache Rebuilt",
-        description: `Successfully rebuilt cache for ${variables.year}-${variables.month.toString().padStart(2, '0')}`,
+        title: "Cache Rebuild Started",
+        description: `Rebuilding cache for ${variables.year}-${variables.month.toString().padStart(2, '0')} in background. Status will update automatically.`,
       });
+      // Immediately refresh rebuild status to show "rebuilding" badge
+      queryClient.invalidateQueries({ queryKey: ['/api/pre-cache/rebuild-status'] });
+      // Also refresh monthly cache data
       queryClient.invalidateQueries({ queryKey: ['/api/pre-cache/monthly-cache'] });
       if (selectedMonth) {
         queryClient.invalidateQueries({ queryKey: ['/api/pre-cache/monthly-cache', selectedMonth.year, selectedMonth.month] });
@@ -947,7 +964,37 @@ function MonthlyCacheManagement() {
     setShowDetailDialog(true);
   };
   
-  const months = monthsData?.months || [];
+  // Merge rebuild status with monthly cache data
+  const months = useMemo(() => {
+    const baseMonths = monthsData?.months || [];
+    const rebuildJobs = rebuildStatusData?.jobs || {};
+    
+    return baseMonths.map((month: any) => {
+      const monthKey = `${month.year}-${month.month.toString().padStart(2, '0')}`;
+      const rebuildJob = rebuildJobs[monthKey];
+      
+      let displayStatus = month.status || 'active';
+      let isRebuilding = false;
+      let errorMessage = null;
+      
+      if (rebuildJob) {
+        if (rebuildJob.status === 'running') {
+          displayStatus = 'rebuilding';
+          isRebuilding = true;
+        } else if (rebuildJob.status === 'error') {
+          displayStatus = 'error';
+          errorMessage = rebuildJob.error;
+        }
+      }
+      
+      return {
+        ...month,
+        displayStatus,
+        isRebuilding,
+        errorMessage,
+      };
+    });
+  }, [monthsData, rebuildStatusData]);
   
   return (
     <Card>
@@ -1005,12 +1052,7 @@ function MonthlyCacheManagement() {
                       {formatMonthName(month.year, month.month)}
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={month.status === 'active' ? 'default' : 'secondary'}
-                        data-testid={`badge-status-${month.year}-${month.month}`}
-                      >
-                        {month.status}
-                      </Badge>
+                      {getStatusBadge(month.displayStatus, month.isRebuilding)}
                     </TableCell>
                     <TableCell className="text-right" data-testid={`text-files-${month.year}-${month.month}`}>
                       {formatRecordCount(month.totalFiles)}
@@ -1050,10 +1092,11 @@ function MonthlyCacheManagement() {
                           size="sm"
                           variant="outline"
                           onClick={() => rebuildMonthMutation.mutate({ year: month.year, month: month.month })}
-                          disabled={rebuildMonthMutation.isPending}
+                          disabled={rebuildMonthMutation.isPending || month.isRebuilding}
                           data-testid={`button-rebuild-${month.year}-${month.month}`}
+                          title={month.isRebuilding ? 'Rebuild in progress...' : 'Rebuild cache for this month'}
                         >
-                          <RefreshCw className={`w-4 h-4 ${rebuildMonthMutation.isPending ? 'animate-spin' : ''}`} />
+                          <RefreshCw className={`w-4 h-4 ${(rebuildMonthMutation.isPending || month.isRebuilding) ? 'animate-spin' : ''}`} />
                         </Button>
                       </div>
                     </TableCell>
