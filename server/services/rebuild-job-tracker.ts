@@ -15,6 +15,7 @@ export interface RebuildJob {
   error?: string;
   triggeredBy?: string;
   triggeredByUser?: string;
+  cleanupTimeout?: NodeJS.Timeout;
 }
 
 class RebuildJobTracker {
@@ -33,6 +34,13 @@ class RebuildJobTracker {
    */
   startJob(jobId: string, year: number, month: number, triggeredBy?: string, triggeredByUser?: string): void {
     const monthKey = this.getMonthKey(year, month);
+    
+    // Clear any existing cleanup timeout for this month to prevent race condition
+    const existingJob = this.jobs.get(monthKey);
+    if (existingJob?.cleanupTimeout) {
+      clearTimeout(existingJob.cleanupTimeout);
+      console.log(`[REBUILD-TRACKER] Cleared stale cleanup timeout for ${monthKey}`);
+    }
     
     const job: RebuildJob = {
       jobId,
@@ -56,15 +64,24 @@ class RebuildJobTracker {
     const job = this.jobs.get(monthKey);
 
     if (job) {
+      const completedJobId = job.jobId;
       job.status = 'complete';
       job.endTime = Date.now();
-      console.log(`[REBUILD-TRACKER] Completed job ${job.jobId} for ${monthKey} in ${job.endTime - job.startTime}ms`);
+      console.log(`[REBUILD-TRACKER] Completed job ${completedJobId} for ${monthKey} in ${job.endTime - job.startTime}ms`);
       
-      // Schedule cleanup
-      setTimeout(() => {
-        this.jobs.delete(monthKey);
-        console.log(`[REBUILD-TRACKER] Cleaned up completed job for ${monthKey}`);
+      // Schedule cleanup with jobId verification to prevent race condition
+      const timeout = setTimeout(() => {
+        const currentJob = this.jobs.get(monthKey);
+        // Only delete if the job hasn't been replaced by a newer rebuild
+        if (currentJob && currentJob.jobId === completedJobId) {
+          this.jobs.delete(monthKey);
+          console.log(`[REBUILD-TRACKER] Cleaned up completed job ${completedJobId} for ${monthKey}`);
+        } else {
+          console.log(`[REBUILD-TRACKER] Skipped cleanup for ${monthKey} - job was replaced`);
+        }
       }, this.JOB_RETENTION_MS);
+      
+      job.cleanupTimeout = timeout;
     }
   }
 
@@ -76,16 +93,25 @@ class RebuildJobTracker {
     const job = this.jobs.get(monthKey);
 
     if (job) {
+      const erroredJobId = job.jobId;
       job.status = 'error';
       job.endTime = Date.now();
       job.error = error;
-      console.log(`[REBUILD-TRACKER] Job ${job.jobId} for ${monthKey} failed: ${error}`);
+      console.log(`[REBUILD-TRACKER] Job ${erroredJobId} for ${monthKey} failed: ${error}`);
       
-      // Schedule cleanup
-      setTimeout(() => {
-        this.jobs.delete(monthKey);
-        console.log(`[REBUILD-TRACKER] Cleaned up errored job for ${monthKey}`);
+      // Schedule cleanup with jobId verification to prevent race condition
+      const timeout = setTimeout(() => {
+        const currentJob = this.jobs.get(monthKey);
+        // Only delete if the job hasn't been replaced by a newer rebuild
+        if (currentJob && currentJob.jobId === erroredJobId) {
+          this.jobs.delete(monthKey);
+          console.log(`[REBUILD-TRACKER] Cleaned up errored job ${erroredJobId} for ${monthKey}`);
+        } else {
+          console.log(`[REBUILD-TRACKER] Skipped cleanup for ${monthKey} - job was replaced`);
+        }
       }, this.JOB_RETENTION_MS);
+      
+      job.cleanupTimeout = timeout;
     }
   }
 
@@ -115,11 +141,14 @@ class RebuildJobTracker {
 
   /**
    * Get all jobs as a map keyed by month (YYYY-MM)
+   * Excludes cleanupTimeout to prevent circular reference errors in JSON serialization
    */
-  getJobsMap(): Record<string, RebuildJob> {
-    const map: Record<string, RebuildJob> = {};
+  getJobsMap(): Record<string, Omit<RebuildJob, 'cleanupTimeout'>> {
+    const map: Record<string, Omit<RebuildJob, 'cleanupTimeout'>> = {};
     this.jobs.forEach((job, key) => {
-      map[key] = job;
+      // Exclude cleanupTimeout to prevent circular structure errors when serializing to JSON
+      const { cleanupTimeout, ...serializableJob } = job;
+      map[key] = serializableJob;
     });
     return map;
   }

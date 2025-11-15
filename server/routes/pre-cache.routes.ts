@@ -50,7 +50,8 @@ export function registerPreCacheRoutes(app: Express) {
   app.get('/api/pre-cache/rebuild-status', isAuthenticated, async (req, res) => {
     try {
       const jobsMap = rebuildJobTracker.getJobsMap();
-      res.json({ success: true, jobs: jobsMap });
+      const activeCount = Object.values(jobsMap).filter(job => job.status === 'running').length;
+      res.json({ success: true, jobs: jobsMap, activeCount });
     } catch (error: any) {
       console.error('[PRE-CACHE] Error fetching rebuild status:', error);
       res.status(500).json({ error: error.message });
