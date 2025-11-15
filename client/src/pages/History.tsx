@@ -70,8 +70,7 @@ interface ParsedRoute {
 }
 
 export default function History() {
-  const [, params] = useRoute('/history/:path*');
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -88,12 +87,14 @@ export default function History() {
 
   // Parse the URL path to determine what to display
   const parsedRoute: ParsedRoute = useMemo(() => {
-    const pathParam = params?.['path*'];
-    if (!pathParam) {
+    // Remove /history prefix and get the remaining path
+    const pathWithoutPrefix = location.replace(/^\/history\/?/, '');
+    
+    if (!pathWithoutPrefix || pathWithoutPrefix === '') {
       return { viewType: 'landing' };
     }
 
-    const pathParts = pathParam.split('/').filter(Boolean);
+    const pathParts = pathWithoutPrefix.split('/').filter(Boolean);
     
     if (pathParts.length === 0) {
       return { viewType: 'landing' };
@@ -181,7 +182,7 @@ export default function History() {
       monthName,
       date
     };
-  }, [params]);
+  }, [location]);
 
   // Generate breadcrumbs based on parsed route
   const breadcrumbs: BreadcrumbItem[] = useMemo(() => {
