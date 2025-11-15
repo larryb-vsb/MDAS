@@ -266,6 +266,24 @@ export default function History() {
     enabled: parsedRoute.viewType === 'monthly' && !!parsedRoute.date
   });
 
+  // Fetch daily data if we're in daily view
+  const dateString = parsedRoute.date ? format(parsedRoute.date, 'yyyy-MM-dd') : '';
+  const { data: dailyData, isLoading: dailyLoading, refetch: refetchDaily } = useQuery<DailyBreakdown>({
+    queryKey: ['history-daily', dateString],
+    queryFn: async (): Promise<DailyBreakdown> => {
+      const response = await fetch(`/api/tddf1/day-breakdown?date=${dateString}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch daily data');
+      return response.json();
+    },
+    enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date && !!dateString
+  });
+
   // Mutation for rebuilding cache
   const rebuildMutation = useMutation({
     mutationFn: async () => {
@@ -783,25 +801,6 @@ export default function History() {
 
   const renderDailyView = () => {
     if (!parsedRoute.date) return null;
-
-    const dateString = format(parsedRoute.date, 'yyyy-MM-dd');
-
-    // Fetch daily breakdown data
-    const { data: dailyData, isLoading: dailyLoading, refetch: refetchDaily } = useQuery<DailyBreakdown>({
-      queryKey: ['history-daily', dateString],
-      queryFn: async (): Promise<DailyBreakdown> => {
-        const response = await fetch(`/api/tddf1/day-breakdown?date=${dateString}`, {
-          cache: 'no-cache',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        if (!response.ok) throw new Error('Failed to fetch daily data');
-        return response.json();
-      },
-      enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date
-    });
 
     // Record type configuration for visualization
     const recordTypeConfig: Record<string, { label: string; color: string; bgColor: string; textColor: string; description: string }> = {
