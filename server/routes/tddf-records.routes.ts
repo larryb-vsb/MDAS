@@ -1212,7 +1212,11 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       if (search) {
         paramCount++;
-        conditions.push(`((extracted_fields->>'merchantAccountNumber') ILIKE $${paramCount})`);
+        conditions.push(`(
+          (extracted_fields->>'merchantAccountNumber') ILIKE $${paramCount} OR
+          (extracted_fields->>'merchantName') ILIKE $${paramCount} OR
+          (extracted_fields->>'amexMerchantSellerName') ILIKE $${paramCount}
+        )`);
         values.push(`%${search}%`);
       }
       
