@@ -88,11 +88,12 @@ export default function History() {
 
   // Parse the URL path to determine what to display
   const parsedRoute: ParsedRoute = useMemo(() => {
-    if (!params?.path) {
+    const pathParam = params?.['path*'];
+    if (!pathParam) {
       return { viewType: 'landing' };
     }
 
-    const pathParts = params.path.split('/').filter(Boolean);
+    const pathParts = pathParam.split('/').filter(Boolean);
     
     if (pathParts.length === 0) {
       return { viewType: 'landing' };

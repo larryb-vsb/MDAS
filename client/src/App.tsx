@@ -25,6 +25,7 @@ import Tddf1Page from "@/pages/Tddf1Page";
 import Tddf1MonthlyView from "@/pages/Tddf1MonthlyView";
 import MerchantViewPage from "@/pages/MerchantViewPage";
 import Tddf1MerchantDailyView from "@/pages/Tddf1MerchantDailyView";
+import History from "@/pages/History";
 
 import OrphanTerminalsPage from "@/pages/OrphanTerminalsPage";
 import OrphanTerminalViewPage from "@/pages/OrphanTerminalViewPage";
@@ -67,6 +68,8 @@ function Router() {
       <ProtectedRoute path="/tddf1-merchant/:merchantId/:date" component={Tddf1MerchantDailyView} />
       <ProtectedRoute path="/tddf1-merchant-daily-view/:merchantId" component={Tddf1MerchantDailyView} />
       <ProtectedRoute path="/merchant/:merchantId/:processingDate" component={MerchantViewPage} />
+      <ProtectedRoute path="/history/:path*" component={History} />
+      <ProtectedRoute path="/history" component={History} />
 
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/analytics" component={Analytics} />
