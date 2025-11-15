@@ -199,8 +199,9 @@ export class PreCacheService {
     await client.query(`SET LOCAL statement_timeout = '120s'`);
     
     // Get monthly totals with separate parameters for DATE and JSONB text fields
-    // Filter out deleted/archived files by joining with uploaded_files
+    // Filter out deleted files by joining with BOTH uploaded_files (old integer IDs) and uploader_uploads (new string IDs)
     const uploadedFilesTable = getTableName('uploaded_files');
+    const uploaderUploadsTable = getTableName('uploader_uploads');
     const totalsResult = await client.query(`
       SELECT 
         COUNT(DISTINCT t.upload_id) as total_files,
@@ -216,8 +217,12 @@ export class PreCacheService {
           ELSE 0 
         END), 0) as total_net_deposits
       FROM ${masterTableName} t
-      INNER JOIN ${uploadedFilesTable} u ON t.upload_id::integer = u.id
-      WHERE (u.deleted IS NULL OR u.deleted = false)
+      LEFT JOIN ${uploadedFilesTable} u1 ON t.upload_id ~ '^[0-9]+$' AND t.upload_id::integer = u1.id
+      LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
+      WHERE (
+          (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
+          OR (u2.id IS NOT NULL AND (u2.deleted_at IS NULL))
+        )
         AND (
           (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
            AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
@@ -237,7 +242,7 @@ export class PreCacheService {
     };
     
     // Get daily breakdown with separate parameters
-    // Filter out deleted/archived files by joining with uploaded_files
+    // Filter out deleted files by joining with BOTH uploaded_files (old integer IDs) and uploader_uploads (new string IDs)
     const dailyResult = await client.query(`
       SELECT 
         COALESCE(
@@ -252,8 +257,12 @@ export class PreCacheService {
         SUM(CASE WHEN t.record_type = 'BH' THEN 1 ELSE 0 END) as bh_records,
         SUM(CASE WHEN t.record_type = 'DT' THEN 1 ELSE 0 END) as dt_records
       FROM ${masterTableName} t
-      INNER JOIN ${uploadedFilesTable} u ON t.upload_id::integer = u.id
-      WHERE (u.deleted IS NULL OR u.deleted = false)
+      LEFT JOIN ${uploadedFilesTable} u1 ON t.upload_id ~ '^[0-9]+$' AND t.upload_id::integer = u1.id
+      LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
+      WHERE (
+          (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
+          OR (u2.id IS NOT NULL AND (u2.deleted_at IS NULL))
+        )
         AND (
           (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
            AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
