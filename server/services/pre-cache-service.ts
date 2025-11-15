@@ -217,7 +217,12 @@ export class PreCacheService {
           ELSE 0 
         END), 0) as total_net_deposits
       FROM ${masterTableName} t
-      LEFT JOIN ${uploadedFilesTable} u1 ON t.upload_id ~ '^[0-9]+$' AND t.upload_id::integer = u1.id
+      -- CASE guard prevents invalid integer casts on string upload IDs (e.g., "uploader_123_abc")
+      LEFT JOIN ${uploadedFilesTable} u1 ON 
+        CASE WHEN t.upload_id ~ '^[0-9]+$' 
+             THEN t.upload_id::integer = u1.id 
+             ELSE FALSE 
+        END
       LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
       WHERE (
           (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
@@ -257,7 +262,12 @@ export class PreCacheService {
         SUM(CASE WHEN t.record_type = 'BH' THEN 1 ELSE 0 END) as bh_records,
         SUM(CASE WHEN t.record_type = 'DT' THEN 1 ELSE 0 END) as dt_records
       FROM ${masterTableName} t
-      LEFT JOIN ${uploadedFilesTable} u1 ON t.upload_id ~ '^[0-9]+$' AND t.upload_id::integer = u1.id
+      -- CASE guard prevents invalid integer casts on string upload IDs (e.g., "uploader_123_abc")
+      LEFT JOIN ${uploadedFilesTable} u1 ON 
+        CASE WHEN t.upload_id ~ '^[0-9]+$' 
+             THEN t.upload_id::integer = u1.id 
+             ELSE FALSE 
+        END
       LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
       WHERE (
           (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
