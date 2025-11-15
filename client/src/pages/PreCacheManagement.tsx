@@ -29,7 +29,10 @@ import {
   Shield,
   Eye,
   Save,
-  RotateCcw
+  RotateCcw,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import { HeatMapCacheMonitor } from "@/components/cache/HeatMapCacheMonitor";
 import { HeatMapProcessingStats } from "@/components/cache/HeatMapProcessingStats";
@@ -884,6 +887,8 @@ function MonthlyCacheManagement() {
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>('month');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // Fetch list of all monthly caches
   const { data: monthsData, isLoading: monthsLoading, error: monthsError } = useQuery({
@@ -952,7 +957,25 @@ function MonthlyCacheManagement() {
   
   const formatMonthName = (year: number, month: number) => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${monthNames[month - 1]} ${year}`;
+    return `${year} ${monthNames[month - 1]}`;
+  };
+  
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+  
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 opacity-40" />;
+    }
+    return sortOrder === 'asc' ? 
+      <ChevronUp className="w-4 h-4 ml-1" /> : 
+      <ChevronDown className="w-4 h-4 ml-1" />;
   };
   
   const formatDate = (dateString: string) => {
@@ -964,12 +987,12 @@ function MonthlyCacheManagement() {
     setShowDetailDialog(true);
   };
   
-  // Merge rebuild status with monthly cache data
+  // Merge rebuild status with monthly cache data and apply sorting
   const months = useMemo(() => {
     const baseMonths = monthsData?.months || [];
     const rebuildJobs = rebuildStatusData?.jobs || {};
     
-    return baseMonths.map((month: any) => {
+    const enrichedMonths = baseMonths.map((month: any) => {
       const monthKey = `${month.year}-${month.month.toString().padStart(2, '0')}`;
       const rebuildJob = rebuildJobs[monthKey];
       
@@ -994,7 +1017,56 @@ function MonthlyCacheManagement() {
         errorMessage,
       };
     });
-  }, [monthsData, rebuildStatusData]);
+    
+    // Apply sorting
+    return enrichedMonths.sort((a: any, b: any) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortColumn) {
+        case 'month':
+          aValue = a.year * 100 + a.month;
+          bValue = b.year * 100 + b.month;
+          break;
+        case 'files':
+          aValue = a.totalFiles || 0;
+          bValue = b.totalFiles || 0;
+          break;
+        case 'totalRecords':
+          aValue = a.totalRecords || 0;
+          bValue = b.totalRecords || 0;
+          break;
+        case 'bhRecords':
+          aValue = a.bhRecords || 0;
+          bValue = b.bhRecords || 0;
+          break;
+        case 'dtRecords':
+          aValue = a.dtRecords || 0;
+          bValue = b.dtRecords || 0;
+          break;
+        case 'transactionAmount':
+          aValue = a.totalTransactionAmount || 0;
+          bValue = b.totalTransactionAmount || 0;
+          break;
+        case 'netDeposits':
+          aValue = a.totalNetDeposits || 0;
+          bValue = b.totalNetDeposits || 0;
+          break;
+        case 'buildTime':
+          aValue = a.buildTimeMs || 0;
+          bValue = b.buildTimeMs || 0;
+          break;
+        default:
+          aValue = a.year * 100 + a.month;
+          bValue = b.year * 100 + b.month;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  }, [monthsData, rebuildStatusData, sortColumn, sortOrder]);
   
   return (
     <Card>
@@ -1029,15 +1101,71 @@ function MonthlyCacheManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Month</TableHead>
+                  <TableHead>
+                    <button 
+                      onClick={() => handleSort('month')}
+                      className="flex items-center hover:text-foreground transition-colors"
+                    >
+                      Month {getSortIcon('month')}
+                    </button>
+                  </TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Files</TableHead>
-                  <TableHead className="text-right">Total Records</TableHead>
-                  <TableHead className="text-right">BH Records</TableHead>
-                  <TableHead className="text-right">DT Records</TableHead>
-                  <TableHead className="text-right">Transaction Amount</TableHead>
-                  <TableHead className="text-right">Net Deposits</TableHead>
-                  <TableHead className="text-right">Build Time</TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('files')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      Files {getSortIcon('files')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('totalRecords')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      Total Records {getSortIcon('totalRecords')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('bhRecords')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      BH Records {getSortIcon('bhRecords')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('dtRecords')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      DT Records {getSortIcon('dtRecords')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('transactionAmount')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      Transaction Amount {getSortIcon('transactionAmount')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('netDeposits')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      Net Deposits {getSortIcon('netDeposits')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button 
+                      onClick={() => handleSort('buildTime')}
+                      className="flex items-center ml-auto hover:text-foreground transition-colors"
+                    >
+                      Build Time {getSortIcon('buildTime')}
+                    </button>
+                  </TableHead>
                   <TableHead className="text-right">Last Refresh</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
