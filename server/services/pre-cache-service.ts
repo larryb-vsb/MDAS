@@ -217,8 +217,7 @@ export class PreCacheService {
         END), 0) as total_net_deposits
       FROM ${masterTableName} t
       INNER JOIN ${uploadedFilesTable} u ON t.upload_id::integer = u.id
-      WHERE u.deleted_at IS NULL
-        AND (u.is_archived IS NULL OR u.is_archived = false)
+      WHERE (u.deleted IS NULL OR u.deleted = false)
         AND (
           (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
            AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
@@ -254,8 +253,7 @@ export class PreCacheService {
         SUM(CASE WHEN t.record_type = 'DT' THEN 1 ELSE 0 END) as dt_records
       FROM ${masterTableName} t
       INNER JOIN ${uploadedFilesTable} u ON t.upload_id::integer = u.id
-      WHERE u.deleted_at IS NULL
-        AND (u.is_archived IS NULL OR u.is_archived = false)
+      WHERE (u.deleted IS NULL OR u.deleted = false)
         AND (
           (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
            AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
