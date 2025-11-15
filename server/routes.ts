@@ -2695,6 +2695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mcc: newMccMerchants
         },
         monthlyProcessingAmount: {
+          total: `$${(achTotalAmount + tddfAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           ach: `$${achTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           mcc: `$${tddfAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
@@ -2709,14 +2710,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mcc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
         },
         dailyProcessingAmount: {
+          total: `$${((achTotalAmount + tddfAmount) / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           mcc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         todayTotalTransaction: {
+          total: `$${((achTotalAmount + tddfAmount) / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           mcc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         totalRecords: {
+          total: (achTransactions + tddfTransactions).toLocaleString(),
           ach: achTransactions.toLocaleString(),
           mcc: tddfTransactions.toLocaleString()
         },
