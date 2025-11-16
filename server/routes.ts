@@ -2867,7 +2867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build fresh cache if none exists, expired, or data changed
       console.log('[DASHBOARD-CACHE] Cache miss or expired, building fresh data...');
       const buildStartTime = Date.now();
-      const metrics = await buildDashboardCache();
+      const metrics = await buildDashboardCache(); // This function already saves the cache internally
       
       const buildTime = Date.now() - buildStartTime;
       const currentTime = new Date().toISOString();
@@ -2907,7 +2907,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[DASHBOARD-REFRESH] Manual cache refresh requested');
       const startTime = Date.now();
       
-      const metrics = await buildDashboardCache();
+      const metrics = await buildDashboardCache(); // This function already saves the cache internally
       
       const buildTime = Date.now() - startTime;
       const currentTime = new Date().toISOString();
@@ -2919,7 +2919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastFinished: currentTime,
         duration: buildTime,
         message: 'Dashboard cache refreshed successfully',
-        recordCount: metrics.merchants.total + metrics.merchants.mmc,
+        recordCount: (metrics.merchants?.total || 0) + (metrics.totalRecords?.total ? parseInt(metrics.totalRecords.total.replace(/,/g, '')) : 0),
         refreshStatus: 'manual_refresh',
         ageMinutes: 0
       });

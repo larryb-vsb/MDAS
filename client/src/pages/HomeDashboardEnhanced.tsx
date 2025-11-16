@@ -53,6 +53,7 @@ interface DashboardMetrics {
     mmc: number;
   };
   monthlyProcessingAmount: {
+    total: string;
     ach: string;
     mmc: string;
   };
@@ -67,14 +68,17 @@ interface DashboardMetrics {
     mmc: number;
   };
   dailyProcessingAmount: {
+    total: string;
     ach: string;
     mmc: string;
   };
   todayTotalTransaction: {
+    total: string;
     ach: string;
     mmc: string;
   };
   totalRecords: {
+    total: string;
     ach: string;
     mmc: string;
   };
@@ -611,12 +615,12 @@ export default function HomeDashboard() {
   const fallbackMetrics: DashboardMetrics = {
     merchants: { total: 0, ach: 0, mmc: 0 },
     newMerchants30Day: { total: 0, ach: 0, mmc: 0 },
-    monthlyProcessingAmount: { ach: '$0.00', mmc: '$0.00' },
+    monthlyProcessingAmount: { total: '$0.00', ach: '$0.00', mmc: '$0.00' },
     todayTransactions: { total: 0, ach: 0, mmc: 0 },
     avgTransValue: { total: 0, ach: 0, mmc: 0 },
-    dailyProcessingAmount: { ach: '$0.00', mmc: '$0.00' },
-    todayTotalTransaction: { ach: '$0.00', mmc: '$0.00' },
-    totalRecords: { ach: '0', mmc: '0' },
+    dailyProcessingAmount: { total: '$0.00', ach: '$0.00', mmc: '$0.00' },
+    todayTotalTransaction: { total: '$0.00', ach: '$0.00', mmc: '$0.00' },
+    totalRecords: { total: '0', ach: '0', mmc: '0' },
     totalTerminals: { total: 0, ach: 0, mmc: 0 }
   };
 
@@ -766,8 +770,9 @@ export default function HomeDashboard() {
               {/* Monthly Processing Amount - Links to Transactions */}
               <ClickableMetricCard
                 title="Monthly Processing Amount"
+                total={metrics?.monthlyProcessingAmount?.total ?? '$0.00'}
                 ach={metrics?.monthlyProcessingAmount?.ach ?? '$0.00'}
-                mmc={metrics?.monthlyProcessingAmount?.mcc ?? '$0.00'}
+                mmc={metrics?.monthlyProcessingAmount?.mmc ?? '$0.00'}
                 icon={<DollarSign className="h-4 w-4" />}
                 achTooltip="ACH transaction processing"
                 mmcTooltip="MCC transaction processing"
@@ -808,8 +813,9 @@ export default function HomeDashboard() {
             {/* Daily Processing Amount */}
             <ClickableMetricCard
               title="Daily Processing Amount"
+              total={metrics?.dailyProcessingAmount?.total ?? '$0.00'}
               ach={metrics?.dailyProcessingAmount?.ach ?? '$0.00'}
-              mmc={metrics?.dailyProcessingAmount?.mcc ?? '$0.00'}
+              mmc={metrics?.dailyProcessingAmount?.mmc ?? '$0.00'}
               icon={<DollarSign className="h-4 w-4" />}
               achTooltip="ACH daily processing amount"
               mmcTooltip="MCC daily processing amount"
@@ -819,8 +825,9 @@ export default function HomeDashboard() {
             {/* Today's Total Transaction */}
             <ClickableMetricCard
               title="Todays Total Transaction"
+              total={metrics?.todayTotalTransaction?.total ?? '$0.00'}
               ach={metrics?.todayTotalTransaction?.ach ?? '$0.00'}
-              mmc={metrics?.todayTotalTransaction?.mcc ?? '$0.00'}
+              mmc={metrics?.todayTotalTransaction?.mmc ?? '$0.00'}
               icon={<CreditCard className="h-4 w-4" />}
               achTooltip="ACH transactions total today"
               mmcTooltip="MCC transactions total today"
@@ -830,8 +837,9 @@ export default function HomeDashboard() {
             {/* Total Records */}
             <ClickableMetricCard
               title="Total Records"
+              total={metrics?.totalRecords?.total ?? '0'}
               ach={metrics?.totalRecords?.ach ?? '0'}
-              mmc={metrics?.totalRecords?.mcc ?? '0'}
+              mmc={metrics?.totalRecords?.mmc ?? '0'}
               icon={<Building2 className="h-4 w-4" />}
               achTooltip="Total ACH records"
               mmcTooltip="Total MCC records"
