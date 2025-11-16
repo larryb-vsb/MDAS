@@ -2583,6 +2583,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard cache TTL
   const DASHBOARD_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
+  // Helper function to get TDDF totals from monthly cache (fast, no timeout)
+  async function getTddfTotalsFromMonthlyCache() {
+    try {
+      const query = `
+        SELECT 
+          COALESCE(SUM(total_transaction_amount), 0) as total_amount,
+          COALESCE(SUM(total_net_deposits), 0) as total_net_deposits,
+          COALESCE(SUM(total_records), 0) as total_records,
+          COALESCE(SUM(dt_records), 0) as dt_records
+        FROM ${getTableName('tddf1_monthly_cache')}
+      `;
+      const result = await pool.query(query);
+      const row = result.rows[0];
+      
+      return {
+        totalTransactions: parseInt(row.dt_records) || 0,
+        totalAmount: parseFloat(row.total_amount) || 0,
+        totalRecords: parseInt(row.total_records) || 0
+      };
+    } catch (error) {
+      console.error('[DASHBOARD-BUILD] ⚠️ Monthly cache query failed, using fallback values:', error.message);
+      // Fallback to reasonable defaults if monthly cache is empty
+      return {
+        totalTransactions: 0,
+        totalAmount: 0,
+        totalRecords: 0
+      };
+    }
+  }
+
   // Build dashboard cache function
   async function buildDashboardCache() {
     const startTime = Date.now();
@@ -2652,18 +2682,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mmcTerminals = totalTerminals; // All terminals are MCC
       const achTerminals = 0; // No ACH terminals
       
-      // TDDF transaction data (optimized with timeout and fallbacks)
-      const tddfQuery = `
-        SELECT 
-          COUNT(*) as total_transactions,
-          COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS NUMERIC)), 0) as total_amount
-        FROM ${getTableName('tddf_jsonb')} 
-        WHERE record_type = 'DT'
-        LIMIT 100000
-      `;
-      const tddfResult = await pool.query(tddfQuery);
-      const tddfTransactions = parseInt(tddfResult.rows[0]?.total_transactions || '82271');
-      const tddfAmount = parseFloat(tddfResult.rows[0]?.total_amount || '7142133.99');
+      // TDDF transaction data (using fast monthly cache instead of slow tddf_jsonb query)
+      console.log('[DASHBOARD-BUILD] Fetching TDDF totals from monthly cache...');
+      const tddfData = await getTddfTotalsFromMonthlyCache();
+      const tddfTransactions = tddfData.totalTransactions;
+      const tddfAmount = tddfData.totalAmount;
+      console.log(`[DASHBOARD-BUILD] TDDF from cache - Transactions: ${tddfTransactions}, Amount: $${tddfAmount.toFixed(2)}`);
       
       // ACH transactions data (using api_achtransactions table)
       const achTransactionsQuery = `SELECT COUNT(*) as total, SUM(CAST(amount AS NUMERIC)) as total_amount FROM ${getTableName('api_achtransactions')}`;
