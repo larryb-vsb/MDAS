@@ -1677,13 +1677,15 @@ export const masterObjectKeys = pgTable(getTableName("master_object_keys"), {
   lineCount: integer("line_count"), // Number of lines in the file
   status: text("status").notNull().default("active"), // active, archived, deleted, failed
   uploadId: text("upload_id").references(() => uploaderUploads.id, { onDelete: "set null" }), // Optional reference to upload
+  markForPurge: boolean("mark_for_purge").default(false).notNull(), // Flag for cleanup/purge operations
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
   objectKeyIdx: index("master_object_keys_object_key_idx").on(table.objectKey),
   statusIdx: index("master_object_keys_status_idx").on(table.status),
   uploadIdIdx: index("master_object_keys_upload_id_idx").on(table.uploadId),
-  createdAtIdx: index("master_object_keys_created_at_idx").on(table.createdAt)
+  createdAtIdx: index("master_object_keys_created_at_idx").on(table.createdAt),
+  markForPurgeIdx: index("master_object_keys_mark_for_purge_idx").on(table.markForPurge)
 }));
 
 // Zod schemas for uploader tables

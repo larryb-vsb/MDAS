@@ -1206,7 +1206,7 @@ export function registerTddfCacheRoutes(app: Express) {
       };
       
       // Get daily breakdown - aggregate by date
-      // Filter out deleted files by joining with BOTH uploaded_files (old integer IDs) and uploader_uploads (new string IDs)
+      // Filter out deleted files by joining with uploader_uploads (modern upload tracking system)
       // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
       // Use $1,$2 for DATE columns and $3,$4 for JSONB text fields to avoid type conflicts
       const dailyBreakdown = await client.query(`
@@ -1220,17 +1220,9 @@ export function registerTddfCacheRoutes(app: Express) {
           COALESCE(SUM(CASE WHEN t.record_type = 'DT' THEN (t.extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
           COALESCE(SUM(CASE WHEN t.record_type = 'BH' THEN (t.extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
         FROM ${masterTableName} t
-        -- CASE guard prevents invalid integer casts on string upload IDs (e.g., "uploader_123_abc")
-        LEFT JOIN ${uploadedFilesTable} u1 ON 
-          CASE WHEN t.upload_id ~ '^[0-9]+$' 
-               THEN t.upload_id::integer = u1.id 
-               ELSE FALSE 
-          END
         LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
-        WHERE (
-            (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
-            OR (u2.id IS NOT NULL AND (u2.deleted_at IS NULL))
-          )
+        WHERE u2.id IS NOT NULL 
+          AND u2.deleted_at IS NULL
           AND (
             (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
              AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
