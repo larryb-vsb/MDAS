@@ -140,9 +140,11 @@ export class OptimizedTddfEncoder {
     await this.createOptimizedTddfTable(db, tableName);
     await this.batchInsertRecords(db, tableName, records);
     
-    // REMOVED: TDDF processing should only create transactions, not update merchants
-    // Merchants are updated via CSV (Type 3) or TSYSO DACQ_MER_DTL (Type 1) files only
-    // await this.updateMerchantAnalytics(db, records, filename);
+    // Update merchant analytics in aggregates table
+    await this.updateMerchantAnalytics(db, records, filename);
+    
+    // Update main merchants table with metadata (Client MID, Last Batch, Last Transaction)
+    await this.updateMainMerchantsMetadata(db, records, filename);
     
     return {
       processedRecords: records.length,
@@ -245,8 +247,8 @@ export class OptimizedTddfEncoder {
     }
   }
   
-  private parseTransactionDate(dateStr: string): Date | null {
-    if (!dateStr || dateStr.length !== 8) return null;
+  private parseTransactionDate(dateStr: string): Date | undefined {
+    if (!dateStr || dateStr.length !== 8) return undefined;
     
     try {
       const month = dateStr.substring(0, 2);
@@ -254,7 +256,7 @@ export class OptimizedTddfEncoder {
       const year = dateStr.substring(4, 8);
       return new Date(`${year}-${month}-${day}`);
     } catch {
-      return null;
+      return undefined;
     }
   }
   
@@ -337,6 +339,111 @@ export class OptimizedTddfEncoder {
   }
 
   /**
+   * Update main merchants table with metadata fields (Client MID, Last Batch, Last Transaction)
+   * Uses extracted JSONB fields and proper date tracking with conditional updates to prevent races
+   */
+  private async updateMainMerchantsMetadata(db: any, records: TddfRecord[], filename: string): Promise<void> {
+    try {
+      const environment = process.env.NODE_ENV || 'development';
+      const mainMerchantsTable = environment === 'development' ? 'dev_merchants' : 'merchants';
+      
+      console.log(`[TDDF-METADATA] Updating main merchants table metadata from ${records.length} records`);
+      
+      // Track metadata per merchantAccountNumber (the TDDF identifier)
+      const merchantMetadata = new Map<string, {
+        merchantAccountNumber: string;
+        lastBatchDate?: Date;
+        lastTransactionDate?: Date;
+        lastTransactionAmount?: number;
+      }>();
+      
+      for (const record of records) {
+        // Extract merchantAccountNumber from JSONB field_data
+        const merchantAcctNum = record.field_data?.merchantAccountNumber;
+        if (!merchantAcctNum) continue;
+        
+        if (!merchantMetadata.has(merchantAcctNum)) {
+          merchantMetadata.set(merchantAcctNum, { merchantAccountNumber: merchantAcctNum });
+        }
+        
+        const metadata = merchantMetadata.get(merchantAcctNum)!;
+        
+        // Track latest batch date from BH records using actual TDDF processing date
+        if (record.record_type === 'BH') {
+          const batchDate = record.field_data?.batchDate || record.transaction_date;
+          if (batchDate && (!metadata.lastBatchDate || batchDate > metadata.lastBatchDate)) {
+            metadata.lastBatchDate = batchDate;
+          }
+        }
+        
+        // Track latest transaction from DT records using actual transaction date
+        if (record.record_type === 'DT' && record.transaction_date) {
+          if (!metadata.lastTransactionDate || record.transaction_date > metadata.lastTransactionDate) {
+            metadata.lastTransactionDate = record.transaction_date;
+            metadata.lastTransactionAmount = record.transaction_amount;
+          }
+        }
+      }
+      
+      // Update main merchants table in a transaction to ensure atomicity per file
+      for (const [merchantAcctNum, data] of Array.from(merchantMetadata.entries())) {
+        try {
+          // Build conditional UPDATE using GREATEST/LEAST to prevent race conditions
+          // Only update if new values are more recent than existing ones
+          const updates: string[] = [];
+          const params: any[] = [merchantAcctNum];
+          let paramIndex = 2;
+          
+          // Always set client_mid if merchant exists and matches
+          updates.push(`client_mid = COALESCE(client_mid, $${paramIndex++})`);
+          params.push(merchantAcctNum);
+          
+          if (data.lastBatchDate) {
+            updates.push(`last_batch_date = GREATEST(COALESCE(last_batch_date, '1970-01-01'::date), $${paramIndex++})`);
+            params.push(data.lastBatchDate);
+            updates.push(`last_batch_filename = CASE WHEN $${paramIndex} > COALESCE(last_batch_date, '1970-01-01'::date) THEN $${paramIndex+1} ELSE last_batch_filename END`);
+            params.push(data.lastBatchDate);
+            params.push(filename);
+            paramIndex += 2;
+          }
+          
+          if (data.lastTransactionDate) {
+            updates.push(`last_transaction_date = GREATEST(COALESCE(last_transaction_date, '1970-01-01'::date), $${paramIndex++})`);
+            params.push(data.lastTransactionDate);
+          }
+          
+          if (data.lastTransactionAmount !== undefined) {
+            updates.push(`last_transaction_amount = CASE WHEN $${paramIndex} >= COALESCE(last_transaction_date, '1970-01-01'::date) THEN $${paramIndex+1} ELSE last_transaction_amount END`);
+            params.push(data.lastTransactionDate);
+            params.push(data.lastTransactionAmount);
+            paramIndex += 2;
+          }
+          
+          updates.push(`edit_date = NOW()`);
+          
+          // Update WHERE id matches merchantAccountNumber
+          const updateSQL = `
+            UPDATE ${mainMerchantsTable}
+            SET ${updates.join(', ')}
+            WHERE id = $1
+          `;
+          
+          await db.query(updateSQL, params);
+          
+        } catch (error) {
+          console.error(`[TDDF-METADATA] Error updating merchant ${merchantAcctNum}:`, error);
+        }
+      }
+      
+      console.log(`[TDDF-METADATA] Updated ${merchantMetadata.size} merchants in main table`);
+      
+    } catch (error) {
+      console.error('[TDDF-METADATA] Error updating main merchants metadata:', error);
+      // Don't throw - metadata tracking is supplementary
+    }
+  }
+
+  /**
    * Update merchant volume analytics from processed TDDF records
    */
   private async updateMerchantAnalytics(db: any, records: TddfRecord[], filename: string): Promise<void> {
@@ -355,8 +462,8 @@ export class OptimizedTddfEncoder {
         totalAmount: number;
         totalNetDeposits: number;
         uniqueTerminals: Set<string>;
-        firstSeenDate: Date | null;
-        lastSeenDate: Date | null;
+        firstSeenDate: Date | undefined;
+        lastSeenDate: Date | undefined;
         recordCount: number;
       }>();
       
@@ -435,7 +542,7 @@ export class OptimizedTddfEncoder {
       }
       
       // Update or insert merchant records using environment-aware queries
-      for (const [merchantId, data] of merchantData) {
+      for (const [merchantId, data] of Array.from(merchantData.entries())) {
         try {
           const checkExistsQuery = `SELECT merchant_id FROM ${merchantsTableName} WHERE merchant_id = $1`;
           const existingResult = await db.query(checkExistsQuery, [data.merchantId]);

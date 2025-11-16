@@ -2932,6 +2932,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Refresh merchant metadata from historical TDDF data
+  app.post("/api/admin/refresh-merchant-metadata", isAuthenticated, async (req, res) => {
+    try {
+      // SAFETY CHECK: Only allow in development
+      const currentEnv = process.env.NODE_ENV || 'production';
+      if (currentEnv !== 'development') {
+        return res.status(403).json({ 
+          error: 'This operation is only allowed in DEVELOPMENT environment',
+          currentEnvironment: currentEnv
+        });
+      }
+      
+      console.log('[ADMIN] Merchant metadata refresh requested');
+      const startTime = Date.now();
+      
+      // Import and run the migration script
+      const { populateMerchantMetadata } = await import('./scripts/populate-merchant-metadata');
+      await populateMerchantMetadata();
+      
+      const duration = Date.now() - startTime;
+      
+      res.json({
+        success: true,
+        message: 'Merchant metadata refresh completed successfully',
+        duration,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('[ADMIN] Error refreshing merchant metadata:', error);
+      res.status(500).json({ 
+        error: 'Failed to refresh merchant metadata',
+        details: error.message 
+      });
+    }
+  });
+
   // Ultra-lightweight cache status endpoint
   app.get("/api/dashboard/cache-status-only", isAuthenticated, async (req, res) => {
     try {
