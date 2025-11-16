@@ -2695,16 +2695,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const achTransactions = parseInt(achTransactionsResult.rows[0]?.total || '0');
       const achTotalAmount = parseFloat(achTransactionsResult.rows[0]?.total_amount || '0');
       
-      // Today's transactions (simplified with fallback)
-      const todayTddfQuery = `
-        SELECT COUNT(*) as today_count
-        FROM ${getTableName('tddf_jsonb')} 
-        WHERE record_type = 'DT' 
-        AND CAST(extracted_fields->>'transactionDate' AS DATE) = CURRENT_DATE
-        LIMIT 1000
+      // Today's transactions from monthly cache daily breakdown (fast query)
+      // Use database CURRENT_DATE to avoid timezone issues between Node and PostgreSQL
+      const todayCountQuery = `
+        SELECT 
+          COALESCE((daily_breakdown_json->to_char(CURRENT_DATE, 'FMDD')->>'DT')::int, 0) as today_dt_count
+        FROM ${getTableName('tddf1_monthly_cache')}
+        WHERE year = EXTRACT(YEAR FROM CURRENT_DATE)::int
+        AND month = EXTRACT(MONTH FROM CURRENT_DATE)::int
+        LIMIT 1
       `;
-      const todayTddfResult = await pool.query(todayTddfQuery);
-      const todayTddfCount = parseInt(todayTddfResult.rows[0]?.today_count || '0');
+      const todayCountResult = await pool.query(todayCountQuery);
+      const todayTddfCount = parseInt(todayCountResult.rows[0]?.today_dt_count || '0');
       
       // Build metrics object
       const metrics = {
