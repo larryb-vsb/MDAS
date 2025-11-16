@@ -32,10 +32,36 @@ import { z } from "zod";
 // Environment-specific table name helper
 // EXPORTED: Use this helper for ALL raw SQL queries to ensure environment-aware table naming
 export function getTableName(baseName: string): string {
-  // FIXED: Use TABLE_PREFIX env var with deterministic fallback for DrizzleKit consistency
-  const TABLE_PREFIX = typeof process !== 'undefined' ? process.env.TABLE_PREFIX : 'dev_';
-  const prefix = TABLE_PREFIX || 'dev_'; // Default to dev_ to match existing database
-  return `${prefix}${baseName}`;
+  // Priority order:
+  // 1. Explicit TABLE_PREFIX configuration (highest priority - allows override anywhere)
+  // 2. Replit production deployment detection (REPLIT_DEPLOYMENT)
+  // 3. Standard production detection (NODE_ENV at runtime)
+  // 4. Safe development default (dev_ prefix)
+  
+  if (typeof process !== 'undefined') {
+    const TABLE_PREFIX = process.env.TABLE_PREFIX;
+    
+    // PRIORITY 1: Explicit prefix configuration always takes precedence
+    if (TABLE_PREFIX !== undefined) {
+      return `${TABLE_PREFIX}${baseName}`;
+    }
+    
+    // PRIORITY 2: Replit production deployment - use no prefix
+    const replitDeployment = process.env.REPLIT_DEPLOYMENT;
+    const isReplitProduction = replitDeployment === 'true' || replitDeployment === '1';
+    if (isReplitProduction) {
+      return baseName;
+    }
+    
+    // PRIORITY 3: Standard production environment (NODE_ENV at runtime)
+    // Note: This is runtime NODE_ENV, not build-time. Safe for production detection.
+    if (process.env.NODE_ENV === 'production') {
+      return baseName;
+    }
+  }
+  
+  // PRIORITY 4: Safe default for development
+  return `dev_${baseName}`;
 }
 
 // Alias for convenience in server code
