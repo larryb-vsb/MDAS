@@ -1028,7 +1028,6 @@ export function registerTddfCacheRoutes(app: Express) {
       
       const masterTableName = getTableName('tddf_jsonb');
       const uploaderTableName = getTableName('uploader_uploads');
-      const uploadedFilesTable = getTableName('uploaded_files');
       
       const [year, monthNum] = month.split('-');
       const startDate = `${month}-01`;
@@ -1045,16 +1044,9 @@ export function registerTddfCacheRoutes(app: Express) {
           t.extracted_fields->>'merchantAccountNumber' as merchant_account_number,
           t.extracted_fields->>'terminalId' as terminal_id
         FROM ${masterTableName} t
-        LEFT JOIN ${uploadedFilesTable} u1 ON 
-          CASE WHEN t.upload_id ~ '^[0-9]+$' 
-               THEN t.upload_id::integer = u1.id 
-               ELSE FALSE 
-          END
         LEFT JOIN ${uploaderTableName} u2 ON t.upload_id = u2.id
-        WHERE (
-            (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
-            OR (u2.id IS NOT NULL AND (u2.deleted_at IS NULL))
-          )
+        WHERE u2.id IS NOT NULL 
+          AND u2.deleted_at IS NULL
           AND t.tddf_processing_date >= $1 
           AND t.tddf_processing_date <= $2
           AND (
