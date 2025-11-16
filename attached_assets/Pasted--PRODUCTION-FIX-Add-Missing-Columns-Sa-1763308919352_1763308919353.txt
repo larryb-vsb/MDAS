@@ -1,0 +1,76 @@
+-- =====================================================
+-- PRODUCTION FIX: Add Missing Columns (Safe Multi-Step)
+-- This avoids table locks by adding nullable first
+-- =====================================================
+
+BEGIN;
+
+-- =====================================================
+-- Step 1: Add last_batch_filename (nullable)
+-- =====================================================
+
+ALTER TABLE merchants 
+ADD COLUMN IF NOT EXISTS last_batch_filename TEXT;
+
+COMMENT ON COLUMN merchants.last_batch_filename IS 'Most recent TDDF filename processed for this merchant';
+
+-- =====================================================
+-- Step 2: Add mark_for_purge (nullable)
+-- =====================================================
+
+ALTER TABLE master_object_keys 
+ADD COLUMN IF NOT EXISTS mark_for_purge BOOLEAN;
+
+COMMENT ON COLUMN master_object_keys.mark_for_purge IS 'Flag for cleanup/purge operations';
+
+-- =====================================================
+-- Step 3: Backfill mark_for_purge with default value
+-- =====================================================
+
+UPDATE master_object_keys 
+SET mark_for_purge = false 
+WHERE mark_for_purge IS NULL;
+
+-- =====================================================
+-- Step 4: Add default and NOT NULL constraint
+-- =====================================================
+
+ALTER TABLE master_object_keys 
+ALTER COLUMN mark_for_purge SET DEFAULT false;
+
+ALTER TABLE master_object_keys 
+ALTER COLUMN mark_for_purge SET NOT NULL;
+
+-- =====================================================
+-- Step 5: Create performance indexes
+-- =====================================================
+
+CREATE INDEX IF NOT EXISTS merchants_last_batch_date_idx 
+ON merchants(last_batch_date);
+
+CREATE INDEX IF NOT EXISTS master_object_keys_mark_for_purge_idx 
+ON master_object_keys(mark_for_purge);
+
+COMMIT;
+
+-- =====================================================
+-- Verification Query
+-- =====================================================
+
+SELECT 
+    'merchants' as table_name,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'merchants' 
+  AND column_name = 'last_batch_filename'
+UNION ALL
+SELECT 
+    'master_object_keys' as table_name,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'master_object_keys' 
+  AND column_name = 'mark_for_purge';
