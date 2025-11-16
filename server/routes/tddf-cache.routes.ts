@@ -1015,14 +1015,97 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Monthly Totals - Query master table directly
+  // TDDF1 Filter Options - Get unique Group, Association, Merchant, Terminal values for filtering
+  app.get('/api/tddf1/filter-options', isAuthenticated, async (req, res) => {
+    console.log('🎯 Getting TDDF1 filter options');
+    
+    try {
+      const { month } = req.query; // Expected format: 'YYYY-MM'
+      
+      if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
+      }
+      
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderTableName = getTableName('uploader_uploads');
+      const uploadedFilesTable = getTableName('uploaded_files');
+      
+      const [year, monthNum] = month.split('-');
+      const startDate = `${month}-01`;
+      const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+      const endDate = `${year}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+      
+      console.log(`🎯 [FILTER-OPTIONS] Getting unique filter values for ${month}`);
+      
+      // Query unique values from extracted_fields JSONB for the specified month
+      const result = await pool.query(`
+        SELECT DISTINCT
+          t.extracted_fields->>'groupNumber' as group_number,
+          t.extracted_fields->>'associationNumber1' as association_number,
+          t.extracted_fields->>'merchantAccountNumber' as merchant_account_number,
+          t.extracted_fields->>'terminalId' as terminal_id
+        FROM ${masterTableName} t
+        LEFT JOIN ${uploadedFilesTable} u1 ON 
+          CASE WHEN t.upload_id ~ '^[0-9]+$' 
+               THEN t.upload_id::integer = u1.id 
+               ELSE FALSE 
+          END
+        LEFT JOIN ${uploaderTableName} u2 ON t.upload_id = u2.id
+        WHERE (
+            (u1.id IS NOT NULL AND (u1.deleted IS NULL OR u1.deleted = false))
+            OR (u2.id IS NOT NULL AND (u2.deleted_at IS NULL))
+          )
+          AND t.tddf_processing_date >= $1 
+          AND t.tddf_processing_date <= $2
+          AND (
+            t.extracted_fields->>'groupNumber' IS NOT NULL
+            OR t.extracted_fields->>'associationNumber1' IS NOT NULL
+            OR t.extracted_fields->>'merchantAccountNumber' IS NOT NULL
+            OR t.extracted_fields->>'terminalId' IS NOT NULL
+          )
+        ORDER BY 
+          t.extracted_fields->>'groupNumber' NULLS LAST,
+          t.extracted_fields->>'associationNumber1' NULLS LAST,
+          t.extracted_fields->>'merchantAccountNumber' NULLS LAST,
+          t.extracted_fields->>'terminalId' NULLS LAST
+      `, [startDate, endDate]);
+      
+      // Organize into unique arrays
+      const groups = new Set<string>();
+      const associations = new Set<string>();
+      const merchants = new Set<string>();
+      const terminals = new Set<string>();
+      
+      result.rows.forEach(row => {
+        if (row.group_number) groups.add(row.group_number);
+        if (row.association_number) associations.add(row.association_number);
+        if (row.merchant_account_number) merchants.add(row.merchant_account_number);
+        if (row.terminal_id) terminals.add(row.terminal_id);
+      });
+      
+      console.log(`🎯 [FILTER-OPTIONS] Found ${groups.size} groups, ${associations.size} associations, ${merchants.size} merchants, ${terminals.size} terminals`);
+      
+      res.json({
+        groups: Array.from(groups).sort(),
+        associations: Array.from(associations).sort(),
+        merchants: Array.from(merchants).sort(),
+        terminals: Array.from(terminals).sort()
+      });
+      
+    } catch (error: any) {
+      console.error("Error getting filter options:", error);
+      res.status(500).json({ error: "Failed to get filter options", details: error.message });
+    }
+  });
+
+  // TDDF1 Monthly Totals - Query master table directly with optional filters
   app.get('/api/tddf1/monthly-totals', isAuthenticated, async (req, res) => {
     console.log('📅 Getting TDDF1 monthly totals');
     
     const client = await pool.connect();
     
     try {
-      const { month } = req.query; // Expected format: 'YYYY-MM'
+      const { month, group, association, merchant, terminal } = req.query; // Expected format: 'YYYY-MM'
       
       if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
@@ -1039,10 +1122,29 @@ export function registerTddfCacheRoutes(app: Express) {
       const endDate = `${year}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
+      if (group || association || merchant || terminal) {
+        console.log(`🎯 [MONTHLY] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
+      }
       
       // Start transaction and set query timeout to 2 minutes
       await client.query('BEGIN');
       await client.query(`SET LOCAL statement_timeout = '120s'`);
+      
+      // Build filter conditions for extracted_fields
+      const filterConditions: string[] = [];
+      if (group && typeof group === 'string') {
+        filterConditions.push(`t.extracted_fields->>'groupNumber' = '${group}'`);
+      }
+      if (association && typeof association === 'string') {
+        filterConditions.push(`t.extracted_fields->>'associationNumber1' = '${association}'`);
+      }
+      if (merchant && typeof merchant === 'string') {
+        filterConditions.push(`t.extracted_fields->>'merchantAccountNumber' = '${merchant}'`);
+      }
+      if (terminal && typeof terminal === 'string') {
+        filterConditions.push(`t.extracted_fields->>'terminalId' = '${terminal}'`);
+      }
+      const filterClause = filterConditions.length > 0 ? `AND ${filterConditions.join(' AND ')}` : '';
       
       // Get aggregated totals for the entire month from master table
       // Filter out deleted files by joining with BOTH uploaded_files (old integer IDs) and uploader_uploads (new string IDs)
@@ -1104,6 +1206,7 @@ export function registerTddfCacheRoutes(app: Express) {
                 AND t2.extracted_fields->>'batchDate' <= $4
             ))
           )
+          ${filterClause}
       `, [startDate, endDate, startDate, endDate]);
       
       const summary = monthlyTotals.rows[0];
@@ -1151,6 +1254,7 @@ export function registerTddfCacheRoutes(app: Express) {
             (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
              AND t.record_type = 'DT' AND t.extracted_fields->>'transactionDate' >= $3 AND t.extracted_fields->>'transactionDate' <= $4)
           )
+          ${filterClause}
         GROUP BY COALESCE(
           CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
                WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'

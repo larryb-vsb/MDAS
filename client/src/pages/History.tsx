@@ -14,6 +14,8 @@ import clsx from 'clsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tddf1MerchantVolumeTab } from '@/components/Tddf1MerchantVolumeTab';
+import { FilterBar } from '@/components/history/FilterBar';
+import { MonthPicker } from '@/components/history/MonthPicker';
 
 interface MonthlyTotals {
   month: string;
@@ -97,6 +99,14 @@ export default function History() {
   
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Filter state synced with URL
+  const [filters, setFilters] = useState<{
+    group?: string;
+    association?: string;
+    merchant?: string;
+    terminal?: string;
+  }>({});
 
   // Initialize theme from user preference
   useEffect(() => {
@@ -104,6 +114,24 @@ export default function History() {
       setIsDarkMode(user.themePreference === 'dark');
     }
   }, [user]);
+  
+  // Parse URL query params for filters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const newFilters: typeof filters = {};
+    
+    const group = searchParams.get('group');
+    const association = searchParams.get('association');
+    const merchant = searchParams.get('merchant');
+    const terminal = searchParams.get('terminal');
+    
+    if (group) newFilters.group = group;
+    if (association) newFilters.association = association;
+    if (merchant) newFilters.merchant = merchant;
+    if (terminal) newFilters.terminal = terminal;
+    
+    setFilters(newFilters);
+  }, [location]);
 
   // Parse the URL path to determine what to display
   const parsedRoute: ParsedRoute = useMemo(() => {
@@ -233,10 +261,16 @@ export default function History() {
 
   // Fetch monthly data if we're in monthly view
   const { data: monthlyData, isLoading: monthlyLoading, error: monthlyError, refetch: refetchMonthly } = useQuery({
-    queryKey: ['history-monthly', parsedRoute.year, parsedRoute.month],
+    queryKey: ['history-monthly', parsedRoute.year, parsedRoute.month, filters],
     queryFn: async (): Promise<MonthlyTotals> => {
       if (!parsedRoute.date) throw new Error('Invalid date');
-      const response = await fetch(`/api/tddf1/monthly-totals?month=${format(parsedRoute.date, 'yyyy-MM')}`, {
+      const params = new URLSearchParams({ month: format(parsedRoute.date, 'yyyy-MM') });
+      if (filters.group) params.append('group', filters.group);
+      if (filters.association) params.append('association', filters.association);
+      if (filters.merchant) params.append('merchant', filters.merchant);
+      if (filters.terminal) params.append('terminal', filters.terminal);
+      
+      const response = await fetch(`/api/tddf1/monthly-totals?${params}`, {
         cache: 'no-cache',
         headers: {
           'Cache-Control': 'no-cache',
@@ -349,6 +383,27 @@ export default function History() {
 
   const handleBackToDashboard = () => {
     setLocation('/dashboard');
+  };
+  
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+    
+    // Update URL with filter params
+    const searchParams = new URLSearchParams();
+    if (newFilters.group) searchParams.set('group', newFilters.group);
+    if (newFilters.association) searchParams.set('association', newFilters.association);
+    if (newFilters.merchant) searchParams.set('merchant', newFilters.merchant);
+    if (newFilters.terminal) searchParams.set('terminal', newFilters.terminal);
+    
+    const queryString = searchParams.toString();
+    const newUrl = queryString ? `${location.split('?')[0]}?${queryString}` : location.split('?')[0];
+    window.history.replaceState({}, '', newUrl);
+  };
+  
+  const handleMonthPickerSelect = (year: number, month: number) => {
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthName = monthNames[month - 1];
+    setLocation(`/history/${year}/${monthName}`);
   };
 
   const formatCurrency = (amount: number) => {
@@ -580,6 +635,16 @@ export default function History() {
 
     return (
       <div className="space-y-6">
+        {/* Filter Bar */}
+        {parsedRoute.date && (
+          <FilterBar
+            month={format(parsedRoute.date, 'yyyy-MM')}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            isDarkMode={isDarkMode}
+          />
+        )}
+        
         {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {metricsConfig.map((metric) => {
@@ -1143,6 +1208,11 @@ export default function History() {
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
+                  <MonthPicker
+                    currentDate={parsedRoute.date}
+                    onMonthSelect={handleMonthPickerSelect}
+                    isDarkMode={isDarkMode}
+                  />
                 </div>
               )}
               
