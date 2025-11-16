@@ -1,0 +1,204 @@
+2025-11-16 09:37:01.08
+a6452293
+User
+📋 Found 10 recent files in MASTER table
+2025-11-16 09:37:01.13
+a6452293
+User
+3:37:01 PM [express] GET /api/tddf1/recent-activity 200 in 28276ms :: [{"id":"uploader_1762792516631…
+2025-11-16 09:37:01.22
+a6452293
+User
+[DASHBOARD-BUILD] Active/Open Merchant counts - Total: 466, ACH (type=3): 107, MCC (not type=3): 359
+2025-11-16 09:37:01.33
+a6452293
+User
+[DASHBOARD-BUILD] New Active/Open merchants (30 days) - ACH: 0, MCC: 0
+2025-11-16 09:37:01.41
+a6452293
+User
+[DASHBOARD-BUILD] Fetching TDDF totals from monthly cache...
+2025-11-16 09:37:01.47
+a6452293
+User
+[DASHBOARD-BUILD] ⚠️ Monthly cache query failed, using fallback values: column "total_records" does not exist
+2025-11-16 09:37:01.47
+a6452293
+User
+[DASHBOARD-BUILD] TDDF from cache - Transactions: 0, Amount: $0.00
+2025-11-16 09:37:01.67
+a6452293
+User
+[DASHBOARD-BUILD] ✅ Cache built and stored in database in 583ms
+2025-11-16 09:37:01.73
+a6452293
+User
+3:37:01 PM [express] GET /api/dashboard/cached-metrics 200 in 26928ms :: {"merchants":{"total":466,"…
+2025-11-16 09:37:02.25
+a6452293
+User
+📅 [MONTHLY-TOTALS] Querying master table: tddf_jsonb
+2025-11-16 09:37:02.25
+a6452293
+User
+📅 [MONTHLY-COMPARISON] Querying master table: tddf_jsonb
+2025-11-16 09:37:02.25
+a6452293
+User
+📅 Getting TDDF1 monthly comparison
+2025-11-16 09:37:02.25
+a6452293
+User
+📅 [MONTHLY] Getting data for 2025-09: 2025-09-01 to 2025-09-30
+2025-11-16 09:37:02.25
+a6452293
+User
+📅 Getting TDDF1 monthly totals
+2025-11-16 09:37:02.48
+a6452293
+User
+dataType: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+length: 201,
+2025-11-16 09:37:02.48
+a6452293
+User
+at cn.parse (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1127:36)
+2025-11-16 09:37:02.48
+a6452293
+User
+at Receiver.receiverOnMessage (/home/runner/workspace/node_modules/ws/lib/websocket.js:1220:20) {
+2025-11-16 09:37:02.48
+a6452293
+User
+table: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+column: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+at callListener (/home/runner/workspace/node_modules/ws/lib/event-target.js:290:14)
+2025-11-16 09:37:02.48
+a6452293
+User
+routine: 'op_error'
+2025-11-16 09:37:02.48
+a6452293
+User
+internalQuery: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+line: '635',
+2025-11-16 09:37:02.48
+a6452293
+User
+file: 'parse_oper.c',
+2025-11-16 09:37:02.48
+a6452293
+User
+at v.emit (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:397:12)
+2025-11-16 09:37:02.48
+a6452293
+User
+}
+2025-11-16 09:37:02.48
+a6452293
+User
+position: '1240',
+2025-11-16 09:37:02.48
+a6452293
+User
+at cn.parseErrorMessage (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1182:6)
+2025-11-16 09:37:02.48
+a6452293
+User
+at WebSocket.emit (node:events:524:28)
+2025-11-16 09:37:02.48
+a6452293
+User
+❌ Error fetching TDDF1 monthly totals: error: operator does not exist: integer = text
+2025-11-16 09:37:02.48
+a6452293
+User
+detail: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+internalPosition: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+at cn.handlePacket (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1143:13)
+2025-11-16 09:37:02.48
+a6452293
+User
+at v. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1190:16)
+2025-11-16 09:37:02.48
+a6452293
+User
+where: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+code: '42883',
+2025-11-16 09:37:02.48
+a6452293
+User
+constraint: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+schema: undefined,
+2025-11-16 09:37:02.48
+a6452293
+User
+at WebSocket. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:987:80)
+2025-11-16 09:37:02.48
+a6452293
+User
+hint: 'No operator matches the given name and argument types. You might need to add explicit type casts.',
+2025-11-16 09:37:02.48
+a6452293
+User
+severity: 'ERROR',
+2025-11-16 09:37:02.48
+a6452293
+User
+at WebSocket.onMessage (/home/runner/workspace/node_modules/ws/lib/event-target.js:209:9)
+2025-11-16 09:37:02.54
+a6452293
+User
+3:37:02 PM [express] GET /api/tddf1/monthly-totals 500 in 451ms :: {"error":"operator does not exist…
+2025-11-16 09:37:03.02
+a6452293
+User
+📁 Found 1 files for 2025-10-14
+2025-11-16 09:37:03.07
+a6452293
+User
+3:37:03 PM [express] GET /api/tddf1/files-by-date 200 in 30223ms :: {"date":"2025-10-14","fileCount"…
+2025-11-16 09:37:03.20
+a6452293
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-11-16 09:37:06.80
+a6452293
+User
+📅 [COMPARISON] Current month (2025-10): 31 days, Previous month (2025-09): 30 days
+2025-11-16 09:37:06.95
+a6452293
+User
+3:37:06 PM [express] GET /api/tddf1/monthly-comparison 200 in 14335ms :: {"currentMonth":{"month":"2…
+2025-11-16 09:37:07.15
+a6452293
+User
+📅 [COMPARISON] Current month (2025-09): 30 days, Previous month (2025-08): 3 days
+2025-11-16 09:37:07.26
+a6452293
+User
+3:37:07 PM [express] GET /api/tddf1/monthly-comparison 200 in 5168ms :: {"currentMonth":{"month":"20…

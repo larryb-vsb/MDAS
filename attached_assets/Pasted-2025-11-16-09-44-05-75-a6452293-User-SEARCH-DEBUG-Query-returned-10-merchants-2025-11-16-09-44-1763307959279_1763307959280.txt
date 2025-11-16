@@ -1,0 +1,177 @@
+2025-11-16 09:44:05.75
+a6452293
+User
+[SEARCH DEBUG] Query returned 10 merchants
+2025-11-16 09:44:05.80
+a6452293
+User
+table: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+schema: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+detail: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+column: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+internalPosition: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+at async DatabaseStorage.getMerchantStats (file:///home/runner/workspace/dist/index.js:9830:33)
+2025-11-16 09:44:05.80
+a6452293
+User
+at async file:///home/runner/workspace/dist/index.js:21594:23 {
+2025-11-16 09:44:05.80
+a6452293
+User
+Error getting merchant stats for VSB316F63EED69488FA3E80F54E5B0662F: error: column "last_batch_filename" does not exist
+2025-11-16 09:44:05.80
+a6452293
+User
+line: '3716',
+2025-11-16 09:44:05.80
+a6452293
+User
+hint: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+at async file:///home/runner/workspace/dist/index.js:8727:27
+2025-11-16 09:44:05.80
+a6452293
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-16 09:44:05.80
+a6452293
+User
+where: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+length: 119,
+2025-11-16 09:44:05.80
+a6452293
+User
+at async DatabaseStorage.getMerchants (file:///home/runner/workspace/dist/index.js:8726:36)
+2025-11-16 09:44:05.80
+a6452293
+User
+}
+2025-11-16 09:44:05.80
+a6452293
+User
+internalQuery: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+constraint: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-16 09:44:05.80
+a6452293
+User
+file: 'parse_relation.c',
+2025-11-16 09:44:05.80
+a6452293
+User
+position: '28',
+2025-11-16 09:44:05.80
+a6452293
+User
+dataType: undefined,
+2025-11-16 09:44:05.80
+a6452293
+User
+routine: 'errorMissingColumn'
+2025-11-16 09:44:05.80
+a6452293
+User
+severity: 'ERROR',
+2025-11-16 09:44:05.80
+a6452293
+User
+code: '42703',
+2025-11-16 09:44:05.80
+a6452293
+User
+at async Promise.all (index 2)
+2025-11-16 09:44:05.81
+a6452293
+User
+constraint: undefined,
+2025-11-16 09:44:05.81
+a6452293
+User
+at async Promise.all (index 1)
+2025-11-16 09:44:05.81
+a6452293
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-16 09:44:05.81
+a6452293
+User
+Error getting merchant stats for VSA0EACBB7BB7C456C8AEB04F951531717: error: column "last_batch_filename" does not exist
+2025-11-16 09:44:05.81
+a6452293
+User
+hint: undefined,
+2025-11-16 09:44:05.81
+a6452293
+User
+position: '28',
+2025-11-16 09:44:05.81
+a6452293
+User
+internalPosition: undefined,
+2025-11-16 09:44:05.81
+a6452293
+User
+at async DatabaseStorage.getMerchantStats (file:///home/runner/workspace/dist/index.js:9830:33)
+2025-11-16 09:44:05.81
+a6452293
+User
+code: '42703',
+2025-11-16 09:44:05.81
+a6452293
+User
+at async file:///home/runner/workspace/dist/index.js:21594:23 {
+2025-11-16 09:44:05.81
+a6452293
+User
+at async DatabaseStorage.getMerchants (file:///home/runner/workspace/dist/index.js:8726:36)
+2025-11-16 09:44:05.81
+a6452293
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-16 09:44:05.81
+a6452293
+User
+at async file:///home/runner/workspace/dist/index.js:8727:27
+2025-11-16 09:44:11.83
+a6452293
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-11-16 09:44:11.83
+a6452293
+User
+[INFO] [STORAGE-MGMT] Getting Replit Storage info
+2025-11-16 09:44:11.83
+a6452293
+User
+[REPLIT-STORAGE] Listing files with prefix: dev-uploader/
+
+2025-11-16 09:44:11.83
+a6452293
+User
+[REPLIT-STORAGE] Config status check - Environment: p
