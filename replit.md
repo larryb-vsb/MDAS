@@ -37,6 +37,7 @@ The UI/UX emphasizes a modern, professional, and intuitive experience using Tail
 - **Storage Management System**: Comprehensive object storage management and cleanup system with a master object keys database and API endpoints for statistics, listing, duplicate detection, and purging.
 - **Pre-Cache Management System**: Fully operational background pre-calculation system for monthly TDDF data enabling instant dashboard loading, successfully caching months of data with efficient build times. Includes dedicated UI for inspection, rebuilds, and real-time tracking of rebuild jobs. Features a dual upload tracking architecture to handle legacy and modern upload IDs.
 - **Main Dashboard Performance**: Optimized homepage dashboard displays comprehensive business metrics with sub-2-second load times by utilizing monthly cache queries, extracting transaction counts from daily breakdown data, and removing slow JSONB record scans.
+- **Environment-Aware Table Naming**: Smart 4-priority table prefix logic in `getTableName()` function automatically handles development vs production table naming. Priority order: (1) Explicit `TABLE_PREFIX` env var, (2) Replit production detection via `REPLIT_DEPLOYMENT`, (3) Standard production via `NODE_ENV`, (4) Safe `dev_` prefix default. Ensures monitoring features (Host List, Connection Log) work correctly in production without manual configuration.
 
 ## External Dependencies
 - **Database**: PostgreSQL (via @neondatabase/serverless)
