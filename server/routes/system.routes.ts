@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { storage, isFallbackStorage } from "../storage";
 import { isAuthenticated, setProcessingPaused } from "./middleware";
 import { getTableName } from "../../shared/schema";
+import { NODE_ENV } from "../env-config";
 
 export function registerSystemRoutes(app: Express) {
   // TABLE VALIDATION: Check if required tables exist in database
@@ -11,7 +12,7 @@ export function registerSystemRoutes(app: Express) {
     try {
       console.log("[TABLE-VALIDATION] Starting table validation check...");
       
-      const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
+      const environment = NODE_ENV;
       
       // List of critical tables required for connection logging, IP blocking, and host approvals
       const requiredTables = [

@@ -5,6 +5,7 @@ import os from "os";
 import archiver from "archiver";
 import { parse as parseCSV } from "csv-parse";
 import { format as formatCSV } from "fast-csv";
+import { NODE_ENV } from "./env-config";
 import { 
   merchants as merchantsTable, 
   transactions as transactionsTable,
@@ -1060,8 +1061,7 @@ export class DatabaseStorage implements IStorage {
       return result.rows;
     } catch (error: any) {
       if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-        const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
-        throw new Error(`Connection log table '${connectionLogTableName}' does not exist in ${environment} environment. Run 'npm run db:push' to create required tables.`);
+        throw new Error(`Connection log table '${connectionLogTableName}' does not exist in ${NODE_ENV} environment. Run 'npm run db:push' to create required tables.`);
       }
       throw error;
     }
@@ -1090,8 +1090,7 @@ export class DatabaseStorage implements IStorage {
       return result.rows;
     } catch (error: any) {
       if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-        const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
-        throw new Error(`Connection log table '${connectionLogTableName}' does not exist in ${environment} environment. Run 'npm run db:push' to create required tables.`);
+        throw new Error(`Connection log table '${connectionLogTableName}' does not exist in ${NODE_ENV} environment. Run 'npm run db:push' to create required tables.`);
       }
       throw error;
     }
@@ -1167,8 +1166,7 @@ export class DatabaseStorage implements IStorage {
       return result.rows;
     } catch (error: any) {
       if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-        const environment = process.env.REPLIT_DB_ENVIRONMENT || 'development';
-        throw new Error(`Host approvals table '${hostApprovalsTableName}' does not exist in ${environment} environment. Run 'npm run db:push' to create required tables.`);
+        throw new Error(`Host approvals table '${hostApprovalsTableName}' does not exist in ${NODE_ENV} environment. Run 'npm run db:push' to create required tables.`);
       }
       throw error;
     }

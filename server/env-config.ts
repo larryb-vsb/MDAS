@@ -13,8 +13,8 @@ function detectEnvironment(): string {
   // Reliable production environment detection
   const isProduction = (
     // Explicit production deployment flags
-    process.env.REPLIT_DEPLOYMENT === 'true' ||
-    process.env.REPL_DEPLOYMENT === 'true' ||
+    process.env.REPLIT_DEPLOYMENT === '1' ||
+    process.env.REPL_DEPLOYMENT === '1' ||
     process.env.REPLIT_ENVIRONMENT === 'production' ||
     process.env.ENV === 'production' ||
     process.env.ENVIRONMENT === 'production' ||
@@ -65,8 +65,8 @@ if (NODE_ENV === 'development') {
 }
 
 // Base paths for file storage
-const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
-const BASE_BACKUP_PATH = isProd ? './data/backups' : './backups';
+export const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
+export const BASE_BACKUP_PATH = isProd ? './data/backups' : './backups';
 
 // Environment-specific Neon database URLs - NO FALLBACKS
 export function getDatabaseUrl(): string {

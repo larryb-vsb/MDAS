@@ -5,7 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { initializeSchemaVersions } from "./schema_version";
 import { initializeBackupScheduler } from "./backup/backup_scheduler";
 import { ensureAppDirectories } from "./utils/fs-utils";
-import { config, NODE_ENV } from "./env-config";
+import { config, NODE_ENV, BASE_UPLOAD_PATH } from "./env-config";
 import { pool, db } from "./db";
 import { tddfApiProcessor } from "./services/tddf-api-processor";
 import { migrateDatabase } from "./database-migrate";
@@ -68,7 +68,7 @@ function setupProcessMonitoring() {
   // Monitor filesystem events (file processing activities) - Use dynamic import for production compatibility
   try {
     import('fs').then((fs) => {
-      const watcher = fs.watch('./tmp_uploads', { recursive: true }, (eventType, filename) => {
+      const watcher = fs.watch(BASE_UPLOAD_PATH, { recursive: true }, (eventType, filename) => {
         if (filename && eventType === 'rename') {
           systemLogger.info('File System', 'File upload activity detected', {
             filename,

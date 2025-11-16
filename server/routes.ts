@@ -39,7 +39,7 @@ import { registerMicrosoftAuthRoutes } from "./routes/microsoft-auth.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerPreCacheRoutes } from "./routes/pre-cache.routes";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
-import { NODE_ENV } from "./env-config";
+import { NODE_ENV, BASE_UPLOAD_PATH } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { processAllRecordsToMasterTable } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
@@ -223,7 +223,7 @@ import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY, g
 const execPromise = promisify(exec);
 
 // Create persistent upload directory
-const uploadDir = path.join(process.cwd(), 'tmp_uploads');
+const uploadDir = BASE_UPLOAD_PATH;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log(`Created upload directory: ${uploadDir}`);
@@ -301,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           code: error?.code,
           detail: error?.detail,
           table: tableName,
-          environment: process.env.REPLIT_DB_ENVIRONMENT || 'development',
+          environment: NODE_ENV,
           endpoint: req.path,
           method: req.method,
           clientIp
@@ -366,7 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error?.message || 'Unknown error',
         code: error?.code,
         table: blocklistTable,
-        environment: process.env.REPLIT_DB_ENVIRONMENT || 'development',
+        environment: NODE_ENV,
         clientIp
       };
       
