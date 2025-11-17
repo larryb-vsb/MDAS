@@ -3,7 +3,10 @@
 # Run production schema against production database
 # Logs to file AND displays on screen
 
-LOG_FILE="production-schema-run-$(date +%Y-%m-%d_%H-%M-%S).log"
+# Change to project root directory
+cd "$(dirname "$0")/.." || exit 1
+
+LOG_FILE="scripts/production-schema-run-$(date +%Y-%m-%d_%H-%M-%S).log"
 
 echo "Running production-schema.sql against production database..."
 echo "Logging to: $LOG_FILE"
@@ -18,7 +21,8 @@ echo "Script complete! Log saved to: $LOG_FILE"
 echo "========================================="
 
 # Show summary of errors
-ERROR_COUNT=$(grep -c "ERROR:" "$LOG_FILE" || echo "0")
+ERROR_COUNT=$(grep -c "ERROR:" "$LOG_FILE" 2>/dev/null || echo "0")
+ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs)
 echo "Total errors: $ERROR_COUNT"
 
 if [ "$ERROR_COUNT" -gt 0 ]; then
