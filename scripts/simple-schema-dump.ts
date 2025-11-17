@@ -222,6 +222,19 @@ async function dumpSchema() {
   console.log(`📊 ${tables.rows.length} tables`);
   console.log(`📝 ${(outputSQL.length/1024).toFixed(1)} KB`);
   console.log(`\n💡 Run against production: psql "$PROD_DB_URL" -f sql/production-schema.sql`);
+  
+  // Record schema generation event
+  try {
+    await db.execute(sql`
+      INSERT INTO dev_schema_dump_tracking (version, environment, action, timestamp, performed_by, notes)
+      VALUES ('2.9.0', 'development', 'schema_generated', NOW(), 'simple-schema-dump.ts', 
+              ${`Generated ${tables.rows.length} tables, ${(outputSQL.length/1024).toFixed(1)} KB`})
+    `);
+    console.log(`\n📝 Schema generation tracked in dev_schema_dump_tracking`);
+  } catch (trackError) {
+    console.warn(`⚠️  Could not track schema generation:`, trackError);
+  }
+  
   process.exit(0);
 }
 
