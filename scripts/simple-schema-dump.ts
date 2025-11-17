@@ -98,19 +98,18 @@ BEGIN;
 
   outputSQL += '\nCOMMIT;\n\n-- Schema complete\n';
 
-  // Write main file
+  // Create timestamped filename (visible in file explorer)
+  const timestamp = `${dateStamp}_${timeStamp.replace(/:/g, '-')}`; // YYYY-MM-DD_HH-MM-SS
+  const timestampedFile = `production-schema-${timestamp}.sql`;
+  
+  // Write timestamped file (main versioned file)
+  fs.writeFileSync(timestampedFile, outputSQL);
+  
+  // Also write to production-schema.sql (for easy reference)
   fs.writeFileSync('production-schema.sql', outputSQL);
   
-  // Also create timestamped backup in schema-backups directory
-  if (!fs.existsSync('schema-backups')) {
-    fs.mkdirSync('schema-backups');
-  }
-  const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19); // YYYY-MM-DDTHH-MM-SS
-  const backupFile = `schema-backups/production-schema-${timestamp}.sql`;
-  fs.writeFileSync(backupFile, outputSQL);
-  
-  console.log(`\n✅ Generated: production-schema.sql`);
-  console.log(`📋 Backup: ${backupFile}`);
+  console.log(`\n✅ Generated: ${timestampedFile}`);
+  console.log(`📋 Also saved as: production-schema.sql (for easy reference)`);
   console.log(`📊 ${tables.rows.length} tables`);
   console.log(`📝 ${(outputSQL.length/1024).toFixed(1)} KB`);
   console.log(`\n💡 Run against production: psql "$PROD_DB_URL" -f production-schema.sql`);
