@@ -252,44 +252,70 @@ export function registerPreCacheRoutes(app: Express) {
    */
   app.get('/api/pre-cache/performance-dashboard', isAuthenticated, async (req, res) => {
     try {
-      const cacheConfigTable = getTableName('cache_configuration');
+      const monthlyCacheTable = getTableName('tddf1_monthly_cache');
+      const cacheRunsTable = getTableName('pre_cache_runs');
       
-      // Overall stats
+      // Get overall stats from monthly cache
       const overallResult = await pool.query(`
         SELECT 
           COUNT(*) as total_caches,
-          SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_caches,
-          0 as error_caches,
-          COUNT(*) as healthy_caches,
+          COUNT(*) as active_caches,
+          SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error_caches,
+          SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as healthy_caches,
           0 as critical_caches,
-          0 as avg_build_time,
-          0 as total_records
-        FROM ${cacheConfigTable}
-        WHERE is_active = true
+          COALESCE(AVG(build_time_ms), 0)::bigint as avg_build_time,
+          COALESCE(SUM(total_records), 0)::bigint as total_records
+        FROM ${monthlyCacheTable}
       `);
       
-      // Performance by type
+      // Performance by type (monthly only for now)
       const byTypeResult = await pool.query(`
         SELECT 
-          cache_type,
+          'monthly' as cache_type,
           COUNT(*) as cache_count,
-          0 as avg_build_time,
-          0 as total_records,
-          SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_count
-        FROM ${cacheConfigTable}
-        WHERE is_active = true
-        GROUP BY cache_type
-        ORDER BY cache_type
+          COALESCE(AVG(build_time_ms), 0)::bigint as avg_build_time,
+          COALESCE(SUM(total_records), 0)::bigint as total_records,
+          COUNT(*) as active_count
+        FROM ${monthlyCacheTable}
+        WHERE status = 'active'
       `);
       
-      // Recent errors (table doesn't have error tracking columns, return empty)
-      const errorsResult = { rows: [] };
+      // Recent errors from cache runs
+      const errorsResult = await pool.query(`
+        SELECT 
+          job_id as id,
+          'Monthly Cache' as cache_name,
+          error_message as error,
+          completed_at as timestamp
+        FROM ${cacheRunsTable}
+        WHERE status = 'failed'
+        ORDER BY completed_at DESC
+        LIMIT 5
+      `);
       
-      // Slow caches (table doesn't have build time tracking columns, return empty)
-      const slowResult = { rows: [] };
+      // Slow caches (>30 seconds)
+      const slowResult = await pool.query(`
+        SELECT 
+          year || '-' || LPAD(month::text, 2, '0') as cache_name,
+          build_time_ms,
+          total_records,
+          last_refresh_datetime as last_refresh
+        FROM ${monthlyCacheTable}
+        WHERE build_time_ms > 30000
+        ORDER BY build_time_ms DESC
+        LIMIT 5
+      `);
       
       const dashboard = {
-        overallStats: overallResult.rows[0] || {},
+        overallStats: overallResult.rows[0] || {
+          total_caches: 0,
+          active_caches: 0,
+          error_caches: 0,
+          healthy_caches: 0,
+          critical_caches: 0,
+          avg_build_time: 0,
+          total_records: 0
+        },
         performanceByType: byTypeResult.rows || [],
         recentErrors: errorsResult.rows || [],
         slowCaches: slowResult.rows || [],
@@ -299,11 +325,19 @@ export function registerPreCacheRoutes(app: Express) {
       res.json({ success: true, dashboard });
     } catch (error: any) {
       console.error('[PRE-CACHE] Error fetching performance dashboard:', error);
-      // Return empty dashboard if table doesn't exist
+      // Return empty dashboard if tables don't exist
       res.json({
         success: true,
         dashboard: {
-          overallStats: {},
+          overallStats: {
+            total_caches: 0,
+            active_caches: 0,
+            error_caches: 0,
+            healthy_caches: 0,
+            critical_caches: 0,
+            avg_build_time: 0,
+            total_records: 0
+          },
           performanceByType: [],
           recentErrors: [],
           slowCaches: [],
