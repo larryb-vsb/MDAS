@@ -219,8 +219,10 @@ export class PreCacheService {
       FROM ${masterTableName} t
       -- CASE guard prevents invalid integer casts on string upload IDs (e.g., "uploader_123_abc")
       LEFT JOIN ${uploadedFilesTable} u1 ON 
-        CASE WHEN t.upload_id ~ '^[0-9]+$' 
-             THEN t.upload_id::integer = u1.id 
+        CASE WHEN t.upload_id ~ '^[0-9]+$' AND u1.id ~ '^[0-9]+$'
+             THEN t.upload_id::integer = u1.id::integer
+             WHEN t.upload_id = u1.id
+             THEN TRUE
              ELSE FALSE 
         END
       LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
@@ -264,8 +266,10 @@ export class PreCacheService {
       FROM ${masterTableName} t
       -- CASE guard prevents invalid integer casts on string upload IDs (e.g., "uploader_123_abc")
       LEFT JOIN ${uploadedFilesTable} u1 ON 
-        CASE WHEN t.upload_id ~ '^[0-9]+$' 
-             THEN t.upload_id::integer = u1.id 
+        CASE WHEN t.upload_id ~ '^[0-9]+$' AND u1.id ~ '^[0-9]+$'
+             THEN t.upload_id::integer = u1.id::integer
+             WHEN t.upload_id = u1.id
+             THEN TRUE
              ELSE FALSE 
         END
       LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
