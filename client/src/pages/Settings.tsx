@@ -434,6 +434,10 @@ export default function Settings() {
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                           Development
                         </Badge>
+                        <span className="text-xs text-blue-600 flex items-center gap-1">
+                          <Activity className="h-3 w-3" />
+                          Auto-tracked
+                        </span>
                       </div>
                       <div className="space-y-1.5">
                         <div>
@@ -449,7 +453,7 @@ export default function Settings() {
                           )}
                         </div>
                         <div>
-                          <span className="text-xs text-muted-foreground">Last Generated:</span>
+                          <span className="text-xs text-muted-foreground">Last Change:</span>
                           {schemaVersionQuery.isLoading ? (
                             <div className="text-sm mt-0.5">Loading...</div>
                           ) : schemaVersionQuery.data?.tracking?.dev?.timestamp ? (
@@ -460,6 +464,14 @@ export default function Settings() {
                             <div className="text-xs text-muted-foreground mt-0.5">Not recorded</div>
                           )}
                         </div>
+                        {schemaVersionQuery.data?.tracking?.dev?.notes && (
+                          <div>
+                            <span className="text-xs text-muted-foreground">Last Event:</span>
+                            <div className="text-xs mt-0.5 font-mono text-blue-600">
+                              {schemaVersionQuery.data.tracking.dev.notes}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
