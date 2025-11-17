@@ -2,7 +2,7 @@
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
 -- Version: 2.9.0
--- Last Updated: 2025-11-17 20:29:56
+-- Last Updated: 2025-11-17 20:28:45
 --
 -- 70 tables total
 -- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
@@ -13,7 +13,6 @@ BEGIN;
 
 
 -- api_achtransactions
-CREATE SEQUENCE IF NOT EXISTS api_achtransactions_id_seq;
 CREATE TABLE IF NOT EXISTS api_achtransactions (
   id text NOT NULL DEFAULT nextval('api_achtransactions_id_seq'::regclass),
   merchant_name varchar(255),
@@ -77,7 +76,6 @@ CREATE TABLE IF NOT EXISTS api_merchants (
 COMMENT ON TABLE api_merchants IS 'ACH merchant imports from file uploads';
 
 -- api_terminals
-CREATE SEQUENCE IF NOT EXISTS api_terminals_id_seq;
 CREATE TABLE IF NOT EXISTS api_terminals (
   id integer NOT NULL DEFAULT nextval('api_terminals_id_seq'::regclass),
   v_number text NOT NULL,
@@ -150,7 +148,6 @@ CREATE INDEX IF NOT EXISTS idx_api_terminals_terminal_type ON public.api_termina
 CREATE UNIQUE INDEX IF NOT EXISTS api_terminals_v_number_unique ON public.api_terminals USING btree (v_number);
 
 -- api_users
-CREATE SEQUENCE IF NOT EXISTS api_users_id_seq;
 CREATE TABLE IF NOT EXISTS api_users (
   id integer NOT NULL DEFAULT nextval('api_users_id_seq'::regclass),
   username text NOT NULL,
@@ -168,7 +165,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS api_users_username_key ON public.api_users USI
 CREATE UNIQUE INDEX IF NOT EXISTS api_users_api_key_key ON public.api_users USING btree (api_key);
 
 -- audit_logs
-CREATE SEQUENCE IF NOT EXISTS audit_logs_id_seq;
 CREATE TABLE IF NOT EXISTS audit_logs (
   id integer NOT NULL DEFAULT nextval('audit_logs_id_seq'::regclass),
   entity_type text NOT NULL,
@@ -193,7 +189,6 @@ CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON public.audit_logs USING btr
 CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON public.audit_logs USING btree (action);
 
 -- cache_configuration
-CREATE SEQUENCE IF NOT EXISTS cache_configuration_id_seq;
 CREATE TABLE IF NOT EXISTS cache_configuration (
   id integer NOT NULL DEFAULT nextval('cache_configuration_id_seq'::regclass),
   cache_name text NOT NULL,
@@ -236,7 +231,6 @@ CREATE TABLE IF NOT EXISTS charts_pre_cache (
 COMMENT ON TABLE charts_pre_cache IS 'Pre-cached chart data';
 
 -- connection_log
-CREATE SEQUENCE IF NOT EXISTS connection_log_id_seq;
 CREATE TABLE IF NOT EXISTS connection_log (
   id integer NOT NULL DEFAULT nextval('connection_log_id_seq'::regclass),
   timestamp timestamp NOT NULL DEFAULT now(),
@@ -257,7 +251,6 @@ CREATE INDEX IF NOT EXISTS connection_log_endpoint_idx ON public.connection_log 
 CREATE INDEX IF NOT EXISTS connection_log_api_user_id_idx ON public.connection_log USING btree (api_user_id);
 
 -- dashboard_cache
-CREATE SEQUENCE IF NOT EXISTS dashboard_cache_id_seq;
 CREATE TABLE IF NOT EXISTS dashboard_cache (
   id integer NOT NULL DEFAULT nextval('dashboard_cache_id_seq'::regclass),
   cache_key varchar(255) NOT NULL,
@@ -305,7 +298,6 @@ CREATE TABLE IF NOT EXISTS duplicate_finder_cache (
 COMMENT ON TABLE duplicate_finder_cache IS 'Duplicate detection cache';
 
 -- host_approvals
-CREATE SEQUENCE IF NOT EXISTS host_approvals_id_seq;
 CREATE TABLE IF NOT EXISTS host_approvals (
   id integer NOT NULL DEFAULT nextval('host_approvals_id_seq'::regclass),
   hostname text NOT NULL,
@@ -327,7 +319,6 @@ CREATE INDEX IF NOT EXISTS host_approvals_status_idx ON public.host_approvals US
 CREATE INDEX IF NOT EXISTS host_approvals_hostname_idx ON public.host_approvals USING btree (hostname);
 
 -- ip_blocklist
-CREATE SEQUENCE IF NOT EXISTS ip_blocklist_id_seq;
 CREATE TABLE IF NOT EXISTS ip_blocklist (
   id integer NOT NULL DEFAULT nextval('ip_blocklist_id_seq'::regclass),
   ip_address text NOT NULL,
@@ -344,7 +335,6 @@ CREATE INDEX IF NOT EXISTS ip_blocklist_ip_idx ON public.ip_blocklist USING btre
 CREATE INDEX IF NOT EXISTS ip_blocklist_active_idx ON public.ip_blocklist USING btree (is_active);
 
 -- master_object_keys
-CREATE SEQUENCE IF NOT EXISTS master_object_keys_id_seq;
 CREATE TABLE IF NOT EXISTS master_object_keys (
   id integer NOT NULL DEFAULT nextval('master_object_keys_id_seq'::regclass),
   object_key text NOT NULL,
@@ -365,7 +355,6 @@ CREATE INDEX IF NOT EXISTS master_object_keys_created_at_idx ON public.master_ob
 CREATE INDEX IF NOT EXISTS master_object_keys_mark_for_purge_idx ON public.master_object_keys USING btree (mark_for_purge);
 
 -- merchant_mcc_schema
-CREATE SEQUENCE IF NOT EXISTS merchant_mcc_schema_id_seq;
 CREATE TABLE IF NOT EXISTS merchant_mcc_schema (
   position text NOT NULL,
   field_name text NOT NULL,
@@ -649,7 +638,6 @@ CREATE INDEX IF NOT EXISTS merchants_last_batch_date_idx ON public.merchants USI
 CREATE INDEX IF NOT EXISTS merchants_last_transaction_date_idx ON public.merchants USING btree (last_transaction_date);
 
 -- pre_cache_runs
-CREATE SEQUENCE IF NOT EXISTS pre_cache_runs_id_seq;
 CREATE TABLE IF NOT EXISTS pre_cache_runs (
   id integer NOT NULL DEFAULT nextval('pre_cache_runs_id_seq'::regclass),
   job_id text NOT NULL,
@@ -686,7 +674,6 @@ CREATE INDEX IF NOT EXISTS pre_cache_runs_year_month_idx ON public.pre_cache_run
 CREATE INDEX IF NOT EXISTS pre_cache_runs_created_at_idx ON public.pre_cache_runs USING btree (created_at);
 
 -- processing_metrics
-CREATE SEQUENCE IF NOT EXISTS processing_metrics_id_seq;
 CREATE TABLE IF NOT EXISTS processing_metrics (
   id integer NOT NULL DEFAULT nextval('processing_metrics_id_seq'::regclass),
   timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
@@ -750,7 +737,6 @@ CREATE INDEX IF NOT EXISTS processing_metrics_timestamp_idx ON public.processing
 CREATE INDEX IF NOT EXISTS processing_metrics_dt_processed_idx ON public.processing_metrics USING btree (dt_processed);
 
 -- processing_timing_logs
-CREATE SEQUENCE IF NOT EXISTS processing_timing_logs_id_seq;
 CREATE TABLE IF NOT EXISTS processing_timing_logs (
   id integer NOT NULL DEFAULT nextval('processing_timing_logs_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -767,7 +753,6 @@ CREATE TABLE IF NOT EXISTS processing_timing_logs (
 COMMENT ON TABLE processing_timing_logs IS 'Detailed processing timing data';
 
 -- security_logs
-CREATE SEQUENCE IF NOT EXISTS security_logs_id_seq;
 CREATE TABLE IF NOT EXISTS security_logs (
   id integer NOT NULL DEFAULT nextval('security_logs_id_seq'::regclass),
   event_type text NOT NULL,
@@ -803,7 +788,6 @@ COMMENT ON TABLE session IS 'User session storage';
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON public.session USING btree (expire);
 
 -- sub_merchant_terminals
-CREATE SEQUENCE IF NOT EXISTS sub_merchant_terminals_id_seq;
 CREATE TABLE IF NOT EXISTS sub_merchant_terminals (
   id integer NOT NULL DEFAULT nextval('sub_merchant_terminals_id_seq'::regclass),
   device_name text NOT NULL,
@@ -828,7 +812,6 @@ CREATE INDEX IF NOT EXISTS sub_merchant_terminals_match_type_idx ON public.sub_m
 CREATE INDEX IF NOT EXISTS sub_merchant_terminals_active_idx ON public.sub_merchant_terminals USING btree (is_active);
 
 -- system_logs
-CREATE SEQUENCE IF NOT EXISTS system_logs_id_seq;
 CREATE TABLE IF NOT EXISTS system_logs (
   id integer NOT NULL DEFAULT nextval('system_logs_id_seq'::regclass),
   timestamp timestamp DEFAULT CURRENT_TIMESTAMP,
@@ -845,7 +828,6 @@ COMMENT ON TABLE system_logs IS 'System-wide logging';
 CREATE INDEX IF NOT EXISTS idx_system_logs_timestamp ON public.system_logs USING btree ("timestamp");
 
 -- system_settings
-CREATE SEQUENCE IF NOT EXISTS system_settings_id_seq;
 CREATE TABLE IF NOT EXISTS system_settings (
   id integer NOT NULL DEFAULT nextval('system_settings_id_seq'::regclass),
   setting_key text NOT NULL,
@@ -867,7 +849,6 @@ CREATE INDEX IF NOT EXISTS idx_system_settings_category ON public.system_setting
 CREATE INDEX IF NOT EXISTS idx_system_settings_active ON public.system_settings USING btree (is_active);
 
 -- tddf1_activity_cache
-CREATE SEQUENCE IF NOT EXISTS tddf1_activity_cache_id_seq;
 CREATE TABLE IF NOT EXISTS tddf1_activity_cache (
   id integer NOT NULL DEFAULT nextval('dev_tddf1_activity_cache_id_seq'::regclass),
   file_name text,
@@ -879,7 +860,6 @@ CREATE TABLE IF NOT EXISTS tddf1_activity_cache (
 COMMENT ON TABLE tddf1_activity_cache IS 'TDDF1 activity data cache';
 
 -- tddf1_merchants
-CREATE SEQUENCE IF NOT EXISTS tddf1_merchants_id_seq;
 CREATE TABLE IF NOT EXISTS tddf1_merchants (
   id integer NOT NULL DEFAULT nextval('dev_tddf1_merchants_id_seq'::regclass),
   merchant_id varchar(255) NOT NULL,
@@ -909,7 +889,6 @@ CREATE INDEX IF NOT EXISTS tddf1_merchants_total_amount_idx ON public.tddf1_merc
 CREATE INDEX IF NOT EXISTS tddf1_merchants_total_transactions_idx ON public.tddf1_merchants USING btree (total_transactions);
 
 -- tddf1_monthly_cache
-CREATE SEQUENCE IF NOT EXISTS tddf1_monthly_cache_id_seq;
 CREATE TABLE IF NOT EXISTS tddf1_monthly_cache (
   id integer NOT NULL DEFAULT nextval('dev_tddf1_monthly_cache_id_seq'::regclass),
   year integer NOT NULL,
@@ -940,7 +919,6 @@ CREATE INDEX IF NOT EXISTS idx_tddf1_monthly_cache_last_refresh ON public.tddf1_
 CREATE UNIQUE INDEX IF NOT EXISTS tddf1_monthly_cache_cache_key_key ON public.tddf1_monthly_cache USING btree (cache_key);
 
 -- tddf1_totals
-CREATE SEQUENCE IF NOT EXISTS tddf1_totals_id_seq;
 CREATE TABLE IF NOT EXISTS tddf1_totals (
   id integer NOT NULL DEFAULT nextval('dev_tddf1_totals_cache_id_seq'::regclass),
   file_date date,
@@ -957,7 +935,6 @@ COMMENT ON TABLE tddf1_totals IS 'TDDF1 aggregated totals';
 CREATE UNIQUE INDEX IF NOT EXISTS tddf1_totals_cache_file_date_key ON public.tddf1_totals USING btree (file_date);
 
 -- tddf_api_files
-CREATE SEQUENCE IF NOT EXISTS tddf_api_files_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_api_files (
   id integer NOT NULL DEFAULT nextval('tddf_api_files_id_seq'::regclass),
   filename varchar(255) NOT NULL,
@@ -982,7 +959,6 @@ CREATE TABLE IF NOT EXISTS tddf_api_files (
 COMMENT ON TABLE tddf_api_files IS 'TDDF API file metadata';
 
 -- tddf_api_keys
-CREATE SEQUENCE IF NOT EXISTS tddf_api_keys_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_api_keys (
   id integer NOT NULL DEFAULT nextval('tddf_api_keys_id_seq'::regclass),
   key_name text NOT NULL,
@@ -1003,7 +979,6 @@ CREATE INDEX IF NOT EXISTS tddf_api_keys_hash_idx ON public.tddf_api_keys USING 
 CREATE INDEX IF NOT EXISTS tddf_api_keys_prefix_idx ON public.tddf_api_keys USING btree (key_prefix);
 
 -- tddf_api_queue
-CREATE SEQUENCE IF NOT EXISTS tddf_api_queue_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_api_queue (
   id integer NOT NULL DEFAULT nextval('tddf_api_queue_id_seq'::regclass),
   file_id integer,
@@ -1017,7 +992,6 @@ CREATE TABLE IF NOT EXISTS tddf_api_queue (
 COMMENT ON TABLE tddf_api_queue IS 'TDDF API processing queue';
 
 -- tddf_api_records
-CREATE SEQUENCE IF NOT EXISTS tddf_api_records_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_api_records (
   id integer NOT NULL DEFAULT nextval('tddf_api_records_id_seq'::regclass),
   file_id integer,
@@ -1051,7 +1025,6 @@ CREATE INDEX IF NOT EXISTS tddf_api_records_parsed_datetime_idx ON public.tddf_a
 CREATE INDEX IF NOT EXISTS tddf_api_records_record_time_source_idx ON public.tddf_api_records USING btree (record_time_source);
 
 -- tddf_api_request_logs
-CREATE SEQUENCE IF NOT EXISTS tddf_api_request_logs_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_api_request_logs (
   id integer NOT NULL DEFAULT nextval('tddf_api_request_logs_id_seq'::regclass),
   api_key_id integer,
@@ -1071,7 +1044,6 @@ CREATE INDEX IF NOT EXISTS tddf_api_requests_key_time_idx ON public.tddf_api_req
 CREATE INDEX IF NOT EXISTS tddf_api_requests_endpoint_time_idx ON public.tddf_api_request_logs USING btree (endpoint, requested_at);
 
 -- tddf_api_schemas
-CREATE SEQUENCE IF NOT EXISTS tddf_api_schemas_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_api_schemas (
   id integer NOT NULL DEFAULT nextval('tddf_api_schemas_id_seq'::regclass),
   name varchar(255) NOT NULL,
@@ -1086,7 +1058,6 @@ CREATE TABLE IF NOT EXISTS tddf_api_schemas (
 COMMENT ON TABLE tddf_api_schemas IS 'TDDF API schema definitions';
 
 -- tddf_archive
-CREATE SEQUENCE IF NOT EXISTS tddf_archive_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_archive (
   id integer NOT NULL DEFAULT nextval('tddf_archive_id_seq'::regclass),
   archive_filename text NOT NULL,
@@ -1126,7 +1097,6 @@ CREATE INDEX IF NOT EXISTS tddf_archive_upload_id_idx ON public.tddf_archive USI
 CREATE INDEX IF NOT EXISTS tddf_archive_api_file_id_idx ON public.tddf_archive USING btree (api_file_id);
 
 -- tddf_archive_records
-CREATE SEQUENCE IF NOT EXISTS tddf_archive_records_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_archive_records (
   id integer NOT NULL DEFAULT nextval('tddf_archive_records_id_seq'::regclass),
   upload_id text,
@@ -1159,7 +1129,6 @@ CREATE INDEX IF NOT EXISTS tddf_archive_records_raw_line_hash_idx ON public.tddf
 CREATE INDEX IF NOT EXISTS tddf_archive_records_archived_at_idx ON public.tddf_archive_records USING btree (archived_at);
 
 -- tddf_batch_headers
-CREATE SEQUENCE IF NOT EXISTS tddf_batch_headers_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_batch_headers (
   id integer NOT NULL DEFAULT nextval('tddf_batch_headers_id_seq'::regclass),
   bh_record_number text,
@@ -1180,7 +1149,6 @@ CREATE TABLE IF NOT EXISTS tddf_batch_headers (
 COMMENT ON TABLE tddf_batch_headers IS 'TDDF batch header records';
 
 -- tddf_datamaster
-CREATE SEQUENCE IF NOT EXISTS tddf_datamaster_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_datamaster (
   id integer NOT NULL DEFAULT nextval('tddf_datamaster_id_seq'::regclass),
   record_id varchar(50),
@@ -1204,7 +1172,6 @@ CREATE TABLE IF NOT EXISTS tddf_datamaster (
 COMMENT ON TABLE tddf_datamaster IS 'TDDF master data reference';
 
 -- tddf_import_log
-CREATE SEQUENCE IF NOT EXISTS tddf_import_log_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_import_log (
   id integer NOT NULL DEFAULT nextval('tddf_import_log_id_seq'::regclass),
   source_filename varchar(255) NOT NULL,
@@ -1218,7 +1185,6 @@ CREATE TABLE IF NOT EXISTS tddf_import_log (
 COMMENT ON TABLE tddf_import_log IS 'TDDF import processing log';
 
 -- tddf_json_record_type_counts_pre_cache
-CREATE SEQUENCE IF NOT EXISTS tddf_json_record_type_counts_pre_cache_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_json_record_type_counts_pre_cache (
   id integer NOT NULL DEFAULT nextval('tddf_json_record_type_counts_pre_cache_id_seq'::regclass),
   cache_key varchar(255) NOT NULL DEFAULT 'tddf_json_record_type_counts'::character varying,
@@ -1249,7 +1215,6 @@ CREATE INDEX IF NOT EXISTS tddf_json_record_type_counts_pre_cache_cache_key_idx 
 CREATE INDEX IF NOT EXISTS tddf_json_record_type_counts_pre_cache_last_update_idx ON public.tddf_json_record_type_counts_pre_cache USING btree (last_update_datetime);
 
 -- tddf_jsonb
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1290,7 +1255,6 @@ CREATE INDEX IF NOT EXISTS idx_tddf_jsonb_terminal_id ON ONLY public.tddf_jsonb 
 CREATE INDEX IF NOT EXISTS idx_tddf_jsonb_extracted_fields ON ONLY public.tddf_jsonb USING gin (extracted_fields);
 
 -- tddf_jsonb_2022_q4
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2022_q4_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2022_q4 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1331,7 +1295,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2022_q4_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2022_q4_extracted_fields_idx ON public.tddf_jsonb_2022_q4 USING gin (extracted_fields);
 
 -- tddf_jsonb_2023_q1
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2023_q1_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2023_q1 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1372,7 +1335,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q1_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q1_extracted_fields_idx ON public.tddf_jsonb_2023_q1 USING gin (extracted_fields);
 
 -- tddf_jsonb_2023_q2
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2023_q2_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2023_q2 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1413,7 +1375,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q2_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q2_extracted_fields_idx ON public.tddf_jsonb_2023_q2 USING gin (extracted_fields);
 
 -- tddf_jsonb_2023_q3
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2023_q3_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2023_q3 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1454,7 +1415,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q3_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q3_extracted_fields_idx ON public.tddf_jsonb_2023_q3 USING gin (extracted_fields);
 
 -- tddf_jsonb_2023_q4
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2023_q4_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2023_q4 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1495,7 +1455,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q4_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2023_q4_extracted_fields_idx ON public.tddf_jsonb_2023_q4 USING gin (extracted_fields);
 
 -- tddf_jsonb_2024_q1
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2024_q1_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2024_q1 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1536,7 +1495,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q1_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q1_extracted_fields_idx ON public.tddf_jsonb_2024_q1 USING gin (extracted_fields);
 
 -- tddf_jsonb_2024_q2
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2024_q2_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2024_q2 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1577,7 +1535,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q2_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q2_extracted_fields_idx ON public.tddf_jsonb_2024_q2 USING gin (extracted_fields);
 
 -- tddf_jsonb_2024_q3
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2024_q3_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2024_q3 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1618,7 +1575,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q3_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q3_extracted_fields_idx ON public.tddf_jsonb_2024_q3 USING gin (extracted_fields);
 
 -- tddf_jsonb_2024_q4
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2024_q4_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2024_q4 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1659,7 +1615,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q4_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2024_q4_extracted_fields_idx ON public.tddf_jsonb_2024_q4 USING gin (extracted_fields);
 
 -- tddf_jsonb_2025_q1
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2025_q1_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2025_q1 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1700,7 +1655,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q1_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q1_extracted_fields_idx ON public.tddf_jsonb_2025_q1 USING gin (extracted_fields);
 
 -- tddf_jsonb_2025_q2
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2025_q2_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2025_q2 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1741,7 +1695,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q2_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q2_extracted_fields_idx ON public.tddf_jsonb_2025_q2 USING gin (extracted_fields);
 
 -- tddf_jsonb_2025_q3
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2025_q3_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2025_q3 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1782,7 +1735,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q3_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q3_extracted_fields_idx ON public.tddf_jsonb_2025_q3 USING gin (extracted_fields);
 
 -- tddf_jsonb_2025_q4
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2025_q4_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2025_q4 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1823,7 +1775,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q4_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2025_q4_extracted_fields_idx ON public.tddf_jsonb_2025_q4 USING gin (extracted_fields);
 
 -- tddf_jsonb_2026_q1
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2026_q1_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2026_q1 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1864,7 +1815,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2026_q1_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2026_q1_extracted_fields_idx ON public.tddf_jsonb_2026_q1 USING gin (extracted_fields);
 
 -- tddf_jsonb_2026_q2
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_2026_q2_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_2026_q2 (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1905,7 +1855,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_2026_q2_expr_idx6 ON public.tddf_jsonb_202
 CREATE INDEX IF NOT EXISTS tddf_jsonb_2026_q2_extracted_fields_idx ON public.tddf_jsonb_2026_q2 USING gin (extracted_fields);
 
 -- tddf_jsonb_default
-CREATE SEQUENCE IF NOT EXISTS tddf_jsonb_default_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_jsonb_default (
   id integer NOT NULL DEFAULT nextval('tddf_jsonb_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -1946,7 +1895,6 @@ CREATE INDEX IF NOT EXISTS tddf_jsonb_default_expr_idx6 ON public.tddf_jsonb_def
 CREATE INDEX IF NOT EXISTS tddf_jsonb_default_extracted_fields_idx ON public.tddf_jsonb_default USING gin (extracted_fields);
 
 -- tddf_object_totals_cache_2025
-CREATE SEQUENCE IF NOT EXISTS tddf_object_totals_cache_2025_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_object_totals_cache_2025 (
   id integer NOT NULL DEFAULT nextval('dev_tddf_object_totals_cache_2025_id_seq'::regclass),
   scan_date timestamp NOT NULL,
@@ -1967,7 +1915,6 @@ CREATE TABLE IF NOT EXISTS tddf_object_totals_cache_2025 (
 COMMENT ON TABLE tddf_object_totals_cache_2025 IS 'TDDF object totals cache for 2025';
 
 -- tddf_other_records
-CREATE SEQUENCE IF NOT EXISTS tddf_other_records_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_other_records (
   id integer NOT NULL DEFAULT nextval('tddf_other_records_id_seq'::regclass),
   record_type text NOT NULL,
@@ -1986,7 +1933,6 @@ CREATE TABLE IF NOT EXISTS tddf_other_records (
 COMMENT ON TABLE tddf_other_records IS 'TDDF other record types (E1, G2, etc.)';
 
 -- tddf_purchasing_extensions
-CREATE SEQUENCE IF NOT EXISTS tddf_purchasing_extensions_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_purchasing_extensions (
   id integer NOT NULL DEFAULT nextval('tddf_purchasing_extensions_id_seq'::regclass),
   record_identifier text DEFAULT 'P1'::text,
@@ -2006,7 +1952,6 @@ CREATE TABLE IF NOT EXISTS tddf_purchasing_extensions (
 COMMENT ON TABLE tddf_purchasing_extensions IS 'TDDF P1 purchasing extension records';
 
 -- tddf_raw_import
-CREATE SEQUENCE IF NOT EXISTS tddf_raw_import_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_raw_import (
   id integer NOT NULL DEFAULT nextval('tddf_raw_import_id_seq'::regclass),
   source_file_id text NOT NULL,
@@ -2025,7 +1970,6 @@ CREATE INDEX IF NOT EXISTS idx_tddf_raw_import_processing_status ON public.tddf_
 CREATE INDEX IF NOT EXISTS idx_tddf_raw_import_source_file ON public.tddf_raw_import USING btree (source_file_id);
 
 -- tddf_records
-CREATE SEQUENCE IF NOT EXISTS tddf_records_id_seq;
 CREATE TABLE IF NOT EXISTS tddf_records (
   id integer NOT NULL DEFAULT nextval('tddf_records_id_seq'::regclass),
   sequence_number text,
@@ -2057,7 +2001,6 @@ COMMENT ON TABLE tddf_records IS 'Unified TDDF records storage';
 CREATE INDEX IF NOT EXISTS idx_tddf_records_reference_number ON public.tddf_records USING btree (reference_number);
 
 -- terminals
-CREATE SEQUENCE IF NOT EXISTS terminals_id_seq;
 CREATE TABLE IF NOT EXISTS terminals (
   id integer NOT NULL DEFAULT nextval('terminals_id_seq'::regclass),
   v_number text NOT NULL,
@@ -2108,7 +2051,6 @@ COMMENT ON TABLE terminals IS 'Terminal configuration and tracking';
 CREATE UNIQUE INDEX IF NOT EXISTS terminals_v_number_key ON public.terminals USING btree (v_number);
 
 -- transactions
-CREATE SEQUENCE IF NOT EXISTS transactions_id_seq;
 CREATE TABLE IF NOT EXISTS transactions (
   id integer NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
   merchant_id text NOT NULL,
@@ -2129,7 +2071,6 @@ COMMENT ON TABLE transactions IS 'VSB API transaction records';
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_filename_line ON public.transactions USING btree (source_filename, source_row_number);
 
 -- uploaded_files
-CREATE SEQUENCE IF NOT EXISTS uploaded_files_id_seq;
 CREATE TABLE IF NOT EXISTS uploaded_files (
   id integer NOT NULL DEFAULT nextval('uploaded_files_id_seq'::regclass),
   filename varchar(255) NOT NULL,
@@ -2162,7 +2103,6 @@ CREATE INDEX IF NOT EXISTS idx_uploaded_files_status ON public.uploaded_files US
 CREATE INDEX IF NOT EXISTS idx_uploaded_files_business_day ON public.uploaded_files USING btree (business_day);
 
 -- uploader_json
-CREATE SEQUENCE IF NOT EXISTS uploader_json_id_seq;
 CREATE TABLE IF NOT EXISTS uploader_json (
   id integer NOT NULL DEFAULT nextval('uploader_json_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -2179,7 +2119,6 @@ COMMENT ON TABLE uploader_json IS 'JSON file upload processing';
 CREATE INDEX IF NOT EXISTS idx_uploader_json_upload_id ON public.uploader_json USING btree (upload_id);
 
 -- uploader_mastercard_di_edit_records
-CREATE SEQUENCE IF NOT EXISTS uploader_mastercard_di_edit_records_id_seq;
 CREATE TABLE IF NOT EXISTS uploader_mastercard_di_edit_records (
   id integer NOT NULL DEFAULT nextval('uploader_mastercard_di_edit_records_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -2191,7 +2130,6 @@ COMMENT ON TABLE uploader_mastercard_di_edit_records IS 'Mastercard DI edit reco
 CREATE INDEX IF NOT EXISTS idx_uploader_mastercard_di_edit_records_upload_id ON public.uploader_mastercard_di_edit_records USING btree (upload_id);
 
 -- uploader_tddf_jsonb_records
-CREATE SEQUENCE IF NOT EXISTS uploader_tddf_jsonb_records_id_seq;
 CREATE TABLE IF NOT EXISTS uploader_tddf_jsonb_records (
   id integer NOT NULL DEFAULT nextval('uploader_tddf_jsonb_records_id_seq'::regclass),
   upload_id text NOT NULL,
@@ -2323,7 +2261,6 @@ CREATE INDEX IF NOT EXISTS uploader_uploads_phase_start_time_idx ON public.uploa
 CREATE INDEX IF NOT EXISTS uploader_uploads_status_uploaded_at_idx ON public.uploader_uploads USING btree (upload_status, uploaded_at);
 
 -- users
-CREATE SEQUENCE IF NOT EXISTS users_id_seq;
 CREATE TABLE IF NOT EXISTS users (
   id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass),
   username varchar(255) NOT NULL,

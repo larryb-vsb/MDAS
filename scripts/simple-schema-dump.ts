@@ -125,7 +125,23 @@ BEGIN;
       ORDER BY ordinal_position
     `));
 
-    outputSQL += `\n-- ${prodTable}\nCREATE TABLE IF NOT EXISTS ${prodTable} (\n`;
+    outputSQL += `\n-- ${prodTable}\n`;
+    
+    // Check if table needs a sequence (for serial/integer primary keys)
+    const sequenceName = `${prodTable}_id_seq`;
+    const needsSequence = (await db.execute(sql.raw(`
+      SELECT column_name 
+      FROM information_schema.columns
+      WHERE table_name = '${devTable}' 
+      AND column_name = 'id'
+      AND column_default LIKE '%nextval%'
+    `))).rows.length > 0;
+    
+    if (needsSequence) {
+      outputSQL += `CREATE SEQUENCE IF NOT EXISTS ${sequenceName};\n`;
+    }
+    
+    outputSQL += `CREATE TABLE IF NOT EXISTS ${prodTable} (\n`;
     
     const colDefs: string[] = [];
     for (const c of columns.rows) {
@@ -147,7 +163,11 @@ BEGIN;
 
       let def = `  ${col.column_name} ${type}`;
       if (col.is_nullable === 'NO') def += ' NOT NULL';
-      if (col.column_default) def += ` DEFAULT ${col.column_default}`;
+      if (col.column_default) {
+        // Replace dev_ sequence names in DEFAULT clauses
+        const prodDefault = col.column_default.replace(/dev_([a-z_]+)_seq/g, '$1_seq');
+        def += ` DEFAULT ${prodDefault}`;
+      }
       
       colDefs.push(def);
     }
