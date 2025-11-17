@@ -1,0 +1,118 @@
+-- COMPLETE SQL SCRIPT: Add ALL missing columns to production merchants table
+
+ALTER TABLE merchants 
+  -- Core merchant fields that might be missing
+  ADD COLUMN IF NOT EXISTS merchant_status text,
+  ADD COLUMN IF NOT EXISTS merchant_type text,
+  ADD COLUMN IF NOT EXISTS sales_channel text,
+  ADD COLUMN IF NOT EXISTS association text,
+  ADD COLUMN IF NOT EXISTS mcc text,
+  ADD COLUMN IF NOT EXISTS master_mid text,
+  ADD COLUMN IF NOT EXISTS country text,
+  ADD COLUMN IF NOT EXISTS last_upload_date timestamp,
+  ADD COLUMN IF NOT EXISTS as_of_date timestamp,
+  ADD COLUMN IF NOT EXISTS edit_date timestamp DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_by text,
+  
+  -- TSYS Merchant Risk Report Fields (20 fields)
+  ADD COLUMN IF NOT EXISTS bank text,
+  ADD COLUMN IF NOT EXISTS associate_merchant_number text,
+  ADD COLUMN IF NOT EXISTS dba_name_cwob text,
+  ADD COLUMN IF NOT EXISTS cwob_debit_risk text,
+  ADD COLUMN IF NOT EXISTS vwob_ebt_return text,
+  ADD COLUMN IF NOT EXISTS bypass_ea text,
+  ADD COLUMN IF NOT EXISTS bypass_co text,
+  ADD COLUMN IF NOT EXISTS merchant_record_st text,
+  ADD COLUMN IF NOT EXISTS board_dt timestamp,
+  ADD COLUMN IF NOT EXISTS sale_amt numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS credit_amt numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS negative_amount numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS number_o text,
+  ADD COLUMN IF NOT EXISTS bypass_force text,
+  ADD COLUMN IF NOT EXISTS fee_visa numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS visa_mcc text,
+  ADD COLUMN IF NOT EXISTS daily_auth_limit numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS bypass_ex text,
+  ADD COLUMN IF NOT EXISTS excessive_deposit_amount numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS threshold numeric(15, 2),
+  
+  -- Risk Assessment Fields (7 fields)
+  ADD COLUMN IF NOT EXISTS risk_score numeric(5, 2),
+  ADD COLUMN IF NOT EXISTS risk_level text,
+  ADD COLUMN IF NOT EXISTS last_risk_assessment timestamp,
+  ADD COLUMN IF NOT EXISTS risk_flags text[],
+  ADD COLUMN IF NOT EXISTS compliance_status text,
+  ADD COLUMN IF NOT EXISTS review_required boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS risk_notes text,
+  
+  -- TSYS MCC Schema Fields (51 fields)
+  ADD COLUMN IF NOT EXISTS bank_number text,
+  ADD COLUMN IF NOT EXISTS group_level_1 text,
+  ADD COLUMN IF NOT EXISTS association_number text,
+  ADD COLUMN IF NOT EXISTS account_number text,
+  ADD COLUMN IF NOT EXISTS association_name text,
+  ADD COLUMN IF NOT EXISTS group_level_1_name text,
+  ADD COLUMN IF NOT EXISTS sic text,
+  ADD COLUMN IF NOT EXISTS class text,
+  ADD COLUMN IF NOT EXISTS dba_name text,
+  ADD COLUMN IF NOT EXISTS dba_address_city text,
+  ADD COLUMN IF NOT EXISTS dba_address_state text,
+  ADD COLUMN IF NOT EXISTS dba_zip text,
+  ADD COLUMN IF NOT EXISTS phone_1 text,
+  ADD COLUMN IF NOT EXISTS phone_2 text,
+  ADD COLUMN IF NOT EXISTS business_license text,
+  ADD COLUMN IF NOT EXISTS bank_officer_1 text,
+  ADD COLUMN IF NOT EXISTS bank_officer_2 text,
+  ADD COLUMN IF NOT EXISTS federal_tax_id text,
+  ADD COLUMN IF NOT EXISTS state_tax_id text,
+  ADD COLUMN IF NOT EXISTS merchant_type_field text,
+  ADD COLUMN IF NOT EXISTS owner_name text,
+  ADD COLUMN IF NOT EXISTS manager_name text,
+  ADD COLUMN IF NOT EXISTS last_activity_date timestamp,
+  ADD COLUMN IF NOT EXISTS daily_fee_indicator text,
+  ADD COLUMN IF NOT EXISTS mc_reg_id text,
+  ADD COLUMN IF NOT EXISTS customer_service_number text,
+  ADD COLUMN IF NOT EXISTS update_date_time timestamp,
+  ADD COLUMN IF NOT EXISTS status_change_date timestamp,
+  ADD COLUMN IF NOT EXISTS discover_map_flag text,
+  ADD COLUMN IF NOT EXISTS amex_optblue_flag text,
+  ADD COLUMN IF NOT EXISTS visa_descriptor text,
+  ADD COLUMN IF NOT EXISTS mc_descriptor text,
+  ADD COLUMN IF NOT EXISTS url text,
+  ADD COLUMN IF NOT EXISTS close_date timestamp,
+  ADD COLUMN IF NOT EXISTS date_of_last_auth timestamp,
+  ADD COLUMN IF NOT EXISTS duns_number text,
+  ADD COLUMN IF NOT EXISTS print_statement_indicator text,
+  ADD COLUMN IF NOT EXISTS visa_bin text,
+  ADD COLUMN IF NOT EXISTS mc_bin text,
+  ADD COLUMN IF NOT EXISTS mc_ica text,
+  ADD COLUMN IF NOT EXISTS amex_cap_id text,
+  ADD COLUMN IF NOT EXISTS discover_aiid text,
+  ADD COLUMN IF NOT EXISTS dda_number text,
+  ADD COLUMN IF NOT EXISTS transit_routing_number text,
+  ADD COLUMN IF NOT EXISTS exposure_amount text,
+  ADD COLUMN IF NOT EXISTS merchant_activation_date timestamp,
+  ADD COLUMN IF NOT EXISTS date_of_first_deposit timestamp,
+  ADD COLUMN IF NOT EXISTS date_of_last_deposit timestamp,
+  ADD COLUMN IF NOT EXISTS trans_destination text,
+  ADD COLUMN IF NOT EXISTS merchant_email_address text,
+  ADD COLUMN IF NOT EXISTS chargeback_email_address text,
+  
+  -- TDDF Last Batch and Transaction Tracking (4 fields)
+  ADD COLUMN IF NOT EXISTS last_batch_filename text,
+  ADD COLUMN IF NOT EXISTS last_batch_date timestamp,
+  ADD COLUMN IF NOT EXISTS last_transaction_amount numeric(15, 2),
+  ADD COLUMN IF NOT EXISTS last_transaction_date timestamp;
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS merchants_created_at_idx ON merchants(created_at);
+CREATE INDEX IF NOT EXISTS merchants_last_upload_date_idx ON merchants(last_upload_date);
+CREATE INDEX IF NOT EXISTS merchants_client_since_date_idx ON merchants(client_since_date);
+CREATE INDEX IF NOT EXISTS merchants_last_activity_date_idx ON merchants(last_activity_date);
+CREATE INDEX IF NOT EXISTS merchants_merchant_activation_date_idx ON merchants(merchant_activation_date);
+CREATE INDEX IF NOT EXISTS merchants_date_of_first_deposit_idx ON merchants(date_of_first_deposit);
+CREATE INDEX IF NOT EXISTS merchants_date_of_last_deposit_idx ON merchants(date_of_last_deposit);
+CREATE INDEX IF NOT EXISTS merchants_last_batch_date_idx ON merchants(last_batch_date);
+CREATE INDEX IF NOT EXISTS merchants_last_transaction_date_idx ON merchants(last_transaction_date);
+CREATE INDEX IF NOT EXISTS merchants_status_created_at_idx ON merchants(status, created_at);
+CREATE INDEX IF NOT EXISTS merchants_type_last_upload_idx ON merchants(merchant_type, last_upload_date);
