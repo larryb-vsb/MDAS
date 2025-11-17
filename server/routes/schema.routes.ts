@@ -151,25 +151,29 @@ export function registerSchemaRoutes(app: Express) {
         const NODE_ENV = process.env.NODE_ENV || 'development';
         const isProd = NODE_ENV === 'production';
         
-        // Get dev schema generation (always try to fetch)
+        // Get dev schema version from SchemaWatch (auto-tracked via event triggers)
         let devTracking = null;
         try {
-          const devGenResult = await pool.query(`
-            SELECT timestamp, notes, version
-            FROM dev_schema_dump_tracking
-            WHERE action = 'schema_generated'
-            ORDER BY timestamp DESC 
+          const devVersionResult = await pool.query(`
+            SELECT version FROM schema_watch.current_version_mat
+          `);
+          
+          const devLogResult = await pool.query(`
+            SELECT event_time, command_tag 
+            FROM schema_watch.log 
+            ORDER BY log_id DESC 
             LIMIT 1
           `);
-          if (devGenResult.rows.length > 0) {
+          
+          if (devVersionResult.rows.length > 0) {
             devTracking = {
-              timestamp: devGenResult.rows[0].timestamp,
-              version: devGenResult.rows[0].version,
-              notes: devGenResult.rows[0].notes
+              timestamp: devLogResult.rows[0]?.event_time || new Date().toISOString(),
+              version: devVersionResult.rows[0].version.toString(),
+              notes: devLogResult.rows[0]?.command_tag || 'Auto-tracked by SchemaWatch'
             };
           }
         } catch (devErr) {
-          console.log('Could not fetch dev schema tracking:', devErr);
+          console.log('Could not fetch dev schema tracking from SchemaWatch:', devErr);
         }
         
         // Get production sync event (always try to fetch)
