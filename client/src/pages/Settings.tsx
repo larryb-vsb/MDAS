@@ -193,6 +193,12 @@ export default function Settings() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
+  // Fetch schema version information
+  const schemaVersionQuery = useQuery({
+    queryKey: ["/api/schema/versions"],
+    staleTime: 1000 * 60 * 2, // 2 minutes - schema changes frequently
+  });
+  
   const createBackup = async () => {
     try {
       setIsBackingUp(true);
@@ -408,6 +414,30 @@ export default function Settings() {
                 <div className="flex justify-between">
                   <span className="font-medium">Database:</span>
                   <span>{import.meta.env.MODE === "production" ? "Production DB" : "Development DB"}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Database Schema Version:</span>
+                  {schemaVersionQuery.isLoading ? (
+                    <span className="text-muted-foreground text-sm">Loading...</span>
+                  ) : schemaVersionQuery.data?.currentVersion ? (
+                    <Badge variant="outline" className="text-primary">
+                      {schemaVersionQuery.data.currentVersion.version}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Unknown</span>
+                  )}
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Schema Applied:</span>
+                  {schemaVersionQuery.isLoading ? (
+                    <span className="text-muted-foreground text-sm">Loading...</span>
+                  ) : schemaVersionQuery.data?.currentVersion?.appliedAt ? (
+                    <span className="text-sm">
+                      {new Date(schemaVersionQuery.data.currentVersion.appliedAt).toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Not recorded</span>
+                  )}
                 </div>
 
                 {/* Storage Mode */}

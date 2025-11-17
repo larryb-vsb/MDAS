@@ -382,7 +382,7 @@ export class PreCacheService {
     console.log(`[PRE-CACHE] Invalidating ${monthsToInvalidate.size} months: ${Array.from(monthsToInvalidate).join(', ')}`);
     
     // Mark affected months as expired
-    for (const yearMonth of monthsToInvalidate) {
+    for (const yearMonth of Array.from(monthsToInvalidate)) {
       const [year, month] = yearMonth.split('-').map(Number);
       await pool.query(`
         UPDATE ${monthlyCacheTable}
