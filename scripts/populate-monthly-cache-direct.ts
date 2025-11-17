@@ -1,11 +1,5 @@
-/**
- * Populate Monthly Cache for All Available Months
- * 
- * This script builds the tddf1_monthly_cache by triggering the cache builder
- * for all months that have TDDF data in the production database.
- */
-
 import { neon } from '@neondatabase/serverless';
+import { PreCacheService } from '../server/services/pre-cache-service.js';
 
 const prodSql = neon(process.env.NEON_PROD_DATABASE_URL!);
 
@@ -18,10 +12,8 @@ interface MonthData {
 async function getAvailableMonths(): Promise<MonthData[]> {
   console.log('📊 Finding months with TDDF data...\n');
   
-  // Query all partitions to find which months have data
   const months: MonthData[] = [];
   
-  // Check each quarter partition
   const quarters = [
     { table: 'tddf_jsonb_2022_q4', year: 2022, months: [10, 11, 12] },
     { table: 'tddf_jsonb_2023_q1', year: 2023, months: [1, 2, 3] },
@@ -60,53 +52,18 @@ async function getAvailableMonths(): Promise<MonthData[]> {
         console.log(`  ✅ ${q.year}-${String(row.month).padStart(2, '0')}: ${row.count.toLocaleString()} records`);
       }
     } catch (error) {
-      console.log(`  ⚠️  ${q.table}: Could not query (${error instanceof Error ? error.message : 'unknown error'})`);
+      console.log(`  ⚠️  ${q.table}: Could not query`);
     }
   }
   
   return months;
 }
 
-async function buildCacheForMonth(year: number, month: number): Promise<void> {
-  console.log(`\n🔨 Building cache for ${year}-${String(month).padStart(2, '0')}...`);
-  
-  try {
-    // Call the pre-cache API endpoint
-    const apiUrl = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/pre-cache/monthly-cache/${year}/${month}/rebuild`
-      : `http://localhost:5000/api/pre-cache/monthly-cache/${year}/${month}/rebuild`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        triggeredBy: 'script',
-        triggerReason: 'initial_population'
-      })
-    });
-    
-    if (!response.ok) {
-      const error = await response.text();
-      console.log(`  ❌ Failed: ${error}`);
-      return;
-    }
-    
-    const result = await response.json();
-    console.log(`  ✅ Success! Build time: ${result.buildTimeMs}ms, Job ID: ${result.jobId}`);
-    
-  } catch (error) {
-    console.log(`  ❌ Error: ${error instanceof Error ? error.message : 'unknown error'}`);
-  }
-}
-
 async function populateMonthlyCache() {
-  console.log('🚀 Monthly Cache Population Script\n');
+  console.log('🚀 Monthly Cache Population Script (Direct)\n');
   console.log('This script will build the monthly cache for all months with TDDF data.\n');
-  console.log('=' .repeat(70));
+  console.log('='.repeat(70));
   
-  // Get available months
   const months = await getAvailableMonths();
   
   console.log(`\n📊 Found ${months.length} months with data`);
@@ -117,21 +74,51 @@ async function populateMonthlyCache() {
     return;
   }
   
-  // Build cache for each month
-  console.log('\n🔨 Building monthly caches...');
+  console.log('\n🔨 Building monthly caches...\n');
   
-  for (const { year, month } of months) {
-    await buildCacheForMonth(year, month);
-    // Small delay to avoid overwhelming the server
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  let successCount = 0;
+  let errorCount = 0;
+  
+  for (const { year, month, record_count } of months) {
+    const monthStr = String(month).padStart(2, '0');
+    console.log(`📅 ${year}-${monthStr} (${record_count.toLocaleString()} records)...`);
+    
+    try {
+      const result = await PreCacheService.buildMonthlyCache({
+        year,
+        month,
+        triggeredByUser: 'populate-script',
+        triggeredBy: 'initial_population'
+      });
+      
+      if (result.success) {
+        console.log(`  ✅ Success! Built in ${(result.buildTimeMs / 1000).toFixed(1)}s`);
+        successCount++;
+      } else {
+        console.log(`  ❌ Failed (no error details)`);
+        errorCount++;
+      }
+    } catch (error: any) {
+      console.log(`  ❌ Error: ${error.message}`);
+      errorCount++;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
   
   console.log('\n' + '='.repeat(70));
-  console.log('✅ Monthly cache population complete!');
+  console.log(`✅ Monthly cache population complete!`);
+  console.log(`📊 Results: ${successCount} success, ${errorCount} errors out of ${months.length} total`);
   console.log('\n📌 Next steps:');
-  console.log('   1. Refresh the Pre-Cache Management page in your browser');
-  console.log('   2. Navigate to the "Monthly Cache" tab');
-  console.log('   3. You should now see all cached monthly data');
+  console.log('   1. Refresh the Pre-Cache Management page');
+  console.log('   2. Navigate to "Monthly Cache" tab');
+  console.log('   3. View all cached monthly data');
+  console.log('='.repeat(70));
 }
 
-populateMonthlyCache().catch(console.error);
+populateMonthlyCache()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error('❌ Fatal error:', error);
+    process.exit(1);
+  });
