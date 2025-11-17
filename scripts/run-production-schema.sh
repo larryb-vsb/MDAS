@@ -8,12 +8,12 @@ cd "$(dirname "$0")/.." || exit 1
 
 LOG_FILE="scripts/production-schema-run-$(date +%Y-%m-%d_%H-%M-%S).log"
 
-echo "Running production-schema.sql against production database..."
+echo "Running sql/production-schema.sql against production database..."
 echo "Logging to: $LOG_FILE"
 echo ""
 
 # Run psql and capture both stdout and stderr to log file + screen
-psql "$NEON_PROD_DATABASE_URL" -f production-schema.sql 2>&1 | tee "$LOG_FILE"
+psql "$NEON_PROD_DATABASE_URL" -f sql/production-schema.sql 2>&1 | tee "$LOG_FILE"
 
 echo ""
 echo "========================================="

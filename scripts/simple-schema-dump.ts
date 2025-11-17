@@ -202,21 +202,26 @@ async function dumpSchema() {
 
   outputSQL += '\n-- Schema complete\n';
 
+  // Ensure sql directory exists
+  if (!fs.existsSync('sql')) {
+    fs.mkdirSync('sql');
+  }
+
   // Create timestamped filename (visible in file explorer)
   const timestamp = `${dateStamp}_${timeStamp.replace(/:/g, '-')}`; // YYYY-MM-DD_HH-MM-SS
-  const timestampedFile = `production-schema-${timestamp}.sql`;
+  const timestampedFile = `sql/production-schema-${timestamp}.sql`;
   
   // Write timestamped file (main versioned file)
   fs.writeFileSync(timestampedFile, outputSQL);
   
   // Also write to production-schema.sql (for easy reference)
-  fs.writeFileSync('production-schema.sql', outputSQL);
+  fs.writeFileSync('sql/production-schema.sql', outputSQL);
   
   console.log(`\n✅ Generated: ${timestampedFile}`);
-  console.log(`📋 Also saved as: production-schema.sql (for easy reference)`);
+  console.log(`📋 Also saved as: sql/production-schema.sql (for easy reference)`);
   console.log(`📊 ${tables.rows.length} tables`);
   console.log(`📝 ${(outputSQL.length/1024).toFixed(1)} KB`);
-  console.log(`\n💡 Run against production: psql "$PROD_DB_URL" -f production-schema.sql`);
+  console.log(`\n💡 Run against production: psql "$PROD_DB_URL" -f sql/production-schema.sql`);
   process.exit(0);
 }
 
