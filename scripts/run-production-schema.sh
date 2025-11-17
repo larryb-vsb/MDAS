@@ -6,7 +6,10 @@
 # Change to project root directory
 cd "$(dirname "$0")/.." || exit 1
 
-LOG_FILE="scripts/production-schema-run-$(date +%Y-%m-%d_%H-%M-%S).log"
+# Ensure logs directory exists
+mkdir -p logs
+
+LOG_FILE="logs/production-schema-run-$(date +%Y-%m-%d_%H-%M-%S).log"
 
 echo "Running sql/production-schema.sql against production database..."
 echo "Logging to: $LOG_FILE"
