@@ -138,3 +138,49 @@ Preferred communication style: Simple, everyday language.
 **Connection Pooling**: Optimized PostgreSQL connection pools (max: 15, min: 5) for parallel processing workloads.
 
 **Monitoring**: Scanly Watcher service tracks processing performance, database health, and automatically triggers recovery operations.
+
+## Schema Version Management
+
+### SchemaWatch Auto-Tracking System
+
+**Technology**: PostgreSQL event triggers with materialized views (Neon-compatible implementation based on Grok specification).
+
+**Purpose**: Automatically detect and track every database schema change in development environment without manual intervention.
+
+**Implementation Details**:
+- **Event Trigger**: DDL event trigger (`schema_watch_trigger`) captures CREATE, ALTER, and DROP events for tables, indexes, functions, views, sequences, and schemas
+- **Audit Log**: Immutable log table (`schema_watch.log`) stores all DDL events with timestamps, command tags, and full SQL text
+- **Version Sequence**: Monotonically increasing version number (`schema_watch.version_seq`) starting at 1000
+- **Materialized View**: Zero-cost read access via `schema_watch.current_version_mat` with unique index for instant queries
+- **Auto-Increment**: Every schema change automatically increments the version number and updates the materialized view in the same transaction
+
+**Database Objects**:
+- `schema_watch.log` - Complete DDL event history
+- `schema_watch.version_seq` - Version counter
+- `schema_watch.current_version` - View for latest version
+- `schema_watch.current_version_mat` - Materialized view for performance
+- `schema_watch.record_ddl()` - Event trigger function
+- `schema_watch_trigger` - DDL event trigger
+
+**Development vs Production Workflow**:
+- **Development**: SchemaWatch auto-tracks all schema changes in real-time (currently at v1006+)
+- **Production**: Manual sync workflow using `run-production-schema.sh` script to control when dev schema is pushed to prod
+- **Tracking Tables**: 
+  - `dev_schema_dump_tracking` - Records when dev schema is manually generated
+  - `schema_dump_tracking` - Records when production is manually synced from dev
+
+**API Integration**:
+- Endpoint: `GET /api/schema/versions`
+- Returns: Current dev version from SchemaWatch, production sync status, and timestamps
+- Settings Page: Displays both Dev (auto-tracked) and Prod (manual sync) versions side-by-side
+
+**Metadata Table**:
+- `dev_mms-app-DatabaseInfo` - Stores environment metadata including schema version, environment name, and custom notes
+- Mixed-case naming preserved with double quotes for Postgres compatibility
+
+**Benefits**:
+- Zero manual work for dev versioning
+- Always accurate (impossible to forget to update version)
+- Complete audit trail of all schema changes
+- Minimal overhead (<1ms per DDL statement)
+- Immediate version detection in Settings page
