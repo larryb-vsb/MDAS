@@ -193,10 +193,12 @@ export default function Settings() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
-  // Fetch schema version information
+  // Fetch schema version information - only when Settings page is in view
   const schemaVersionQuery = useQuery({
     queryKey: ["/api/schema/versions"],
     staleTime: 1000 * 60 * 2, // 2 minutes - schema changes frequently
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: true, // Only fetch when Settings page is opened
   });
   
   const createBackup = async () => {
