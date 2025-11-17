@@ -103,9 +103,8 @@ async function dumpSchema() {
 -- ${tables.rows.length} tables total
 -- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
 -- Creates missing tables/indexes, skips existing ones, preserves data
+-- Note: No transaction wrapper - each statement runs independently
 -- =====================================================================
-
-BEGIN;
 
 `;
 
@@ -201,7 +200,7 @@ BEGIN;
     }
   }
 
-  outputSQL += '\nCOMMIT;\n\n-- Schema complete\n';
+  outputSQL += '\n-- Schema complete\n';
 
   // Create timestamped filename (visible in file explorer)
   const timestamp = `${dateStamp}_${timeStamp.replace(/:/g, '-')}`; // YYYY-MM-DD_HH-MM-SS
