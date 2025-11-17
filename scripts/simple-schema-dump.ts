@@ -97,11 +97,12 @@ async function dumpSchema() {
   let outputSQL = `-- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
--- Version: 2.8.0
+-- Version: 2.9.0
 -- Last Updated: ${dateStamp} ${timeStamp}
 --
 -- ${tables.rows.length} tables total
--- Run against EMPTY production database
+-- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
+-- Creates missing tables/indexes, skips existing ones, preserves data
 -- =====================================================================
 
 BEGIN;
@@ -168,9 +169,14 @@ BEGIN;
 
     for (const idx of indexes.rows) {
       const idxRow = idx as any;
+      const devIdxName = idxRow.indexname;
+      const prodIdxName = devIdxName.replace(/^dev_/, '');
+      
       const prodIdxDef = idxRow.indexdef
         .replace(new RegExp(devTable, 'g'), prodTable)
-        .replace('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS');
+        .replace(new RegExp(devIdxName, 'g'), prodIdxName)
+        .replace('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS')
+        .replace('CREATE UNIQUE INDEX', 'CREATE UNIQUE INDEX IF NOT EXISTS');
       outputSQL += `${prodIdxDef};\n`;
     }
   }

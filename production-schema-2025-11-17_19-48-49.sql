@@ -1,12 +1,11 @@
 -- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
--- Version: 2.9.0
--- Last Updated: 2025-11-17 20:15:39
+-- Version: 2.8.0
+-- Last Updated: 2025-11-17 19:48:49
 --
 -- 70 tables total
--- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
--- Creates missing tables/indexes, skips existing ones, preserves data
+-- Run against EMPTY production database
 -- =====================================================================
 
 BEGIN;
@@ -140,12 +139,12 @@ CREATE TABLE IF NOT EXISTS api_terminals (
   last_activity_date timestamp
 );
 COMMENT ON TABLE api_terminals IS 'Terminal data from API imports';
-CREATE UNIQUE INDEX IF NOT EXISTS api_terminals_v_number_key ON public.api_terminals USING btree (v_number);
+CREATE UNIQUE INDEX api_terminals_v_number_key ON public.api_terminals USING btree (v_number);
 CREATE INDEX IF NOT EXISTS idx_api_terminals_v_number ON public.api_terminals USING btree (v_number);
 CREATE INDEX IF NOT EXISTS idx_api_terminals_pos_merchant_number ON public.api_terminals USING btree (pos_merchant_number);
 CREATE INDEX IF NOT EXISTS idx_api_terminals_status ON public.api_terminals USING btree (status);
 CREATE INDEX IF NOT EXISTS idx_api_terminals_terminal_type ON public.api_terminals USING btree (terminal_type);
-CREATE UNIQUE INDEX IF NOT EXISTS api_terminals_v_number_unique ON public.api_terminals USING btree (v_number);
+CREATE UNIQUE INDEX api_terminals_v_number_unique ON public.api_terminals USING btree (v_number);
 
 -- api_users
 CREATE TABLE IF NOT EXISTS api_users (
@@ -161,8 +160,8 @@ CREATE TABLE IF NOT EXISTS api_users (
   last_used_ip text
 );
 COMMENT ON TABLE api_users IS 'API key authentication for batch uploaders';
-CREATE UNIQUE INDEX IF NOT EXISTS api_users_username_key ON public.api_users USING btree (username);
-CREATE UNIQUE INDEX IF NOT EXISTS api_users_api_key_key ON public.api_users USING btree (api_key);
+CREATE UNIQUE INDEX api_users_username_key ON public.api_users USING btree (username);
+CREATE UNIQUE INDEX api_users_api_key_key ON public.api_users USING btree (api_key);
 
 -- audit_logs
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -212,7 +211,7 @@ CREATE TABLE IF NOT EXISTS cache_configuration (
   updated_at timestamp NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE cache_configuration IS 'Cache settings and expiration policies';
-CREATE UNIQUE INDEX IF NOT EXISTS cache_configuration_cache_name_key ON public.cache_configuration USING btree (cache_name);
+CREATE UNIQUE INDEX cache_configuration_cache_name_key ON public.cache_configuration USING btree (cache_name);
 CREATE INDEX IF NOT EXISTS cache_config_cache_name_idx ON public.cache_configuration USING btree (cache_name);
 CREATE INDEX IF NOT EXISTS cache_config_cache_type_idx ON public.cache_configuration USING btree (cache_type);
 CREATE INDEX IF NOT EXISTS cache_config_page_name_idx ON public.cache_configuration USING btree (page_name);
@@ -262,7 +261,7 @@ CREATE TABLE IF NOT EXISTS dashboard_cache (
   updated_at timestamp with time zone NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE dashboard_cache IS 'Dashboard data cache';
-CREATE UNIQUE INDEX IF NOT EXISTS dashboard_cache_cache_key_key ON public.dashboard_cache USING btree (cache_key);
+CREATE UNIQUE INDEX dashboard_cache_cache_key_key ON public.dashboard_cache USING btree (cache_key);
 CREATE INDEX IF NOT EXISTS idx_dashboard_cache_cache_key ON public.dashboard_cache USING btree (cache_key);
 CREATE INDEX IF NOT EXISTS idx_dashboard_cache_expires_at ON public.dashboard_cache USING btree (expires_at);
 
@@ -314,7 +313,7 @@ CREATE TABLE IF NOT EXISTS host_approvals (
   last_seen_ip text
 );
 COMMENT ON TABLE host_approvals IS 'Host + API key approval system for uploads';
-CREATE UNIQUE INDEX IF NOT EXISTS host_approvals_hostname_key_unique ON public.host_approvals USING btree (hostname, api_key_prefix);
+CREATE UNIQUE INDEX host_approvals_hostname_key_unique ON public.host_approvals USING btree (hostname, api_key_prefix);
 CREATE INDEX IF NOT EXISTS host_approvals_status_idx ON public.host_approvals USING btree (status);
 CREATE INDEX IF NOT EXISTS host_approvals_hostname_idx ON public.host_approvals USING btree (hostname);
 
@@ -330,7 +329,7 @@ CREATE TABLE IF NOT EXISTS ip_blocklist (
   notes text
 );
 COMMENT ON TABLE ip_blocklist IS 'Blocked IP addresses';
-CREATE UNIQUE INDEX IF NOT EXISTS ip_blocklist_ip_address_key ON public.ip_blocklist USING btree (ip_address);
+CREATE UNIQUE INDEX ip_blocklist_ip_address_key ON public.ip_blocklist USING btree (ip_address);
 CREATE INDEX IF NOT EXISTS ip_blocklist_ip_idx ON public.ip_blocklist USING btree (ip_address);
 CREATE INDEX IF NOT EXISTS ip_blocklist_active_idx ON public.ip_blocklist USING btree (is_active);
 
@@ -347,7 +346,7 @@ CREATE TABLE IF NOT EXISTS master_object_keys (
   mark_for_purge boolean NOT NULL DEFAULT false
 );
 COMMENT ON TABLE master_object_keys IS 'Object storage key tracking and management';
-CREATE UNIQUE INDEX IF NOT EXISTS master_object_keys_object_key_key ON public.master_object_keys USING btree (object_key);
+CREATE UNIQUE INDEX master_object_keys_object_key_key ON public.master_object_keys USING btree (object_key);
 CREATE INDEX IF NOT EXISTS master_object_keys_object_key_idx ON public.master_object_keys USING btree (object_key);
 CREATE INDEX IF NOT EXISTS master_object_keys_status_idx ON public.master_object_keys USING btree (status);
 CREATE INDEX IF NOT EXISTS master_object_keys_upload_id_idx ON public.master_object_keys USING btree (upload_id);
@@ -369,7 +368,7 @@ CREATE TABLE IF NOT EXISTS merchant_mcc_schema (
   tab_position text
 );
 COMMENT ON TABLE merchant_mcc_schema IS 'Dynamic MCC schema configuration for merchant fields';
-CREATE UNIQUE INDEX IF NOT EXISTS merchant_mcc_schema_position_unique ON public.merchant_mcc_schema USING btree ("position");
+CREATE UNIQUE INDEX merchant_mcc_schema_position_unique ON public.merchant_mcc_schema USING btree ("position");
 
 -- merchants
 CREATE TABLE IF NOT EXISTS merchants (
@@ -666,7 +665,7 @@ CREATE TABLE IF NOT EXISTS pre_cache_runs (
   records_cached integer
 );
 COMMENT ON TABLE pre_cache_runs IS 'Pre-cache build job tracking';
-CREATE UNIQUE INDEX IF NOT EXISTS pre_cache_runs_job_id_key ON public.pre_cache_runs USING btree (job_id);
+CREATE UNIQUE INDEX pre_cache_runs_job_id_key ON public.pre_cache_runs USING btree (job_id);
 CREATE INDEX IF NOT EXISTS pre_cache_runs_job_id_idx ON public.pre_cache_runs USING btree (job_id);
 CREATE INDEX IF NOT EXISTS pre_cache_runs_cache_name_idx ON public.pre_cache_runs USING btree (cache_name);
 CREATE INDEX IF NOT EXISTS pre_cache_runs_status_idx ON public.pre_cache_runs USING btree (status);
@@ -843,7 +842,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
   updated_by varchar(100)
 );
 COMMENT ON TABLE system_settings IS 'Application configuration settings';
-CREATE UNIQUE INDEX IF NOT EXISTS system_settings_setting_key_key ON public.system_settings USING btree (setting_key);
+CREATE UNIQUE INDEX system_settings_setting_key_key ON public.system_settings USING btree (setting_key);
 CREATE INDEX IF NOT EXISTS idx_system_settings_key ON public.system_settings USING btree (setting_key);
 CREATE INDEX IF NOT EXISTS idx_system_settings_category ON public.system_settings USING btree (category);
 CREATE INDEX IF NOT EXISTS idx_system_settings_active ON public.system_settings USING btree (is_active);
@@ -880,7 +879,7 @@ CREATE TABLE IF NOT EXISTS tddf1_merchants (
   unique_terminals integer DEFAULT 0
 );
 COMMENT ON TABLE tddf1_merchants IS 'TDDF1 merchant summary data';
-CREATE UNIQUE INDEX IF NOT EXISTS tddf1_merchants_merchant_id_key ON public.tddf1_merchants USING btree (merchant_id);
+CREATE UNIQUE INDEX tddf1_merchants_merchant_id_key ON public.tddf1_merchants USING btree (merchant_id);
 CREATE INDEX IF NOT EXISTS tddf1_merchants_merchant_id_idx ON public.tddf1_merchants USING btree (merchant_id);
 CREATE INDEX IF NOT EXISTS tddf1_merchants_merchant_name_idx ON public.tddf1_merchants USING btree (merchant_name);
 CREATE INDEX IF NOT EXISTS tddf1_merchants_first_seen_idx ON public.tddf1_merchants USING btree (first_seen);
@@ -913,10 +912,10 @@ CREATE TABLE IF NOT EXISTS tddf1_monthly_cache (
   triggered_by text
 );
 COMMENT ON TABLE tddf1_monthly_cache IS 'Monthly pre-cached TDDF1 data for instant dashboard loading';
-CREATE UNIQUE INDEX IF NOT EXISTS tddf1_monthly_cache_year_month_key ON public.tddf1_monthly_cache USING btree (year, month);
+CREATE UNIQUE INDEX tddf1_monthly_cache_year_month_key ON public.tddf1_monthly_cache USING btree (year, month);
 CREATE INDEX IF NOT EXISTS idx_tddf1_monthly_cache_year_month ON public.tddf1_monthly_cache USING btree (year, month);
 CREATE INDEX IF NOT EXISTS idx_tddf1_monthly_cache_last_refresh ON public.tddf1_monthly_cache USING btree (last_refresh_datetime);
-CREATE UNIQUE INDEX IF NOT EXISTS tddf1_monthly_cache_cache_key_key ON public.tddf1_monthly_cache USING btree (cache_key);
+CREATE UNIQUE INDEX tddf1_monthly_cache_cache_key_key ON public.tddf1_monthly_cache USING btree (cache_key);
 
 -- tddf1_totals
 CREATE TABLE IF NOT EXISTS tddf1_totals (
@@ -932,7 +931,7 @@ CREATE TABLE IF NOT EXISTS tddf1_totals (
   updated_at timestamp DEFAULT now()
 );
 COMMENT ON TABLE tddf1_totals IS 'TDDF1 aggregated totals';
-CREATE UNIQUE INDEX IF NOT EXISTS tddf1_totals_cache_file_date_key ON public.tddf1_totals USING btree (file_date);
+CREATE UNIQUE INDEX tddf1_totals_cache_file_date_key ON public.tddf1_totals USING btree (file_date);
 
 -- tddf_api_files
 CREATE TABLE IF NOT EXISTS tddf_api_files (
@@ -1210,7 +1209,7 @@ CREATE TABLE IF NOT EXISTS tddf_json_record_type_counts_pre_cache (
   updated_at timestamp DEFAULT CURRENT_TIMESTAMP
 );
 COMMENT ON TABLE tddf_json_record_type_counts_pre_cache IS 'Pre-cached record type counts for TDDF JSON';
-CREATE UNIQUE INDEX IF NOT EXISTS tddf_json_record_type_counts_pre_cache_cache_key_key ON public.tddf_json_record_type_counts_pre_cache USING btree (cache_key);
+CREATE UNIQUE INDEX tddf_json_record_type_counts_pre_cache_cache_key_key ON public.tddf_json_record_type_counts_pre_cache USING btree (cache_key);
 CREATE INDEX IF NOT EXISTS tddf_json_record_type_counts_pre_cache_cache_key_idx ON public.tddf_json_record_type_counts_pre_cache USING btree (cache_key);
 CREATE INDEX IF NOT EXISTS tddf_json_record_type_counts_pre_cache_last_update_idx ON public.tddf_json_record_type_counts_pre_cache USING btree (last_update_datetime);
 
@@ -2048,7 +2047,7 @@ CREATE TABLE IF NOT EXISTS terminals (
   sync_status text DEFAULT 'Pending'::text
 );
 COMMENT ON TABLE terminals IS 'Terminal configuration and tracking';
-CREATE UNIQUE INDEX IF NOT EXISTS terminals_v_number_key ON public.terminals USING btree (v_number);
+CREATE UNIQUE INDEX terminals_v_number_key ON public.terminals USING btree (v_number);
 
 -- transactions
 CREATE TABLE IF NOT EXISTS transactions (
@@ -2068,7 +2067,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at timestamp DEFAULT now()
 );
 COMMENT ON TABLE transactions IS 'VSB API transaction records';
-CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_filename_line ON public.transactions USING btree (source_filename, source_row_number);
+CREATE UNIQUE INDEX transactions_unique_filename_line ON public.transactions USING btree (source_filename, source_row_number);
 
 -- uploaded_files
 CREATE TABLE IF NOT EXISTS uploaded_files (
@@ -2278,8 +2277,8 @@ CREATE TABLE IF NOT EXISTS users (
   theme_preference varchar(50) DEFAULT 'system'::character varying
 );
 COMMENT ON TABLE users IS 'System user accounts with authentication';
-CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON public.users USING btree (username);
-CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON public.users USING btree (email);
+CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username);
+CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
 
 COMMIT;
 

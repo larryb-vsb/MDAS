@@ -1,12 +1,11 @@
 -- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
--- Version: 2.9.0
--- Last Updated: 2025-11-17 20:15:39
+-- Version: 2.8.0
+-- Last Updated: 2025-11-17 20:14:16
 --
 -- 70 tables total
--- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
--- Creates missing tables/indexes, skips existing ones, preserves data
+-- Run against EMPTY production database
 -- =====================================================================
 
 BEGIN;
