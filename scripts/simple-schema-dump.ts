@@ -2,8 +2,82 @@ import { db } from '../server/db';
 import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 
+// Table descriptions for COMMENT ON TABLE statements
+const tableDescriptions: Record<string, string> = {
+  merchants: 'Core merchant data with TSYS MCC fields, risk assessment, and pre-cached TDDF tracking',
+  api_merchants: 'ACH merchant imports from file uploads',
+  api_terminals: 'Terminal data from API imports',
+  transactions: 'VSB API transaction records',
+  api_achtransactions: 'ACH transaction imports from file uploads',
+  uploaded_files: 'File upload tracking and metadata',
+  tddf_batch_headers: 'TDDF batch header records',
+  tddf_transaction_records: 'TDDF transaction detail records',
+  tddf_purchasing_extensions: 'TDDF P1 purchasing extension records',
+  tddf_records: 'Unified TDDF records storage',
+  tddf_jsonb: 'Partitioned TDDF JSONB storage (parent table)',
+  'tddf_jsonb_2022_q4': 'TDDF JSONB partition: Q4 2022',
+  'tddf_jsonb_2023_q1': 'TDDF JSONB partition: Q1 2023',
+  'tddf_jsonb_2023_q2': 'TDDF JSONB partition: Q2 2023',
+  'tddf_jsonb_2023_q3': 'TDDF JSONB partition: Q3 2023',
+  'tddf_jsonb_2023_q4': 'TDDF JSONB partition: Q4 2023',
+  'tddf_jsonb_2024_q1': 'TDDF JSONB partition: Q1 2024',
+  'tddf_jsonb_2024_q2': 'TDDF JSONB partition: Q2 2024',
+  'tddf_jsonb_2024_q3': 'TDDF JSONB partition: Q3 2024',
+  'tddf_jsonb_2024_q4': 'TDDF JSONB partition: Q4 2024',
+  'tddf_jsonb_2025_q1': 'TDDF JSONB partition: Q1 2025',
+  'tddf_jsonb_2025_q2': 'TDDF JSONB partition: Q2 2025',
+  'tddf_jsonb_2025_q3': 'TDDF JSONB partition: Q3 2025',
+  'tddf_jsonb_2025_q4': 'TDDF JSONB partition: Q4 2025',
+  'tddf_jsonb_2026_q1': 'TDDF JSONB partition: Q1 2026',
+  'tddf_jsonb_2026_q2': 'TDDF JSONB partition: Q2 2026',
+  tddf_jsonb_default: 'TDDF JSONB partition: Default (catch-all)',
+  tddf_other_records: 'TDDF other record types (E1, G2, etc.)',
+  tddf_raw_import: 'Raw TDDF import data preservation',
+  users: 'System user accounts with authentication',
+  api_users: 'API key authentication for batch uploaders',
+  connection_log: 'API request logging for security monitoring',
+  ip_blocklist: 'Blocked IP addresses',
+  host_approvals: 'Host + API key approval system for uploads',
+  audit_logs: 'System audit trail',
+  uploader_uploads: 'File uploader processing pipeline tracking',
+  uploader_json: 'JSON file upload processing',
+  uploader_tddf_jsonb_records: 'TDDF JSONB record processing queue',
+  uploader_mastercard_di_edit_records: 'Mastercard DI edit record processing',
+  cache_configuration: 'Cache settings and expiration policies',
+  tddf1_merchants: 'TDDF1 merchant summary data',
+  tddf1_monthly_cache: 'Monthly pre-cached TDDF1 data for instant dashboard loading',
+  tddf1_totals: 'TDDF1 aggregated totals',
+  system_logs: 'System-wide logging',
+  system_settings: 'Application configuration settings',
+  processing_metrics: 'File processing performance metrics',
+  processing_timing_logs: 'Detailed processing timing data',
+  security_logs: 'Security event logging',
+  master_object_keys: 'Object storage key tracking and management',
+  merchant_mcc_schema: 'Dynamic MCC schema configuration for merchant fields',
+  sub_merchant_terminals: 'Sub-merchant terminal mappings',
+  dashboard_cache: 'Dashboard data cache',
+  session: 'User session storage',
+  tddf_archive: 'Archived TDDF files',
+  tddf_archive_records: 'Archived TDDF record details',
+  tddf_datamaster: 'TDDF master data reference',
+  terminals: 'Terminal configuration and tracking',
+  pre_cache_runs: 'Pre-cache build job tracking',
+  duplicate_finder_cache: 'Duplicate detection cache',
+  charts_pre_cache: 'Pre-cached chart data',
+  tddf_import_log: 'TDDF import processing log',
+  tddf_api_files: 'TDDF API file metadata',
+  tddf_api_keys: 'TDDF API authentication keys',
+  tddf_api_queue: 'TDDF API processing queue',
+  tddf_api_records: 'TDDF API record storage',
+  tddf_api_request_logs: 'TDDF API request logging',
+  tddf_api_schemas: 'TDDF API schema definitions',
+  tddf1_activity_cache: 'TDDF1 activity data cache',
+  tddf_object_totals_cache_2025: 'TDDF object totals cache for 2025',
+  tddf_json_record_type_counts_pre_cache: 'Pre-cached record type counts for TDDF JSON'
+};
+
 async function dumpSchema() {
-  console.log('🔨 Generating production schema...\n');
+  console.log('🔨 Generating production schema with table comments...\n');
 
   // Get all dev_ tables using raw SQL
   const tables = await db.execute(sql`
@@ -78,6 +152,11 @@ BEGIN;
     }
 
     outputSQL += colDefs.join(',\n') + '\n);\n';
+
+    // Add table comment if available
+    if (tableDescriptions[prodTable]) {
+      outputSQL += `COMMENT ON TABLE ${prodTable} IS '${tableDescriptions[prodTable]}';\n`;
+    }
 
     // Get indexes
     const indexes = await db.execute(sql.raw(`
