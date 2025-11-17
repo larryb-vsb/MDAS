@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Merchant Management System (MMS) is a comprehensive financial data processing platform designed for Vermont State Bank. It handles high-volume transaction data processing, merchant management, and financial reporting. The system processes TDDF (Transaction Data Detail File) files, manages merchant information, handles API integrations, and provides real-time analytics dashboards.
+The Merchant Management System (MMS) is a comprehensive merchant data wherehouse designed for Vermont State Bank. It handles merchant processing logs form mainfriam data processing, merchant management, and financial reporting. The system processes TSYS mainfraim TDDF (Transaction Data Detail File) files as MCC merchant, manages merchant ACH deposit Compliance reporting, handles API integrations, and provides real-time analytics dashboards.
 
 ## User Preferences
 
