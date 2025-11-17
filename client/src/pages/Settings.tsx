@@ -194,7 +194,15 @@ export default function Settings() {
   });
   
   // Fetch schema version information - only when Settings page is in view
-  const schemaVersionQuery = useQuery({
+  const schemaVersionQuery = useQuery<{
+    currentVersion: { version: string; appliedAt: string } | null;
+    expectedVersion: string;
+    tracking: {
+      dev: { timestamp: string; version: string; notes: string } | null;
+      prod: { timestamp: string; version: string; notes: string } | null;
+      environment: string;
+    } | null;
+  }>({
     queryKey: ["/api/schema/versions"],
     staleTime: 1000 * 60 * 2, // 2 minutes - schema changes frequently
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
@@ -417,29 +425,79 @@ export default function Settings() {
                   <span className="font-medium">Database:</span>
                   <span>{import.meta.env.MODE === "production" ? "Production DB" : "Development DB"}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Database Schema Version:</span>
-                  {schemaVersionQuery.isLoading ? (
-                    <span className="text-muted-foreground text-sm">Loading...</span>
-                  ) : schemaVersionQuery.data?.currentVersion ? (
-                    <Badge variant="outline" className="text-primary">
-                      {schemaVersionQuery.data.currentVersion.version}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Unknown</span>
-                  )}
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Schema Applied:</span>
-                  {schemaVersionQuery.isLoading ? (
-                    <span className="text-muted-foreground text-sm">Loading...</span>
-                  ) : schemaVersionQuery.data?.currentVersion?.appliedAt ? (
-                    <span className="text-sm">
-                      {new Date(schemaVersionQuery.data.currentVersion.appliedAt).toLocaleString()}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Not recorded</span>
-                  )}
+                {/* Schema Version Grid - Show both Dev and Prod */}
+                <div className="border rounded-lg p-4 bg-muted/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Development Schema */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          Development
+                        </Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Version:</span>
+                          {schemaVersionQuery.isLoading ? (
+                            <div className="text-sm mt-0.5">Loading...</div>
+                          ) : schemaVersionQuery.data?.tracking?.dev?.version ? (
+                            <div className="font-semibold text-sm mt-0.5">
+                              v{schemaVersionQuery.data.tracking.dev.version}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground mt-0.5">Not recorded</div>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Last Generated:</span>
+                          {schemaVersionQuery.isLoading ? (
+                            <div className="text-sm mt-0.5">Loading...</div>
+                          ) : schemaVersionQuery.data?.tracking?.dev?.timestamp ? (
+                            <div className="text-xs mt-0.5">
+                              {new Date(schemaVersionQuery.data.tracking.dev.timestamp).toLocaleString()}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-muted-foreground mt-0.5">Not recorded</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Production Schema */}
+                    <div className="space-y-2 border-l pl-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                          Production
+                        </Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Version:</span>
+                          {schemaVersionQuery.isLoading ? (
+                            <div className="text-sm mt-0.5">Loading...</div>
+                          ) : schemaVersionQuery.data?.tracking?.prod?.version ? (
+                            <div className="font-semibold text-sm mt-0.5">
+                              v{schemaVersionQuery.data.tracking.prod.version}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground mt-0.5">Not synced</div>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Last Synced:</span>
+                          {schemaVersionQuery.isLoading ? (
+                            <div className="text-sm mt-0.5">Loading...</div>
+                          ) : schemaVersionQuery.data?.tracking?.prod?.timestamp ? (
+                            <div className="text-xs mt-0.5">
+                              {new Date(schemaVersionQuery.data.tracking.prod.timestamp).toLocaleString()}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-orange-600 mt-0.5">Never synced</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Storage Mode */}
@@ -642,14 +700,13 @@ export default function Settings() {
                                       title: "Pre-cache built successfully",
                                       description: `Built in ${result.buildTimeMs}ms`,
                                     });
-                                    refetchPreCacheStatus();
                                   } else {
                                     throw new Error(result.error || 'Failed to build pre-cache');
                                   }
                                 } catch (error) {
                                   toast({
                                     title: "Pre-cache build failed",
-                                    description: error.message,
+                                    description: error instanceof Error ? error.message : 'Unknown error',
                                     variant: "destructive",
                                   });
                                 }

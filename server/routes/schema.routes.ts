@@ -145,64 +145,57 @@ export function registerSchemaRoutes(app: Express) {
       const versions = await SchemaVersionManager.getAllVersions();
       const currentVersion = await SchemaVersionManager.getCurrentVersion();
       
-      // Get schema generation and sync tracking info
+      // Get schema generation and sync tracking info - ALWAYS return both dev and prod
       let schemaTracking = null;
       try {
         const NODE_ENV = process.env.NODE_ENV || 'development';
         const isProd = NODE_ENV === 'production';
-        const trackingTable = isProd ? 'schema_dump_tracking' : 'dev_schema_dump_tracking';
         
-        // Get last schema generation event
-        const genResult = await pool.query(`
-          SELECT timestamp, notes 
-          FROM ${trackingTable}
-          WHERE action = 'schema_generated'
-          ORDER BY timestamp DESC 
-          LIMIT 1
-        `);
-        
-        // Get last production sync event
-        const syncResult = await pool.query(`
-          SELECT timestamp, notes 
-          FROM schema_dump_tracking
-          WHERE action = 'production_synced'
-          ORDER BY timestamp DESC 
-          LIMIT 1
-        `);
-        
-        // If in production, also get dev's last generation to show if we're behind
-        let devLastGeneration = null;
-        if (isProd) {
-          try {
-            const devGenResult = await pool.query(`
-              SELECT timestamp, notes, version
-              FROM dev_schema_dump_tracking
-              WHERE action = 'schema_generated'
-              ORDER BY timestamp DESC 
-              LIMIT 1
-            `);
-            if (devGenResult.rows.length > 0) {
-              devLastGeneration = {
-                timestamp: devGenResult.rows[0].timestamp,
-                version: devGenResult.rows[0].version,
-                notes: devGenResult.rows[0].notes
-              };
-            }
-          } catch (devErr) {
-            console.log('Could not fetch dev schema tracking (expected in prod-only environment)');
+        // Get dev schema generation (always try to fetch)
+        let devTracking = null;
+        try {
+          const devGenResult = await pool.query(`
+            SELECT timestamp, notes, version
+            FROM dev_schema_dump_tracking
+            WHERE action = 'schema_generated'
+            ORDER BY timestamp DESC 
+            LIMIT 1
+          `);
+          if (devGenResult.rows.length > 0) {
+            devTracking = {
+              timestamp: devGenResult.rows[0].timestamp,
+              version: devGenResult.rows[0].version,
+              notes: devGenResult.rows[0].notes
+            };
           }
+        } catch (devErr) {
+          console.log('Could not fetch dev schema tracking:', devErr);
+        }
+        
+        // Get production sync event (always try to fetch)
+        let prodTracking = null;
+        try {
+          const syncResult = await pool.query(`
+            SELECT timestamp, notes, version
+            FROM schema_dump_tracking
+            WHERE action = 'production_synced'
+            ORDER BY timestamp DESC 
+            LIMIT 1
+          `);
+          if (syncResult.rows.length > 0) {
+            prodTracking = {
+              timestamp: syncResult.rows[0].timestamp,
+              version: syncResult.rows[0].version || currentVersion?.version || '2.9.0',
+              notes: syncResult.rows[0].notes
+            };
+          }
+        } catch (prodErr) {
+          console.log('Could not fetch prod schema tracking:', prodErr);
         }
         
         schemaTracking = {
-          lastGenerated: genResult.rows.length > 0 ? {
-            timestamp: genResult.rows[0].timestamp,
-            notes: genResult.rows[0].notes
-          } : null,
-          lastProdSync: syncResult.rows.length > 0 ? {
-            timestamp: syncResult.rows[0].timestamp,
-            notes: syncResult.rows[0].notes
-          } : null,
-          devLastGeneration: devLastGeneration,
+          dev: devTracking,
+          prod: prodTracking,
           environment: isProd ? 'production' : 'development'
         };
       } catch (trackingError) {
