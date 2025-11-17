@@ -164,8 +164,8 @@ BEGIN;
       let def = `  ${col.column_name} ${type}`;
       if (col.is_nullable === 'NO') def += ' NOT NULL';
       if (col.column_default) {
-        // Replace dev_ sequence names in DEFAULT clauses
-        const prodDefault = col.column_default.replace(/dev_([a-z_]+)_seq/g, '$1_seq');
+        // Replace dev_ sequence names in DEFAULT clauses (include digits)
+        const prodDefault = col.column_default.replace(/dev_([a-z0-9_]+)_seq/g, '$1_seq');
         def += ` DEFAULT ${prodDefault}`;
       }
       
