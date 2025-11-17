@@ -32,4 +32,10 @@ if [ "$ERROR_COUNT" -gt 0 ]; then
     echo ""
     echo "Errors found:"
     grep "ERROR:" "$LOG_FILE" | head -10
+else
+    echo ""
+    echo "Recording production sync event..."
+    # Record production sync timestamp (only if no errors)
+    psql "$NEON_PROD_DATABASE_URL" -c "INSERT INTO schema_dump_tracking (version, environment, action, timestamp, performed_by, notes) VALUES ('2.9.0', 'production', 'production_synced', NOW(), 'run-production-schema.sh', 'Production database synced with dev schema');" 2>&1 | grep -v "INSERT 0 1" || true
+    echo "✅ Production sync tracked"
 fi
