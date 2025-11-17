@@ -16,11 +16,15 @@ async function dumpSchema() {
 
   console.log(`Found ${tables.rows.length} tables\n`);
 
+  const now = new Date();
+  const dateStamp = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const timeStamp = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
   let outputSQL = `-- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
 -- Version: 2.8.0
--- Last Updated: 2025-11-17
+-- Last Updated: ${dateStamp} ${timeStamp}
 --
 -- ${tables.rows.length} tables total
 -- Run against EMPTY production database
@@ -94,10 +98,22 @@ BEGIN;
 
   outputSQL += '\nCOMMIT;\n\n-- Schema complete\n';
 
+  // Write main file
   fs.writeFileSync('production-schema.sql', outputSQL);
+  
+  // Also create timestamped backup in schema-backups directory
+  if (!fs.existsSync('schema-backups')) {
+    fs.mkdirSync('schema-backups');
+  }
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19); // YYYY-MM-DDTHH-MM-SS
+  const backupFile = `schema-backups/production-schema-${timestamp}.sql`;
+  fs.writeFileSync(backupFile, outputSQL);
+  
   console.log(`\n✅ Generated: production-schema.sql`);
+  console.log(`📋 Backup: ${backupFile}`);
   console.log(`📊 ${tables.rows.length} tables`);
   console.log(`📝 ${(outputSQL.length/1024).toFixed(1)} KB`);
+  console.log(`\n💡 Run against production: psql "$PROD_DB_URL" -f production-schema.sql`);
   process.exit(0);
 }
 
