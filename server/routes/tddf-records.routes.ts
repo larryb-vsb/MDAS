@@ -2875,6 +2875,9 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       console.log(`[DUPLICATE-CLEANUP-BY-DATE] Completed: ${removedCount} duplicate files marked as deleted for ${date}`);
       
+      // MEMORY SAFETY: Clear cache after cleanup to force fresh data on next request
+      duplicateStatsCache.clear();
+      
       res.json({
         success: true,
         removedCount,
