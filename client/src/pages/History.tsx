@@ -2110,7 +2110,7 @@ export default function History() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setFilters({
+                    handleFilterChange({
                       group: undefined,
                       association: undefined,
                       merchant: undefined,
