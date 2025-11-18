@@ -8,7 +8,7 @@ import { useRoute, useLocation } from 'wouter';
 import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import clsx from 'clsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -99,6 +99,7 @@ export default function History() {
   
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   
   // Filter state synced with URL
   const [filters, setFilters] = useState<{
@@ -727,69 +728,138 @@ export default function History() {
         {comparisonData && !comparisonLoading && monthlyData && monthlyData.totalRecords > 0 && (
           <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
             <CardHeader>
-              <CardTitle className={isDarkMode ? 'text-white' : ''}>
-                Monthly Financial Trends Comparison
-                {selectedMerchantName && ` - ${selectedMerchantName}`}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className={isDarkMode ? 'text-white' : ''}>
+                  Monthly Financial Trends Comparison
+                  {selectedMerchantName && ` - ${selectedMerchantName}`}
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant={chartType === 'line' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setChartType('line')}
+                    data-testid="button-line-chart"
+                    className="flex items-center gap-1"
+                  >
+                    <Activity className="h-4 w-4" />
+                    Line
+                  </Button>
+                  <Button
+                    variant={chartType === 'bar' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setChartType('bar')}
+                    data-testid="button-bar-chart"
+                    className="flex items-center gap-1"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Bar
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <RechartsLineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
-                  <XAxis 
-                    dataKey="day" 
-                    label={{ value: 'Day of Month', position: 'insideBottom', offset: -5 }}
-                    stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                  />
-                  <YAxis 
-                    stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
-                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                      border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
-                      borderRadius: '8px',
-                      color: isDarkMode ? '#f3f4f6' : '#111827'
-                    }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="currentAuth" 
-                    stroke="#8b5cf6" 
-                    strokeWidth={2}
-                    name={`${comparisonData.currentMonth.month} Authorizations`}
-                    dot={false}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="currentDeposit" 
-                    stroke="#06b6d4" 
-                    strokeWidth={2}
-                    name={`${comparisonData.currentMonth.month} Net Deposit`}
-                    dot={false}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="previousAuth" 
-                    stroke="#8b5cf6" 
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name={`${comparisonData.previousMonth.month} Authorizations`}
-                    dot={false}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="previousDeposit" 
-                    stroke="#06b6d4" 
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name={`${comparisonData.previousMonth.month} Net Deposit`}
-                    dot={false}
-                  />
-                </RechartsLineChart>
+                {chartType === 'line' ? (
+                  <RechartsLineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
+                    <XAxis 
+                      dataKey="day" 
+                      label={{ value: 'Day of Month', position: 'insideBottom', offset: -5 }}
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                    />
+                    <YAxis 
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px',
+                        color: isDarkMode ? '#f3f4f6' : '#111827'
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="currentAuth" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={2}
+                      name={`${comparisonData.currentMonth.month} Authorizations`}
+                      dot={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="currentDeposit" 
+                      stroke="#06b6d4" 
+                      strokeWidth={2}
+                      name={`${comparisonData.currentMonth.month} Net Deposit`}
+                      dot={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="previousAuth" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name={`${comparisonData.previousMonth.month} Authorizations`}
+                      dot={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="previousDeposit" 
+                      stroke="#06b6d4" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name={`${comparisonData.previousMonth.month} Net Deposit`}
+                      dot={false}
+                    />
+                  </RechartsLineChart>
+                ) : (
+                  <RechartsBarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
+                    <XAxis 
+                      dataKey="day" 
+                      label={{ value: 'Day of Month', position: 'insideBottom', offset: -5 }}
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                    />
+                    <YAxis 
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px',
+                        color: isDarkMode ? '#f3f4f6' : '#111827'
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="currentAuth" 
+                      fill="#8b5cf6" 
+                      name={`${comparisonData.currentMonth.month} Authorizations`}
+                    />
+                    <Bar 
+                      dataKey="currentDeposit" 
+                      fill="#06b6d4" 
+                      name={`${comparisonData.currentMonth.month} Net Deposit`}
+                    />
+                    <Bar 
+                      dataKey="previousAuth" 
+                      fill="#a78bfa" 
+                      name={`${comparisonData.previousMonth.month} Authorizations`}
+                    />
+                    <Bar 
+                      dataKey="previousDeposit" 
+                      fill="#22d3ee" 
+                      name={`${comparisonData.previousMonth.month} Net Deposit`}
+                    />
+                  </RechartsBarChart>
+                )}
               </ResponsiveContainer>
             </CardContent>
           </Card>
