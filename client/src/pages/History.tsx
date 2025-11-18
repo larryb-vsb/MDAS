@@ -465,23 +465,13 @@ export default function History() {
   const chartData = useMemo(() => {
     if (!comparisonData) return [];
     
-    // Debug: log comparison data
-    console.log('Comparison Data:', {
-      currentMonth: comparisonData.currentMonth.month,
-      currentDays: comparisonData.currentMonth.dailyBreakdown.length,
-      previousMonth: comparisonData.previousMonth.month,
-      previousDays: comparisonData.previousMonth.dailyBreakdown.length,
-      sampleCurrentDay: comparisonData.currentMonth.dailyBreakdown[0],
-      samplePreviousDay: comparisonData.previousMonth.dailyBreakdown[0]
-    });
-    
     // For bar charts, always show all 31 days. For line charts, use max of actual data
     const maxDays = chartType === 'bar' ? 31 : Math.max(
       comparisonData.currentMonth.dailyBreakdown.length,
       comparisonData.previousMonth.dailyBreakdown.length
     );
 
-    const data = Array.from({ length: maxDays }, (_, i) => {
+    return Array.from({ length: maxDays }, (_, i) => {
       const dayNum = i + 1;
       const currentDay = comparisonData.currentMonth.dailyBreakdown.find(d => d.dayOfMonth === dayNum);
       const previousDay = comparisonData.previousMonth.dailyBreakdown.find(d => d.dayOfMonth === dayNum);
@@ -494,16 +484,6 @@ export default function History() {
         previousDeposit: previousDay?.netDepositBh || 0,
       };
     });
-    
-    console.log('Chart Data Sample (first 5 days):', data.slice(0, 5));
-    console.log('Max values:', {
-      currentAuth: Math.max(...data.map(d => d.currentAuth)),
-      currentDeposit: Math.max(...data.map(d => d.currentDeposit)),
-      previousAuth: Math.max(...data.map(d => d.previousAuth)),
-      previousDeposit: Math.max(...data.map(d => d.previousDeposit))
-    });
-    
-    return data;
   }, [comparisonData, chartType]);
 
   const renderBreadcrumbs = () => (

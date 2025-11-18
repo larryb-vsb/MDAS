@@ -1331,7 +1331,7 @@ export function registerTddfCacheRoutes(app: Express) {
         filterValues.push(association as string);
       }
       if (merchant && merchant !== 'all') {
-        filterConditions.push(`extracted_fields->>'merchantNumber' = $${filterParamIndex++}`);
+        filterConditions.push(`extracted_fields->>'merchantAccountNumber' = $${filterParamIndex++}`);
         filterValues.push(merchant as string);
       }
       if (terminal && terminal !== 'all') {
