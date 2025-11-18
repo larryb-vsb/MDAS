@@ -510,8 +510,14 @@ export default function Logs() {
                           {activeTab === "all" && (
                             <td className="px-4 py-3 whitespace-nowrap text-sm">
                               <Badge 
-                                variant={log.logType === 'security' ? 'secondary' : 'default'}
-                                className={log.logType === 'system' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' : ''}
+                                variant="default"
+                                className={
+                                  log.logType === 'system' 
+                                    ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' 
+                                    : log.logType === 'security' 
+                                    ? 'bg-orange-100 text-orange-800 hover:bg-orange-100'
+                                    : ''
+                                }
                               >
                                 {log.logType || 'audit'}
                               </Badge>
