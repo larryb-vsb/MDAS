@@ -56,7 +56,6 @@ async function previewStuckFiles() {
       current_phase,
       start_time,
       ROUND(EXTRACT(EPOCH FROM (NOW() - start_time)) / 3600, 1) as hours_stuck,
-      upload_id,
       ROUND(file_size / 1024.0 / 1024.0, 2) as size_mb,
       business_day
     FROM uploader_uploads
