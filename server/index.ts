@@ -416,8 +416,17 @@ app.use((req, res, next) => {
       port,
       host: "0.0.0.0",
       reusePort: true,
-    }, () => {
+    }, async () => {
       log(`Server running on port ${port} in ${NODE_ENV} mode`);
+      
+      // Import and log version information at startup
+      try {
+        const { APP_VERSION, BUILD_DATE } = await import('@shared/version');
+        console.log('📦 [VERSION] Application Version:', APP_VERSION);
+        console.log('📅 [VERSION] Build Date:', BUILD_DATE);
+      } catch (error) {
+        console.error('❌ [VERSION] Failed to load version information:', error);
+      }
       
       // Log server startup completion
       systemLogger.info('Application', 'HTTP server started successfully', {
