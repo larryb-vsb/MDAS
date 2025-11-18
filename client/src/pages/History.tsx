@@ -1981,6 +1981,23 @@ export default function History() {
                 {parsedRoute.viewType === 'daily' && parsedRoute.date && format(parsedRoute.date, 'MMMM dd, yyyy')}
               </h1>
               
+              {parsedRoute.viewType === 'quarterly' && parsedRoute.year && (
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4].map((q) => (
+                    <Button
+                      key={q}
+                      variant={parsedRoute.quarter === q ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setLocation(`/history/${parsedRoute.year}/Q${q}`)}
+                      data-testid={`button-quarter-${q}`}
+                      title={`Go to Q${q}`}
+                    >
+                      Q{q}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              
               {parsedRoute.viewType === 'monthly' && parsedRoute.date && (
                 <div className="flex gap-1">
                   <Button
@@ -2043,6 +2060,26 @@ export default function History() {
                 <Home className="h-4 w-4" />
                 <span className="hidden sm:inline ml-1">Dashboard</span>
               </Button>
+              
+              {(parsedRoute.viewType === 'monthly' || parsedRoute.viewType === 'quarterly') && (filters.group || filters.association || filters.merchant || filters.merchantName || filters.terminal) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFilters({
+                      group: undefined,
+                      association: undefined,
+                      merchant: undefined,
+                      merchantName: undefined,
+                      terminal: undefined
+                    });
+                  }}
+                  data-testid="button-clear-filters"
+                >
+                  <span className="hidden sm:inline">Clear Filters</span>
+                  <span className="sm:hidden">Clear</span>
+                </Button>
+              )}
               
               {parsedRoute.viewType === 'monthly' && (
                 <>
