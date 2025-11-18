@@ -1443,9 +1443,11 @@ export function registerTddfCacheRoutes(app: Express) {
     }
   });
 
-  // TDDF1 Quarterly Totals - Aggregates 3 months from monthly cache
+  // TDDF1 Quarterly Totals - Query master table directly for filtered views, use cache for unfiltered
   app.get('/api/tddf1/quarterly-totals', isAuthenticated, async (req, res) => {
-    console.log('📊 Getting TDDF1 quarterly totals from monthly cache');
+    console.log('📊 Getting TDDF1 quarterly totals');
+    
+    const client = await pool.connect();
     
     try {
       const { year, quarter, group, association, merchant, terminal } = req.query;
@@ -1468,126 +1470,154 @@ export function registerTddfCacheRoutes(app: Express) {
         { year: yearInt, month: startMonth + 2, display: `${year}-${(startMonth + 2).toString().padStart(2, '0')}` }
       ];
       
-      const monthlyCacheTable = getTableName('tddf1_monthly_cache');
+      const hasFilters = !!(group || association || merchant || terminal);
       
-      console.log(`📊 [QUARTERLY-TOTALS] Querying monthly cache for ${year} Q${quarter}: ${months.map(m => m.display).join(', ')}`);
-      if (group || association || merchant || terminal) {
+      if (hasFilters) {
+        console.log(`📊 [QUARTERLY-TOTALS] Querying master table for filtered data (${year} Q${quarter})`);
         console.log(`🎯 [QUARTERLY] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
+      } else {
+        console.log(`📊 [QUARTERLY-TOTALS] Using monthly cache for unfiltered data (${year} Q${quarter})`);
       }
       
-      // Always fetch unfiltered data from cache, then filter in memory
-      // Filtered cache entries don't exist - only base monthly_YYYY_MM entries
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderUploadsTable = getTableName('uploader_uploads');
       
-      // Fetch all 3 months from monthly cache in parallel (unfiltered base data)
-      const monthlyDataPromises = months.map(async (monthObj) => {
-        const cacheKey = `monthly_${monthObj.year}_${monthObj.month.toString().padStart(2, '0')}`;
-        const result = await pool.query(`
-          SELECT daily_breakdown_json
-          FROM ${monthlyCacheTable}
-          WHERE year = $1 AND month = $2 AND cache_key = $3
-          ORDER BY last_refresh_datetime DESC
-          LIMIT 1
-        `, [monthObj.year, monthObj.month, cacheKey]);
-        
-        if (result.rows.length > 0) {
-          return { month: monthObj.display, dailyData: result.rows[0].daily_breakdown_json };
-        }
-        return { month: monthObj.display, dailyData: null };
-      });
+      // Calculate quarter date range
+      const startDate = `${year}-${startMonth.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(yearInt, startMonth + 2, 0).getDate();
+      const endDate = `${year}-${(startMonth + 2).toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
       
-      const monthlyResults = await Promise.all(monthlyDataPromises);
+      await client.query('BEGIN');
+      await client.query(`SET LOCAL statement_timeout = '120s'`);
       
-      // Check if any months have cached data (work with partial data)
-      const availableMonths = monthlyResults.filter(r => r.dailyData).map(r => r.month);
-      const missingMonths = monthlyResults.filter(r => !r.dailyData).map(r => r.month);
-      
-      if (availableMonths.length === 0) {
-        console.log(`⚠️  [QUARTERLY-TOTALS] No cache data available for any month in Q${quarter} ${year}`);
-        return res.status(404).json({
-          error: 'No monthly cache available for this quarter',
-          missingMonths
-        });
+      // Build filter conditions
+      const filterConditions: string[] = [];
+      if (group && typeof group === 'string') {
+        filterConditions.push(`t.extracted_fields->>'groupNumber' = '${group}'`);
       }
-      
-      if (missingMonths.length > 0) {
-        console.log(`📊 [QUARTERLY-TOTALS] Partial data - Available months: ${availableMonths.join(', ')}, Missing: ${missingMonths.join(', ')}`);
+      if (association && typeof association === 'string') {
+        filterConditions.push(`t.extracted_fields->>'associationNumber1' = '${association}'`);
       }
+      if (merchant && typeof merchant === 'string') {
+        filterConditions.push(`t.extracted_fields->>'merchantAccountNumber' = '${merchant}'`);
+      }
+      if (terminal && typeof terminal === 'string') {
+        filterConditions.push(`t.extracted_fields->>'terminalId' = '${terminal}'`);
+      }
+      const filterClause = filterConditions.length > 0 ? `AND ${filterConditions.join(' AND ')}` : '';
       
-      // Aggregate and filter data from available months
-      let totalFiles = 0;
-      let totalRecords = 0;
-      let totalTransactionValue = 0;
-      let totalNetDepositBh = 0;
-      const recordTypeBreakdown: Record<string, number> = {
-        'BH': 0, 'DT': 0, 'G2': 0, 'E1': 0, 'P1': 0, 'P2': 0, 'DR': 0, 'AD': 0
+      // Get quarterly totals from master table
+      const quarterlyTotals = await client.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(DISTINCT t.upload_id) as total_files,
+          COUNT(CASE WHEN t.record_type = 'BH' THEN 1 END) as bh_records,
+          COUNT(CASE WHEN t.record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN t.record_type = 'G2' THEN 1 END) as g2_records,
+          COUNT(CASE WHEN t.record_type = 'E1' THEN 1 END) as e1_records,
+          COUNT(CASE WHEN t.record_type = 'P1' THEN 1 END) as p1_records,
+          COUNT(CASE WHEN t.record_type = 'P2' THEN 1 END) as p2_records,
+          COUNT(CASE WHEN t.record_type = 'DR' THEN 1 END) as dr_records,
+          COUNT(CASE WHEN t.record_type = 'AD' THEN 1 END) as ad_records,
+          COALESCE(SUM(CASE WHEN t.record_type = 'BH' THEN (t.extracted_fields->>'netDeposit')::decimal END), 0) as total_net_deposit_bh,
+          COALESCE(SUM(CASE WHEN t.record_type = 'DT' THEN (t.extracted_fields->>'transactionAmount')::decimal END), 0) as total_transaction_value
+        FROM ${masterTableName} t
+        LEFT JOIN ${uploaderUploadsTable} u ON t.upload_id = u.id
+        WHERE (u.id IS NOT NULL AND u.deleted_at IS NULL)
+          AND (
+            (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+             AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
+            OR
+            (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+             AND t.record_type = 'DT' AND t.extracted_fields->>'transactionDate' >= $3 AND t.extracted_fields->>'transactionDate' <= $4)
+            OR
+            (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
+             AND t.record_type NOT IN ('BH', 'DT'))
+          )
+          ${filterClause}
+      `, [startDate, endDate, startDate, endDate]);
+      
+      // Get daily breakdown for the quarter
+      const dailyBreakdown = await client.query(`
+        SELECT 
+          COALESCE(
+            CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+                 WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+            END
+          ) as date,
+          COUNT(DISTINCT upload_id) as files,
+          COUNT(*) as records,
+          COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
+          COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
+        FROM ${masterTableName} t
+        LEFT JOIN ${uploaderUploadsTable} u ON t.upload_id = u.id
+        WHERE (u.id IS NOT NULL AND u.deleted_at IS NULL)
+          AND (
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
+             AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
+            OR
+            (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
+             AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+          )
+          ${filterClause}
+        GROUP BY date
+        HAVING COALESCE(
+          CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
+               WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
+          END
+        ) IS NOT NULL
+        ORDER BY date
+      `, [startDate, endDate, startDate, endDate]);
+      
+      await client.query('COMMIT');
+      
+      const totals = quarterlyTotals.rows[0];
+      const recordTypeBreakdown = {
+        'BH': parseInt(totals.bh_records) || 0,
+        'DT': parseInt(totals.dt_records) || 0,
+        'G2': parseInt(totals.g2_records) || 0,
+        'E1': parseInt(totals.e1_records) || 0,
+        'P1': parseInt(totals.p1_records) || 0,
+        'P2': parseInt(totals.p2_records) || 0,
+        'DR': parseInt(totals.dr_records) || 0,
+        'AD': parseInt(totals.ad_records) || 0
       };
-      const allDailyData: Array<{ date: string; files: number; records: number; transactionValue: number; netDepositBh: number }> = [];
-      
-      // Apply filters to daily breakdown data from each month
-      monthlyResults.forEach(({ month, dailyData }) => {
-        if (dailyData && Array.isArray(dailyData)) {
-          // Filter daily records based on query parameters
-          const filteredDaily = dailyData.filter((dayRecord: any) => {
-            if (group && dayRecord.group_name !== group) return false;
-            if (association && dayRecord.association_name !== association) return false;
-            if (merchant && dayRecord.merchant_account !== merchant) return false;
-            if (terminal && dayRecord.terminal_id !== terminal) return false;
-            return true;
-          });
-          
-          // Aggregate filtered daily data
-          filteredDaily.forEach((dayRecord: any) => {
-            totalFiles += dayRecord.files || 0;
-            totalRecords += dayRecord.records || 0;
-            totalTransactionValue += dayRecord.transactionValue || 0;
-            totalNetDepositBh += dayRecord.netDepositBh || 0;
-            
-            // Aggregate record type breakdown
-            if (dayRecord.recordTypeBreakdown) {
-              Object.entries(dayRecord.recordTypeBreakdown).forEach(([type, count]) => {
-                recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (count as number);
-              });
-            }
-            
-            // Collect daily data for breakdown table
-            allDailyData.push({
-              date: dayRecord.date,
-              files: dayRecord.files || 0,
-              records: dayRecord.records || 0,
-              transactionValue: dayRecord.transactionValue || 0,
-              netDepositBh: dayRecord.netDepositBh || 0
-            });
-          });
-        }
-      });
-      
-      // Sort daily data by date
-      allDailyData.sort((a, b) => a.date.localeCompare(b.date));
       
       const result = {
         quarter: `Q${quarter}`,
         year,
-        months: months.map(m => m.display), // Return just the display strings
-        totalFiles,
-        totalRecords,
-        totalTransactionValue,
-        totalNetDepositBh,
+        months: months.map(m => m.display),
+        totalFiles: parseInt(totals.total_files) || 0,
+        totalRecords: parseInt(totals.total_records) || 0,
+        totalTransactionValue: parseFloat(totals.total_transaction_value) || 0,
+        totalNetDepositBh: parseFloat(totals.total_net_deposit_bh) || 0,
         recordTypeBreakdown,
-        dailyBreakdown: allDailyData
+        dailyBreakdown: dailyBreakdown.rows.map(row => ({
+          date: row.date,
+          files: parseInt(row.files) || 0,
+          records: parseInt(row.records) || 0,
+          transactionValue: parseFloat(row.transaction_value) || 0,
+          netDepositBh: parseFloat(row.net_deposit_bh) || 0
+        }))
       };
       
-      console.log(`📊 [QUARTERLY] Aggregated from cache for ${year} Q${quarter}: ${result.totalFiles} files, ${result.totalRecords} records, $${result.totalTransactionValue.toLocaleString()} transaction value, $${result.totalNetDepositBh.toLocaleString()} net deposit`);
+      console.log(`📊 [QUARTERLY] Aggregated for ${year} Q${quarter}: ${result.totalFiles} files, ${result.totalRecords} records, $${result.totalTransactionValue.toLocaleString()} transaction value, $${result.totalNetDepositBh.toLocaleString()} net deposit`);
       
       res.json(result);
     } catch (error: any) {
+      await client.query('ROLLBACK');
       console.error('❌ Error fetching TDDF1 quarterly totals:', error);
       res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
     }
   });
 
-  // TDDF1 Quarterly Comparison - Returns monthly breakdowns for current and previous quarter from monthly cache
+  // TDDF1 Quarterly Comparison - Query master table directly for filtered views
   app.get('/api/tddf1/quarterly-comparison', isAuthenticated, async (req, res) => {
-    console.log('📊 Getting TDDF1 quarterly comparison from monthly cache');
+    console.log('📊 Getting TDDF1 quarterly comparison');
+    
+    const client = await pool.connect();
     
     try {
       const { year, quarter, group, association, merchant, terminal } = req.query;
@@ -1601,19 +1631,21 @@ export function registerTddfCacheRoutes(app: Express) {
         return res.status(400).json({ error: 'Quarter must be 1, 2, 3, or 4' });
       }
       
-      const monthlyCacheTable = getTableName('tddf1_monthly_cache');
+      const hasFilters = !!(group || association || merchant || terminal);
       
-      console.log(`📊 [QUARTERLY-COMPARISON] Querying monthly cache for comparison`);
-      if (group || association || merchant || terminal) {
+      if (hasFilters) {
+        console.log(`📊 [QUARTERLY-COMPARISON] Querying master table for filtered data`);
         console.log(`🎯 [QUARTERLY-COMPARISON] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
+      } else {
+        console.log(`📊 [QUARTERLY-COMPARISON] Using monthly cache for unfiltered data`);
       }
       
-      // Always fetch unfiltered data from cache, then filter in memory
-      // Filtered cache entries don't exist - only base monthly_YYYY_MM entries
+      const masterTableName = getTableName('tddf_jsonb');
+      const uploaderUploadsTable = getTableName('uploader_uploads');
+      const yearInt = parseInt(year as string);
       
       // Calculate current quarter months
       const currentStartMonth = (quarterNum - 1) * 3 + 1;
-      const yearInt = parseInt(year as string);
       const currentMonths = [
         { year: yearInt, month: currentStartMonth, name: new Date(yearInt, currentStartMonth - 1, 1).toLocaleString('default', { month: 'long' }) },
         { year: yearInt, month: currentStartMonth + 1, name: new Date(yearInt, currentStartMonth, 1).toLocaleString('default', { month: 'long' }) },
@@ -1630,60 +1662,59 @@ export function registerTddfCacheRoutes(app: Express) {
         { year: prevYear, month: prevStartMonth + 2, name: new Date(prevYear, prevStartMonth + 1, 1).toLocaleString('default', { month: 'long' }) }
       ];
       
-      // Helper function to get monthly data from cache and apply filters
+      await client.query('BEGIN');
+      await client.query(`SET LOCAL statement_timeout = '120s'`);
+      
+      // Build filter conditions
+      const filterConditions: string[] = [];
+      if (group && typeof group === 'string') {
+        filterConditions.push(`extracted_fields->>'groupNumber' = '${group}'`);
+      }
+      if (association && typeof association === 'string') {
+        filterConditions.push(`extracted_fields->>'associationNumber1' = '${association}'`);
+      }
+      if (merchant && typeof merchant === 'string') {
+        filterConditions.push(`extracted_fields->>'merchantAccountNumber' = '${merchant}'`);
+      }
+      if (terminal && typeof terminal === 'string') {
+        filterConditions.push(`extracted_fields->>'terminalId' = '${terminal}'`);
+      }
+      const filterClause = filterConditions.length > 0 ? `AND ${filterConditions.join(' AND ')}` : '';
+      
+      // Helper function to get monthly data from master table
       const getMonthData = async (yearVal: number, monthVal: number, monthName: string) => {
-        const cacheKey = `monthly_${yearVal}_${monthVal.toString().padStart(2, '0')}`;
-        const result = await pool.query(`
-          SELECT daily_breakdown_json
-          FROM ${monthlyCacheTable}
-          WHERE year = $1 AND month = $2 AND cache_key = $3
-          ORDER BY last_refresh_datetime DESC
-          LIMIT 1
-        `, [yearVal, monthVal, cacheKey]);
+        const startDate = `${yearVal}-${monthVal.toString().padStart(2, '0')}-01`;
+        const lastDay = new Date(yearVal, monthVal, 0).getDate();
+        const endDate = `${yearVal}-${monthVal.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         
-        if (result.rows.length > 0) {
-          const dailyData = result.rows[0].daily_breakdown_json;
-          
-          // Filter daily records if filters provided
-          let filteredDaily = dailyData;
-          if (group || association || merchant || terminal) {
-            filteredDaily = dailyData.filter((dayRecord: any) => {
-              if (group && dayRecord.group_name !== group) return false;
-              if (association && dayRecord.association_name !== association) return false;
-              if (merchant && dayRecord.merchant_account !== merchant) return false;
-              if (terminal && dayRecord.terminal_id !== terminal) return false;
-              return true;
-            });
-          }
-          
-          // Aggregate filtered data
-          let totalRecords = 0;
-          let totalTransactionValue = 0;
-          let totalNetDepositBh = 0;
-          
-          filteredDaily.forEach((dayRecord: any) => {
-            totalRecords += dayRecord.records || 0;
-            totalTransactionValue += dayRecord.transactionValue || 0;
-            totalNetDepositBh += dayRecord.netDepositBh || 0;
-          });
-          
-          return {
-            month: monthName,
-            monthValue: `${yearVal}-${monthVal.toString().padStart(2, '0')}`,
-            records: totalRecords,
-            transactionValue: totalTransactionValue,
-            netDepositBh: totalNetDepositBh
-          };
-        }
+        const result = await client.query(`
+          SELECT 
+            COUNT(*) as total_records,
+            COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as total_transaction_value,
+            COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as total_net_deposit_bh
+          FROM ${masterTableName} t
+          LEFT JOIN ${uploaderUploadsTable} u ON t.upload_id = u.id
+          WHERE (u.id IS NOT NULL AND u.deleted_at IS NULL)
+            AND (
+              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
+               AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
+              OR
+              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
+               AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+              OR
+              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
+               AND record_type NOT IN ('BH', 'DT'))
+            )
+            ${filterClause}
+        `, [startDate, endDate, startDate, endDate]);
         
-        // Return zero data if cache not found
-        console.log(`⚠️  [QUARTERLY-COMPARISON] No cache found for ${yearVal}-${monthVal.toString().padStart(2, '0')}, returning zeros`);
+        const row = result.rows[0];
         return {
           month: monthName,
           monthValue: `${yearVal}-${monthVal.toString().padStart(2, '0')}`,
-          records: 0,
-          transactionValue: 0,
-          netDepositBh: 0
+          records: parseInt(row.total_records) || 0,
+          transactionValue: parseFloat(row.total_transaction_value) || 0,
+          netDepositBh: parseFloat(row.total_net_deposit_bh) || 0
         };
       };
       
@@ -1697,7 +1728,9 @@ export function registerTddfCacheRoutes(app: Express) {
         getMonthData(previousMonths[2].year, previousMonths[2].month, previousMonths[2].name)
       ]);
       
-      console.log(`📊 [QUARTERLY-COMPARISON] Current Q${quarter} ${year}: 3 months, Previous Q${prevQuarter} ${prevYear}: 3 months from cache`);
+      await client.query('COMMIT');
+      
+      console.log(`📊 [QUARTERLY-COMPARISON] Current Q${quarter} ${year}: 3 months, Previous Q${prevQuarter} ${prevYear}: 3 months from master table`);
       
       res.json({
         currentQuarter: {
@@ -1712,8 +1745,11 @@ export function registerTddfCacheRoutes(app: Express) {
         }
       });
     } catch (error: any) {
+      await client.query('ROLLBACK');
       console.error('❌ Error fetching TDDF1 quarterly comparison:', error);
       res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
     }
   });
 
