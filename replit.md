@@ -10,6 +10,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Quarterly View Implementation (November 18, 2025)
+- Implemented complete quarterly view for History page with `/history/YYYY/QN` URL pattern (e.g., `/history/2025/Q4`)
+- **Backend Endpoints**: Created two new cache-based API endpoints:
+  - `/api/tddf1/quarterly-totals` - Aggregates 3 months from `dev_tddf1_monthly_cache` table, returns quarterly totals with daily breakdown (~90 days)
+  - `/api/tddf1/quarterly-comparison` - Fetches 6 months (current Q + previous Q), returns monthly breakdowns for comparison chart
+- **Monthly Cache Integration**: Both endpoints query the `totals_json` column from `dev_tddf1_monthly_cache` table (not master `tddf_jsonb` table) for optimal performance
+  - Each month fetched separately with explicit cache keys including filter parameters
+  - Quarterly data aggregated from 3 individual monthly cache records
+  - Daily breakdowns combined from all 3 months and sorted chronologically
+- **Frontend Components**:
+  - 4 summary metric cards (Transaction Authorizations, Net Deposits, Total Files, Total Records) with gradient styling
+  - FilterBar with full filter support (Group, Association, Merchant Name, Merchant Account, Terminal)
+  - Record type breakdown collapsible section (BH, DT, G2, E1, P1, P2, DR, AD counts)
+  - Quarterly comparison chart showing 3 months per quarter with Line/Bar toggle (Bar chart default)
+  - Paginated daily breakdown table (20 rows per page for ~90 days) with Previous/Next controls
+- **Chart Configuration**: Quarterly comparison chart displays month names on x-axis with 4 toggleable series (current Q auth/deposit, previous Q auth/deposit), matching monthly chart styling
+- **Smart Features**: "No Data Available" message when filtered merchant has no transactions, chart title displays merchant name when filtered
+- **Bug Fix**: Architect review identified critical bug where endpoints initially queried wrong column name (`cached_data` instead of `totals_json`), causing 500 errors - fixed by updating both endpoints to use correct column
+
 ### Merchant Name Filter Enhancement (November 18, 2025)
 - Added merchant name filter to History page monthly view for easier merchant filtering by name instead of account number
 - Created `/api/merchants/for-filter` backend endpoint that fetches all MCC merchants (types 0, 1, blank, null) including all statuses (active, disabled, deleted)
