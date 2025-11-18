@@ -23,6 +23,7 @@ Preferred communication style: Simple, everyday language.
 - Idempotent URL restoration: auto-populates merchant account when loading bookmarked URLs with `?merchantName=X` parameter
 - Performance optimizations: useCallback on handleFilterChange, useMemo on merchant lookups, proper dependency arrays to prevent unnecessary re-renders
 - FilterBar cascading filters maintained: Group → Association → Merchant Name → Merchant Account → Terminal
+- **Comparison Chart Filtering Fix**: Fixed critical bug where comparison chart was showing all merchants' data instead of filtering by selected merchant. Updated frontend to pass filter parameters and backend `/api/tddf1/monthly-comparison` endpoint to apply merchant filter to query
 
 ## System Architecture
 
