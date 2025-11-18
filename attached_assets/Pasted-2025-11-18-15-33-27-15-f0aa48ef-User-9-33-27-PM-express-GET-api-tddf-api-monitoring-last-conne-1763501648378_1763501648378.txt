@@ -1,0 +1,144 @@
+2025-11-18 15:33:27.15
+f0aa48ef
+User
+9:33:27 PM [express] GET /api/tddf-api/monitoring/last-connection 200 in 263ms :: {"hasConnection":t…
+2025-11-18 15:33:27.32
+f0aa48ef
+User
+9:33:27 PM [express] GET /api/tddf-api/monitoring 200 in 530ms :: {"stats":{"total_requests":"0","av…
+2025-11-18 15:33:28.52
+f0aa48ef
+User
+9:33:28 PM [express] GET /api/uploader/dashboard-stats 200 in 211ms
+2025-11-18 15:33:28.53
+f0aa48ef
+User
+9:33:28 PM [express] GET /api/uploader/jsonb-stats 200 in 209ms
+2025-11-18 15:33:29.06
+f0aa48ef
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-11-18 15:33:29.36
+f0aa48ef
+User
+9:33:29 PM [express] GET /api/uploader 200 in 313ms :: {"uploads":[],"totalCount":0,"limit":10,"offs…
+2025-11-18 15:33:29.40
+f0aa48ef
+User
+9:33:29 PM [express] GET /api/uploader 200 in 315ms :: {"uploads":[],"totalCount":0,"limit":5,"offse…
+2025-11-18 15:33:29.44
+f0aa48ef
+User
+9:33:29 PM [express] GET /api/tddf-api/monitoring/hosts 200 in 344ms :: [{"client_ip":"75.236.21.33"…
+2025-11-18 15:33:29.71
+f0aa48ef
+User
+9:33:29 PM [express] GET /api/uploader 200 in 316ms :: {"uploads":[],"totalCount":0,"limit":100,"off…
+2025-11-18 15:33:29.93
+f0aa48ef
+User
+9:33:29 PM [express] GET /api/tddf-archive 200 in 366ms :: {"files":[{"id":"uploader_1761947774659_4…
+2025-11-18 15:33:30.00
+f0aa48ef
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-11-18 15:33:30.11
+f0aa48ef
+User
+9:33:30 PM [express] GET /api/tddf-api/monitoring/connections 200 in 316ms :: [{"timestamp":"2025-11…
+2025-11-18 15:33:30.12
+f0aa48ef
+User
+9:33:30 PM [express] GET /api/admin/step6-status 200 in 308ms :: {"activeSlots":{"count":0,"max":3,"…
+2025-11-18 15:33:30.32
+f0aa48ef
+User
+9:33:30 PM [express] GET /api/uploader 200 in 322ms :: {"uploads":[],"totalCount":0,"limit":10000,"o…
+2025-11-18 15:33:31.35
+f0aa48ef
+User
+9:33:31 PM [express] GET /api/uploader/processing-status 200 in 213ms
+2025-11-18 15:33:31.52
+f0aa48ef
+User
+9:33:31 PM [express] GET /api/tddf-api/monitoring/last-connection 200 in 272ms :: {"hasConnection":t…
+2025-11-18 15:33:31.74
+f0aa48ef
+User
+9:33:31 PM [express] GET /api/tddf-api/monitoring/host-approvals 200 in 260ms :: [{"id":23,"hostname…
+2025-11-18 15:33:31.94
+f0aa48ef
+User
+9:33:31 PM [express] GET /api/tddf-api/monitoring 200 in 528ms :: {"stats":{"total_requests":"0","av…
+2025-11-18 15:33:33.55
+f0aa48ef
+User
+9:33:33 PM [express] GET /api/admin/step6-status 200 in 317ms :: {"activeSlots":{"count":0,"max":3,"…
+2025-11-18 15:33:34.41
+f0aa48ef
+User
+9:33:34 PM [express] GET /api/tddf-archive 200 in 377ms :: {"files":[{"id":"uploader_1761947774659_4…
+2025-11-18 15:33:34.78
+f0aa48ef
+User
+9:33:34 PM [express] GET /api/uploader 200 in 318ms :: {"uploads":[],"totalCount":0,"limit":10,"offs…
+2025-11-18 15:33:34.82
+f0aa48ef
+User
+9:33:34 PM [express] GET /api/uploader 200 in 312ms :: {"uploads":[],"totalCount":0,"limit":5,"offse…
+2025-11-18 15:33:35.11
+f0aa48ef
+User
+9:33:35 PM [express] GET /api/uploader 200 in 313ms :: {"uploads":[],"totalCount":0,"limit":100,"off…
+2025-11-18 15:33:35.52
+f0aa48ef
+User
+9:33:35 PM [express] GET /api/tddf-api/monitoring/connections 200 in 314ms :: [{"timestamp":"2025-11…
+2025-11-18 15:33:35.88
+f0aa48ef
+User
+9:33:35 PM [express] GET /api/tddf-api/monitoring/last-connection 200 in 267ms :: {"hasConnection":t…
+2025-11-18 15:33:36.56
+f0aa48ef
+User
+9:33:36 PM [express] GET /api/tddf-api/monitoring 200 in 517ms :: {"stats":{"total_requests":"0","av…
+2025-11-18 15:33:36.61
+f0aa48ef
+User
+9:33:36 PM [express] GET /api/uploader/processing-status 200 in 212ms
+2025-11-18 15:33:36.91
+f0aa48ef
+User
+9:33:36 PM [express] GET /api/admin/step6-status 200 in 270ms :: {"activeSlots":{"count":0,"max":3,"…
+2025-11-18 15:33:37.09
+f0aa48ef
+User
+9:33:37 PM [express] GET /api/tddf-api/monitoring/host-approvals 200 in 262ms :: [{"id":23,"hostname…
+2025-11-18 15:33:38.88
+f0aa48ef
+User
+9:33:38 PM [express] GET /api/tddf-archive 200 in 364ms :: {"files":[{"id":"uploader_1761947774659_4…
+2025-11-18 15:33:39.88
+f0aa48ef
+User
+9:33:39 PM [express] GET /api/tddf-api/monitoring/hosts 200 in 345ms :: [{"client_ip":"75.236.21.33"…
+2025-11-18 15:33:40.19
+f0aa48ef
+User
+9:33:40 PM [express] GET /api/uploader 200 in 309ms :: {"uploads":[],"totalCount":0,"limit":10,"offs…
+2025-11-18 15:33:40.23
+f0aa48ef
+User
+9:33:40 PM [express] GET /api/tddf-api/monitoring/last-connection 200 in 264ms :: {"hasConnection":t…
+2025-11-18 15:33:40.24
+f0aa48ef
+User
+9:33:40 PM [express] GET /api/uploader 200 in 318ms :: {"uploads":[],"totalCount":0,"limit":5,"offse…
+2025-11-18 15:33:40.34
+f0aa48ef
+User
+9:33:40 PM [express] GET /api/admin/step6-status 200 in 311ms :: {"activeSlots":{"count":0,"max":3,"…
+2025-11-18 15:33:40.54
+f0aa48ef
+User
+9:33:40 PM [express] GET /api/uploader 200 in 318ms :: {"uploads":[],"totalCount":0,"limit":100,"off…
