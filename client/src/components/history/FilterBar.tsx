@@ -100,6 +100,15 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
     return lookup;
   }, [merchantOptions]);
 
+  // Reverse lookup: account number -> merchant ID
+  const accountToMerchantId = useMemo(() => {
+    const lookup: Record<string, string> = {};
+    merchantOptions.forEach(m => {
+      lookup[m.accountNumber] = m.id.toString();
+    });
+    return lookup;
+  }, [merchantOptions]);
+
   // Auto-populate merchant account number when merchantName is set (e.g., from URL restoration)
   // Only fires when merchantName changes, merchant is missing/mismatched, or lookup updates
   useEffect(() => {
@@ -111,6 +120,17 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
       }
     }
   }, [filters.merchantName, filters.merchant, merchantLookup, onFilterChange]);
+
+  // Bidirectional sync: Auto-populate merchant name when account number is set
+  useEffect(() => {
+    if (filters.merchant && accountToMerchantId[filters.merchant]) {
+      const expectedMerchantId = accountToMerchantId[filters.merchant];
+      // Only update if merchantName is missing or doesn't match
+      if (filters.merchantName !== expectedMerchantId) {
+        onFilterChange({ ...filters, merchantName: expectedMerchantId });
+      }
+    }
+  }, [filters.merchant, filters.merchantName, accountToMerchantId, onFilterChange]);
 
   // Get filtered options based on cascading filters
   const getFilteredAssociations = () => {
@@ -157,11 +177,16 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
     } else {
       newFilters[type] = value;
       
-      // When merchant name is selected (by ID), automatically set merchant account number
+      // Bidirectional sync: merchant name <-> account number
       if (type === 'merchantName') {
         const selectedMerchant = merchantOptions.find(m => m.id.toString() === value);
         if (selectedMerchant) {
           newFilters.merchant = selectedMerchant.accountNumber;
+        }
+      } else if (type === 'merchant') {
+        const merchantId = accountToMerchantId[value];
+        if (merchantId) {
+          newFilters.merchantName = merchantId;
         }
       }
     }
@@ -226,10 +251,10 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
           disabled={merchantOptions.length === 0}
         >
           <SelectTrigger className="w-full" data-testid="select-merchant-name">
-            <SelectValue placeholder="All Merchants" />
+            <SelectValue placeholder="All Merch Names" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Merchants</SelectItem>
+            <SelectItem value="all">All Merch Names</SelectItem>
             {merchantOptions.map((merchant) => (
               <SelectItem key={merchant.id} value={merchant.id.toString()}>
                 {merchant.name} {merchant.status !== 'Active/Open' && `(${merchant.status})`}
@@ -248,10 +273,10 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
           disabled={isLoading}
         >
           <SelectTrigger className="w-full" data-testid="select-merchant">
-            <SelectValue placeholder="All Merchants" />
+            <SelectValue placeholder="All Merch Accts" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Merchants</SelectItem>
+            <SelectItem value="all">All Merch Accts</SelectItem>
             {getFilteredMerchants().map((merchant) => (
               <SelectItem key={merchant} value={merchant}>
                 {merchant}

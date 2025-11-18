@@ -109,6 +109,18 @@ export default function History() {
     terminal?: string;
   }>({});
 
+  // Fetch merchant name for chart title when merchant filter is active
+  const { data: merchantData } = useQuery({
+    queryKey: ['/api/merchants/for-filter'],
+    enabled: !!filters.merchantName,
+  });
+
+  const selectedMerchantName = useMemo(() => {
+    if (!filters.merchantName || !merchantData) return null;
+    const merchant = merchantData.find((m: any) => m.id.toString() === filters.merchantName);
+    return merchant?.name || null;
+  }, [filters.merchantName, merchantData]);
+
   // Initialize theme from user preference
   useEffect(() => {
     if (user?.themePreference) {
@@ -707,7 +719,10 @@ export default function History() {
         {comparisonData && !comparisonLoading && (
           <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
             <CardHeader>
-              <CardTitle className={isDarkMode ? 'text-white' : ''}>Monthly Financial Trends Comparison</CardTitle>
+              <CardTitle className={isDarkMode ? 'text-white' : ''}>
+                Monthly Financial Trends Comparison
+                {selectedMerchantName && ` - ${selectedMerchantName}`}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
