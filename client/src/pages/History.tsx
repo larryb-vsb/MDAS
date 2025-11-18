@@ -716,7 +716,7 @@ export default function History() {
         </Card>
 
         {/* Monthly Comparison Chart */}
-        {comparisonData && !comparisonLoading && (
+        {comparisonData && !comparisonLoading && monthlyData && monthlyData.totalRecords > 0 && (
           <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
             <CardHeader>
               <CardTitle className={isDarkMode ? 'text-white' : ''}>
@@ -783,6 +783,23 @@ export default function History() {
                   />
                 </RechartsLineChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No Data Message when merchant filter is active but has no data */}
+        {filters.merchantName && monthlyData && monthlyData.totalRecords === 0 && (
+          <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+            <CardContent className="py-12">
+              <div className="text-center">
+                <Database className={`mx-auto h-12 w-12 mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                <h3 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  No Data Available
+                </h3>
+                <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {selectedMerchantName || 'This merchant'} has no transaction data for {parsedRoute.monthName} {parsedRoute.year}.
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
