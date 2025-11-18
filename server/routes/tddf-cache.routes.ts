@@ -1502,17 +1502,23 @@ export function registerTddfCacheRoutes(app: Express) {
       
       const monthlyResults = await Promise.all(monthlyDataPromises);
       
-      // Check if all months have cached data
+      // Check if any months have cached data (work with partial data)
+      const availableMonths = monthlyResults.filter(r => r.data).map(r => r.month);
       const missingMonths = monthlyResults.filter(r => !r.data).map(r => r.month);
-      if (missingMonths.length > 0) {
-        console.log(`⚠️  [QUARTERLY-TOTALS] Missing cache for months: ${missingMonths.join(', ')}`);
+      
+      if (availableMonths.length === 0) {
+        console.log(`⚠️  [QUARTERLY-TOTALS] No cache data available for any month in Q${quarter} ${year}`);
         return res.status(404).json({
-          error: 'Monthly cache not available for all months in quarter',
+          error: 'No monthly cache available for this quarter',
           missingMonths
         });
       }
       
-      // Aggregate data from all 3 months
+      if (missingMonths.length > 0) {
+        console.log(`📊 [QUARTERLY-TOTALS] Partial data - Available months: ${availableMonths.join(', ')}, Missing: ${missingMonths.join(', ')}`);
+      }
+      
+      // Aggregate data from available months
       let totalFiles = 0;
       let totalRecords = 0;
       let totalTransactionValue = 0;

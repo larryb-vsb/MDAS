@@ -19,15 +19,22 @@ Preferred communication style: Simple, everyday language.
   - Each month fetched separately with explicit cache keys including filter parameters
   - Quarterly data aggregated from 3 individual monthly cache records
   - Daily breakdowns combined from all 3 months and sorted chronologically
+  - **Database Schema Fix**: Corrected endpoints to query using separate `year` (integer) and `month` (integer) columns instead of combined month strings like "2025-07"
+  - Cache key format uses underscores: `monthly_YYYY_MM` with zero-padded months (e.g., `monthly_2025_07`)
 - **Frontend Components**:
   - 4 summary metric cards (Transaction Authorizations, Net Deposits, Total Files, Total Records) with gradient styling
   - FilterBar with full filter support (Group, Association, Merchant Name, Merchant Account, Terminal)
   - Record type breakdown collapsible section (BH, DT, G2, E1, P1, P2, DR, AD counts)
   - Quarterly comparison chart showing 3 months per quarter with Line/Bar toggle (Bar chart default)
   - Paginated daily breakdown table (20 rows per page for ~90 days) with Previous/Next controls
+  - **Quarter Navigation Buttons**: Q1, Q2, Q3, Q4 buttons in header for easy quarter switching within same year
+  - **Clear Filter Button**: Shows when any filters are active on monthly or quarterly views to reset all filters at once
 - **Chart Configuration**: Quarterly comparison chart displays month names on x-axis with 4 toggleable series (current Q auth/deposit, previous Q auth/deposit), matching monthly chart styling
 - **Smart Features**: "No Data Available" message when filtered merchant has no transactions, chart title displays merchant name when filtered
-- **Bug Fix**: Architect review identified critical bug where endpoints initially queried wrong column name (`cached_data` instead of `totals_json`), causing 500 errors - fixed by updating both endpoints to use correct column
+- **Bug Fixes**: 
+  - Fixed critical bug where endpoints initially queried wrong column name (`cached_data` instead of `totals_json`), causing 500 errors
+  - Fixed database query pattern from `WHERE month = $1` with "2025-07" string to `WHERE year = $1 AND month = $2` with integers (2025, 7)
+  - Fixed quarterly-totals endpoint to handle partial quarter data gracefully - works with incomplete quarters (e.g., Q4 2025 shows Oct/Nov data even though Dec hasn't occurred yet)
 
 ### Merchant Name Filter Enhancement (November 18, 2025)
 - Added merchant name filter to History page monthly view for easier merchant filtering by name instead of account number
