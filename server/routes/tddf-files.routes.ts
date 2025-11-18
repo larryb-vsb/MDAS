@@ -716,10 +716,17 @@ export function registerTddfFilesRoutes(app: Express) {
       const validIds = existingFiles.filter(f => !f.deleted_at).map(f => f.id);
       
       if (validIds.length === 0) {
-        return res.status(400).json({ 
-          error: "No valid files to delete",
-          notFound: notFoundIds.length,
-          alreadyDeleted: alreadyDeletedIds.length
+        // Return 200 with informative message instead of 400 error
+        console.log(`[BULK-DELETE] No valid files to delete - ${notFoundIds.length} not found, ${alreadyDeletedIds.length} already deleted`);
+        return res.status(200).json({ 
+          success: false,
+          deletedCount: 0,
+          message: "No files were deleted",
+          reason: "All selected files are either already deleted or no longer exist",
+          skipped: {
+            notFound: notFoundIds.length,
+            alreadyDeleted: alreadyDeletedIds.length
+          }
         });
       }
       

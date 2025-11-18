@@ -90,13 +90,35 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
       return apiRequest("/api/uploader/bulk-delete", {
         method: "POST",
         body: JSON.stringify({ uploadIds })
-      }) as Promise<{ success: boolean; deletedCount: number; message: string }>;
+      }) as Promise<{ 
+        success: boolean; 
+        deletedCount: number; 
+        message: string;
+        reason?: string;
+        skipped?: { notFound: number; alreadyDeleted: number };
+      }>;
     },
     onSuccess: (data) => {
-      toast({
-        title: "Files Deleted Successfully",
-        description: `Deleted ${data.deletedCount} file(s) from the queue`,
-      });
+      if (data.success === false && data.deletedCount === 0) {
+        // No files were deleted - show warning instead of error
+        const skippedMsg = data.skipped 
+          ? ` (${data.skipped.alreadyDeleted} already deleted, ${data.skipped.notFound} not found)`
+          : '';
+        toast({
+          title: "No Files Deleted",
+          description: `${data.reason || data.message}${skippedMsg}`,
+          variant: "default"
+        });
+      } else {
+        // Some or all files deleted successfully
+        const skippedMsg = data.skipped && (data.skipped.alreadyDeleted > 0 || data.skipped.notFound > 0)
+          ? ` (skipped ${data.skipped.alreadyDeleted + data.skipped.notFound} invalid file(s))`
+          : '';
+        toast({
+          title: "Files Deleted Successfully",
+          description: `Deleted ${data.deletedCount} file(s) from the queue${skippedMsg}`,
+        });
+      }
       setSelectedFiles(new Set());
       queryClient.invalidateQueries({ queryKey: ["/api/admin/step6-status"] });
     },
@@ -106,6 +128,8 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
         description: error.message,
         variant: "destructive"
       });
+      // Auto-refresh on error to show current queue state
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/step6-status"] });
     }
   });
   
