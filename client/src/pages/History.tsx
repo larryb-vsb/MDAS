@@ -59,6 +59,49 @@ interface MonthlyComparison {
   };
 }
 
+interface QuarterlyTotals {
+  quarter: string;
+  year: string;
+  months: string[];
+  totalFiles: number;
+  totalRecords: number;
+  totalTransactionValue: number;
+  totalNetDepositBh: number;
+  recordTypeBreakdown: Record<string, number>;
+  dailyBreakdown: Array<{
+    date: string;
+    files: number;
+    records: number;
+    transactionValue: number;
+    netDepositBh: number;
+  }>;
+}
+
+interface QuarterlyComparison {
+  currentQuarter: {
+    quarter: string;
+    year: string;
+    monthlyBreakdown: Array<{
+      month: string;
+      monthValue: string;
+      records: number;
+      transactionValue: number;
+      netDepositBh: number;
+    }>;
+  };
+  previousQuarter: {
+    quarter: string;
+    year: string;
+    monthlyBreakdown: Array<{
+      month: string;
+      monthValue: string;
+      records: number;
+      transactionValue: number;
+      netDepositBh: number;
+    }>;
+  };
+}
+
 interface BreadcrumbItem {
   label: string;
   path: string;
@@ -107,6 +150,10 @@ export default function History() {
     previousAuth: true,
     previousDeposit: true
   });
+  
+  // Quarterly pagination state (20 rows per page for ~90 days of data)
+  const [quarterlyPage, setQuarterlyPage] = useState(1);
+  const quarterlyRowsPerPage = 20;
   
   // Filter state synced with URL
   const [filters, setFilters] = useState<{
@@ -329,6 +376,60 @@ export default function History() {
       return response.json();
     },
     enabled: parsedRoute.viewType === 'monthly' && !!parsedRoute.date
+  });
+
+  // Fetch quarterly data if we're in quarterly view
+  const { data: quarterlyData, isLoading: quarterlyLoading, error: quarterlyError, refetch: refetchQuarterly } = useQuery({
+    queryKey: ['history-quarterly', parsedRoute.year, parsedRoute.quarter, filters],
+    queryFn: async (): Promise<QuarterlyTotals> => {
+      if (!parsedRoute.year || !parsedRoute.quarter) throw new Error('Invalid quarter');
+      const params = new URLSearchParams({ 
+        year: parsedRoute.year.toString(), 
+        quarter: parsedRoute.quarter.toString() 
+      });
+      if (filters.group) params.append('group', filters.group);
+      if (filters.association) params.append('association', filters.association);
+      if (filters.merchant) params.append('merchant', filters.merchant);
+      if (filters.terminal) params.append('terminal', filters.terminal);
+      
+      const response = await fetch(`/api/tddf1/quarterly-totals?${params}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch quarterly data');
+      return response.json();
+    },
+    enabled: parsedRoute.viewType === 'quarterly' && !!parsedRoute.year && !!parsedRoute.quarter
+  });
+
+  const { data: quarterlyComparisonData, isLoading: quarterlyComparisonLoading } = useQuery({
+    queryKey: ['history-quarterly-comparison', parsedRoute.year, parsedRoute.quarter, filters.merchant],
+    queryFn: async (): Promise<QuarterlyComparison> => {
+      if (!parsedRoute.year || !parsedRoute.quarter) throw new Error('Invalid quarter');
+      
+      const params = new URLSearchParams({ 
+        year: parsedRoute.year.toString(), 
+        quarter: parsedRoute.quarter.toString() 
+      });
+      if (filters.group) params.append('group', filters.group);
+      if (filters.association) params.append('association', filters.association);
+      if (filters.merchant) params.append('merchant', filters.merchant);
+      if (filters.terminal) params.append('terminal', filters.terminal);
+      
+      const response = await fetch(`/api/tddf1/quarterly-comparison?${params.toString()}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch quarterly comparison data');
+      return response.json();
+    },
+    enabled: parsedRoute.viewType === 'quarterly' && !!parsedRoute.year && !!parsedRoute.quarter
   });
 
   // Fetch daily data if we're in daily view
@@ -1037,42 +1138,524 @@ export default function History() {
     );
   };
 
-  const renderQuarterlyView = () => (
-    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
-      <CardHeader>
-        <CardTitle className={isDarkMode ? 'text-white' : ''}>
-          Quarterly View - Q{parsedRoute.quarter} {parsedRoute.year}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-          Quarterly aggregation coming soon. This will show combined data for all months in Q{parsedRoute.quarter} {parsedRoute.year}.
-        </p>
-        <div className="mt-4">
-          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Navigate to individual months:
-          </p>
-          <div className="flex gap-2 mt-2">
-            {[0, 1, 2].map(offset => {
-              const monthNum = (parsedRoute.quarter! - 1) * 3 + offset + 1;
-              const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-              return (
+  const renderQuarterlyView = () => {
+    if (quarterlyLoading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-full"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    if (quarterlyError || !quarterlyData) {
+      return (
+        <Card className={`${isDarkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'} p-8`}>
+          <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className={`text-6xl ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>⚠️</div>
+            <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>
+              Failed to Load Data
+            </h3>
+            <p className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'} max-w-md`}>
+              {quarterlyError instanceof Error ? quarterlyError.message : 'An unexpected error occurred.'}
+            </p>
+            <Button
+              onClick={() => refetchQuarterly()}
+              className={`${isDarkMode ? 'bg-red-700 hover:bg-red-600' : 'bg-red-600 hover:bg-red-700'} text-white`}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </Card>
+      );
+    }
+
+    const metricsConfig = [
+      {
+        title: 'Transaction Authorizations',
+        value: formatCurrency(quarterlyData.totalTransactionValue),
+        subtitle: 'DT record totals',
+        icon: DollarSign,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700' : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200',
+        titleColor: isDarkMode ? 'text-purple-100' : 'text-purple-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-purple-900',
+        subtitleColor: isDarkMode ? 'text-purple-200' : 'text-purple-600',
+        iconColor: isDarkMode ? 'text-purple-300' : 'text-purple-600',
+        valueFontSize: 'text-xl sm:text-2xl',
+        testId: 'metric-transaction-auth'
+      },
+      {
+        title: 'Net Deposits',
+        value: formatCurrency(quarterlyData.totalNetDepositBh),
+        subtitle: 'BH batch totals',
+        icon: DollarSign,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-orange-900 to-orange-800 border-orange-700' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200',
+        titleColor: isDarkMode ? 'text-orange-100' : 'text-orange-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-orange-900',
+        subtitleColor: isDarkMode ? 'text-orange-200' : 'text-orange-600',
+        iconColor: isDarkMode ? 'text-orange-300' : 'text-orange-600',
+        valueFontSize: 'text-xl sm:text-2xl',
+        testId: 'metric-net-deposits'
+      },
+      {
+        title: 'Total Files',
+        value: formatNumber(quarterlyData.totalFiles),
+        subtitle: 'TDDF files processed',
+        icon: FileText,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200',
+        titleColor: isDarkMode ? 'text-blue-100' : 'text-blue-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-blue-900',
+        subtitleColor: isDarkMode ? 'text-blue-200' : 'text-blue-600',
+        iconColor: isDarkMode ? 'text-blue-300' : 'text-blue-600',
+        valueFontSize: 'text-2xl sm:text-3xl',
+        testId: 'metric-total-files'
+      },
+      {
+        title: 'Total Records',
+        value: formatNumber(quarterlyData.totalRecords),
+        subtitle: 'All record types',
+        icon: TrendingUp,
+        gradient: isDarkMode ? 'bg-gradient-to-br from-green-900 to-green-800 border-green-700' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200',
+        titleColor: isDarkMode ? 'text-green-100' : 'text-green-700',
+        valueColor: isDarkMode ? 'text-white' : 'text-green-900',
+        subtitleColor: isDarkMode ? 'text-green-200' : 'text-green-600',
+        iconColor: isDarkMode ? 'text-green-300' : 'text-green-600',
+        valueFontSize: 'text-2xl sm:text-3xl',
+        testId: 'metric-total-records'
+      }
+    ];
+
+    // Calculate pagination for daily breakdown
+    const totalPages = Math.ceil((quarterlyData.dailyBreakdown?.length || 0) / quarterlyRowsPerPage);
+    const paginatedDailyData = quarterlyData.dailyBreakdown.slice(
+      (quarterlyPage - 1) * quarterlyRowsPerPage,
+      quarterlyPage * quarterlyRowsPerPage
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* Filter Bar */}
+        {quarterlyData.months[0] && (
+          <FilterBar
+            month={quarterlyData.months[0]}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            isDarkMode={isDarkMode}
+          />
+        )}
+        
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {metricsConfig.map((metric) => {
+            const IconComponent = metric.icon;
+            return (
+              <Card key={metric.testId} className={metric.gradient}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className={`text-sm font-medium ${metric.titleColor}`}>
+                    {metric.title}
+                  </CardTitle>
+                  <IconComponent className={`h-4 w-4 ${metric.iconColor}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`${metric.valueFontSize} font-bold ${metric.valueColor}`}>
+                    {metric.value}
+                  </div>
+                  <p className={`text-xs ${metric.subtitleColor} mt-1`}>
+                    {metric.subtitle}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Record Type Breakdown */}
+        <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className={isDarkMode ? 'text-white' : ''}>Record Type Breakdown</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowRecordTypes(!showRecordTypes)}
+                data-testid="button-toggle-record-types"
+              >
+                {showRecordTypes ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </div>
+          </CardHeader>
+          {showRecordTypes && (
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {Object.entries(quarterlyData.recordTypeBreakdown).map(([type, count]) => (
+                  <div key={type} className={`text-center p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{type}</div>
+                    <div className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(count)}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Quarterly Comparison Chart */}
+        {quarterlyComparisonData && !quarterlyComparisonLoading && quarterlyData && quarterlyData.totalRecords > 0 && (
+          <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+            <CardHeader>
+              <div className="flex items-center justify-between mb-4">
+                <CardTitle className={isDarkMode ? 'text-white' : ''}>
+                  Quarterly Financial Trends Comparison
+                  {selectedMerchantName && ` - ${selectedMerchantName}`}
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant={chartType === 'line' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setChartType('line')}
+                    data-testid="button-line-chart"
+                    className="flex items-center gap-1"
+                  >
+                    <Activity className="h-4 w-4" />
+                    Line
+                  </Button>
+                  <Button
+                    variant={chartType === 'bar' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setChartType('bar')}
+                    data-testid="button-bar-chart"
+                    className="flex items-center gap-1"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Bar
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="current-auth" 
+                    checked={visibleSeries.currentAuth}
+                    onCheckedChange={() => toggleSeries('currentAuth')}
+                    data-testid="checkbox-current-auth"
+                  />
+                  <label 
+                    htmlFor="current-auth" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#8b5cf6'}}></span>
+                    {quarterlyComparisonData.currentQuarter.quarter} {quarterlyComparisonData.currentQuarter.year} Authorizations
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="current-deposit" 
+                    checked={visibleSeries.currentDeposit}
+                    onCheckedChange={() => toggleSeries('currentDeposit')}
+                    data-testid="checkbox-current-deposit"
+                  />
+                  <label 
+                    htmlFor="current-deposit" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#06b6d4'}}></span>
+                    {quarterlyComparisonData.currentQuarter.quarter} {quarterlyComparisonData.currentQuarter.year} Net Deposit
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="previous-auth" 
+                    checked={visibleSeries.previousAuth}
+                    onCheckedChange={() => toggleSeries('previousAuth')}
+                    data-testid="checkbox-previous-auth"
+                  />
+                  <label 
+                    htmlFor="previous-auth" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#a78bfa'}}></span>
+                    {quarterlyComparisonData.previousQuarter.quarter} {quarterlyComparisonData.previousQuarter.year} Authorizations
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="previous-deposit" 
+                    checked={visibleSeries.previousDeposit}
+                    onCheckedChange={() => toggleSeries('previousDeposit')}
+                    data-testid="checkbox-previous-deposit"
+                  />
+                  <label 
+                    htmlFor="previous-deposit" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#22d3ee'}}></span>
+                    {quarterlyComparisonData.previousQuarter.quarter} {quarterlyComparisonData.previousQuarter.year} Net Deposit
+                  </label>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                {chartType === 'line' ? (
+                  <RechartsLineChart 
+                    data={[
+                      ...quarterlyComparisonData.currentQuarter.monthlyBreakdown.map((m, i) => ({
+                        month: m.month,
+                        currentAuth: m.transactionValue,
+                        currentDeposit: m.netDepositBh,
+                        previousAuth: quarterlyComparisonData.previousQuarter.monthlyBreakdown[i]?.transactionValue || 0,
+                        previousDeposit: quarterlyComparisonData.previousQuarter.monthlyBreakdown[i]?.netDepositBh || 0
+                      }))
+                    ]}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
+                    <XAxis 
+                      dataKey="month" 
+                      label={{ value: 'Month', position: 'insideBottom', offset: -10 }}
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                    />
+                    <YAxis 
+                      domain={[0, 'auto']}
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px',
+                        color: isDarkMode ? '#f3f4f6' : '#111827'
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    {visibleSeries.currentAuth && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentAuth" 
+                        stroke="#8b5cf6" 
+                        strokeWidth={2}
+                        name={`${quarterlyComparisonData.currentQuarter.quarter} ${quarterlyComparisonData.currentQuarter.year} Authorizations`}
+                      />
+                    )}
+                    {visibleSeries.currentDeposit && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentDeposit" 
+                        stroke="#06b6d4" 
+                        strokeWidth={2}
+                        name={`${quarterlyComparisonData.currentQuarter.quarter} ${quarterlyComparisonData.currentQuarter.year} Net Deposit`}
+                      />
+                    )}
+                    {visibleSeries.previousAuth && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousAuth" 
+                        stroke="#a78bfa" 
+                        strokeWidth={2}
+                        name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Authorizations`}
+                      />
+                    )}
+                    {visibleSeries.previousDeposit && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousDeposit" 
+                        stroke="#22d3ee" 
+                        strokeWidth={2}
+                        name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Net Deposit`}
+                      />
+                    )}
+                  </RechartsLineChart>
+                ) : (
+                  <RechartsBarChart 
+                    data={[
+                      ...quarterlyComparisonData.currentQuarter.monthlyBreakdown.map((m, i) => ({
+                        month: m.month,
+                        currentAuth: m.transactionValue,
+                        currentDeposit: m.netDepositBh,
+                        previousAuth: quarterlyComparisonData.previousQuarter.monthlyBreakdown[i]?.transactionValue || 0,
+                        previousDeposit: quarterlyComparisonData.previousQuarter.monthlyBreakdown[i]?.netDepositBh || 0
+                      }))
+                    ]}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
+                    <XAxis 
+                      dataKey="month" 
+                      label={{ value: 'Month', position: 'insideBottom', offset: -10 }}
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                    />
+                    <YAxis 
+                      domain={[0, 'auto']}
+                      stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px',
+                        color: isDarkMode ? '#f3f4f6' : '#111827'
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    {visibleSeries.currentAuth && (
+                      <Bar 
+                        dataKey="currentAuth" 
+                        fill="#8b5cf6" 
+                        name={`${quarterlyComparisonData.currentQuarter.quarter} ${quarterlyComparisonData.currentQuarter.year} Authorizations`}
+                        maxBarSize={20}
+                      />
+                    )}
+                    {visibleSeries.currentDeposit && (
+                      <Bar 
+                        dataKey="currentDeposit" 
+                        fill="#06b6d4" 
+                        name={`${quarterlyComparisonData.currentQuarter.quarter} ${quarterlyComparisonData.currentQuarter.year} Net Deposit`}
+                        maxBarSize={20}
+                      />
+                    )}
+                    {visibleSeries.previousAuth && (
+                      <Bar 
+                        dataKey="previousAuth" 
+                        fill="#a78bfa" 
+                        name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Authorizations`}
+                        maxBarSize={20}
+                      />
+                    )}
+                    {visibleSeries.previousDeposit && (
+                      <Bar 
+                        dataKey="previousDeposit" 
+                        fill="#22d3ee" 
+                        name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Net Deposit`}
+                        maxBarSize={20}
+                      />
+                    )}
+                  </RechartsBarChart>
+                )}
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No Data Message when merchant filter is active but has no data */}
+        {filters.merchantName && quarterlyData && quarterlyData.totalRecords === 0 && (
+          <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+            <CardContent className="py-12">
+              <div className="text-center">
+                <Database className={`mx-auto h-12 w-12 mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                <h3 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  No Data Available
+                </h3>
+                <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {selectedMerchantName || 'This merchant'} has no transaction data for Q{parsedRoute.quarter} {parsedRoute.year}.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Daily Breakdown Table with Pagination */}
+        <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className={isDarkMode ? 'text-white' : ''}>Daily Breakdown</CardTitle>
+              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Showing {((quarterlyPage - 1) * quarterlyRowsPerPage) + 1}-{Math.min(quarterlyPage * quarterlyRowsPerPage, quarterlyData.dailyBreakdown.length)} of {quarterlyData.dailyBreakdown.length} days
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <th className={`text-left p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Date</th>
+                    <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Files</th>
+                    <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Records</th>
+                    <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>DT Authorizations</th>
+                    <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>BH Net Deposit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedDailyData.map((day) => {
+                    const shouldHighlight = day.files > 2;
+                    return (
+                      <tr 
+                        key={day.date} 
+                        className={clsx(
+                          'border-b cursor-pointer',
+                          shouldHighlight 
+                            ? isDarkMode 
+                              ? 'bg-amber-900/40 hover:bg-amber-900/60 border-amber-800' 
+                              : 'bg-amber-50 hover:bg-amber-100 border-amber-200'
+                            : isDarkMode 
+                              ? 'border-gray-700 hover:bg-gray-700' 
+                              : 'border-gray-100 hover:bg-gray-50'
+                        )}
+                        onClick={() => {
+                          const date = new Date(day.date);
+                          const dayNum = date.getDate();
+                          const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                          const monthIdx = date.getMonth();
+                          setLocation(`/history/${parsedRoute.year}/${monthNames[monthIdx]}/${dayNum}`);
+                        }}
+                        data-testid={`row-day-${day.date}`}
+                      >
+                        <td className={`p-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{format(new Date(day.date), 'MMM dd, yyyy')}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{day.files}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatNumber(day.records)}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.transactionValue)}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.netDepositBh)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
                 <Button
-                  key={monthNum}
                   variant="outline"
                   size="sm"
-                  onClick={() => setLocation(`/history/${parsedRoute.year}/${monthNames[monthNum - 1]}`)}
-                  data-testid={`link-month-${monthNum}`}
+                  onClick={() => setQuarterlyPage(p => Math.max(1, p - 1))}
+                  disabled={quarterlyPage === 1}
+                  data-testid="button-prev-page"
                 >
-                  {monthNames[monthNum - 1].charAt(0).toUpperCase() + monthNames[monthNum - 1].slice(1)}
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
                 </Button>
-              );
-            })}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Page {quarterlyPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setQuarterlyPage(p => Math.min(totalPages, p + 1))}
+                  disabled={quarterlyPage === totalPages}
+                  data-testid="button-next-page"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   const renderDailyView = () => {
     if (!parsedRoute.date) return null;
