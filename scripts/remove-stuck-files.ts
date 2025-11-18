@@ -16,7 +16,11 @@
  *   tsx scripts/remove-stuck-files.ts preview --hours 48
  */
 
-import { Pool } from 'pg';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+
+// Configure Neon for WebSocket
+neonConfig.webSocketConstructor = ws;
 
 const mode = process.argv[2]; // 'preview' or 'execute'
 const usernameArg = process.argv.find(arg => arg.startsWith('--username='));
