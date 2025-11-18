@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
 import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays } from 'date-fns';
@@ -100,6 +101,12 @@ export default function History() {
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [chartType, setChartType] = useState<'line' | 'bar'>('bar');
+  const [visibleSeries, setVisibleSeries] = useState({
+    currentAuth: true,
+    currentDeposit: true,
+    previousAuth: true,
+    previousDeposit: true
+  });
   
   // Filter state synced with URL
   const [filters, setFilters] = useState<{
@@ -444,6 +451,13 @@ export default function History() {
     return new Intl.NumberFormat('en-US').format(num);
   };
 
+  const toggleSeries = (series: keyof typeof visibleSeries) => {
+    setVisibleSeries(prev => ({
+      ...prev,
+      [series]: !prev[series]
+    }));
+  };
+
   // Navigation helpers for daily view
   const handlePreviousDay = () => {
     if (!parsedRoute.date) return;
@@ -729,7 +743,7 @@ export default function History() {
         {comparisonData && !comparisonLoading && monthlyData && monthlyData.totalRecords > 0 && (
           <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <CardTitle className={isDarkMode ? 'text-white' : ''}>
                   Monthly Financial Trends Comparison
                   {selectedMerchantName && ` - ${selectedMerchantName}`}
@@ -757,6 +771,68 @@ export default function History() {
                   </Button>
                 </div>
               </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="current-auth" 
+                    checked={visibleSeries.currentAuth}
+                    onCheckedChange={() => toggleSeries('currentAuth')}
+                    data-testid="checkbox-current-auth"
+                  />
+                  <label 
+                    htmlFor="current-auth" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#8b5cf6'}}></span>
+                    {comparisonData.currentMonth.month} Authorizations
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="current-deposit" 
+                    checked={visibleSeries.currentDeposit}
+                    onCheckedChange={() => toggleSeries('currentDeposit')}
+                    data-testid="checkbox-current-deposit"
+                  />
+                  <label 
+                    htmlFor="current-deposit" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#06b6d4'}}></span>
+                    {comparisonData.currentMonth.month} Net Deposit
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="previous-auth" 
+                    checked={visibleSeries.previousAuth}
+                    onCheckedChange={() => toggleSeries('previousAuth')}
+                    data-testid="checkbox-previous-auth"
+                  />
+                  <label 
+                    htmlFor="previous-auth" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#a78bfa'}}></span>
+                    {comparisonData.previousMonth.month} Authorizations
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="previous-deposit" 
+                    checked={visibleSeries.previousDeposit}
+                    onCheckedChange={() => toggleSeries('previousDeposit')}
+                    data-testid="checkbox-previous-deposit"
+                  />
+                  <label 
+                    htmlFor="previous-deposit" 
+                    className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                  >
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#22d3ee'}}></span>
+                    {comparisonData.previousMonth.month} Net Deposit
+                  </label>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -782,40 +858,48 @@ export default function History() {
                       formatter={(value: number) => formatCurrency(value)}
                     />
                     <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="currentAuth" 
-                      stroke="#8b5cf6" 
-                      strokeWidth={2}
-                      name={`${comparisonData.currentMonth.month} Authorizations`}
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="currentDeposit" 
-                      stroke="#06b6d4" 
-                      strokeWidth={2}
-                      name={`${comparisonData.currentMonth.month} Net Deposit`}
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="previousAuth" 
-                      stroke="#8b5cf6" 
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      name={`${comparisonData.previousMonth.month} Authorizations`}
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="previousDeposit" 
-                      stroke="#06b6d4" 
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      name={`${comparisonData.previousMonth.month} Net Deposit`}
-                      dot={false}
-                    />
+                    {visibleSeries.currentAuth && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentAuth" 
+                        stroke="#8b5cf6" 
+                        strokeWidth={2}
+                        name={`${comparisonData.currentMonth.month} Authorizations`}
+                        dot={false}
+                      />
+                    )}
+                    {visibleSeries.currentDeposit && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentDeposit" 
+                        stroke="#06b6d4" 
+                        strokeWidth={2}
+                        name={`${comparisonData.currentMonth.month} Net Deposit`}
+                        dot={false}
+                      />
+                    )}
+                    {visibleSeries.previousAuth && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousAuth" 
+                        stroke="#8b5cf6" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        name={`${comparisonData.previousMonth.month} Authorizations`}
+                        dot={false}
+                      />
+                    )}
+                    {visibleSeries.previousDeposit && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousDeposit" 
+                        stroke="#06b6d4" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        name={`${comparisonData.previousMonth.month} Net Deposit`}
+                        dot={false}
+                      />
+                    )}
                   </RechartsLineChart>
                 ) : (
                   <RechartsBarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
@@ -840,30 +924,38 @@ export default function History() {
                       formatter={(value: number) => formatCurrency(value)}
                     />
                     <Legend />
-                    <Bar 
-                      dataKey="currentAuth" 
-                      fill="#8b5cf6" 
-                      name={`${comparisonData.currentMonth.month} Authorizations`}
-                      maxBarSize={20}
-                    />
-                    <Bar 
-                      dataKey="currentDeposit" 
-                      fill="#06b6d4" 
-                      name={`${comparisonData.currentMonth.month} Net Deposit`}
-                      maxBarSize={20}
-                    />
-                    <Bar 
-                      dataKey="previousAuth" 
-                      fill="#a78bfa" 
-                      name={`${comparisonData.previousMonth.month} Authorizations`}
-                      maxBarSize={20}
-                    />
-                    <Bar 
-                      dataKey="previousDeposit" 
-                      fill="#22d3ee" 
-                      name={`${comparisonData.previousMonth.month} Net Deposit`}
-                      maxBarSize={20}
-                    />
+                    {visibleSeries.currentAuth && (
+                      <Bar 
+                        dataKey="currentAuth" 
+                        fill="#8b5cf6" 
+                        name={`${comparisonData.currentMonth.month} Authorizations`}
+                        maxBarSize={20}
+                      />
+                    )}
+                    {visibleSeries.currentDeposit && (
+                      <Bar 
+                        dataKey="currentDeposit" 
+                        fill="#06b6d4" 
+                        name={`${comparisonData.currentMonth.month} Net Deposit`}
+                        maxBarSize={20}
+                      />
+                    )}
+                    {visibleSeries.previousAuth && (
+                      <Bar 
+                        dataKey="previousAuth" 
+                        fill="#a78bfa" 
+                        name={`${comparisonData.previousMonth.month} Authorizations`}
+                        maxBarSize={20}
+                      />
+                    )}
+                    {visibleSeries.previousDeposit && (
+                      <Bar 
+                        dataKey="previousDeposit" 
+                        fill="#22d3ee" 
+                        name={`${comparisonData.previousMonth.month} Net Deposit`}
+                        maxBarSize={20}
+                      />
+                    )}
                   </RechartsBarChart>
                 )}
               </ResponsiveContainer>
