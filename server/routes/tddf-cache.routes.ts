@@ -1309,7 +1309,7 @@ export function registerTddfCacheRoutes(app: Express) {
     const client = await pool.connect();
     
     try {
-      const { month } = req.query; // Expected format: 'YYYY-MM'
+      const { month, group, association, merchant, terminal } = req.query; // Expected format: 'YYYY-MM'
       
       if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
@@ -1317,7 +1317,36 @@ export function registerTddfCacheRoutes(app: Express) {
       
       const masterTableName = getTableName('tddf_jsonb');
       
+      // Build filter conditions
+      const filterConditions: string[] = [];
+      const filterValues: string[] = [];
+      let filterParamIndex = 5; // Start after date params (1-4)
+      
+      if (group && group !== 'all') {
+        filterConditions.push(`extracted_fields->>'group' = $${filterParamIndex++}`);
+        filterValues.push(group as string);
+      }
+      if (association && association !== 'all') {
+        filterConditions.push(`extracted_fields->>'association' = $${filterParamIndex++}`);
+        filterValues.push(association as string);
+      }
+      if (merchant && merchant !== 'all') {
+        filterConditions.push(`extracted_fields->>'merchantNumber' = $${filterParamIndex++}`);
+        filterValues.push(merchant as string);
+      }
+      if (terminal && terminal !== 'all') {
+        filterConditions.push(`extracted_fields->>'terminalNumber' = $${filterParamIndex++}`);
+        filterValues.push(terminal as string);
+      }
+      
+      const additionalWhere = filterConditions.length > 0 
+        ? ' AND ' + filterConditions.join(' AND ')
+        : '';
+      
       console.log(`📅 [MONTHLY-COMPARISON] Querying master table: ${masterTableName}`);
+      if (additionalWhere) {
+        console.log(`🎯 [COMPARISON] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
+      }
       
       const [year, monthNum] = month.split('-');
       
@@ -1358,7 +1387,7 @@ export function registerTddfCacheRoutes(app: Express) {
               OR
               (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
                AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
-            )
+            )${additionalWhere}
           GROUP BY COALESCE(
             CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
                  WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
@@ -1370,7 +1399,7 @@ export function registerTddfCacheRoutes(app: Express) {
             END
           ) IS NOT NULL
           ORDER BY date
-        `, [startDate, endDate, startDate, endDate]);
+        `, [startDate, endDate, startDate, endDate, ...filterValues]);
         
         return dailyBreakdown.rows.map((entry) => ({
           date: entry.date,

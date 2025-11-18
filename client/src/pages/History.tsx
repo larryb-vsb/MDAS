@@ -299,10 +299,18 @@ export default function History() {
   });
 
   const { data: comparisonData, isLoading: comparisonLoading } = useQuery({
-    queryKey: ['history-comparison', parsedRoute.year, parsedRoute.month],
+    queryKey: ['history-comparison', parsedRoute.year, parsedRoute.month, filters.merchant],
     queryFn: async (): Promise<MonthlyComparison> => {
       if (!parsedRoute.date) throw new Error('Invalid date');
-      const response = await fetch(`/api/tddf1/monthly-comparison?month=${format(parsedRoute.date, 'yyyy-MM')}`, {
+      
+      // Build query params with filters
+      const params = new URLSearchParams({ month: format(parsedRoute.date, 'yyyy-MM') });
+      if (filters.group) params.append('group', filters.group);
+      if (filters.association) params.append('association', filters.association);
+      if (filters.merchant) params.append('merchant', filters.merchant);
+      if (filters.terminal) params.append('terminal', filters.terminal);
+      
+      const response = await fetch(`/api/tddf1/monthly-comparison?${params.toString()}`, {
         cache: 'no-cache',
         headers: {
           'Cache-Control': 'no-cache',
