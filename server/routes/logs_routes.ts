@@ -69,7 +69,7 @@ router.get("/api/logs", async (req, res) => {
           
           // Get all logs from all tables with UNION (using correct column names)
           const queryResult = await pool.query(`
-            SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, ip_address
+            SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, NULL as ip_address
             FROM ${systemLogsTableName}
             UNION ALL
             SELECT 'security' as log_type, id, timestamp, CONCAT(event_type, ':', severity) as log_action, 'Security' as source, message as notes, details::text as details_json, username, 'security' as entity_type, CONCAT('SEC-', id) as entity_id, ip_address

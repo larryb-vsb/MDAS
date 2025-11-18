@@ -14,13 +14,16 @@ export function registerSchemaRoutes(app: Express) {
       // Read current schema file
       const schemaPath = path.join(process.cwd(), 'shared', 'schema.ts');
       const schemaContent = fs.readFileSync(schemaPath, 'utf8');
-      const contentHash = crypto.createHash('sha256').update(schemaContent).digest('hex');
       
-      // Check if this content already exists
+      // Extract version from file header
+      const versionMatch = schemaContent.match(/Version: ([\d.]+)/);
+      const version = versionMatch ? versionMatch[1] : '1.3.0';
+      
+      // Check if this version already exists
       const existing = await pool.query(`
         SELECT id, version FROM schema_content 
-        WHERE content_hash = $1
-      `, [contentHash]);
+        WHERE version = $1
+      `, [version]);
       
       if (existing.rows.length > 0) {
         return res.json({ 
@@ -30,23 +33,16 @@ export function registerSchemaRoutes(app: Express) {
         });
       }
       
-      // Extract version from file header
-      const versionMatch = schemaContent.match(/Version: ([\d.]+)/);
-      const version = versionMatch ? versionMatch[1] : '1.3.0';
-      
       // Insert schema content
       const result = await pool.query(`
         INSERT INTO schema_content (
-          version, content, file_name, stored_by, content_hash, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, version, stored_at
+          version, content, applied_by
+        ) VALUES ($1, $2, $3)
+        RETURNING id, version, created_at
       `, [
         version,
         schemaContent,
-        'schema.ts',
-        req.user?.username || 'Alex-ReplitAgent',
-        contentHash,
-        `MMS-Master-Schema import: Complete schema file content for version ${version}`
+        req.user?.username || 'Alex-ReplitAgent'
       ]);
       
       const record = result.rows[0];
@@ -57,7 +53,7 @@ export function registerSchemaRoutes(app: Express) {
         version: version,
         id: record.id,
         contentLength: schemaContent.length,
-        storedAt: record.stored_at
+        storedAt: record.created_at
       });
       
     } catch (error: any) {
@@ -75,7 +71,7 @@ export function registerSchemaRoutes(app: Express) {
       const { version } = req.query;
       
       let query = `
-        SELECT content, version, stored_at 
+        SELECT content, version, created_at 
         FROM schema_content`;
       let params: any[] = [];
       
@@ -84,7 +80,7 @@ export function registerSchemaRoutes(app: Express) {
         params.push(version);
       }
       
-      query += ` ORDER BY stored_at DESC LIMIT 1`;
+      query += ` ORDER BY created_at DESC LIMIT 1`;
       
       const result = await pool.query(query, params);
       
@@ -111,19 +107,19 @@ export function registerSchemaRoutes(app: Express) {
   app.get("/api/schema/versions-list", async (req, res) => {
     try {
       const result = await pool.query(`
-        SELECT version, stored_at, stored_by, file_name, 
-               LENGTH(content) as content_size, notes
+        SELECT version, created_at, applied_by, 
+               LENGTH(content) as content_size
         FROM schema_content 
-        ORDER BY stored_at DESC
+        ORDER BY created_at DESC
       `);
       
       const versions = result.rows.map(row => ({
         version: row.version,
-        storedAt: row.stored_at,
-        storedBy: row.stored_by,
-        fileName: row.file_name,
+        storedAt: row.created_at,
+        storedBy: row.applied_by,
+        fileName: null,
         contentSize: row.content_size,
-        notes: row.notes
+        notes: null
       }));
       
       // Get current file version dynamically
