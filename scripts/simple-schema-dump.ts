@@ -79,6 +79,20 @@ const tableDescriptions: Record<string, string> = {
 async function dumpSchema() {
   console.log('🔨 Generating production schema with table comments...\n');
 
+  // Get current SchemaWatch version
+  let schemaVersion = '2.9.0'; // Fallback version
+  try {
+    const versionResult = await db.execute(sql`
+      SELECT version FROM schema_watch.current_version_mat
+    `);
+    if (versionResult.rows.length > 0) {
+      schemaVersion = (versionResult.rows[0] as any).version.toString();
+      console.log(`📌 Current SchemaWatch version: v${schemaVersion}\n`);
+    }
+  } catch (err) {
+    console.warn('⚠️  Could not fetch SchemaWatch version, using fallback:', schemaVersion);
+  }
+
   // Get all dev_ tables using raw SQL
   const tables = await db.execute(sql`
     SELECT tablename 
@@ -97,8 +111,8 @@ async function dumpSchema() {
   let outputSQL = `-- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
--- Version: 2.9.0
--- Last Updated: ${dateStamp} ${timeStamp}
+-- Version: ${schemaVersion} (Auto-tracked by SchemaWatch)
+-- Generated: ${dateStamp} ${timeStamp}
 --
 -- ${tables.rows.length} tables total
 -- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
@@ -111,6 +125,10 @@ async function dumpSchema() {
   for (const row of tables.rows) {
     const devTable = (row as any).tablename;
     const prodTable = devTable.replace(/^dev_/, '');
+    
+    // Quote table names if they contain hyphens or other special characters
+    const needsQuoting = prodTable.includes('-') || prodTable.includes(' ');
+    const quotedProdTable = needsQuoting ? `"${prodTable}"` : prodTable;
 
     console.log(`Processing: ${devTable} → ${prodTable}`);
 
@@ -127,7 +145,7 @@ async function dumpSchema() {
     outputSQL += `\n-- ${prodTable}\n`;
     
     // Check if table needs a sequence (for serial/integer primary keys)
-    const sequenceName = `${prodTable}_id_seq`;
+    const sequenceName = needsQuoting ? `"${prodTable}_id_seq"` : `${prodTable}_id_seq`;
     const needsSequence = (await db.execute(sql.raw(`
       SELECT column_name 
       FROM information_schema.columns
@@ -140,7 +158,7 @@ async function dumpSchema() {
       outputSQL += `CREATE SEQUENCE IF NOT EXISTS ${sequenceName};\n`;
     }
     
-    outputSQL += `CREATE TABLE IF NOT EXISTS ${prodTable} (\n`;
+    outputSQL += `CREATE TABLE IF NOT EXISTS ${quotedProdTable} (\n`;
     
     const colDefs: string[] = [];
     for (const c of columns.rows) {
@@ -163,8 +181,16 @@ async function dumpSchema() {
       let def = `  ${col.column_name} ${type}`;
       if (col.is_nullable === 'NO') def += ' NOT NULL';
       if (col.column_default) {
-        // Replace dev_ sequence names in DEFAULT clauses (include digits)
-        const prodDefault = col.column_default.replace(/dev_([a-z0-9_]+)_seq/g, '$1_seq');
+        // Replace dev_ sequence names in DEFAULT clauses (handle hyphens too)
+        let prodDefault = col.column_default.replace(/dev_([a-z0-9_-]+)_seq/gi, '$1_seq');
+        
+        // If the prod table name needs quoting, quote the sequence name in the nextval() call
+        // Pattern: nextval('sequence_name'::regclass) -> nextval('"sequence_name"'::regclass)
+        if (needsQuoting) {
+          const seqPattern = new RegExp(`'${prodTable}_id_seq'`, 'g');
+          prodDefault = prodDefault.replace(seqPattern, `'"${prodTable}_id_seq"'`);
+        }
+        
         def += ` DEFAULT ${prodDefault}`;
       }
       
@@ -175,7 +201,7 @@ async function dumpSchema() {
 
     // Add table comment if available
     if (tableDescriptions[prodTable]) {
-      outputSQL += `COMMENT ON TABLE ${prodTable} IS '${tableDescriptions[prodTable]}';\n`;
+      outputSQL += `COMMENT ON TABLE ${quotedProdTable} IS '${tableDescriptions[prodTable]}';\n`;
     }
 
     // Get indexes
@@ -191,11 +217,18 @@ async function dumpSchema() {
       const devIdxName = idxRow.indexname;
       const prodIdxName = devIdxName.replace(/^dev_/, '');
       
-      const prodIdxDef = idxRow.indexdef
+      let prodIdxDef = idxRow.indexdef
         .replace(new RegExp(devTable, 'g'), prodTable)
         .replace(new RegExp(devIdxName, 'g'), prodIdxName)
         .replace('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS')
         .replace('CREATE UNIQUE INDEX', 'CREATE UNIQUE INDEX IF NOT EXISTS');
+      
+      // Quote table name in index definition if needed
+      if (needsQuoting) {
+        const tablePattern = new RegExp(`ON ${prodTable}`, 'g');
+        prodIdxDef = prodIdxDef.replace(tablePattern, `ON ${quotedProdTable}`);
+      }
+      
       outputSQL += `${prodIdxDef};\n`;
     }
   }
@@ -223,14 +256,14 @@ async function dumpSchema() {
   console.log(`📝 ${(outputSQL.length/1024).toFixed(1)} KB`);
   console.log(`\n💡 Run against production: psql "$PROD_DB_URL" -f sql/production-schema.sql`);
   
-  // Record schema generation event
+  // Record schema generation event with current SchemaWatch version
   try {
     await db.execute(sql`
       INSERT INTO dev_schema_dump_tracking (version, environment, action, timestamp, performed_by, notes)
-      VALUES ('2.9.0', 'development', 'schema_generated', NOW(), 'simple-schema-dump.ts', 
+      VALUES (${schemaVersion}, 'development', 'schema_generated', NOW(), 'simple-schema-dump.ts', 
               ${`Generated ${tables.rows.length} tables, ${(outputSQL.length/1024).toFixed(1)} KB`})
     `);
-    console.log(`\n📝 Schema generation tracked in dev_schema_dump_tracking`);
+    console.log(`\n📝 Schema generation tracked in dev_schema_dump_tracking (version ${schemaVersion})`);
   } catch (trackError) {
     console.warn(`⚠️  Could not track schema generation:`, trackError);
   }

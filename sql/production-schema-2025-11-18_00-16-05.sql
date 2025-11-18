@@ -2,7 +2,7 @@
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
 -- Version: 1006 (Auto-tracked by SchemaWatch)
--- Generated: 2025-11-18 00:19:31
+-- Generated: 2025-11-18 00:16:05
 --
 -- 72 tables total
 -- Safe to run on EMPTY or EXISTING database (uses IF NOT EXISTS)
@@ -648,9 +648,9 @@ CREATE INDEX IF NOT EXISTS merchants_last_batch_date_idx ON public.merchants USI
 CREATE INDEX IF NOT EXISTS merchants_last_transaction_date_idx ON public.merchants USING btree (last_transaction_date);
 
 -- mms-app-DatabaseInfo
-CREATE SEQUENCE IF NOT EXISTS "mms-app-DatabaseInfo_id_seq";
-CREATE TABLE IF NOT EXISTS "mms-app-DatabaseInfo" (
-  id integer NOT NULL DEFAULT nextval('"mms-app-DatabaseInfo_id_seq"'::regclass),
+CREATE SEQUENCE IF NOT EXISTS mms-app-DatabaseInfo_id_seq;
+CREATE TABLE IF NOT EXISTS mms-app-DatabaseInfo (
+  id integer NOT NULL DEFAULT nextval('"dev_mms-app-DatabaseInfo_id_seq"'::regclass),
   environment_name text NOT NULL DEFAULT 'development'::text,
   schema_version bigint,
   last_updated timestamp with time zone NOT NULL DEFAULT now(),
