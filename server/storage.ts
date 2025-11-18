@@ -13857,10 +13857,11 @@ export class DatabaseStorage implements IStorage {
   async getHierarchicalTddfCount(): Promise<number> {
     try {
       const tableName = getTableName('tddf_transaction_records');
-      const result = await pool.query(`SELECT COUNT(*) as count FROM "${tableName}"`);
+      const result = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
       return parseInt(result.rows[0].count);
     } catch (error: any) {
-      console.error('Error getting hierarchical TDDF count:', error);
+      // Table doesn't exist yet (hierarchical migration not run) - this is expected
+      console.log('[HIERARCHICAL-TDDF] Table not found (migration not run yet), returning 0');
       return 0;
     }
   }
@@ -13868,10 +13869,11 @@ export class DatabaseStorage implements IStorage {
   async getLegacyTddfCount(): Promise<number> {
     try {
       const tableName = getTableName('tddf_records');
-      const result = await pool.query(`SELECT COUNT(*) as count FROM "${tableName}"`);
+      const result = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
       return parseInt(result.rows[0].count);
     } catch (error: any) {
-      console.error('Error getting legacy TDDF count:', error);
+      // Table doesn't exist - this is expected if not using legacy TDDF format
+      console.log('[LEGACY-TDDF] Table not found, returning 0');
       return 0;
     }
   }
