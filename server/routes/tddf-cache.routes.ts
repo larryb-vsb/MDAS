@@ -1475,19 +1475,14 @@ export function registerTddfCacheRoutes(app: Express) {
         console.log(`🎯 [QUARTERLY] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
       }
       
-      // Build cache key components for filtering
-      const filterParts: string[] = [];
-      if (group && typeof group === 'string') filterParts.push(`group:${group}`);
-      if (association && typeof association === 'string') filterParts.push(`assoc:${association}`);
-      if (merchant && typeof merchant === 'string') filterParts.push(`merch:${merchant}`);
-      if (terminal && typeof terminal === 'string') filterParts.push(`term:${terminal}`);
-      const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
+      // Always fetch unfiltered data from cache, then filter in memory
+      // Filtered cache entries don't exist - only base monthly_YYYY_MM entries
       
-      // Fetch all 3 months from monthly cache in parallel
+      // Fetch all 3 months from monthly cache in parallel (unfiltered base data)
       const monthlyDataPromises = months.map(async (monthObj) => {
-        const cacheKey = `monthly_${monthObj.year}_${monthObj.month.toString().padStart(2, '0')}${filterSuffix}`;
+        const cacheKey = `monthly_${monthObj.year}_${monthObj.month.toString().padStart(2, '0')}`;
         const result = await pool.query(`
-          SELECT totals_json
+          SELECT daily_breakdown_json
           FROM ${monthlyCacheTable}
           WHERE year = $1 AND month = $2 AND cache_key = $3
           ORDER BY last_refresh_datetime DESC
@@ -1495,16 +1490,16 @@ export function registerTddfCacheRoutes(app: Express) {
         `, [monthObj.year, monthObj.month, cacheKey]);
         
         if (result.rows.length > 0) {
-          return { month: monthObj.display, data: result.rows[0].totals_json };
+          return { month: monthObj.display, dailyData: result.rows[0].daily_breakdown_json };
         }
-        return { month: monthObj.display, data: null };
+        return { month: monthObj.display, dailyData: null };
       });
       
       const monthlyResults = await Promise.all(monthlyDataPromises);
       
       // Check if any months have cached data (work with partial data)
-      const availableMonths = monthlyResults.filter(r => r.data).map(r => r.month);
-      const missingMonths = monthlyResults.filter(r => !r.data).map(r => r.month);
+      const availableMonths = monthlyResults.filter(r => r.dailyData).map(r => r.month);
+      const missingMonths = monthlyResults.filter(r => !r.dailyData).map(r => r.month);
       
       if (availableMonths.length === 0) {
         console.log(`⚠️  [QUARTERLY-TOTALS] No cache data available for any month in Q${quarter} ${year}`);
@@ -1518,7 +1513,7 @@ export function registerTddfCacheRoutes(app: Express) {
         console.log(`📊 [QUARTERLY-TOTALS] Partial data - Available months: ${availableMonths.join(', ')}, Missing: ${missingMonths.join(', ')}`);
       }
       
-      // Aggregate data from available months
+      // Aggregate and filter data from available months
       let totalFiles = 0;
       let totalRecords = 0;
       let totalTransactionValue = 0;
@@ -1528,22 +1523,41 @@ export function registerTddfCacheRoutes(app: Express) {
       };
       const allDailyData: Array<{ date: string; files: number; records: number; transactionValue: number; netDepositBh: number }> = [];
       
-      monthlyResults.forEach(({ month, data }) => {
-        if (data) {
-          totalFiles += data.totalFiles || 0;
-          totalRecords += data.totalRecords || 0;
-          totalTransactionValue += data.totalTransactionValue || 0;
-          totalNetDepositBh += data.totalNetDepositBh || 0;
-          
-          // Aggregate record type breakdown
-          Object.entries(data.recordTypeBreakdown || {}).forEach(([type, count]) => {
-            recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (count as number);
+      // Apply filters to daily breakdown data from each month
+      monthlyResults.forEach(({ month, dailyData }) => {
+        if (dailyData && Array.isArray(dailyData)) {
+          // Filter daily records based on query parameters
+          const filteredDaily = dailyData.filter((dayRecord: any) => {
+            if (group && dayRecord.group_name !== group) return false;
+            if (association && dayRecord.association_name !== association) return false;
+            if (merchant && dayRecord.merchant_account !== merchant) return false;
+            if (terminal && dayRecord.terminal_id !== terminal) return false;
+            return true;
           });
           
-          // Collect daily breakdown from each month
-          if (data.dailyBreakdown && Array.isArray(data.dailyBreakdown)) {
-            allDailyData.push(...data.dailyBreakdown);
-          }
+          // Aggregate filtered daily data
+          filteredDaily.forEach((dayRecord: any) => {
+            totalFiles += dayRecord.files || 0;
+            totalRecords += dayRecord.records || 0;
+            totalTransactionValue += dayRecord.transactionValue || 0;
+            totalNetDepositBh += dayRecord.netDepositBh || 0;
+            
+            // Aggregate record type breakdown
+            if (dayRecord.recordTypeBreakdown) {
+              Object.entries(dayRecord.recordTypeBreakdown).forEach(([type, count]) => {
+                recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (count as number);
+              });
+            }
+            
+            // Collect daily data for breakdown table
+            allDailyData.push({
+              date: dayRecord.date,
+              files: dayRecord.files || 0,
+              records: dayRecord.records || 0,
+              transactionValue: dayRecord.transactionValue || 0,
+              netDepositBh: dayRecord.netDepositBh || 0
+            });
+          });
         }
       });
       
@@ -1594,13 +1608,8 @@ export function registerTddfCacheRoutes(app: Express) {
         console.log(`🎯 [QUARTERLY-COMPARISON] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
       }
       
-      // Build cache key components for filtering
-      const filterParts: string[] = [];
-      if (group && typeof group === 'string') filterParts.push(`group:${group}`);
-      if (association && typeof association === 'string') filterParts.push(`assoc:${association}`);
-      if (merchant && typeof merchant === 'string') filterParts.push(`merch:${merchant}`);
-      if (terminal && typeof terminal === 'string') filterParts.push(`term:${terminal}`);
-      const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
+      // Always fetch unfiltered data from cache, then filter in memory
+      // Filtered cache entries don't exist - only base monthly_YYYY_MM entries
       
       // Calculate current quarter months
       const currentStartMonth = (quarterNum - 1) * 3 + 1;
@@ -1621,11 +1630,11 @@ export function registerTddfCacheRoutes(app: Express) {
         { year: prevYear, month: prevStartMonth + 2, name: new Date(prevYear, prevStartMonth + 1, 1).toLocaleString('default', { month: 'long' }) }
       ];
       
-      // Helper function to get monthly data from cache
+      // Helper function to get monthly data from cache and apply filters
       const getMonthData = async (yearVal: number, monthVal: number, monthName: string) => {
-        const cacheKey = `monthly_${yearVal}_${monthVal.toString().padStart(2, '0')}${filterSuffix}`;
+        const cacheKey = `monthly_${yearVal}_${monthVal.toString().padStart(2, '0')}`;
         const result = await pool.query(`
-          SELECT totals_json
+          SELECT daily_breakdown_json
           FROM ${monthlyCacheTable}
           WHERE year = $1 AND month = $2 AND cache_key = $3
           ORDER BY last_refresh_datetime DESC
@@ -1633,13 +1642,37 @@ export function registerTddfCacheRoutes(app: Express) {
         `, [yearVal, monthVal, cacheKey]);
         
         if (result.rows.length > 0) {
-          const data = result.rows[0].totals_json;
+          const dailyData = result.rows[0].daily_breakdown_json;
+          
+          // Filter daily records if filters provided
+          let filteredDaily = dailyData;
+          if (group || association || merchant || terminal) {
+            filteredDaily = dailyData.filter((dayRecord: any) => {
+              if (group && dayRecord.group_name !== group) return false;
+              if (association && dayRecord.association_name !== association) return false;
+              if (merchant && dayRecord.merchant_account !== merchant) return false;
+              if (terminal && dayRecord.terminal_id !== terminal) return false;
+              return true;
+            });
+          }
+          
+          // Aggregate filtered data
+          let totalRecords = 0;
+          let totalTransactionValue = 0;
+          let totalNetDepositBh = 0;
+          
+          filteredDaily.forEach((dayRecord: any) => {
+            totalRecords += dayRecord.records || 0;
+            totalTransactionValue += dayRecord.transactionValue || 0;
+            totalNetDepositBh += dayRecord.netDepositBh || 0;
+          });
+          
           return {
             month: monthName,
             monthValue: `${yearVal}-${monthVal.toString().padStart(2, '0')}`,
-            records: data.totalRecords || 0,
-            transactionValue: data.totalTransactionValue || 0,
-            netDepositBh: data.totalNetDepositBh || 0
+            records: totalRecords,
+            transactionValue: totalTransactionValue,
+            netDepositBh: totalNetDepositBh
           };
         }
         
