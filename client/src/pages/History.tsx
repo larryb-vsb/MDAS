@@ -9,7 +9,7 @@ import { useRoute, useLocation } from 'wouter';
 import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
-import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import clsx from 'clsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -857,7 +857,6 @@ export default function History() {
                       }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
-                    <Legend />
                     {visibleSeries.currentAuth && (
                       <Line 
                         type="monotone" 
@@ -923,7 +922,6 @@ export default function History() {
                       }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
-                    <Legend />
                     {visibleSeries.currentAuth && (
                       <Bar 
                         dataKey="currentAuth" 
