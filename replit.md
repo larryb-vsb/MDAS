@@ -24,7 +24,11 @@ Preferred communication style: Simple, everyday language.
 - Performance optimizations: useCallback on handleFilterChange, useMemo on merchant lookups, proper dependency arrays to prevent unnecessary re-renders
 - FilterBar cascading filters maintained: Group → Association → Merchant Name → Merchant Account → Terminal
 - **Comparison Chart Filtering Fix**: Fixed critical bug where comparison chart was showing all merchants' data instead of filtering by selected merchant. Updated frontend to pass filter parameters and backend `/api/tddf1/monthly-comparison` endpoint to apply merchant filter to query
-- **Bar Chart Visualization**: Added chart type switcher with Line and Bar buttons allowing users to toggle between line chart and bar chart views of the monthly comparison data, with both chart types displaying the same filtered merchant data with consistent styling
+- **Bar Chart Visualization**: Added chart type switcher with Line and Bar buttons allowing users to toggle between line chart and bar chart views of the monthly comparison data
+  - Bar chart is now the default view for all users
+  - Bar chart displays all 31 days of the month (with zero values for days without data)
+  - Line chart dynamically shows only days with actual data
+  - Both chart types display the same filtered merchant data with consistent styling
 
 ## System Architecture
 
