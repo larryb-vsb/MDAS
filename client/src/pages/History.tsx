@@ -110,14 +110,14 @@ export default function History() {
   }>({});
 
   // Fetch merchant name for chart title when merchant filter is active
-  const { data: merchantData } = useQuery({
+  const { data: merchantData } = useQuery<Array<{id: number; name: string; accountNumber: string; status: string}>>({
     queryKey: ['/api/merchants/for-filter'],
     enabled: !!filters.merchantName,
   });
 
   const selectedMerchantName = useMemo(() => {
     if (!filters.merchantName || !merchantData) return null;
-    const merchant = merchantData.find((m: any) => m.id.toString() === filters.merchantName);
+    const merchant = merchantData.find(m => m.id.toString() === filters.merchantName);
     return merchant?.name || null;
   }, [filters.merchantName, merchantData]);
 
