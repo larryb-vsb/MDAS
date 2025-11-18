@@ -690,6 +690,70 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
+  // Bulk soft-delete uploaded files from processing queue
+  app.post("/api/uploader/bulk-delete", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "No upload IDs provided" });
+      }
+      
+      console.log(`[BULK-DELETE] Soft-deleting ${uploadIds.length} files by user: ${username}`);
+      
+      // Check which files exist and are not already deleted
+      const existingFilesResult = await pool.query(`
+        SELECT id, filename, deleted_at, current_phase 
+        FROM ${uploadsTableName} 
+        WHERE id = ANY($1)
+      `, [uploadIds]);
+      
+      const existingFiles = existingFilesResult.rows;
+      const notFoundIds = uploadIds.filter(id => !existingFiles.some(f => f.id === id));
+      const alreadyDeletedIds = existingFiles.filter(f => f.deleted_at).map(f => f.id);
+      const validIds = existingFiles.filter(f => !f.deleted_at).map(f => f.id);
+      
+      if (validIds.length === 0) {
+        return res.status(400).json({ 
+          error: "No valid files to delete",
+          notFound: notFoundIds.length,
+          alreadyDeleted: alreadyDeletedIds.length
+        });
+      }
+      
+      // Bulk soft-delete the valid files
+      await pool.query(`
+        UPDATE ${uploadsTableName}
+        SET deleted_at = NOW(),
+            deleted_by = $2,
+            last_updated = NOW(),
+            processing_notes = COALESCE(processing_notes, '') || 
+              E'\\n[' || NOW()::text || '] Bulk deleted by ' || $2 || ' via queue management'
+        WHERE id = ANY($1)
+          AND deleted_at IS NULL
+      `, [validIds, username]);
+      
+      console.log(`[BULK-DELETE] Successfully soft-deleted ${validIds.length} file(s)`);
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully deleted ${validIds.length} file(s)`,
+        deletedCount: validIds.length,
+        skipped: {
+          notFound: notFoundIds.length,
+          alreadyDeleted: alreadyDeletedIds.length
+        }
+      });
+    } catch (error) {
+      console.error('[BULK-DELETE] Error during bulk delete:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to bulk delete files" 
+      });
+    }
+  });
+
   // Export TDDF records to CSV
   app.get("/api/tddf/export", isAuthenticated, async (req, res) => {
     try {

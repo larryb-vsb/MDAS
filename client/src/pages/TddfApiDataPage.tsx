@@ -29,6 +29,7 @@ import { TddfApiDailyView } from "@/components/TddfApiDailyView";
 import { UploaderUpload } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize, getStatusBadgeVariant, TddfApiFile, TddfApiSchema } from '@/lib/tddf-shared';
+import { EnhancedProcessingQueue } from "@/components/processing/EnhancedProcessingQueue";
 
 // Timing Display Component for Step-6/JSONB Encoding Times
 function TimingDisplay({ uploadId }: { uploadId: string }) {
@@ -6129,116 +6130,7 @@ export default function TddfApiDataPage() {
         <TabsContent value="processing" className="space-y-4">
           <h2 className="text-2xl font-bold">Processing Queue</h2>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Queue Status</CardTitle>
-              <CardDescription>
-                Real-time Step 6 processing queue monitoring 
-                ({step6ActiveSlots.length}/{step6Status?.activeSlots?.max || 3} active slots, {step6Queue.length} queued)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>File</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Upload ID</TableHead>
-                    <TableHead>Queued At</TableHead>
-                    <TableHead>Waiting Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {step6Loading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                      </TableCell>
-                    </TableRow>
-                  ) : step6ActiveSlots.length === 0 && step6Queue.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No items in processing queue
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <>
-                      {step6Progress.map((progress: any) => {
-                        const elapsedSeconds = Math.round(progress.elapsedMs / 1000);
-                        const recordsPerSecond = elapsedSeconds > 0 
-                          ? Math.round(progress.processedRecords / elapsedSeconds) 
-                          : 0;
-                        
-                        return (
-                          <TableRow key={progress.uploadId} className="bg-blue-50 dark:bg-blue-950">
-                            <TableCell className="font-medium">
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
-                                  <span className="text-blue-800 dark:text-blue-200 text-sm font-medium">
-                                    {progress.filename || 'Processing...'}
-                                  </span>
-                                </div>
-                                <div className="w-full bg-white dark:bg-gray-800 rounded-full h-2">
-                                  <div 
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${progress.percentComplete}%` }}
-                                  />
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {progress.processedRecords.toLocaleString()} / {progress.totalLines.toLocaleString()} records ({progress.percentComplete}%)
-                                  {recordsPerSecond > 0 && ` • ${recordsPerSecond.toLocaleString()} rec/sec`}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="default" className="bg-blue-600">
-                                Active
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                {progress.uploadId}
-                              </code>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {formatWaitingTime(progress.elapsedMs)}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {formatWaitingTime(progress.elapsedMs)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      {step6Queue.map((item: any) => (
-                        <TableRow key={item.uploadId}>
-                          <TableCell className="font-medium max-w-xs truncate">
-                            {item.filename || 'Unknown file'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={item.status === 'validating' ? 'secondary' : 'outline'}>
-                              {item.status === 'validating' ? 'Validating' : 'Queued'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                              {item.uploadId}
-                            </code>
-                          </TableCell>
-                          <TableCell>
-                            {item.queuedAt ? format(new Date(item.queuedAt), "MMM d, HH:mm:ss") : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {item.waitingMs ? formatWaitingTime(item.waitingMs) : "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <EnhancedProcessingQueue refetchInterval={5000} />
         </TabsContent>
 
         <TabsContent value="api-keys" className="space-y-4">
