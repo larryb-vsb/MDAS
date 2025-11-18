@@ -497,12 +497,19 @@ export default function History() {
     refetchMonthly();
   };
 
+  // Helper to preserve query parameters when navigating
+  const navigateWithFilters = useCallback((path: string) => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const queryString = searchParams.toString();
+    setLocation(queryString ? `${path}?${queryString}` : path);
+  }, [setLocation]);
+
   const handlePreviousMonth = () => {
     if (!parsedRoute.date) return;
     const prevMonth = subMonths(parsedRoute.date, 1);
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
     const monthName = monthNames[prevMonth.getMonth()];
-    setLocation(`/history/${prevMonth.getFullYear()}/${monthName}`);
+    navigateWithFilters(`/history/${prevMonth.getFullYear()}/${monthName}`);
   };
 
   const handleNextMonth = () => {
@@ -510,7 +517,19 @@ export default function History() {
     const nextMonth = addMonths(parsedRoute.date, 1);
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
     const monthName = monthNames[nextMonth.getMonth()];
-    setLocation(`/history/${nextMonth.getFullYear()}/${monthName}`);
+    navigateWithFilters(`/history/${nextMonth.getFullYear()}/${monthName}`);
+  };
+
+  const handlePreviousYear = () => {
+    if (!parsedRoute.year || !parsedRoute.quarter) return;
+    const prevYear = parsedRoute.year - 1;
+    navigateWithFilters(`/history/${prevYear}/Q${parsedRoute.quarter}`);
+  };
+
+  const handleNextYear = () => {
+    if (!parsedRoute.year || !parsedRoute.quarter) return;
+    const nextYear = parsedRoute.year + 1;
+    navigateWithFilters(`/history/${nextYear}/Q${parsedRoute.quarter}`);
   };
 
   const handleBackToDashboard = () => {
@@ -1982,19 +2001,44 @@ export default function History() {
               </h1>
               
               {parsedRoute.viewType === 'quarterly' && parsedRoute.year && (
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4].map((q) => (
+                <div className="flex gap-2">
+                  {/* Year Navigation */}
+                  <div className="flex gap-1 border-r pr-2">
                     <Button
-                      key={q}
-                      variant={parsedRoute.quarter === q ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
-                      onClick={() => setLocation(`/history/${parsedRoute.year}/Q${q}`)}
-                      data-testid={`button-quarter-${q}`}
-                      title={`Go to Q${q}`}
+                      onClick={handlePreviousYear}
+                      data-testid="button-prev-year"
+                      title="Previous Year"
                     >
-                      Q{q}
+                      <ChevronLeft className="h-4 w-4" />
                     </Button>
-                  ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextYear}
+                      data-testid="button-next-year"
+                      title="Next Year"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Quarter Navigation */}
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((q) => (
+                      <Button
+                        key={q}
+                        variant={parsedRoute.quarter === q ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => navigateWithFilters(`/history/${parsedRoute.year}/Q${q}`)}
+                        data-testid={`button-quarter-${q}`}
+                        title={`Go to Q${q}`}
+                      >
+                        Q{q}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
               
