@@ -14,10 +14,13 @@ Preferred communication style: Simple, everyday language.
 - Added merchant name filter to History page monthly view for easier merchant filtering by name instead of account number
 - Created `/api/merchants/for-filter` backend endpoint that fetches all MCC merchants (types 0, 1, blank, null) including all statuses (active, disabled, deleted)
 - Implemented dropdown using merchant IDs as unique values to handle duplicate merchant names correctly
-- Added memoized merchant lookup (ID → account number) for efficient filtering without re-renders
+- **Bidirectional filter sync**: Selecting merchant by name auto-populates account number, and vice versa
+- Updated filter labels: "All Merch Names" for name dropdown, "All Merch Accts" for account dropdown
+- **Chart title enhancement**: Monthly Financial Trends Comparison chart now displays selected merchant name in title
+- Added memoized lookups: ID → account (forward) and account → ID (reverse) for efficient bidirectional sync
 - Idempotent URL restoration: auto-populates merchant account when loading bookmarked URLs with `?merchantName=X` parameter
-- Performance optimizations: useCallback on handleFilterChange, useMemo on merchant lookup, proper dependency arrays to prevent unnecessary re-renders
-- FilterBar cascading filters maintained: Group → Association → Merchant Name → Terminal
+- Performance optimizations: useCallback on handleFilterChange, useMemo on merchant lookups, proper dependency arrays to prevent unnecessary re-renders
+- FilterBar cascading filters maintained: Group → Association → Merchant Name → Merchant Account → Terminal
 
 ## System Architecture
 
