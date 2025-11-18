@@ -17,6 +17,8 @@ Preferred communication style: Simple, everyday language.
 - **Bidirectional filter sync**: Selecting merchant by name auto-populates account number, and vice versa
 - Updated filter labels: "All Merch Names" for name dropdown, "All Merch Accts" for account dropdown
 - **Chart title enhancement**: Monthly Financial Trends Comparison chart now displays selected merchant name in title
+- **Smart chart visibility**: Chart only displays when merchant has transaction data for the selected period
+- **"No Data Available" message**: Shows friendly message with merchant name and period when filtered merchant has no transactions
 - Added memoized lookups: ID → account (forward) and account → ID (reverse) for efficient bidirectional sync
 - Idempotent URL restoration: auto-populates merchant account when loading bookmarked URLs with `?merchantName=X` parameter
 - Performance optimizations: useCallback on handleFilterChange, useMemo on merchant lookups, proper dependency arrays to prevent unnecessary re-renders
