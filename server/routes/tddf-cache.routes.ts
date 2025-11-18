@@ -1461,15 +1461,16 @@ export function registerTddfCacheRoutes(app: Express) {
       
       // Calculate the 3 months in the quarter
       const startMonth = (quarterNum - 1) * 3 + 1;
+      const yearInt = parseInt(year as string);
       const months = [
-        `${year}-${startMonth.toString().padStart(2, '0')}`,
-        `${year}-${(startMonth + 1).toString().padStart(2, '0')}`,
-        `${year}-${(startMonth + 2).toString().padStart(2, '0')}`
+        { year: yearInt, month: startMonth, display: `${year}-${startMonth.toString().padStart(2, '0')}` },
+        { year: yearInt, month: startMonth + 1, display: `${year}-${(startMonth + 1).toString().padStart(2, '0')}` },
+        { year: yearInt, month: startMonth + 2, display: `${year}-${(startMonth + 2).toString().padStart(2, '0')}` }
       ];
       
       const monthlyCacheTable = getTableName('tddf1_monthly_cache');
       
-      console.log(`📊 [QUARTERLY-TOTALS] Querying monthly cache for ${year} Q${quarter}: ${months.join(', ')}`);
+      console.log(`📊 [QUARTERLY-TOTALS] Querying monthly cache for ${year} Q${quarter}: ${months.map(m => m.display).join(', ')}`);
       if (group || association || merchant || terminal) {
         console.log(`🎯 [QUARTERLY] Applying filters - Group: ${group || 'All'}, Association: ${association || 'All'}, Merchant: ${merchant || 'All'}, Terminal: ${terminal || 'All'}`);
       }
@@ -1483,20 +1484,20 @@ export function registerTddfCacheRoutes(app: Express) {
       const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
       
       // Fetch all 3 months from monthly cache in parallel
-      const monthlyDataPromises = months.map(async (month) => {
-        const cacheKey = `monthly_${month}${filterSuffix}`;
+      const monthlyDataPromises = months.map(async (monthObj) => {
+        const cacheKey = `monthly_${monthObj.year}_${monthObj.month.toString().padStart(2, '0')}${filterSuffix}`;
         const result = await pool.query(`
           SELECT totals_json
           FROM ${monthlyCacheTable}
-          WHERE month = $1 AND cache_key = $2
+          WHERE year = $1 AND month = $2 AND cache_key = $3
           ORDER BY last_refresh_datetime DESC
           LIMIT 1
-        `, [month, cacheKey]);
+        `, [monthObj.year, monthObj.month, cacheKey]);
         
         if (result.rows.length > 0) {
-          return { month, data: result.rows[0].totals_json };
+          return { month: monthObj.display, data: result.rows[0].totals_json };
         }
-        return { month, data: null };
+        return { month: monthObj.display, data: null };
       });
       
       const monthlyResults = await Promise.all(monthlyDataPromises);
@@ -1597,38 +1598,39 @@ export function registerTddfCacheRoutes(app: Express) {
       
       // Calculate current quarter months
       const currentStartMonth = (quarterNum - 1) * 3 + 1;
+      const yearInt = parseInt(year as string);
       const currentMonths = [
-        { value: `${year}-${currentStartMonth.toString().padStart(2, '0')}`, name: new Date(parseInt(year as string), currentStartMonth - 1, 1).toLocaleString('default', { month: 'long' }) },
-        { value: `${year}-${(currentStartMonth + 1).toString().padStart(2, '0')}`, name: new Date(parseInt(year as string), currentStartMonth, 1).toLocaleString('default', { month: 'long' }) },
-        { value: `${year}-${(currentStartMonth + 2).toString().padStart(2, '0')}`, name: new Date(parseInt(year as string), currentStartMonth + 1, 1).toLocaleString('default', { month: 'long' }) }
+        { year: yearInt, month: currentStartMonth, name: new Date(yearInt, currentStartMonth - 1, 1).toLocaleString('default', { month: 'long' }) },
+        { year: yearInt, month: currentStartMonth + 1, name: new Date(yearInt, currentStartMonth, 1).toLocaleString('default', { month: 'long' }) },
+        { year: yearInt, month: currentStartMonth + 2, name: new Date(yearInt, currentStartMonth + 1, 1).toLocaleString('default', { month: 'long' }) }
       ];
       
       // Calculate previous quarter
       const prevQuarter = quarterNum === 1 ? 4 : quarterNum - 1;
-      const prevYearStr = quarterNum === 1 ? (parseInt(year as string) - 1).toString() : (year as string);
+      const prevYear = quarterNum === 1 ? yearInt - 1 : yearInt;
       const prevStartMonth = (prevQuarter - 1) * 3 + 1;
       const previousMonths = [
-        { value: `${prevYearStr}-${prevStartMonth.toString().padStart(2, '0')}`, name: new Date(parseInt(prevYearStr), prevStartMonth - 1, 1).toLocaleString('default', { month: 'long' }) },
-        { value: `${prevYearStr}-${(prevStartMonth + 1).toString().padStart(2, '0')}`, name: new Date(parseInt(prevYearStr), prevStartMonth, 1).toLocaleString('default', { month: 'long' }) },
-        { value: `${prevYearStr}-${(prevStartMonth + 2).toString().padStart(2, '0')}`, name: new Date(parseInt(prevYearStr), prevStartMonth + 1, 1).toLocaleString('default', { month: 'long' }) }
+        { year: prevYear, month: prevStartMonth, name: new Date(prevYear, prevStartMonth - 1, 1).toLocaleString('default', { month: 'long' }) },
+        { year: prevYear, month: prevStartMonth + 1, name: new Date(prevYear, prevStartMonth, 1).toLocaleString('default', { month: 'long' }) },
+        { year: prevYear, month: prevStartMonth + 2, name: new Date(prevYear, prevStartMonth + 1, 1).toLocaleString('default', { month: 'long' }) }
       ];
       
       // Helper function to get monthly data from cache
-      const getMonthData = async (monthValue: string, monthName: string) => {
-        const cacheKey = `monthly_${monthValue}${filterSuffix}`;
+      const getMonthData = async (yearVal: number, monthVal: number, monthName: string) => {
+        const cacheKey = `monthly_${yearVal}_${monthVal.toString().padStart(2, '0')}${filterSuffix}`;
         const result = await pool.query(`
           SELECT totals_json
           FROM ${monthlyCacheTable}
-          WHERE month = $1 AND cache_key = $2
+          WHERE year = $1 AND month = $2 AND cache_key = $3
           ORDER BY last_refresh_datetime DESC
           LIMIT 1
-        `, [monthValue, cacheKey]);
+        `, [yearVal, monthVal, cacheKey]);
         
         if (result.rows.length > 0) {
           const data = result.rows[0].totals_json;
           return {
             month: monthName,
-            monthValue,
+            monthValue: `${yearVal}-${monthVal.toString().padStart(2, '0')}`,
             records: data.totalRecords || 0,
             transactionValue: data.totalTransactionValue || 0,
             netDepositBh: data.totalNetDepositBh || 0
@@ -1636,10 +1638,10 @@ export function registerTddfCacheRoutes(app: Express) {
         }
         
         // Return zero data if cache not found
-        console.log(`⚠️  [QUARTERLY-COMPARISON] No cache found for ${monthValue}, returning zeros`);
+        console.log(`⚠️  [QUARTERLY-COMPARISON] No cache found for ${yearVal}-${monthVal.toString().padStart(2, '0')}, returning zeros`);
         return {
           month: monthName,
-          monthValue,
+          monthValue: `${yearVal}-${monthVal.toString().padStart(2, '0')}`,
           records: 0,
           transactionValue: 0,
           netDepositBh: 0
@@ -1648,25 +1650,25 @@ export function registerTddfCacheRoutes(app: Express) {
       
       // Get data for all 6 months (3 current + 3 previous) in parallel
       const [month1, month2, month3, prevMonth1, prevMonth2, prevMonth3] = await Promise.all([
-        getMonthData(currentMonths[0].value, currentMonths[0].name),
-        getMonthData(currentMonths[1].value, currentMonths[1].name),
-        getMonthData(currentMonths[2].value, currentMonths[2].name),
-        getMonthData(previousMonths[0].value, previousMonths[0].name),
-        getMonthData(previousMonths[1].value, previousMonths[1].name),
-        getMonthData(previousMonths[2].value, previousMonths[2].name)
+        getMonthData(currentMonths[0].year, currentMonths[0].month, currentMonths[0].name),
+        getMonthData(currentMonths[1].year, currentMonths[1].month, currentMonths[1].name),
+        getMonthData(currentMonths[2].year, currentMonths[2].month, currentMonths[2].name),
+        getMonthData(previousMonths[0].year, previousMonths[0].month, previousMonths[0].name),
+        getMonthData(previousMonths[1].year, previousMonths[1].month, previousMonths[1].name),
+        getMonthData(previousMonths[2].year, previousMonths[2].month, previousMonths[2].name)
       ]);
       
-      console.log(`📊 [QUARTERLY-COMPARISON] Current Q${quarter} ${year}: 3 months, Previous Q${prevQuarter} ${prevYearStr}: 3 months from cache`);
+      console.log(`📊 [QUARTERLY-COMPARISON] Current Q${quarter} ${year}: 3 months, Previous Q${prevQuarter} ${prevYear}: 3 months from cache`);
       
       res.json({
         currentQuarter: {
           quarter: `Q${quarter}`,
-          year,
+          year: yearInt,
           monthlyBreakdown: [month1, month2, month3]
         },
         previousQuarter: {
           quarter: `Q${prevQuarter}`,
-          year: prevYearStr,
+          year: prevYear,
           monthlyBreakdown: [prevMonth1, prevMonth2, prevMonth3]
         }
       });
