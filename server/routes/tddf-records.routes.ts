@@ -8,6 +8,34 @@ import { parseTddfFilename, formatProcessingTime } from "../utils/tddfFilename";
 import { backfillUniversalTimestamps } from "../services/universal-timestamp";
 import { logger } from "../../shared/logger";
 
+// MEMORY SAFETY: Simple in-memory cache for expensive duplicate stats queries
+// Prevents production OOM crashes from repeated expensive ARRAY_AGG queries
+const duplicateStatsCache = {
+  data: null as any,
+  timestamp: 0,
+  TTL: 5 * 60 * 1000, // 5 minutes
+  
+  get() {
+    if (this.data && Date.now() - this.timestamp < this.TTL) {
+      console.log('[DUPLICATE-STATS-CACHE] Returning cached data (age: ' + Math.floor((Date.now() - this.timestamp) / 1000) + 's)');
+      return this.data;
+    }
+    return null;
+  },
+  
+  set(data: any) {
+    this.data = data;
+    this.timestamp = Date.now();
+    console.log('[DUPLICATE-STATS-CACHE] Cached new data (TTL: 5 minutes)');
+  },
+  
+  clear() {
+    this.data = null;
+    this.timestamp = 0;
+    console.log('[DUPLICATE-STATS-CACHE] Cache cleared');
+  }
+};
+
 // Business day extraction utility for TDDF filenames
 function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
   // Pattern: VERMNTSB.6759_TDDF_830_10272022_001356.TSYSO
@@ -2666,9 +2694,16 @@ export function registerTddfRecordsRoutes(app: Express) {
   });
 
   // TDDF JSON Duplicate Detection API endpoints
+  // MEMORY SAFETY: Added caching to prevent production OOM crashes
   app.get("/api/tddf-json/duplicate-stats", isAuthenticated, async (req, res) => {
     try {
       console.log('[TDDF-JSON-DUPLICATES] Getting duplicate statistics...');
+      
+      // MEMORY SAFETY: Check cache first (5-minute TTL)
+      const cachedData = duplicateStatsCache.get();
+      if (cachedData) {
+        return res.json(cachedData);
+      }
       
       const { JsonbDuplicateCleanup } = await import("../jsonb-duplicate-cleanup.js");
       const duplicateCleanup = new JsonbDuplicateCleanup();
@@ -2676,8 +2711,9 @@ export function registerTddfRecordsRoutes(app: Express) {
       // Get current duplicate statistics
       const stats = await duplicateCleanup.getDuplicateStats();
       
+      // MEMORY SAFETY: Limited to 100 patterns maximum (was unlimited, caused OOM)
       // Find actual duplicates for detailed analysis
-      const duplicates = await duplicateCleanup.findDuplicates();
+      const duplicates = await duplicateCleanup.findDuplicates(100);
       
       // Calculate summary statistics - LINE-BASED PRIORITY
       let totalLineDuplicates = 0;
@@ -2699,7 +2735,7 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       console.log(`[TDDF-JSON-DUPLICATES] LINE-BASED Stats: ${lineBasedDuplicates} line duplicates (primary), ${referenceBasedDuplicates} reference duplicates (side effect)`);
       
-      res.json({
+      const responseData = {
         success: true,
         stats: {
           ...stats,
@@ -2711,7 +2747,12 @@ export function registerTddfRecordsRoutes(app: Express) {
           duplicateDetails: duplicates.slice(0, 10) // Show first 10 patterns for UI display
         },
         lastScanTime: new Date().toISOString()
-      });
+      };
+      
+      // MEMORY SAFETY: Cache the response for 5 minutes
+      duplicateStatsCache.set(responseData);
+      
+      res.json(responseData);
       
     } catch (error) {
       console.error('[TDDF-JSON-DUPLICATES] Error getting duplicate stats:', error);
@@ -2734,6 +2775,9 @@ export function registerTddfRecordsRoutes(app: Express) {
       
       if (result.success) {
         console.log(`[TDDF-JSON-DUPLICATES] Cleanup completed: ${result.duplicates?.totalDuplicateRecords || 0} duplicates processed`);
+        
+        // MEMORY SAFETY: Clear cache after cleanup to force fresh data on next request
+        duplicateStatsCache.clear();
         
         res.json({
           success: true,

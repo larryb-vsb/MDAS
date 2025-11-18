@@ -16,42 +16,64 @@ class JsonbDuplicateCleanup {
 
   /**
    * Find duplicate JSONB records based on business keys
+   * @param {number} maxResults - Maximum number of duplicate patterns to return (default: 100)
+   * @param {number} maxIdsPerPattern - Maximum IDs to load per pattern (default: 50) to prevent OOM
    */
-  async findDuplicates() {
+  async findDuplicates(maxResults = 100, maxIdsPerPattern = 50) {
     const client = await this.pool.connect();
     
     try {
-      console.log(`[JSONB-CLEANUP] Scanning ${this.tableName} for duplicates...`);
+      console.log(`[JSONB-CLEANUP] Scanning ${this.tableName} for duplicates (max ${maxResults} patterns, ${maxIdsPerPattern} IDs each)...`);
+      
+      // MEMORY SAFETY: Check total record count before running expensive ARRAY_AGG
+      const countCheck = await client.query(`SELECT COUNT(*) as total FROM ${this.tableName}`);
+      const totalRecords = parseInt(countCheck.rows[0]?.total || 0);
+      
+      // MEMORY SAFETY: Hard guard - refuse to run on extremely large datasets
+      if (totalRecords > 10000000) {
+        console.error(`[JSONB-CLEANUP] ❌ SAFETY ABORT: Dataset too large (${totalRecords.toLocaleString()} records). Risk of OOM crash.`);
+        throw new Error(`Dataset too large for duplicate scan (${totalRecords.toLocaleString()} records). Use targeted cleanup by date instead.`);
+      }
+      
+      if (totalRecords > 100000) {
+        console.warn(`[JSONB-CLEANUP] ⚠️  Large dataset detected (${totalRecords.toLocaleString()} records). Using memory-safe mode with limits.`);
+      }
       
       // Find duplicates based on raw_line_hash (more accurate hash-based detection)
+      // MEMORY SAFETY: Added LIMIT to prevent loading millions of duplicate patterns
+      // MEMORY SAFETY: Array slicing to limit IDs per pattern (prevents single pattern with 100k+ duplicates from OOM)
       const duplicateQuery = `
         WITH hash_duplicates AS (
           SELECT 
             raw_line_hash,
             COUNT(*) as duplicate_count,
-            ARRAY_AGG(id ORDER BY created_at) as record_ids,
-            ARRAY_AGG(upload_id ORDER BY created_at) as upload_ids,
-            ARRAY_AGG(original_filename ORDER BY created_at) as filenames,
-            ARRAY_AGG(created_at ORDER BY created_at) as created_times
+            (ARRAY_AGG(id ORDER BY created_at))[1:$2] as record_ids,
+            (ARRAY_AGG(upload_id ORDER BY created_at))[1:$2] as upload_ids,
+            (ARRAY_AGG(original_filename ORDER BY created_at))[1:$2] as filenames,
+            (ARRAY_AGG(created_at ORDER BY created_at))[1:$2] as created_times
           FROM ${this.tableName}
           WHERE raw_line_hash IS NOT NULL
           GROUP BY raw_line_hash
           HAVING COUNT(*) > 1
+          ORDER BY COUNT(*) DESC
+          LIMIT $1
         ),
         reference_duplicates AS (
           SELECT 
             record_data->>'referenceNumber' as reference_number,
             COUNT(*) as duplicate_count,
-            ARRAY_AGG(id ORDER BY created_at) as record_ids,
-            ARRAY_AGG(upload_id ORDER BY created_at) as upload_ids,
-            ARRAY_AGG(original_filename ORDER BY created_at) as filenames,
-            ARRAY_AGG(created_at ORDER BY created_at) as created_times
+            (ARRAY_AGG(id ORDER BY created_at))[1:$2] as record_ids,
+            (ARRAY_AGG(upload_id ORDER BY created_at))[1:$2] as upload_ids,
+            (ARRAY_AGG(original_filename ORDER BY created_at))[1:$2] as filenames,
+            (ARRAY_AGG(created_at ORDER BY created_at))[1:$2] as created_times
           FROM ${this.tableName}
           WHERE record_type = 'DT' 
             AND record_data->>'referenceNumber' IS NOT NULL
             AND record_data->>'referenceNumber' != ''
           GROUP BY record_data->>'referenceNumber'
           HAVING COUNT(*) > 1
+          ORDER BY COUNT(*) DESC
+          LIMIT $1
         )
         SELECT 
           'hash' as duplicate_type,
@@ -75,12 +97,13 @@ class JsonbDuplicateCleanup {
           created_times as timestamps
         FROM reference_duplicates
         
-        ORDER BY duplicate_count DESC, duplicate_type;
+        ORDER BY duplicate_count DESC, duplicate_type
+        LIMIT $1;
       `;
 
-      const result = await client.query(duplicateQuery);
+      const result = await client.query(duplicateQuery, [maxResults, maxIdsPerPattern]);
       
-      console.log(`[JSONB-CLEANUP] Found ${result.rows.length} duplicate patterns`);
+      console.log(`[JSONB-CLEANUP] Found ${result.rows.length} duplicate patterns (limited to ${maxResults})`);
       
       return result.rows;
       

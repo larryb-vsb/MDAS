@@ -67,11 +67,14 @@ export default function TddfDuplicateWidget() {
   const queryClient = useQueryClient();
 
   // Fetch duplicate statistics
+  // MEMORY SAFETY: Disabled automatic polling to prevent production memory overflow
+  // Use manual refresh button instead
   const { data: duplicateData, isLoading: duplicateLoading, refetch } = useQuery<DuplicateStatsResponse>({
     queryKey: ['/api/tddf-json/duplicate-stats'],
     queryFn: () => apiRequest('/api/tddf-json/duplicate-stats'),
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 25000 // Consider data stale after 25 seconds
+    refetchInterval: false, // DISABLED: Was causing memory overflow in production (OOM crashes)
+    staleTime: 300000, // 5 minutes - reduces query frequency
+    enabled: false // Manual refresh only - user must click refresh button
   });
 
   // Cleanup duplicates mutation
