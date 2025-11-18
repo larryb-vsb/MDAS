@@ -4,6 +4,7 @@
 
 import { JsonbDuplicateCleanup } from './jsonb-duplicate-cleanup.js';
 import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
+import { withRetry, withConnectionCheck } from './db-retry-util.js';
 
 // Step 6 Processing Timeout and Retry Configuration
 const MAX_STEP6_RETRIES = 3; // Maximum number of retry attempts before marking file as failed
@@ -110,68 +111,84 @@ class MMSWatcher {
           return;
         }
         
-        // Check if Auto Step 6 is enabled by querying system settings directly
-        const { db } = await import('./db.js');
-        const { sql } = await import('drizzle-orm');
-        const { getTableName } = await import('./table-config.js');
-        
-        const result = await db.execute(sql`
-          SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
-          WHERE setting_key = 'auto_step6_enabled'
-        `);
-        
-        const autoStep6Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
-        
-        if (!autoStep6Enabled) {
-          console.log('[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 is disabled, skipping encoded file processing');
-          return;
-        }
-        
-        // Auto Step 6 is enabled - check for encoded files
-        console.log('[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...');
-        const hasEncodedFiles = await this.hasFilesInPhase('encoded');
-        console.log(`[MMS-WATCHER] [AUTO-STEP6] Found encoded files: ${hasEncodedFiles}`);
-        
-        if (hasEncodedFiles) {
-          console.log('[MMS-WATCHER] [AUTO-STEP6] Processing encoded files for Step 6 completion');
-          await this.processEncodedFiles();
-        }
+        // Wrap database operations with retry logic
+        await withRetry(async () => {
+          const { db } = await import('./db.js');
+          const { sql } = await import('drizzle-orm');
+          const { getTableName } = await import('./table-config.js');
+          
+          const result = await db.execute(sql`
+            SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+            WHERE setting_key = 'auto_step6_enabled'
+          `);
+          
+          const autoStep6Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+          
+          if (!autoStep6Enabled) {
+            console.log('[MMS-WATCHER] [AUTO-STEP6] Auto Step 6 is disabled, skipping encoded file processing');
+            return;
+          }
+          
+          // Auto Step 6 is enabled - check for encoded files
+          console.log('[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...');
+          const hasEncodedFiles = await this.hasFilesInPhase('encoded');
+          console.log(`[MMS-WATCHER] [AUTO-STEP6] Found encoded files: ${hasEncodedFiles}`);
+          
+          if (hasEncodedFiles) {
+            console.log('[MMS-WATCHER] [AUTO-STEP6] Processing encoded files for Step 6 completion');
+            await this.processEncodedFiles();
+          }
+        }, {
+          maxRetries: 2,
+          onRetry: (attempt, error) => {
+            console.log(`[MMS-WATCHER] [AUTO-STEP6] Database retry attempt ${attempt}: ${error.message}`);
+          }
+        });
       } catch (error) {
-        console.error('[MMS-WATCHER] [AUTO-STEP6] Error in Step 6 processing interval:', error);
+        console.error('[MMS-WATCHER] [AUTO-STEP6] Error in Step 6 processing interval after retries:', error);
+        // Graceful degradation - service continues running
       }
     }, STEP6_INTERVAL_MS); // Use configurable interval
     
     // Step 7 Auto Archive Service - Independent interval
     this.step7ArchiveIntervalId = setInterval(async () => {
       try {
-        // Check if Auto Step 7 is enabled by querying system settings directly
-        const { db } = await import('./db.js');
-        const { sql } = await import('drizzle-orm');
-        const { getTableName } = await import('./table-config.js');
-        
-        const result = await db.execute(sql`
-          SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
-          WHERE setting_key = 'auto_step7_enabled'
-        `);
-        
-        const autoStep7Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
-        
-        if (!autoStep7Enabled) {
-          console.log('[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 is disabled, skipping completed file archiving');
-          return;
-        }
-        
-        // Auto Step 7 is enabled - check for completed files
-        console.log('[MMS-WATCHER] [AUTO-STEP7] Checking for completed files...');
-        const hasCompletedFiles = await this.hasFilesInPhase('completed');
-        console.log(`[MMS-WATCHER] [AUTO-STEP7] Found completed files: ${hasCompletedFiles}`);
-        
-        if (hasCompletedFiles) {
-          console.log('[MMS-WATCHER] [AUTO-STEP7] Archiving completed files');
-          await this.processCompletedFiles();
-        }
+        // Wrap database operations with retry logic
+        await withRetry(async () => {
+          const { db } = await import('./db.js');
+          const { sql } = await import('drizzle-orm');
+          const { getTableName } = await import('./table-config.js');
+          
+          const result = await db.execute(sql`
+            SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+            WHERE setting_key = 'auto_step7_enabled'
+          `);
+          
+          const autoStep7Enabled = result.rows.length > 0 ? result.rows[0].setting_value === 'true' : false;
+          
+          if (!autoStep7Enabled) {
+            console.log('[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 is disabled, skipping completed file archiving');
+            return;
+          }
+          
+          // Auto Step 7 is enabled - check for completed files
+          console.log('[MMS-WATCHER] [AUTO-STEP7] Checking for completed files...');
+          const hasCompletedFiles = await this.hasFilesInPhase('completed');
+          console.log(`[MMS-WATCHER] [AUTO-STEP7] Found completed files: ${hasCompletedFiles}`);
+          
+          if (hasCompletedFiles) {
+            console.log('[MMS-WATCHER] [AUTO-STEP7] Archiving completed files');
+            await this.processCompletedFiles();
+          }
+        }, {
+          maxRetries: 2,
+          onRetry: (attempt, error) => {
+            console.log(`[MMS-WATCHER] [AUTO-STEP7] Database retry attempt ${attempt}: ${error.message}`);
+          }
+        });
       } catch (error) {
-        console.error('[MMS-WATCHER] [AUTO-STEP7] Error in Step 7 archiving interval:', error);
+        console.error('[MMS-WATCHER] [AUTO-STEP7] Error in Step 7 archiving interval after retries:', error);
+        // Graceful degradation - service continues running
       }
     }, 60000); // Check every 60 seconds for Step 7 archiving
     
@@ -372,18 +389,19 @@ class MMSWatcher {
         return;
       }
       
-      // Check for recently encoded TDDF files that need cache updates  
-      const pool = this.storage.pool;
-      const recentlyEncoded = await pool.query(`
-        SELECT id, filename, encoding_at, processing_notes
-        FROM ${this.storage.getTableName('uploader_uploads')}
-        WHERE current_phase = 'encoded' 
-          AND final_file_type = 'tddf'
-          AND encoding_at > NOW() - INTERVAL '10 minutes'
-          AND (processing_notes NOT LIKE '%cache_updated%' OR processing_notes IS NULL)
-        ORDER BY encoding_at DESC
-        LIMIT 5
-      `);
+      // Wrap database operations with retry logic
+      await withRetry(async () => {
+        const pool = this.storage.pool;
+        const recentlyEncoded = await pool.query(`
+          SELECT id, filename, encoding_at, processing_notes
+          FROM ${this.storage.getTableName('uploader_uploads')}
+          WHERE current_phase = 'encoded' 
+            AND final_file_type = 'tddf'
+            AND encoding_at > NOW() - INTERVAL '10 minutes'
+            AND (processing_notes NOT LIKE '%cache_updated%' OR processing_notes IS NULL)
+          ORDER BY encoding_at DESC
+          LIMIT 5
+        `);
 
       console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found ${recentlyEncoded.rows.length} recently encoded files`);
       
@@ -597,9 +615,16 @@ class MMSWatcher {
         // Log recovery metrics summary
         console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] 📊 Validating recovery metrics:`, JSON.stringify(recoveryMetrics, null, 2));
       }
+      }, {
+        maxRetries: 2,
+        onRetry: (attempt, error) => {
+          console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Database retry attempt ${attempt}: ${error.message}`);
+        }
+      });
       
     } catch (error) {
-      console.error('[MMS-WATCHER] [PIPELINE-RECOVERY] Error checking pipeline status:', error);
+      console.error('[MMS-WATCHER] [PIPELINE-RECOVERY] Error checking pipeline status after retries:', error);
+      // Graceful degradation - service continues running
     }
   }
 
