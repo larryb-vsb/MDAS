@@ -1553,7 +1553,7 @@ export function registerTddfCacheRoutes(app: Express) {
       const result = {
         quarter: `Q${quarter}`,
         year,
-        months,
+        months: months.map(m => m.display), // Return just the display strings
         totalFiles,
         totalRecords,
         totalTransactionValue,

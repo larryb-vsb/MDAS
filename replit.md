@@ -35,6 +35,7 @@ Preferred communication style: Simple, everyday language.
   - Fixed critical bug where endpoints initially queried wrong column name (`cached_data` instead of `totals_json`), causing 500 errors
   - Fixed database query pattern from `WHERE month = $1` with "2025-07" string to `WHERE year = $1 AND month = $2` with integers (2025, 7)
   - Fixed quarterly-totals endpoint to handle partial quarter data gracefully - works with incomplete quarters (e.g., Q4 2025 shows Oct/Nov data even though Dec hasn't occurred yet)
+  - Fixed data type mismatch: backend was returning months as objects `{year, month, display}` but frontend expected strings - now returns just display strings like "2025-01"
 
 ### Merchant Name Filter Enhancement (November 18, 2025)
 - Added merchant name filter to History page monthly view for easier merchant filtering by name instead of account number
