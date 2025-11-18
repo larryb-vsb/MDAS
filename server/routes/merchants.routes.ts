@@ -52,6 +52,53 @@ export function registerMerchantRoutes(app: Express) {
     }
   });
 
+  // Get merchants for filter dropdown (MCC merchants: type 0, 1, blank, or null)
+  app.get("/api/merchants/for-filter", isAuthenticated, async (req, res) => {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      console.log('[MERCHANT-FILTER] Fetching MCC merchants for filter dropdown');
+      
+      // Fetch all MCC merchants (type 0, 1, blank, or NULL) including disabled/deleted
+      // Using client_mid as the account number since that's what TDDF uses
+      const result = await pool.query(`
+        SELECT 
+          id,
+          name,
+          client_mid as account_number,
+          status,
+          merchant_type
+        FROM ${merchantsTableName}
+        WHERE (
+          merchant_type IN ('0', '1') 
+          OR merchant_type = '' 
+          OR merchant_type IS NULL
+        )
+        AND name IS NOT NULL
+        AND name != ''
+        AND client_mid IS NOT NULL
+        AND client_mid != ''
+        ORDER BY name ASC
+      `);
+      
+      console.log(`[MERCHANT-FILTER] Found ${result.rows.length} merchants for filter`);
+      
+      // Format the response
+      const merchants = result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        accountNumber: row.account_number,
+        status: row.status || 'Unknown',
+        merchantType: row.merchant_type || 'none'
+      }));
+      
+      res.json(merchants);
+    } catch (error) {
+      console.error("Error fetching merchants for filter:", error);
+      res.status(500).json({ error: "Failed to fetch merchants for filter" });
+    }
+  });
+
   // Export endpoints for the dedicated Exports page
   app.get("/api/exports/merchants/download", async (req, res) => {
     try {

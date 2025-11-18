@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,6 +105,7 @@ export default function History() {
     group?: string;
     association?: string;
     merchant?: string;
+    merchantName?: string;
     terminal?: string;
   }>({});
 
@@ -123,11 +124,13 @@ export default function History() {
     const group = searchParams.get('group');
     const association = searchParams.get('association');
     const merchant = searchParams.get('merchant');
+    const merchantName = searchParams.get('merchantName');
     const terminal = searchParams.get('terminal');
     
     if (group) newFilters.group = group;
     if (association) newFilters.association = association;
     if (merchant) newFilters.merchant = merchant;
+    if (merchantName) newFilters.merchantName = merchantName;
     if (terminal) newFilters.terminal = terminal;
     
     setFilters(newFilters);
@@ -385,7 +388,7 @@ export default function History() {
     setLocation('/dashboard');
   };
   
-  const handleFilterChange = (newFilters: typeof filters) => {
+  const handleFilterChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters);
     
     // Update URL with filter params
@@ -393,12 +396,13 @@ export default function History() {
     if (newFilters.group) searchParams.set('group', newFilters.group);
     if (newFilters.association) searchParams.set('association', newFilters.association);
     if (newFilters.merchant) searchParams.set('merchant', newFilters.merchant);
+    if (newFilters.merchantName) searchParams.set('merchantName', newFilters.merchantName);
     if (newFilters.terminal) searchParams.set('terminal', newFilters.terminal);
     
     const queryString = searchParams.toString();
     const newUrl = queryString ? `${location.split('?')[0]}?${queryString}` : location.split('?')[0];
     window.history.replaceState({}, '', newUrl);
-  };
+  }, [location]);
   
   const handleMonthPickerSelect = (year: number, month: number) => {
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];

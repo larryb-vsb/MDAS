@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Select,
   SelectContent,
@@ -14,12 +14,14 @@ interface FilterBarProps {
     group?: string;
     association?: string;
     merchant?: string;
+    merchantName?: string;
     terminal?: string;
   };
   onFilterChange: (filters: {
     group?: string;
     association?: string;
     merchant?: string;
+    merchantName?: string;
     terminal?: string;
   }) => void;
   isDarkMode?: boolean;
@@ -32,6 +34,14 @@ interface FilterOptions {
   terminals: string[];
 }
 
+interface MerchantOption {
+  id: number;
+  name: string;
+  accountNumber: string;
+  status: string;
+  merchantType: string;
+}
+
 export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }: FilterBarProps) {
   const [options, setOptions] = useState<FilterOptions>({
     groups: [],
@@ -39,6 +49,7 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
     merchants: [],
     terminals: []
   });
+  const [merchantOptions, setMerchantOptions] = useState<MerchantOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch filter options when month changes
@@ -63,6 +74,44 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
     }
   }, [month]);
 
+  // Fetch merchant names for merchant name filter (independent of month)
+  useEffect(() => {
+    const fetchMerchants = async () => {
+      try {
+        const response = await fetch('/api/merchants/for-filter');
+        if (response.ok) {
+          const data = await response.json();
+          setMerchantOptions(data);
+        }
+      } catch (error) {
+        console.error('Error fetching merchant options:', error);
+      }
+    };
+
+    fetchMerchants();
+  }, []);
+
+  // Memoized lookup: merchant ID -> account number
+  const merchantLookup = useMemo(() => {
+    const lookup: Record<string, string> = {};
+    merchantOptions.forEach(m => {
+      lookup[m.id.toString()] = m.accountNumber;
+    });
+    return lookup;
+  }, [merchantOptions]);
+
+  // Auto-populate merchant account number when merchantName is set (e.g., from URL restoration)
+  // Only fires when merchantName changes, merchant is missing/mismatched, or lookup updates
+  useEffect(() => {
+    if (filters.merchantName && merchantLookup[filters.merchantName]) {
+      const expectedAccountNumber = merchantLookup[filters.merchantName];
+      // Only update if merchant is missing or doesn't match the expected account number
+      if (filters.merchant !== expectedAccountNumber) {
+        onFilterChange({ ...filters, merchant: expectedAccountNumber });
+      }
+    }
+  }, [filters.merchantName, filters.merchant, merchantLookup, onFilterChange]);
+
   // Get filtered options based on cascading filters
   const getFilteredAssociations = () => {
     // If group is selected, we should filter associations based on the data
@@ -80,26 +129,41 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
     return options.terminals;
   };
 
-  const handleFilterChange = (type: 'group' | 'association' | 'merchant' | 'terminal', value: string) => {
+  const handleFilterChange = (type: 'group' | 'association' | 'merchant' | 'merchantName' | 'terminal', value: string) => {
     const newFilters = { ...filters };
     
     // Handle "All" selection (clear filter)
     if (value === 'all') {
       delete newFilters[type];
       
+      // Special handling for merchant name - also clear merchant account number
+      if (type === 'merchantName') {
+        delete newFilters.merchant;
+      }
+      
       // Clear dependent filters when parent changes
       if (type === 'group') {
         delete newFilters.association;
         delete newFilters.merchant;
+        delete newFilters.merchantName;
         delete newFilters.terminal;
       } else if (type === 'association') {
         delete newFilters.merchant;
+        delete newFilters.merchantName;
         delete newFilters.terminal;
       } else if (type === 'merchant') {
         delete newFilters.terminal;
       }
     } else {
       newFilters[type] = value;
+      
+      // When merchant name is selected (by ID), automatically set merchant account number
+      if (type === 'merchantName') {
+        const selectedMerchant = merchantOptions.find(m => m.id.toString() === value);
+        if (selectedMerchant) {
+          newFilters.merchant = selectedMerchant.accountNumber;
+        }
+      }
     }
     
     onFilterChange(newFilters);
@@ -153,7 +217,29 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
         </Select>
       </div>
 
-      {/* Merchant Filter */}
+      {/* Merchant Name Filter */}
+      <div className="flex items-center gap-2 min-w-[200px]">
+        <Store className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} data-testid="icon-merchant-name" />
+        <Select
+          value={filters.merchantName || 'all'}
+          onValueChange={(value) => handleFilterChange('merchantName', value)}
+          disabled={merchantOptions.length === 0}
+        >
+          <SelectTrigger className="w-full" data-testid="select-merchant-name">
+            <SelectValue placeholder="All Merchants" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Merchants</SelectItem>
+            {merchantOptions.map((merchant) => (
+              <SelectItem key={merchant.id} value={merchant.id.toString()}>
+                {merchant.name} {merchant.status !== 'Active/Open' && `(${merchant.status})`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Merchant Account Number Filter (auto-populated by Merchant Name) */}
       <div className="flex items-center gap-2 min-w-[200px]">
         <Store className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} data-testid="icon-merchant" />
         <Select
@@ -198,11 +284,11 @@ export function FilterBar({ month, filters, onFilterChange, isDarkMode = false }
       </div>
 
       {/* Active Filters Count */}
-      {(filters.group || filters.association || filters.merchant || filters.terminal) && (
+      {(filters.group || filters.association || filters.merchant || filters.merchantName || filters.terminal) && (
         <div className={`ml-auto px-3 py-1 rounded-full text-sm font-medium ${
           isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700'
         }`}>
-          {Object.keys(filters).filter(k => filters[k as keyof typeof filters]).length} filter(s) active
+          {Object.keys(filters).filter(k => filters[k as keyof typeof filters] && k !== 'merchant').length} filter(s) active
         </div>
       )}
     </div>
