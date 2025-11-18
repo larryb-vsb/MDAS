@@ -99,7 +99,7 @@ export default function History() {
   
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [chartType, setChartType] = useState<'line' | 'bar'>('bar');
   
   // Filter state synced with URL
   const [filters, setFilters] = useState<{
@@ -465,7 +465,8 @@ export default function History() {
   const chartData = useMemo(() => {
     if (!comparisonData) return [];
     
-    const maxDays = Math.max(
+    // For bar charts, always show all 31 days. For line charts, use max of actual data
+    const maxDays = chartType === 'bar' ? 31 : Math.max(
       comparisonData.currentMonth.dailyBreakdown.length,
       comparisonData.previousMonth.dailyBreakdown.length
     );
@@ -483,7 +484,7 @@ export default function History() {
         previousDeposit: previousDay?.netDepositBh || 0,
       };
     });
-  }, [comparisonData]);
+  }, [comparisonData, chartType]);
 
   const renderBreadcrumbs = () => (
     <div className={`flex items-center space-x-2 text-sm mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
