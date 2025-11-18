@@ -818,7 +818,7 @@ export default function History() {
                     />
                   </RechartsLineChart>
                 ) : (
-                  <RechartsBarChart data={chartData}>
+                  <RechartsBarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
                     <XAxis 
                       dataKey="day" 
@@ -826,6 +826,7 @@ export default function History() {
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                     />
                     <YAxis 
+                      domain={[0, 'auto']}
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                     />
@@ -843,21 +844,25 @@ export default function History() {
                       dataKey="currentAuth" 
                       fill="#8b5cf6" 
                       name={`${comparisonData.currentMonth.month} Authorizations`}
+                      maxBarSize={20}
                     />
                     <Bar 
                       dataKey="currentDeposit" 
                       fill="#06b6d4" 
                       name={`${comparisonData.currentMonth.month} Net Deposit`}
+                      maxBarSize={20}
                     />
                     <Bar 
                       dataKey="previousAuth" 
                       fill="#a78bfa" 
                       name={`${comparisonData.previousMonth.month} Authorizations`}
+                      maxBarSize={20}
                     />
                     <Bar 
                       dataKey="previousDeposit" 
                       fill="#22d3ee" 
                       name={`${comparisonData.previousMonth.month} Net Deposit`}
+                      maxBarSize={20}
                     />
                   </RechartsBarChart>
                 )}
