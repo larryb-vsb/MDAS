@@ -8,6 +8,18 @@ The Merchant Management System (MMS) is a comprehensive merchant data warehouse 
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Updates (November 2025)
+
+### TDDF Field Extraction Fixes
+
+**POS Entry Mode Fix (Nov 19, 2025)**
+- Fixed critical 16-position offset error in POS Entry Mode extraction
+- **Before**: Extracted from positions 230-231 (wrong), displayed as "5-"
+- **After**: Extracted from positions 214-215 (correct per TDDF spec), displays as "05", "07", etc.
+- Added zero-padding logic to ensure 2-digit format (e.g., "05" not "5")
+- SQL remediation script created: `scripts/fix-pos-entry-mode-existing-records.sql`
+- Tested successfully: 2,548 records corrected in sample file showing valid codes ("07", "05", "90", "01", "80")
+
 ## System Architecture
 
 ### Frontend Architecture
