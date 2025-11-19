@@ -179,7 +179,7 @@ const DT_FIELD_SPECS = {
   marketSpecificData: { start: 223, end: 225, type: 'string' },   // TDDF 224-225
   cardType: { start: 252, end: 254, type: 'string' },             // TDDF 253-254 [CORRECTED]
   cardholderIdMethod: { start: 227, end: 229, type: 'string' },   // TDDF 228-229
-  posEntryMode: { start: 229, end: 231, type: 'string' },         // TDDF 230-231
+  posEntryMode: { start: 213, end: 215, type: 'string' },         // TDDF 214-215 [FIXED]
   networkIdentifier: { start: 226, end: 231, type: 'string' },    // TDDF 227-231
   mccCode: { start: 272, end: 276, type: 'string' },              // TDDF 273-276 [FIXED]
   terminalId: { start: 276, end: 284, type: 'string' },           // TDDF 277-284 [CORRECTED]
