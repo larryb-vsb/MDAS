@@ -236,7 +236,14 @@ export function encodeTddfLineToJson(line: string, lineNumber: number): {
   if (recordType === 'DT') {
     for (const [fieldName, spec] of Object.entries(DT_FIELD_SPECS)) {
       const rawValue = line.substring(spec.start, spec.end);
-      extractedFields[fieldName] = parseFieldValue(rawValue, spec.type);
+      let value = parseFieldValue(rawValue, spec.type);
+      
+      // Special handling for POS Entry Mode: ensure 2-digit zero-padded format
+      if (fieldName === 'posEntryMode' && value) {
+        value = value.toString().padStart(2, '0');
+      }
+      
+      extractedFields[fieldName] = value;
     }
   } else if (recordType === 'BH') {
     for (const [fieldName, spec] of Object.entries(BH_FIELD_SPECS)) {
