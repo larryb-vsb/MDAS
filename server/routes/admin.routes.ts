@@ -230,12 +230,13 @@ export function registerAdminRoutes(app: Express) {
 
       const status = mmsWatcher.getStep6Status();
       
-      // Also fetch validating files from database
+      // Also fetch validating files from database (exclude deleted files)
       const uploadTableName = getTableName('uploader_uploads');
       const validatingResult = await pool.query(`
         SELECT id, filename, start_time
         FROM ${uploadTableName}
         WHERE current_phase = 'validating'
+          AND deleted_at IS NULL
         ORDER BY start_time ASC
         LIMIT 50
       `);
