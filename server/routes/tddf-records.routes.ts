@@ -3035,6 +3035,14 @@ export function registerTddfRecordsRoutes(app: Express) {
         paramIndex++;
       }
       
+      // Filter by POS Entry Mode (JSONB field)
+      const posEntryMode = req.query.posEntryMode;
+      if (posEntryMode && String(posEntryMode).trim() && posEntryMode !== 'all') {
+        conditions.push(`r.extracted_fields->>'posEntryMode' = $${paramIndex}`);
+        params.push(String(posEntryMode).trim());
+        paramIndex++;
+      }
+      
       const whereClause = conditions.join(' AND ');
       
       console.log('[DT-LATEST-DEBUG] WHERE clause:', whereClause);

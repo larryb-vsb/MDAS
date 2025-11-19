@@ -590,7 +590,7 @@ function DtDetailView({ record, merchantName }: { record: DtRecord; merchantName
     },
     {
       label: "Pos Entry Mode",
-      value: fields.PosEntryMode || fields.posEntryMode || 'N/A'
+      value: fields.posEntryMode || fields.PosEntryMode || 'N/A'
     },
     {
       label: "Auth Source Code",
@@ -783,6 +783,7 @@ function MccTddfTransactionsTab() {
   const [groupNumber, setGroupNumber] = useState<string>("");
   const [terminalId, setTerminalId] = useState<string>("");
   const [cardType, setCardType] = useState<string>("all");
+  const [posEntryMode, setPosEntryMode] = useState<string>("all");
   const [filtersApplied, setFiltersApplied] = useState(false);
   const [merchantComboboxOpen, setMerchantComboboxOpen] = useState(false);
   
@@ -816,6 +817,9 @@ function MccTddfTransactionsTab() {
     }
     if (cardType && cardType !== 'all') {
       params.append('cardType', cardType);
+    }
+    if (posEntryMode && posEntryMode !== 'all') {
+      params.append('posEntryMode', posEntryMode);
     }
     
     return `/api/tddf-records/dt-latest?${params.toString()}`;
@@ -941,6 +945,7 @@ function MccTddfTransactionsTab() {
     setGroupNumber("");
     setTerminalId("");
     setCardType("all");
+    setPosEntryMode("all");
     setFiltersApplied(false);
     setPage(1);
   };
@@ -949,6 +954,7 @@ function MccTddfTransactionsTab() {
   useEffect(() => {
     const hasFilters = 
       selectedDate !== null ||
+      posEntryMode !== 'all' ||
       merchantAccount.trim() !== "" ||
       merchantName.trim() !== "" ||
       associationNumber.trim() !== "" ||
@@ -1142,8 +1148,8 @@ function MccTddfTransactionsTab() {
               </div>
             </div>
 
-            {/* Card Type and Clear Button */}
-            <div className="flex items-center justify-between">
+            {/* Card Type and POS Entry Mode filters */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700 min-w-24">Card Type:</label>
                 <Select value={cardType} onValueChange={setCardType}>
@@ -1164,7 +1170,31 @@ function MccTddfTransactionsTab() {
                 </Select>
               </div>
 
-              {filtersApplied && (
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 min-w-32">POS Entry Mode:</label>
+                <Select value={posEntryMode} onValueChange={setPosEntryMode}>
+                  <SelectTrigger className="w-64" data-testid="select-pos-entry-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Entry Modes</SelectItem>
+                    <SelectItem value="00">00 - Unknown/Not Used</SelectItem>
+                    <SelectItem value="01">01 - Manual Entry</SelectItem>
+                    <SelectItem value="02">02 - Magnetic Stripe</SelectItem>
+                    <SelectItem value="05">05 - Chip Card</SelectItem>
+                    <SelectItem value="07">07 - Contactless Chip</SelectItem>
+                    <SelectItem value="79">79 - Voice Auth (MC)</SelectItem>
+                    <SelectItem value="80">80 - Chip Fallback</SelectItem>
+                    <SelectItem value="90">90 - Full Mag Stripe</SelectItem>
+                    <SelectItem value="91">91 - Contactless Mag</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            {filtersApplied && (
+              <div className="flex justify-end">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1174,8 +1204,8 @@ function MccTddfTransactionsTab() {
                 >
                   Clear Filters
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
