@@ -1277,9 +1277,7 @@ function MccTddfTransactionsTab() {
                           )}
 
                           {/* Transaction Title */}
-                          <span className="font-medium text-gray-700 flex-shrink-0">
-                            Detail Transaction
-                          </span>
+
 
                           {/* Line Number */}
                           <span className="text-sm font-mono text-muted-foreground flex-shrink-0">
