@@ -166,7 +166,7 @@ const navItems = [
   },
   {
     icon: <Database className="h-5 w-5 text-purple-400" />,
-    label: "TDDF API Data",
+    label: "API Data",
     href: "/tddf-api",
   },
   {
