@@ -179,11 +179,7 @@ const navItems = [
     label: "Processing",
     href: "/processing",
   },
-  {
-    icon: <Zap className="h-5 w-5 text-orange-400" />,
-    label: "MMS Uploader",
-    href: "/uploader",
-  },
+
   {
     icon: <HardDrive className="h-5 w-5 text-purple-400" />,
     label: "Storage Management",
@@ -198,6 +194,11 @@ const navItems = [
     icon: <Archive className="h-5 w-5 text-amber-400" />,
     label: "Legacy",
     submenu: [
+      {
+        icon: <Zap className="h-5 w-5 text-orange-400" />,
+        label: "MMS Uploader",
+        href: "/uploader",
+      },
       {
         icon: <FileJson className="h-5 w-5 text-blue-400" />,
         label: "TDDF 1",

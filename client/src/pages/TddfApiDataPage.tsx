@@ -911,7 +911,6 @@ function RecordDetailView({ record }: { record: any }) {
           </div>
         </div>
       </div>
-      
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'fields' | 'raw')} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="fields" data-testid="tab-fields">Parsed Fields</TabsTrigger>
@@ -4101,7 +4100,7 @@ export default function TddfApiDataPage() {
                 <div className="flex items-center gap-3">
                   <Zap className="h-5 w-5 text-purple-600" />
                   <div>
-                    <div className="font-medium text-purple-800">Auto 4-5 Encode</div>
+                    <div className="font-medium text-purple-800">Auto 4-5</div>
                     <div className="text-sm text-purple-600">
                       Automatic file identification and encoding (Steps 4-5)
                     </div>
