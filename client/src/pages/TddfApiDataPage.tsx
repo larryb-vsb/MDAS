@@ -3743,7 +3743,7 @@ export default function TddfApiDataPage() {
             Back to Dashboard
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">TDDF API Data System</h1>
+            <h1 className="text-3xl font-bold tracking-tight">API Data System</h1>
             <p className="text-muted-foreground">
               High-performance position-based flat file processing with dynamic schema configuration
             </p>
