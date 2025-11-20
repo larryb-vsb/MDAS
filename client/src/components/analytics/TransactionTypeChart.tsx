@@ -46,7 +46,7 @@ interface TransactionTypeChartProps {
 export default function TransactionTypeChart({
   data,
   isLoading,
-  title = "Transaction Types",
+  title = "ACH Transaction Types",
   description = "Distribution of credit vs. debit transactions",
 }: TransactionTypeChartProps) {
   

@@ -33,15 +33,15 @@ interface CategoryData {
 interface MerchantCategoryChartProps {
   data: CategoryData[] | undefined;
   isLoading: boolean;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
 }
 
 export default function MerchantCategoryChart({
   data,
   isLoading,
-  title,
-  description,
+  title = "ACH Merchant Categories",
+  description = "Distribution of merchants by category",
 }: MerchantCategoryChartProps) {
   const totalMerchants = data?.reduce((sum, item) => sum + item.value, 0) || 0;
 
