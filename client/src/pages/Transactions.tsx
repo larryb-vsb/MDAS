@@ -6,7 +6,20 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Search, Calendar as CalendarIcon, CreditCard, ChevronDown, ChevronRight, Eye, Check, ChevronsUpDown } from "lucide-react";
+import {
+  RefreshCw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
+  Calendar as CalendarIcon,
+  CreditCard,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Check,
+  ChevronsUpDown,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -106,59 +119,97 @@ interface DtRecordsResponse {
 // Helper functions for DT record display (copied from TddfApiDataPage)
 function getCardTypeBadges(cardType: string) {
   const badges: Record<string, { label: string; className: string }> = {
-    'VD': { label: 'Visa Debit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-    'VC': { label: 'Visa Credit', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-    'MD': { label: 'Mastercard Debit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
-    'MC': { label: 'Mastercard Credit', className: 'bg-orange-50 text-orange-700 border-orange-200' },
-    'AX': { label: 'American Express', className: 'bg-green-50 text-green-700 border-green-200' },
-    'DS': { label: 'Discover', className: 'bg-purple-50 text-purple-700 border-purple-200' },
-    'DI': { label: 'Diners Club', className: 'bg-gray-50 text-gray-700 border-gray-200' },
-    'JC': { label: 'JCB', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    'VS': { label: 'Visa', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    VD: {
+      label: "Visa Debit",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    VC: {
+      label: "Visa Credit",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    MD: {
+      label: "Mastercard Debit",
+      className: "bg-orange-50 text-orange-700 border-orange-200",
+    },
+    MC: {
+      label: "Mastercard Credit",
+      className: "bg-orange-50 text-orange-700 border-orange-200",
+    },
+    AX: {
+      label: "American Express",
+      className: "bg-green-50 text-green-700 border-green-200",
+    },
+    DS: {
+      label: "Discover",
+      className: "bg-purple-50 text-purple-700 border-purple-200",
+    },
+    DI: {
+      label: "Diners Club",
+      className: "bg-gray-50 text-gray-700 border-gray-200",
+    },
+    JC: {
+      label: "JCB",
+      className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    },
+    VS: {
+      label: "Visa",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
   };
-  return badges[cardType] || { label: cardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
+  return (
+    badges[cardType] || {
+      label: cardType,
+      className: "bg-gray-50 text-gray-700 border-gray-200",
+    }
+  );
 }
 
 function extractCardType(record: any): string | null {
   let cardType = record.parsed_data?.cardType || record.record_data?.cardType;
-  
+
   if (!cardType && record.raw_data && record.raw_data.length >= 254) {
     cardType = record.raw_data.substring(252, 254).trim() || null;
   }
-  
+
   return cardType ? cardType.toUpperCase().trim() : null;
 }
 
 function extractMerchantAccountNumber(record: any): string | null {
-  let merchantAccountNumber = record.parsed_data?.merchantAccountNumber || 
-                              record.record_data?.merchantAccountNumber ||
-                              record.parsed_data?.merchant_account_number ||
-                              record.record_data?.merchant_account_number ||
-                              record.jsonb_data?.merchantAccountNumber;
-  
-  if (!merchantAccountNumber && (record.record_type === 'BH' || record.record_type === '10')) {
-    merchantAccountNumber = record.parsed_data?.acquirerBin || 
-                           record.record_data?.acquirerBin ||
-                           record.parsed_data?.AcquirerBIN ||
-                           record.record_data?.AcquirerBIN;
+  let merchantAccountNumber =
+    record.parsed_data?.merchantAccountNumber ||
+    record.record_data?.merchantAccountNumber ||
+    record.parsed_data?.merchant_account_number ||
+    record.record_data?.merchant_account_number ||
+    record.jsonb_data?.merchantAccountNumber;
+
+  if (
+    !merchantAccountNumber &&
+    (record.record_type === "BH" || record.record_type === "10")
+  ) {
+    merchantAccountNumber =
+      record.parsed_data?.acquirerBin ||
+      record.record_data?.acquirerBin ||
+      record.parsed_data?.AcquirerBIN ||
+      record.record_data?.AcquirerBIN;
   }
-  
+
   // Return as-is - the TDDF format with leading zero (16 digits)
   // getMerchantName() will handle the normalization for lookup
   return merchantAccountNumber ? merchantAccountNumber.toString() : null;
 }
 
 function extractTransactionDate(record: any): string | null {
-  const transactionDate = record.parsed_data?.TransactionDate || 
-                         record.record_data?.TransactionDate ||
-                         record.parsed_data?.transactionDate ||
-                         record.record_data?.transactionDate;
-  
+  const transactionDate =
+    record.parsed_data?.TransactionDate ||
+    record.record_data?.TransactionDate ||
+    record.parsed_data?.transactionDate ||
+    record.record_data?.transactionDate;
+
   if (transactionDate) {
     try {
       const date = new Date(transactionDate);
       if (!isNaN(date.getTime())) {
-        return format(date, 'yyyy-MM-dd');
+        return format(date, "yyyy-MM-dd");
       }
     } catch (e) {
       return null;
@@ -168,22 +219,25 @@ function extractTransactionDate(record: any): string | null {
 }
 
 function extractTerminalId(record: any): string | null {
-  return record.jsonb_data?.terminalId ||
-         record.parsed_data?.terminalId ||
-         record.record_data?.terminalId ||
-         record.parsed_data?.TerminalId ||
-         record.record_data?.TerminalId ||
-         null;
+  return (
+    record.jsonb_data?.terminalId ||
+    record.parsed_data?.terminalId ||
+    record.record_data?.terminalId ||
+    record.parsed_data?.TerminalId ||
+    record.record_data?.TerminalId ||
+    null
+  );
 }
 
 function extractTransactionAmount(record: any): number | null {
-  const transactionAmount = record.parsed_data?.TransactionAmount || 
-                           record.record_data?.TransactionAmount ||
-                           record.parsed_data?.transactionAmount ||
-                           record.record_data?.transactionAmount ||
-                           record.parsed_data?.transaction_amount ||
-                           record.record_data?.transaction_amount;
-  
+  const transactionAmount =
+    record.parsed_data?.TransactionAmount ||
+    record.record_data?.TransactionAmount ||
+    record.parsed_data?.transactionAmount ||
+    record.record_data?.transactionAmount ||
+    record.parsed_data?.transaction_amount ||
+    record.record_data?.transaction_amount;
+
   if (transactionAmount !== null && transactionAmount !== undefined) {
     return Number(transactionAmount);
   }
@@ -192,7 +246,7 @@ function extractTransactionAmount(record: any): number | null {
 
 // Helper function to format currency
 const formatCurrency = (amount: string | number) => {
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -201,7 +255,7 @@ const formatCurrency = (amount: string | number) => {
 
 // Helper function to format date
 const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A';
+  if (!dateString) return "N/A";
   const date = new Date(dateString);
   return format(date, "MMM d, yyyy");
 };
@@ -210,7 +264,7 @@ const formatDate = (dateString: string) => {
 const TransactionPagination = ({
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
 }: {
   currentPage: number;
   totalPages: number;
@@ -219,7 +273,7 @@ const TransactionPagination = ({
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxPagesToShow = 5;
-    
+
     if (totalPages <= maxPagesToShow) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
@@ -239,7 +293,7 @@ const TransactionPagination = ({
         }
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -247,13 +301,17 @@ const TransactionPagination = ({
     <Pagination>
       <PaginationContent>
         <PaginationItem>
-          <PaginationPrevious 
+          <PaginationPrevious
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            className={
+              currentPage === 1
+                ? "pointer-events-none opacity-50"
+                : "cursor-pointer"
+            }
           />
         </PaginationItem>
-        
-        {getPageNumbers().map(page => (
+
+        {getPageNumbers().map((page) => (
           <PaginationItem key={page}>
             <PaginationLink
               onClick={() => onPageChange(page)}
@@ -264,11 +322,15 @@ const TransactionPagination = ({
             </PaginationLink>
           </PaginationItem>
         ))}
-        
+
         <PaginationItem>
-          <PaginationNext 
+          <PaginationNext
             onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            className={
+              currentPage === totalPages
+                ? "pointer-events-none opacity-50"
+                : "cursor-pointer"
+            }
           />
         </PaginationItem>
       </PaginationContent>
@@ -280,19 +342,19 @@ const TransactionPagination = ({
 function AchTransactionsTab() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
-  const [sortBy, setSortBy] = useState<string>('transaction_date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<string>("transaction_date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState<string>("");
   const [searchInput, setSearchInput] = useState<string>("");
 
   // Fetch ACH transactions
   const buildQueryUrl = () => {
     const params = new URLSearchParams();
-    params.append('page', page.toString());
-    params.append('limit', limit.toString());
-    params.append('sortBy', sortBy);
-    params.append('sortOrder', sortOrder);
-    if (search) params.append('search', search);
+    params.append("page", page.toString());
+    params.append("limit", limit.toString());
+    params.append("sortBy", sortBy);
+    params.append("sortOrder", sortOrder);
+    if (search) params.append("search", search);
     return `/api/transactions?${params.toString()}`;
   };
 
@@ -303,10 +365,10 @@ function AchTransactionsTab() {
   // Handle sorting
   const handleSort = (column: string) => {
     if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortBy(column);
-      setSortOrder('desc');
+      setSortOrder("desc");
     }
     setPage(1);
   };
@@ -316,9 +378,11 @@ function AchTransactionsTab() {
     if (sortBy !== column) {
       return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
     }
-    return sortOrder === 'asc' ? 
-      <ArrowUp className="h-4 w-4 text-blue-600" /> : 
-      <ArrowDown className="h-4 w-4 text-blue-600" />;
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-4 w-4 text-blue-600" />
+    ) : (
+      <ArrowDown className="h-4 w-4 text-blue-600" />
+    );
   };
 
   // Handle search
@@ -348,15 +412,20 @@ function AchTransactionsTab() {
               placeholder="Search merchant, trace #, company..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="w-80"
               data-testid="input-search-transactions"
             />
-            <Button onClick={handleSearch} variant="outline" size="sm" data-testid="button-search">
+            <Button
+              onClick={handleSearch}
+              variant="outline"
+              size="sm"
+              data-testid="button-search"
+            >
               <Search className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
             <SelectTrigger className="w-32" data-testid="select-limit">
               <SelectValue />
@@ -370,7 +439,7 @@ function AchTransactionsTab() {
           </Select>
         </div>
 
-        <Button 
+        <Button
           variant="outline"
           onClick={handleRefresh}
           disabled={isLoading}
@@ -400,100 +469,128 @@ function AchTransactionsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50" 
-                      onClick={() => handleSort('trace_number')}
+                    <TableHead
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort("trace_number")}
                       data-testid="header-trace-number"
                     >
                       <div className="flex items-center gap-2">
-                        Trace Number {getSortIcon('trace_number')}
+                        Trace Number {getSortIcon("trace_number")}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50" 
-                      onClick={() => handleSort('merchant_name')}
+                    <TableHead
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort("merchant_name")}
                       data-testid="header-merchant-name"
                     >
                       <div className="flex items-center gap-2">
-                        Merchant Name {getSortIcon('merchant_name')}
+                        Merchant Name {getSortIcon("merchant_name")}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50" 
-                      onClick={() => handleSort('transaction_date')}
+                    <TableHead
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort("transaction_date")}
                       data-testid="header-transaction-date"
                     >
                       <div className="flex items-center gap-2">
-                        Date {getSortIcon('transaction_date')}
+                        Date {getSortIcon("transaction_date")}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50" 
-                      onClick={() => handleSort('code')}
+                    <TableHead
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort("code")}
                       data-testid="header-code"
                     >
                       <div className="flex items-center gap-2">
-                        Type {getSortIcon('code')}
+                        Type {getSortIcon("code")}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50 text-right" 
-                      onClick={() => handleSort('amount')}
+                    <TableHead
+                      className="cursor-pointer hover:bg-gray-50 text-right"
+                      onClick={() => handleSort("amount")}
                       data-testid="header-amount"
                     >
                       <div className="flex items-center gap-2 justify-end">
-                        Amount {getSortIcon('amount')}
+                        Amount {getSortIcon("amount")}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50" 
-                      onClick={() => handleSort('company')}
+                    <TableHead
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort("company")}
                       data-testid="header-company"
                     >
                       <div className="flex items-center gap-2">
-                        Company {getSortIcon('company')}
+                        Company {getSortIcon("company")}
                       </div>
                     </TableHead>
-                    <TableHead data-testid="header-description">Description</TableHead>
+                    <TableHead data-testid="header-description">
+                      Description
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data?.data && data.data.length > 0 ? (
                     data.data.map((transaction) => (
-                      <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
-                        <TableCell className="font-mono text-sm" data-testid={`cell-trace-${transaction.id}`}>
+                      <TableRow
+                        key={transaction.id}
+                        data-testid={`row-transaction-${transaction.id}`}
+                      >
+                        <TableCell
+                          className="font-mono text-sm"
+                          data-testid={`cell-trace-${transaction.id}`}
+                        >
                           {transaction.trace_number}
                         </TableCell>
-                        <TableCell className="font-medium" data-testid={`cell-merchant-${transaction.id}`}>
+                        <TableCell
+                          className="font-medium"
+                          data-testid={`cell-merchant-${transaction.id}`}
+                        >
                           {transaction.merchant_name}
                         </TableCell>
                         <TableCell data-testid={`cell-date-${transaction.id}`}>
                           {formatDate(transaction.transaction_date)}
                         </TableCell>
                         <TableCell data-testid={`cell-code-${transaction.id}`}>
-                          <span className={cn(
-                            "inline-block px-2 py-1 rounded text-xs font-semibold",
-                            transaction.code?.toLowerCase().includes('credit') || transaction.code?.toLowerCase().includes('batch')
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-blue-100 text-blue-800"
-                          )}>
-                            {transaction.code || 'N/A'}
+                          <span
+                            className={cn(
+                              "inline-block px-2 py-1 rounded text-xs font-semibold",
+                              transaction.code
+                                ?.toLowerCase()
+                                .includes("credit") ||
+                                transaction.code
+                                  ?.toLowerCase()
+                                  .includes("batch")
+                                ? "bg-green-100 text-green-800"
+                                : "bg-blue-100 text-blue-800",
+                            )}
+                          >
+                            {transaction.code || "N/A"}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right font-semibold" data-testid={`cell-amount-${transaction.id}`}>
+                        <TableCell
+                          className="text-right font-semibold"
+                          data-testid={`cell-amount-${transaction.id}`}
+                        >
                           {formatCurrency(transaction.amount)}
                         </TableCell>
-                        <TableCell data-testid={`cell-company-${transaction.id}`}>
+                        <TableCell
+                          data-testid={`cell-company-${transaction.id}`}
+                        >
                           {transaction.company}
                         </TableCell>
-                        <TableCell data-testid={`cell-description-${transaction.id}`}>
+                        <TableCell
+                          data-testid={`cell-description-${transaction.id}`}
+                        >
                           {transaction.description}
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-gray-500"
+                      >
                         No transactions found
                       </TableCell>
                     </TableRow>
@@ -505,7 +602,9 @@ function AchTransactionsTab() {
               {data && data.totalPages > 1 && (
                 <div className="p-4 border-t flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, data.total)} of {data.total} transactions
+                    Showing {(page - 1) * limit + 1} to{" "}
+                    {Math.min(page * limit, data.total)} of {data.total}{" "}
+                    transactions
                   </div>
                   <TransactionPagination
                     currentPage={page}
@@ -523,165 +622,182 @@ function AchTransactionsTab() {
 }
 
 // DT Detail View Component
-function DtDetailView({ record, merchantName }: { record: DtRecord; merchantName: string | null }) {
-  const [activeTab, setActiveTab] = useState<'fields' | 'raw'>('fields');
+function DtDetailView({
+  record,
+  merchantName,
+}: {
+  record: DtRecord;
+  merchantName: string | null;
+}) {
+  const [activeTab, setActiveTab] = useState<"fields" | "raw">("fields");
   const merchantAccount = extractMerchantAccountNumber(record);
   const transactionDate = extractTransactionDate(record);
   const transactionAmount = extractTransactionAmount(record);
   const cardType = extractCardType(record);
-  
+
   // Extract all fields from parsed_data
   const fields = record.parsed_data || {};
-  const rawData = record.raw_data || '';
-  
+  const rawData = record.raw_data || "";
+
   // Define field display mapping
   const fieldGroups = [
     {
       label: "Transaction Type Identifier",
-      value: fields.TransactionTypeIdentifier || fields.transactionTypeIdentifier || 'N/A'
+      value:
+        fields.TransactionTypeIdentifier ||
+        fields.transactionTypeIdentifier ||
+        "N/A",
     },
     {
       label: "MCC Code",
-      value: fields.MccCode || fields.mccCode || 'N/A'
+      value: fields.MccCode || fields.mccCode || "N/A",
     },
     {
       label: "Card Type",
-      value: cardType || 'N/A'
+      value: cardType || "N/A",
     },
     {
       label: "Card Type3",
-      value: fields.CardType3 || fields.cardType3 || 'N/A'
+      value: fields.CardType3 || fields.cardType3 || "N/A",
     },
     {
       label: "Bank Number",
-      value: fields.BankNumber || fields.bankNumber || 'N/A'
+      value: fields.BankNumber || fields.bankNumber || "N/A",
     },
     {
       label: "Card Number",
-      value: fields.CardNumber || fields.cardNumber || 'N/A'
+      value: fields.CardNumber || fields.cardNumber || "N/A",
     },
     {
       label: "Net Deposit",
-      value: fields.NetDeposit ? `$${Number(fields.NetDeposit).toFixed(2)}` : 'N/A'
+      value: fields.NetDeposit
+        ? `$${Number(fields.NetDeposit).toFixed(2)}`
+        : "N/A",
     },
     {
       label: "Purchase Id",
-      value: fields.PurchaseId || fields.purchaseId || 'N/A'
+      value: fields.PurchaseId || fields.purchaseId || "N/A",
     },
     {
       label: "Terminal Id",
-      value: fields.TerminalId || fields.terminalId || 'N/A'
+      value: fields.TerminalId || fields.terminalId || "N/A",
     },
     {
       label: "Group Number",
-      value: fields.GroupNumber || fields.groupNumber || 'N/A'
+      value: fields.GroupNumber || fields.groupNumber || "N/A",
     },
     {
       label: "Pos Data Code",
-      value: fields.PosDataCode || fields.posDataCode || 'N/A'
+      value: fields.PosDataCode || fields.posDataCode || "N/A",
     },
     {
       label: "Cat Indicator",
-      value: fields.CatIndicator || fields.catIndicator || 'N/A'
+      value: fields.CatIndicator || fields.catIndicator || "N/A",
     },
     {
       label: "Merchant Name",
-      value: merchantName || fields.MerchantName || fields.merchantName || 'N/A'
+      value:
+        merchantName || fields.MerchantName || fields.merchantName || "N/A",
     },
     {
       label: "Pos Entry Mode",
-      value: fields.posEntryMode || fields.PosEntryMode || 'N/A'
+      value: fields.posEntryMode || fields.PosEntryMode || "N/A",
     },
     {
       label: "Auth Source Code",
-      value: fields.AuthSourceCode || fields.authSourceCode || 'N/A'
+      value: fields.AuthSourceCode || fields.authSourceCode || "N/A",
     },
     {
       label: "Entry Run Number",
-      value: fields.EntryRunNumber || fields.entryRunNumber || 'N/A'
+      value: fields.EntryRunNumber || fields.entryRunNumber || "N/A",
     },
     {
       label: "Sequence Number",
-      value: fields.SequenceNumber || fields.sequenceNumber || 'N/A'
+      value: fields.SequenceNumber || fields.sequenceNumber || "N/A",
     },
     {
       label: "Validation Code",
-      value: fields.ValidationCode || fields.validationCode || 'N/A'
+      value: fields.ValidationCode || fields.validationCode || "N/A",
     },
     {
       label: "Batch Julian Date",
-      value: fields.BatchJulianDate || fields.batchJulianDate || 'N/A'
+      value: fields.BatchJulianDate || fields.batchJulianDate || "N/A",
     },
     {
       label: "Reference Number",
-      value: fields.ReferenceNumber || fields.referenceNumber || 'N/A'
+      value: fields.ReferenceNumber || fields.referenceNumber || "N/A",
     },
     {
       label: "Transaction Code",
-      value: fields.TransactionCode || fields.transactionCode || 'N/A'
+      value: fields.TransactionCode || fields.transactionCode || "N/A",
     },
     {
       label: "Transaction Date",
-      value: transactionDate || 'N/A'
+      value: transactionDate || "N/A",
     },
     {
       label: "Auth Response Code",
-      value: fields.AuthResponseCode || fields.authResponseCode || 'N/A'
+      value: fields.AuthResponseCode || fields.authResponseCode || "N/A",
     },
     {
       label: "Record Identifier",
-      value: fields.RecordIdentifier || fields.recordIdentifier || 'N/A'
+      value: fields.RecordIdentifier || fields.recordIdentifier || "N/A",
     },
     {
       label: "Authorization Code",
-      value: fields.AuthorizationCode || fields.authorizationCode || 'N/A'
+      value: fields.AuthorizationCode || fields.authorizationCode || "N/A",
     },
     {
       label: "Network Identifier",
-      value: fields.NetworkIdentifier || fields.networkIdentifier || 'N/A'
+      value: fields.NetworkIdentifier || fields.networkIdentifier || "N/A",
     },
     {
       label: "Sequence Within Run",
-      value: fields.SequenceWithinRun || fields.sequenceWithinRun || 'N/A'
+      value: fields.SequenceWithinRun || fields.sequenceWithinRun || "N/A",
     },
     {
       label: "Transaction Amount",
-      value: transactionAmount ? `$${transactionAmount.toFixed(2)}` : 'N/A'
+      value: transactionAmount ? `$${transactionAmount.toFixed(2)}` : "N/A",
     },
     {
       label: "Association Number1",
-      value: fields.AssociationNumber1 || fields.associationNumber1 || 'N/A'
+      value: fields.AssociationNumber1 || fields.associationNumber1 || "N/A",
     },
     {
       label: "Association Number2",
-      value: fields.AssociationNumber2 || fields.associationNumber2 || 'N/A'
+      value: fields.AssociationNumber2 || fields.associationNumber2 || "N/A",
     },
     {
       label: "Cardholder Id Method",
-      value: fields.CardholderIdMethod || fields.cardholderIdMethod || 'N/A'
+      value: fields.CardholderIdMethod || fields.cardholderIdMethod || "N/A",
     },
     {
       label: "Market Specific Data",
-      value: fields.MarketSpecificData || fields.marketSpecificData || 'N/A'
+      value: fields.MarketSpecificData || fields.marketSpecificData || "N/A",
     },
     {
       label: "Merchant Account Number",
-      value: merchantAccount || 'N/A'
+      value: merchantAccount || "N/A",
     },
     {
       label: "Amex Merchant Seller Name",
-      value: fields.AmexMerchantSellerName || fields.amexMerchantSellerName || 'N/A'
+      value:
+        fields.AmexMerchantSellerName || fields.amexMerchantSellerName || "N/A",
     },
     {
       label: "Network Identifier Debit",
-      value: fields.NetworkIdentifierDebit || fields.networkIdentifierDebit || 'N/A'
+      value:
+        fields.NetworkIdentifierDebit || fields.networkIdentifierDebit || "N/A",
     },
     {
       label: "Retrieval Reference Number",
-      value: fields.RetrievalReferenceNumber || fields.retrievalReferenceNumber || 'N/A'
+      value:
+        fields.RetrievalReferenceNumber ||
+        fields.retrievalReferenceNumber ||
+        "N/A",
     },
   ];
-  
+
   return (
     <div className="border-t border-gray-200 bg-gray-50 p-4">
       {/* Header - matching TDDF viewer style */}
@@ -690,46 +806,52 @@ function DtDetailView({ record, merchantName }: { record: DtRecord; merchantName
           <div className="flex items-center gap-2">
             <Badge className="bg-white text-blue-600 hover:bg-white">VS</Badge>
             <span className="font-semibold">Detail Transaction</span>
-            <span className="text-sm opacity-90">Line {record.line_number}</span>
+            <span className="text-sm opacity-90">
+              Line {record.line_number}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <span className="font-mono">{merchantAccount}</span>
-            <span className="font-semibold">{merchantName || 'VERMONT STATE BANK'}</span>
+            <span className="font-semibold">
+              {merchantName || "VERMONT STATE BANK"}
+            </span>
             <span className="flex items-center gap-1">
               <CalendarIcon className="h-3 w-3" />
-              {transactionDate || 'Oct 27, 2022'}
+              {transactionDate || "Oct 27, 2022"}
             </span>
-            <span className="font-bold">${transactionAmount?.toFixed(2) || '2.11'}</span>
+            <span className="font-bold">
+              ${transactionAmount?.toFixed(2) || "2.11"}
+            </span>
           </div>
         </div>
         <div className="text-sm opacity-90">
-          {record.scheduledSlotLabel || '79:703:21'}
+          {record.scheduledSlotLabel || "79:703:21"}
         </div>
       </div>
-      
+
       {/* Tabs */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-4 border-b border-gray-200 pb-2">
           <div className="flex gap-6">
             <button
-              onClick={() => setActiveTab('fields')}
+              onClick={() => setActiveTab("fields")}
               className={cn(
                 "text-sm pb-2 border-b-2 transition-colors",
-                activeTab === 'fields' 
-                  ? "font-medium text-blue-600 border-blue-600" 
-                  : "text-gray-500 border-transparent hover:text-gray-700"
+                activeTab === "fields"
+                  ? "font-medium text-blue-600 border-blue-600"
+                  : "text-gray-500 border-transparent hover:text-gray-700",
               )}
               data-testid="tab-fields"
             >
               Fields
             </button>
             <button
-              onClick={() => setActiveTab('raw')}
+              onClick={() => setActiveTab("raw")}
               className={cn(
                 "text-sm pb-2 border-b-2 transition-colors",
-                activeTab === 'raw' 
-                  ? "font-medium text-blue-600 border-blue-600" 
-                  : "text-gray-500 border-transparent hover:text-gray-700"
+                activeTab === "raw"
+                  ? "font-medium text-blue-600 border-blue-600"
+                  : "text-gray-500 border-transparent hover:text-gray-700",
               )}
               data-testid="tab-raw"
             >
@@ -737,21 +859,23 @@ function DtDetailView({ record, merchantName }: { record: DtRecord; merchantName
             </button>
           </div>
         </div>
-        
+
         {/* Fields View */}
-        {activeTab === 'fields' && (
+        {activeTab === "fields" && (
           <div className="grid grid-cols-3 gap-x-8 gap-y-3">
             {fieldGroups.map((field, index) => (
               <div key={index} className="space-y-1">
                 <div className="text-xs text-gray-600">{field.label}</div>
-                <div className="text-sm font-medium text-gray-900">{field.value}</div>
+                <div className="text-sm font-medium text-gray-900">
+                  {field.value}
+                </div>
               </div>
             ))}
           </div>
         )}
-        
+
         {/* Raw View */}
-        {activeTab === 'raw' && (
+        {activeTab === "raw" && (
           <div className="space-y-2">
             <div className="bg-gray-900 rounded-md p-4 overflow-x-auto">
               <pre className="text-green-400 text-xs font-mono whitespace-pre-wrap break-all">
@@ -770,11 +894,13 @@ function DtDetailView({ record, merchantName }: { record: DtRecord; merchantName
 
 // MCC/TDDF Transactions Tab Component
 function MccTddfTransactionsTab() {
-  const [merchantLookup, setMerchantLookup] = useState<Record<string, string>>({});
+  const [merchantLookup, setMerchantLookup] = useState<Record<string, string>>(
+    {},
+  );
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  
+
   // Filter states
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [merchantAccount, setMerchantAccount] = useState<string>("");
@@ -786,9 +912,11 @@ function MccTddfTransactionsTab() {
   const [posEntryMode, setPosEntryMode] = useState<string>("all");
   const [filtersApplied, setFiltersApplied] = useState(false);
   const [merchantComboboxOpen, setMerchantComboboxOpen] = useState(false);
-  
+
   // Merchant options from loaded data (post-load calculation)
-  const [merchantOptions, setMerchantOptions] = useState<Array<{account: string, name: string, display: string}>>([]);
+  const [merchantOptions, setMerchantOptions] = useState<
+    Array<{ account: string; name: string; display: string }>
+  >([]);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -796,32 +924,32 @@ function MccTddfTransactionsTab() {
   // Fetch DT records with pagination and filters
   const buildQueryUrl = () => {
     const params = new URLSearchParams();
-    params.append('limit', limit.toString());
-    params.append('offset', offset.toString());
-    
+    params.append("limit", limit.toString());
+    params.append("offset", offset.toString());
+
     // Add filter parameters (only if set)
     if (selectedDate) {
-      params.append('batchDate', format(selectedDate, 'yyyy-MM-dd'));
+      params.append("batchDate", format(selectedDate, "yyyy-MM-dd"));
     }
     if (merchantAccount.trim()) {
-      params.append('merchantAccount', merchantAccount.trim());
+      params.append("merchantAccount", merchantAccount.trim());
     }
     if (associationNumber.trim()) {
-      params.append('associationNumber', associationNumber.trim());
+      params.append("associationNumber", associationNumber.trim());
     }
     if (groupNumber.trim()) {
-      params.append('groupNumber', groupNumber.trim());
+      params.append("groupNumber", groupNumber.trim());
     }
     if (terminalId.trim()) {
-      params.append('terminalId', terminalId.trim());
+      params.append("terminalId", terminalId.trim());
     }
-    if (cardType && cardType !== 'all') {
-      params.append('cardType', cardType);
+    if (cardType && cardType !== "all") {
+      params.append("cardType", cardType);
     }
-    if (posEntryMode && posEntryMode !== 'all') {
-      params.append('posEntryMode', posEntryMode);
+    if (posEntryMode && posEntryMode !== "all") {
+      params.append("posEntryMode", posEntryMode);
     }
-    
+
     return `/api/tddf-records/dt-latest?${params.toString()}`;
   };
 
@@ -831,8 +959,11 @@ function MccTddfTransactionsTab() {
 
   // Fetch merchant lookup data (with credentials for auth)
   const { data: lookupData } = useQuery<Record<string, string>>({
-    queryKey: ['/api/merchants/lookup-map'],
-    queryFn: () => fetch('/api/merchants/lookup-map', { credentials: 'include' }).then(res => res.json()),
+    queryKey: ["/api/merchants/lookup-map"],
+    queryFn: () =>
+      fetch("/api/merchants/lookup-map", { credentials: "include" }).then(
+        (res) => res.json(),
+      ),
     staleTime: 30 * 60 * 1000, // Cache for 30 minutes
     enabled: (data?.data?.length ?? 0) > 0,
   });
@@ -846,58 +977,67 @@ function MccTddfTransactionsTab() {
 
   // Extract unique merchants from loaded data (post-load calculation)
   useEffect(() => {
-    if (data?.data && merchantLookup && Object.keys(merchantLookup).length > 0) {
+    if (
+      data?.data &&
+      merchantLookup &&
+      Object.keys(merchantLookup).length > 0
+    ) {
       const uniqueAccounts = new Set<string>();
-      const merchantOptionsMap = new Map<string, {account: string, name: string, display: string}>();
-      
+      const merchantOptionsMap = new Map<
+        string,
+        { account: string; name: string; display: string }
+      >();
+
       // Extract unique merchant accounts from loaded records
-      data.data.forEach(record => {
+      data.data.forEach((record) => {
         const accountNumber = extractMerchantAccountNumber(record);
         if (accountNumber) {
-          const normalizedAccount = accountNumber.startsWith('0') 
-            ? accountNumber.substring(1) 
+          const normalizedAccount = accountNumber.startsWith("0")
+            ? accountNumber.substring(1)
             : accountNumber;
           uniqueAccounts.add(normalizedAccount);
         }
       });
-      
+
       // Build merchant options with names
-      uniqueAccounts.forEach(account => {
+      uniqueAccounts.forEach((account) => {
         const name = merchantLookup[account];
         if (name) {
           merchantOptionsMap.set(account, {
             account: account,
             name: name,
-            display: `${name} (${account})`
+            display: `${name} (${account})`,
           });
         }
       });
-      
+
       // Sort by merchant name
-      const sortedOptions = Array.from(merchantOptionsMap.values()).sort((a, b) => 
-        a.name.localeCompare(b.name)
+      const sortedOptions = Array.from(merchantOptionsMap.values()).sort(
+        (a, b) => a.name.localeCompare(b.name),
       );
-      
+
       setMerchantOptions(sortedOptions);
     }
   }, [data?.data, merchantLookup]);
 
   const getMerchantName = (merchantAccount: string | null): string | null => {
     if (!merchantAccount) return null;
-    
+
     // TDDF format: 16 digits with leading zero (e.g., "0675900000138461")
     // Merchant table: 15 digits (e.g., "675900000138461")
     // Remove leading zero if present to match merchant table format
-    const normalizedAccount = merchantAccount.startsWith('0') 
+    const normalizedAccount = merchantAccount.startsWith("0")
       ? merchantAccount.substring(1)
       : merchantAccount;
-    
+
     return merchantLookup[normalizedAccount] || null;
   };
 
   // Handle refresh
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/tddf-records/dt-latest"] });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/tddf-records/dt-latest"],
+    });
   };
 
   // Handle limit change
@@ -929,7 +1069,7 @@ function MccTddfTransactionsTab() {
     setSelectedDate(addDays(currentDate, 1));
     setPage(1);
   };
-  
+
   // Set date to today
   const setToToday = () => {
     setSelectedDate(new Date());
@@ -952,9 +1092,9 @@ function MccTddfTransactionsTab() {
 
   // Check if any filters are applied
   useEffect(() => {
-    const hasFilters = 
+    const hasFilters =
       selectedDate !== null ||
-      posEntryMode !== 'all' ||
+      posEntryMode !== "all" ||
       merchantAccount.trim() !== "" ||
       merchantName.trim() !== "" ||
       associationNumber.trim() !== "" ||
@@ -962,7 +1102,15 @@ function MccTddfTransactionsTab() {
       terminalId.trim() !== "" ||
       (cardType !== "all" && cardType !== "");
     setFiltersApplied(hasFilters);
-  }, [selectedDate, merchantAccount, merchantName, associationNumber, groupNumber, terminalId, cardType]);
+  }, [
+    selectedDate,
+    merchantAccount,
+    merchantName,
+    associationNumber,
+    groupNumber,
+    terminalId,
+    cardType,
+  ]);
 
   // Calculate total pages
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
@@ -973,13 +1121,13 @@ function MccTddfTransactionsTab() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <p className="text-sm text-gray-600">
-            {data?.total !== undefined 
-              ? filtersApplied 
-                ? `Showing ${data.total} filtered records` 
+            {data?.total !== undefined
+              ? filtersApplied
+                ? `Showing ${data.total} filtered records`
                 : `${data.total} DT (Detail Transaction) records`
-              : 'Loading...'}
+              : "Loading..."}
           </p>
-          
+
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
             <SelectTrigger className="w-32" data-testid="select-limit-dt">
               <SelectValue />
@@ -993,7 +1141,7 @@ function MccTddfTransactionsTab() {
           </Select>
         </div>
 
-        <Button 
+        <Button
           variant="outline"
           onClick={handleRefresh}
           disabled={isLoading}
@@ -1011,7 +1159,9 @@ function MccTddfTransactionsTab() {
           <div className="space-y-4">
             {/* Date Navigation */}
             <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700 min-w-24">Date:</label>
+              <label className="text-sm font-medium text-gray-700 min-w-24">
+                Date:
+              </label>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -1022,7 +1172,9 @@ function MccTddfTransactionsTab() {
                   ←
                 </Button>
                 <div className="px-4 py-2 bg-white border rounded-md text-sm font-medium min-w-40 text-center">
-                  {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'All Dates'}
+                  {selectedDate
+                    ? format(selectedDate, "MMM dd, yyyy")
+                    : "All Dates"}
                 </div>
                 <Button
                   variant="outline"
@@ -1049,8 +1201,13 @@ function MccTddfTransactionsTab() {
             <div className="grid grid-cols-2 gap-4">
               {/* Merchant Name Filter - Auto-populates account */}
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">Merchant Name:</label>
-                <Popover open={merchantComboboxOpen} onOpenChange={setMerchantComboboxOpen}>
+                <label className="text-sm font-medium text-gray-700 min-w-24">
+                  Merchant Name:
+                </label>
+                <Popover
+                  open={merchantComboboxOpen}
+                  onOpenChange={setMerchantComboboxOpen}
+                >
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -1076,7 +1233,10 @@ function MccTddfTransactionsTab() {
                               onSelect={() => {
                                 setMerchantName(merchant.display);
                                 // Convert back to 16-digit TDDF format for filtering (add leading zero)
-                                const tddfAccount = merchant.account.padStart(16, '0');
+                                const tddfAccount = merchant.account.padStart(
+                                  16,
+                                  "0",
+                                );
                                 setMerchantAccount(tddfAccount);
                                 setPage(1);
                                 setMerchantComboboxOpen(false);
@@ -1086,7 +1246,9 @@ function MccTddfTransactionsTab() {
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  merchantName === merchant.display ? "opacity-100" : "opacity-0"
+                                  merchantName === merchant.display
+                                    ? "opacity-100"
+                                    : "opacity-0",
                                 )}
                               />
                               {merchant.display}
@@ -1100,7 +1262,9 @@ function MccTddfTransactionsTab() {
               </div>
 
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">Merchant Acct:</label>
+                <label className="text-sm font-medium text-gray-700 min-w-24">
+                  Merchant Acct:
+                </label>
                 <Input
                   value={merchantAccount}
                   onChange={(e) => {
@@ -1115,7 +1279,9 @@ function MccTddfTransactionsTab() {
               </div>
 
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">Association #:</label>
+                <label className="text-sm font-medium text-gray-700 min-w-24">
+                  Association #:
+                </label>
                 <Input
                   value={associationNumber}
                   onChange={(e) => setAssociationNumber(e.target.value)}
@@ -1126,7 +1292,9 @@ function MccTddfTransactionsTab() {
               </div>
 
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">Group #:</label>
+                <label className="text-sm font-medium text-gray-700 min-w-24">
+                  Group #:
+                </label>
                 <Input
                   value={groupNumber}
                   onChange={(e) => setGroupNumber(e.target.value)}
@@ -1137,7 +1305,9 @@ function MccTddfTransactionsTab() {
               </div>
 
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">Terminal ID:</label>
+                <label className="text-sm font-medium text-gray-700 min-w-24">
+                  Terminal ID:
+                </label>
                 <Input
                   value={terminalId}
                   onChange={(e) => setTerminalId(e.target.value)}
@@ -1151,9 +1321,14 @@ function MccTddfTransactionsTab() {
             {/* Card Type and POS Entry Mode filters */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">Card Type:</label>
+                <label className="text-sm font-medium text-gray-700 min-w-24">
+                  Card Type:
+                </label>
                 <Select value={cardType} onValueChange={setCardType}>
-                  <SelectTrigger className="w-48" data-testid="select-card-type">
+                  <SelectTrigger
+                    className="w-48"
+                    data-testid="select-card-type"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1171,9 +1346,14 @@ function MccTddfTransactionsTab() {
               </div>
 
               <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-32">POS Entry Mode:</label>
+                <label className="text-sm font-medium text-gray-700 min-w-32">
+                  POS Entry Mode:
+                </label>
                 <Select value={posEntryMode} onValueChange={setPosEntryMode}>
-                  <SelectTrigger className="w-64" data-testid="select-pos-entry-mode">
+                  <SelectTrigger
+                    className="w-64"
+                    data-testid="select-pos-entry-mode"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1230,22 +1410,24 @@ function MccTddfTransactionsTab() {
                 {data?.data && data.data.length > 0 ? (
                   data.data.map((record) => {
                     const isExpanded = expandedRows.has(record.id);
-                    const merchantAccountNumber = extractMerchantAccountNumber(record);
+                    const merchantAccountNumber =
+                      extractMerchantAccountNumber(record);
                     const merchantName = getMerchantName(merchantAccountNumber);
                     const transactionDate = extractTransactionDate(record);
                     const transactionAmount = extractTransactionAmount(record);
                     const cardType = extractCardType(record);
                     const terminalId = extractTerminalId(record);
-                    
+
                     // Truncate filename for display
-                    const displayFilename = record.filename && record.filename.length > 35 
-                      ? `${record.filename.substring(0, 32)}...` 
-                      : record.filename || 'Unknown';
-                    
+                    const displayFilename =
+                      record.filename && record.filename.length > 35
+                        ? `${record.filename.substring(0, 32)}...`
+                        : record.filename || "Unknown";
+
                     return (
                       <div key={record.id}>
                         {/* Compact Inline Row */}
-                        <div 
+                        <div
                           className="px-4 py-2 border-t cursor-pointer hover:bg-gray-50 flex items-center gap-2 text-sm"
                           onClick={() => toggleRow(record.id)}
                           data-testid={`row-dt-${record.id}`}
@@ -1256,9 +1438,9 @@ function MccTddfTransactionsTab() {
                           ) : (
                             <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />
                           )}
-                          
+
                           {/* DT Badge */}
-                          <Badge 
+                          <Badge
                             className="bg-blue-500 hover:bg-blue-600 text-white flex-shrink-0"
                             data-testid={`badge-dt-${record.id}`}
                           >
@@ -1267,8 +1449,8 @@ function MccTddfTransactionsTab() {
 
                           {/* Card Type Badge */}
                           {cardType && (
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className={`text-xs flex-shrink-0 ${getCardTypeBadges(cardType).className}`}
                               data-testid={`badge-card-type-${cardType.toLowerCase()}`}
                             >
@@ -1278,24 +1460,21 @@ function MccTddfTransactionsTab() {
 
                           {/* Transaction Title */}
 
-
-                          {/* Line Number */}
-                          <span className="text-sm font-mono text-muted-foreground flex-shrink-0">
-                            Line {record.line_number || 'N/A'}
-                          </span>
-
                           {/* Merchant Account with icon */}
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <CreditCard className="h-4 w-4 text-blue-600" />
                             <span className="font-mono text-xs text-blue-600 font-bold">
-                              {merchantAccountNumber || '-'}
+                              {merchantAccountNumber || "-"}
                             </span>
                           </div>
 
                           {/* Merchant Name with icon */}
                           {merchantName && (
                             <div className="flex items-center gap-1 truncate">
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs flex-shrink-0">
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-700 border-green-300 text-xs flex-shrink-0"
+                              >
                                 {merchantName}
                               </Badge>
                             </div>
@@ -1304,7 +1483,9 @@ function MccTddfTransactionsTab() {
                           {/* Amount with icon */}
                           {transactionAmount !== null && (
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <span className="text-green-600 font-medium">💰</span>
+                              <span className="text-green-600 font-medium">
+                                💰
+                              </span>
                               <span className="font-mono text-sm">
                                 ${Number(transactionAmount).toFixed(2)}
                               </span>
@@ -1322,24 +1503,35 @@ function MccTddfTransactionsTab() {
                           {/* Terminal ID with icon */}
                           {terminalId && (
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <span className="text-purple-600 text-xs">🖥️</span>
-                              <span className="font-mono text-xs">{terminalId}</span>
+                              <span className="text-purple-600 text-xs">
+                                🖥️
+                              </span>
+                              <span className="font-mono text-xs">
+                                {terminalId}
+                              </span>
                             </div>
                           )}
 
                           {/* Filename (truncated) */}
-                          <span 
-                            className="text-xs text-gray-500 ml-auto flex-shrink-0" 
-                            title={record.filename || 'Unknown'}
+                          <span
+                            className="text-xs text-gray-500 ml-auto flex-shrink-0"
+                            title={record.filename || "Unknown"}
                           >
                             {displayFilename}
+                          </span>
+                          {/* Line Number */}
+                          <span className="text-sm font-mono text-muted-foreground flex-shrink-0">
+                            Line {record.line_number || "N/A"}
                           </span>
                         </div>
 
                         {/* Expanded Detail View */}
                         {isExpanded && (
                           <div className="border-t bg-gray-50">
-                            <DtDetailView record={record} merchantName={merchantName} />
+                            <DtDetailView
+                              record={record}
+                              merchantName={merchantName}
+                            />
                           </div>
                         )}
                       </div>
@@ -1356,7 +1548,9 @@ function MccTddfTransactionsTab() {
               {data && totalPages > 1 && (
                 <div className="p-4 border-t flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    Showing {offset + 1} to {Math.min(offset + limit, data.total)} of {data.total} records
+                    Showing {offset + 1} to{" "}
+                    {Math.min(offset + limit, data.total)} of {data.total}{" "}
+                    records
                   </div>
                   <TransactionPagination
                     currentPage={page}

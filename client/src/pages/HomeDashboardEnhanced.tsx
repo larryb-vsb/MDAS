@@ -786,13 +786,13 @@ export default function HomeDashboard() {
 
               {/* Today's Transactions Processed */}
               <ClickableMetricCard
-                title="Today's Transaction Processed"
+                title="Last Transaction Processed"
                 total={metrics?.todayTransactions?.total ?? 0}
                 ach={metrics?.todayTransactions?.ach ?? 0}
                 mcc={metrics?.todayTransactions?.mcc ?? 0}
                 icon={<Activity className="h-4 w-4" />}
-                achTooltip="ACH transactions today"
-                mccTooltip="MCC transactions today"
+                achTooltip="ACH transactions"
+                mccTooltip="MCC transactions"
               />
             </div>
           )}
