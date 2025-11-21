@@ -30,7 +30,6 @@ import History from "@/pages/History";
 import OrphanTerminalsPage from "@/pages/OrphanTerminalsPage";
 import OrphanTerminalViewPage from "@/pages/OrphanTerminalViewPage";
 import AuthPage from "@/pages/auth-page";
-import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
 import MMSUploader from "@/pages/MMSUploader";
 import SubTerminals from "@/pages/SubTerminals";
@@ -90,7 +89,6 @@ function Router() {
       <ProtectedRoute path="/tddf-api-data" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-viewer" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-viewer/:uploadId/:filename" component={TddfJsonViewerPage} />
-      <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/login" component={AuthPage} />

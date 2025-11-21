@@ -81,7 +81,6 @@ import {
   Loader2,
   Info,
   ScrollText,
-  ArchiveRestore,
   Zap,
   Activity,
   FileJson,
@@ -230,12 +229,6 @@ const navItems = [
     icon: <ScrollText className="h-5 w-5 text-gray-300" />,
     label: "Logs",
     href: "/logs",
-    adminOnly: true,
-  },
-  {
-    icon: <ArchiveRestore className="h-5 w-5 text-gray-300" />,
-    label: "Backups",
-    href: "/backups",
     adminOnly: true,
   },
   {
