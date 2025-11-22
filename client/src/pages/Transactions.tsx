@@ -1418,11 +1418,18 @@ function MccTddfTransactionsTab() {
                     const cardType = extractCardType(record);
                     const terminalId = extractTerminalId(record);
 
-                    // Truncate filename for display
-                    const displayFilename =
-                      record.filename && record.filename.length > 35
-                        ? `${record.filename.substring(0, 32)}...`
-                        : record.filename || "Unknown";
+                    // Extract middle substring from filename (date_time portion)
+                    const getShortFilename = (filename: string) => {
+                      if (!filename) return "Unknown";
+                      const parts = filename.split('_');
+                      if (parts.length >= 5) {
+                        const date = parts[3];
+                        const timeWithExt = parts[4].replace(/\.[^.]*$/, '');
+                        return `${date}_${timeWithExt}`;
+                      }
+                      return filename.length > 20 ? `${filename.substring(0, 20)}...` : filename;
+                    };
+                    const displayFilename = getShortFilename(record.filename);
 
                     return (
                       <div key={record.id}>
