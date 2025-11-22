@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (November 2025)
 
+### User Authentication Type Tracking (Nov 22, 2025)
+- Added `auth_type` column to users table to distinguish between OAuth and local authentication
+- **OAuth Users**: Microsoft OAuth authenticated users automatically created with `auth_type: 'oauth'`
+- **Local Users**: Admin-created users and locally authenticated users default to `auth_type: 'local'`
+- User Management UI updated to display Auth Type column with color-coded badges
+- Storage layer fully plumbed to persist and retrieve auth type across all user operations
+- Migration script created: `scripts/backfill-user-auth-type.sql` (environment-aware with dev/prod table naming instructions)
+- All existing users backfilled with 'local' auth type for backward compatibility
+
 ### TDDF Field Extraction Fixes
 
 **POS Entry Mode Fix (Nov 19, 2025)**
