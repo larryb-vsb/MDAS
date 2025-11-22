@@ -15623,7 +15623,8 @@ export class DatabaseStorage implements IStorage {
         canRetry: 'can_retry',
         lastFailureReason: 'last_failure_reason',
         retryCount: 'retry_count',
-        lastRetryAt: 'last_retry_at'
+        lastRetryAt: 'last_retry_at',
+        statusMessage: 'status_message'
       };
       
       // Build dynamic update query
