@@ -533,7 +533,8 @@ export default function History() {
   };
 
   const handleBackToDashboard = () => {
-    setLocation('/dashboard');
+    const preferredRoute = user?.defaultDashboard === "monthly" ? "/tddf1-monthly" : "/";
+    setLocation(preferredRoute);
   };
   
   const handleFilterChange = useCallback((newFilters: typeof filters) => {
