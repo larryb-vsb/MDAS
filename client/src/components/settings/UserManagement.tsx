@@ -72,6 +72,7 @@ type User = {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  authType: string | null;
   defaultDashboard: string;
   themePreference: string;
   createdAt: string;
@@ -519,6 +520,7 @@ export default function UserManagement() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Auth Type</TableHead>
                   <TableHead>Dashboard</TableHead>
                   <TableHead>Theme</TableHead>
                   <TableHead>Last Login</TableHead>
@@ -538,6 +540,11 @@ export default function UserManagement() {
                     <TableCell>
                       <Badge variant={user.role === "admin" ? "default" : "secondary"}>
                         {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.authType === "oauth" ? "outline" : "secondary"}>
+                        {user.authType === "oauth" ? "OAuth" : "Local"}
                       </Badge>
                     </TableCell>
                     <TableCell>

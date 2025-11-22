@@ -1138,6 +1138,7 @@ export const users = pgTable(getTableName("users"), {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  authType: text("auth_type").default("local").notNull(), // "local" or "oauth"
   email: text("email"),
   firstName: text("first_name"),
   lastName: text("last_name"),

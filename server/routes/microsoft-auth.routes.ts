@@ -102,6 +102,7 @@ export function registerMicrosoftAuthRoutes(app: Express) {
           user = await storage.createUser({
             username: userProfile.email,
             password: '', // No password for OAuth users
+            authType: 'oauth', // OAuth authentication
             role: 'user', // Default role, can be changed by admin
           });
           logger.info(`[MICROSOFT-AUTH] ✅ New user created: ${userProfile.email}`);

@@ -29,6 +29,7 @@ export function registerUserRoutes(app: Express) {
       const user = await storage.createUser({
         ...req.body,
         password: await storage.hashPassword(req.body.password),
+        authType: req.body.authType || "local", // Default to local auth
         role: req.body.role || "user",
         createdAt: new Date()
       });

@@ -622,6 +622,7 @@ export class DatabaseStorage implements IStorage {
         first_name as "firstName",
         last_name as "lastName",
         role,
+        auth_type as "authType",
         developer_flag as "developerFlag",
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
@@ -652,6 +653,7 @@ export class DatabaseStorage implements IStorage {
             first_name as "firstName",
             last_name as "lastName",
             role,
+            auth_type as "authType",
             developer_flag as "developerFlag",
             default_dashboard as "defaultDashboard",
             theme_preference as "themePreference",
@@ -684,6 +686,7 @@ export class DatabaseStorage implements IStorage {
             first_name as "firstName",
             last_name as "lastName",
             role,
+            auth_type as "authType",
             developer_flag as "developerFlag",
             default_dashboard as "defaultDashboard",
             theme_preference as "themePreference",
@@ -723,6 +726,7 @@ export class DatabaseStorage implements IStorage {
       firstName: 'first_name',
       lastName: 'last_name',
       role: 'role',
+      authType: 'auth_type',
       defaultDashboard: 'default_dashboard',
       themePreference: 'theme_preference',
       createdAt: 'created_at'
@@ -754,6 +758,7 @@ export class DatabaseStorage implements IStorage {
         first_name as "firstName",
         last_name as "lastName",
         role,
+        auth_type as "authType",
         developer_flag as "developerFlag",
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
@@ -787,6 +792,7 @@ export class DatabaseStorage implements IStorage {
         first_name as "firstName",
         last_name as "lastName",
         role,
+        auth_type as "authType",
         developer_flag as "developerFlag",
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
@@ -828,6 +834,10 @@ export class DatabaseStorage implements IStorage {
       updates.push(`role = $${paramIndex++}`);
       values.push(userData.role);
     }
+    if (userData.authType !== undefined) {
+      updates.push(`auth_type = $${paramIndex++}`);
+      values.push(userData.authType);
+    }
     if (userData.defaultDashboard !== undefined) {
       updates.push(`default_dashboard = $${paramIndex++}`);
       values.push(userData.defaultDashboard);
@@ -852,6 +862,7 @@ export class DatabaseStorage implements IStorage {
         first_name as "firstName",
         last_name as "lastName",
         role,
+        auth_type as "authType",
         developer_flag as "developerFlag",
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
