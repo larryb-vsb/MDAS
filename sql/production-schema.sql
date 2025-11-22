@@ -2354,6 +2354,7 @@ CREATE TABLE IF NOT EXISTS users (
   first_name varchar(255),
   last_name varchar(255),
   role varchar(50) DEFAULT 'user'::character varying,
+  auth_type text DEFAULT 'local',
   created_at timestamp DEFAULT CURRENT_TIMESTAMP,
   last_login timestamp,
   developer_flag boolean DEFAULT false,
