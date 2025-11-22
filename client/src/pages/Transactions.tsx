@@ -902,7 +902,7 @@ function MccTddfTransactionsTab() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Filter states
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [merchantAccount, setMerchantAccount] = useState<string>("");
   const [merchantName, setMerchantName] = useState<string>("");
   const [associationNumber, setAssociationNumber] = useState<string>("");
