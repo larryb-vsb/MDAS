@@ -664,31 +664,71 @@ export default function History() {
 
           <div className="mt-8">
             <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : ''}`}>Quick Links</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Button
-                variant="outline"
-                onClick={() => setLocation('/history/2025/november')}
-                className="w-full"
-                data-testid="link-november-2025"
-              >
-                November 2025
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setLocation('/history/2025/october')}
-                className="w-full"
-                data-testid="link-october-2025"
-              >
-                October 2025
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setLocation('/history/2025/Q4')}
-                className="w-full"
-                data-testid="link-q4-2025"
-              >
-                Q4 2025
-              </Button>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {(() => {
+                const now = new Date();
+                const yesterday = subDays(now, 1);
+                const thisMonth = now;
+                const lastMonth = subMonths(now, 1);
+                const currentYear = now.getFullYear();
+                
+                const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                
+                const quickLinks = [
+                  {
+                    label: 'Today',
+                    path: `/history/${now.getFullYear()}/${monthNames[now.getMonth()]}/${now.getDate()}`,
+                    testId: 'link-today'
+                  },
+                  {
+                    label: 'Yesterday',
+                    path: `/history/${yesterday.getFullYear()}/${monthNames[yesterday.getMonth()]}/${yesterday.getDate()}`,
+                    testId: 'link-yesterday'
+                  },
+                  {
+                    label: 'This Month',
+                    path: `/history/${thisMonth.getFullYear()}/${monthNames[thisMonth.getMonth()]}`,
+                    testId: 'link-this-month'
+                  },
+                  {
+                    label: 'Last Month',
+                    path: `/history/${lastMonth.getFullYear()}/${monthNames[lastMonth.getMonth()]}`,
+                    testId: 'link-last-month'
+                  },
+                  {
+                    label: 'Q1',
+                    path: `/history/${currentYear}/Q1`,
+                    testId: 'link-q1'
+                  },
+                  {
+                    label: 'Q2',
+                    path: `/history/${currentYear}/Q2`,
+                    testId: 'link-q2'
+                  },
+                  {
+                    label: 'Q3',
+                    path: `/history/${currentYear}/Q3`,
+                    testId: 'link-q3'
+                  },
+                  {
+                    label: 'Q4',
+                    path: `/history/${currentYear}/Q4`,
+                    testId: 'link-q4'
+                  }
+                ];
+                
+                return quickLinks.map((link) => (
+                  <Button
+                    key={link.testId}
+                    variant="outline"
+                    onClick={() => navigateWithFilters(link.path)}
+                    className="w-full"
+                    data-testid={link.testId}
+                  >
+                    {link.label}
+                  </Button>
+                ));
+              })()}
             </div>
           </div>
         </CardContent>
