@@ -55,7 +55,7 @@ export class MicrosoftOAuthService {
           loggerOptions: {
             loggerCallback(loglevel, message, containsPii) {
               if (!containsPii) {
-                logger.debug(`[MSAL] ${message}`);
+                logger.info(`[MSAL] ${message}`);
               }
             },
             piiLoggingEnabled: false,
@@ -84,7 +84,7 @@ export class MicrosoftOAuthService {
   /**
    * Get the authorization URL to redirect user to Microsoft login
    */
-  getAuthUrl(req: Request): string | null {
+  async getAuthUrl(req: Request): Promise<string | null> {
     if (!this.msalClient || !this.config) {
       logger.error('[MICROSOFT-OAUTH] Not initialized - cannot generate auth URL');
       return null;
@@ -97,7 +97,7 @@ export class MicrosoftOAuthService {
         state: req.session?.id || 'random-state', // CSRF protection
       };
 
-      const authUrl = this.msalClient.getAuthCodeUrl(authCodeUrlParameters);
+      const authUrl = await this.msalClient.getAuthCodeUrl(authCodeUrlParameters);
       logger.info('[MICROSOFT-OAUTH] Generated auth URL for user');
       return authUrl;
     } catch (error) {
