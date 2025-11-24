@@ -17,8 +17,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
-import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
-import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
 import UserManagement from "@/components/settings/UserManagement";
 import ApiUserManagement from "@/components/settings/ApiUserManagement";
 import { PoolStatus } from "@/components/settings/PoolStatus";
@@ -31,8 +29,6 @@ import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
 import TddfObjectStorageReport from "@/components/reports/TddfObjectStorageReport";
-import UploaderDataStatus from "@/components/settings/UploaderDataStatus";
-import TddfJsonRecordCounts from "@/components/settings/TddfJsonRecordCounts";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -1179,16 +1175,6 @@ export default function Settings() {
             <ApiUserManagement />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <SchemaVersionInfo />
-            <FileProcessingHistory />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <UploaderDataStatus />
-            <TddfJsonRecordCounts />
-          </div>
-          
           <div className="grid grid-cols-1 gap-6">
             <HierarchicalTddfMigration />
           </div>
