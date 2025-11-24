@@ -41,6 +41,7 @@ import ObjectStorageCleanup from "@/pages/ObjectStorageCleanup";
 import PreCacheManagement from "@/pages/PreCacheManagement";
 import TddfApiDataPage from "@/pages/TddfApiDataPage";
 import TddfJsonViewerPage from "@/pages/TddfJsonViewerPage";
+import About from "@/pages/About";
 function Router() {
   return (
     <Switch>
@@ -73,6 +74,7 @@ function Router() {
       <ProtectedRoute path="/history/:year/:month/:day" component={History} />
 
       <ProtectedRoute path="/settings" component={Settings} />
+      <ProtectedRoute path="/about" component={About} />
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
       <ProtectedRoute path="/processing-dashboard-v2" component={ProcessingDashboardV2} />
