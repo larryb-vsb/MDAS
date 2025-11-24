@@ -10,6 +10,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (November 2025)
 
+### About Page with API Documentation (Nov 24, 2025)
+- **New Feature**: Comprehensive About page accessible by clicking version info in sidebar
+- **UI/UX**: Clickable version links in both desktop and mobile sidebar navigation
+  - Desktop: Click version info in sidebar (data-testid: link-version-desktop) navigates to /about
+  - Mobile: Click version info in mobile sheet (data-testid: link-version-mobile) navigates to /about and closes menu
+  - Hover effects and tooltip hint "Click to view API docs" guide user interaction
+- **Content**:
+  - Application information card: displays app name, version, build date, environment badge
+  - API documentation organized by category: Auth, Users, Merchants, TDDF, Upload, Dashboard, Reports, System
+  - Interactive tabs for easy navigation between API categories
+  - Detailed endpoint documentation with method badges, paths, request/response schemas
+- **Route**: Registered as ProtectedRoute at /about requiring authentication
+- **Settings Page Cleanup**: Removed Database Schema Version, File Processing History, TDDF JSON Record Counts sections and uploader data status metrics to simplify interface
+- **Testing**: End-to-end tests validate desktop and mobile navigation, About page rendering, API tab switching, and mobile responsiveness
+- **Design Decision**: Version info made interactive to provide easy access to API documentation without cluttering main navigation
+
 ### Inline Profile Editing with Form Reset Pattern (Nov 24, 2025)
 - **New Feature**: Users can update profile information directly from sidebar without navigating to separate settings page
 - **UI/UX Enhancement**: Clickable user info section in sidebar opens profile editing dialog
