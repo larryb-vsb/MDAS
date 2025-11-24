@@ -225,11 +225,16 @@ export function registerMicrosoftAuthRoutes(app: Express) {
    * GET /auth/microsoft/confirm-email
    */
   app.get("/auth/microsoft/confirm-email", (req, res) => {
+    logger.info('[MICROSOFT-AUTH] GET /auth/microsoft/confirm-email accessed');
+    logger.info('[MICROSOFT-AUTH] Session ID:', req.sessionID);
+    logger.info('[MICROSOFT-AUTH] Has microsoftProfile:', !!req.session.microsoftProfile);
+    
     if (!req.session.microsoftProfile) {
-      logger.error('[MICROSOFT-AUTH] No Microsoft profile in session');
+      logger.error('[MICROSOFT-AUTH] No Microsoft profile in session - redirecting to login with error');
       return res.redirect('/?error=no_microsoft_session');
     }
 
+    logger.info('[MICROSOFT-AUTH] Microsoft profile found, redirecting to login page with confirmation flag');
     // Return HTML that will trigger the frontend to show email confirmation
     res.send(`
       <!DOCTYPE html>
