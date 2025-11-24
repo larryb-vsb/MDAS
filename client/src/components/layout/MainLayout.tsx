@@ -462,13 +462,14 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
-        {/* Fixed Settings Link - Mobile */}
-        <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-2">
+        {/* Fixed bottom section - Settings and Logout together (Mobile) */}
+        <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-6">
+          {/* Settings Link */}
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
             className={cn(
-              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation",
+              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation mb-2",
               location === "/settings"
                 ? "text-white bg-gray-700 shadow-lg"
                 : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
@@ -477,77 +478,53 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             <Settings className="h-5 w-5" />
             <span>Settings</span>
           </Link>
-        </div>
 
-        {/* Fixed bottom section - Version info for non-logged-in users */}
-        {!user && (
-          <div className="flex-shrink-0 pt-2 pb-4 border-t border-gray-700 px-6">
-            <div className="text-gray-400 text-xs flex items-center justify-between">
-              <span>Version {APP_VERSION}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center cursor-help">
-                      <Info className="h-3 w-3 ml-1" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-xs">
-                      <p>Version: {APP_VERSION}</p>
-                      <p>Build date: {BUILD_DATE}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-        )}
-
-        {/* Fixed bottom section - Mobile logout */}
-        {user && (
-          <div className="flex-shrink-0 pt-2 pb-6 border-t border-gray-700 px-6">
-            <div className="text-gray-300 text-sm mb-2">
-              <div className="font-medium">
-                {user.firstName
-                  ? `${user.firstName} ${user.lastName || ""}`
-                  : user.username}
+          {/* User info and Logout for logged-in users */}
+          {user && (
+            <>
+              <div className="text-gray-300 text-sm mb-2 px-4 mt-3">
+                <div className="font-medium">
+                  {user.firstName
+                    ? `${user.firstName} ${user.lastName || ""}`
+                    : user.username}
+                </div>
+                <div className="text-gray-400 text-xs">{user.email}</div>
               </div>
-              <div className="text-gray-400 text-xs">{user.email}</div>
-            </div>
-            <div
-              className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700 min-h-[44px] touch-manipulation"
-              onClick={(e) => {
-                e.preventDefault();
-                handleLogout();
-                setOpen(false);
-              }}
-              data-testid="button-logout-mobile"
-            >
-              <LogOut className="h-5 w-5 text-gray-300" />
-              <span>Logout</span>
-            </div>
+              <div
+                className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700 min-h-[44px] touch-manipulation"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleLogout();
+                  setOpen(false);
+                }}
+                data-testid="button-logout-mobile"
+              >
+                <LogOut className="h-5 w-5 text-gray-300" />
+                <span>Logout</span>
+              </div>
+            </>
+          )}
 
-            {/* Version info for mobile */}
-            <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
-              <span>Version {APP_VERSION}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center cursor-help">
-                      <Info className="h-3 w-3 ml-1" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-xs">
-                      <p>Version: {APP_VERSION}</p>
-                      <p>Build date: {BUILD_DATE}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+          {/* Version info */}
+          <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
+            <span>Version {APP_VERSION}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center cursor-help">
+                    <Info className="h-3 w-3 ml-1" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">
+                    <p>Version: {APP_VERSION}</p>
+                    <p>Build date: {BUILD_DATE}</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-        )}
+        </div>
       </SheetContent>
     </Sheet>
   );
@@ -595,12 +572,13 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
-        {/* Fixed Settings Link - Above user info */}
-        <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-2">
+        {/* Fixed bottom section - Settings and Logout together */}
+        <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-6">
+          {/* Settings Link */}
           <Link
             href="/settings"
             className={cn(
-              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block",
+              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block mb-2",
               location === "/settings"
                 ? "text-white bg-gray-700 shadow-lg"
                 : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
@@ -609,84 +587,60 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             <Settings className="h-5 w-5" />
             <span>Settings</span>
           </Link>
-        </div>
 
-        {/* Fixed bottom section - Version info for non-logged-in users */}
-        {!user && (
-          <div className="flex-shrink-0 pt-2 pb-4 border-t border-gray-700 px-6">
-            <div className="text-gray-400 text-xs flex items-center justify-between">
-              <span>Version {APP_VERSION}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center cursor-help">
-                      <Info className="h-3 w-3 ml-1" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-xs">
-                      <p>Version: {APP_VERSION}</p>
-                      <p>Build date: {BUILD_DATE}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-        )}
-
-        {/* Fixed bottom section - User info and logout */}
-        {user && (
-          <div className="flex-shrink-0 pt-2 pb-6 border-t border-gray-700 px-6">
-            <div className="text-gray-300 text-sm mb-2">
-              <div className="font-medium">
-                {user.firstName
-                  ? `${user.firstName} ${user.lastName || ""}`
-                  : user.username}
+          {/* User info and Logout for logged-in users */}
+          {user && (
+            <>
+              <div className="text-gray-300 text-sm mb-2 px-4 mt-3">
+                <div className="font-medium">
+                  {user.firstName
+                    ? `${user.firstName} ${user.lastName || ""}`
+                    : user.username}
+                </div>
+                <div className="text-gray-400 text-xs">{user.email}</div>
               </div>
-              <div className="text-gray-400 text-xs">{user.email}</div>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-700"
-              onClick={handleLogout}
-              disabled={logoutMutation.isPending}
-              data-testid="button-logout"
-            >
-              {logoutMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging out...
-                </>
-              ) : (
-                <>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </>
-              )}
-            </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-700"
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+                data-testid="button-logout"
+              >
+                {logoutMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging out...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </>
+                )}
+              </Button>
+            </>
+          )}
 
-            {/* Version info */}
-            <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
-              <span>Version {APP_VERSION}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center cursor-help">
-                      <Info className="h-3 w-3 ml-1" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-xs">
-                      <p>Version: {APP_VERSION}</p>
-                      <p>Build date: {BUILD_DATE}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+          {/* Version info */}
+          <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
+            <span>Version {APP_VERSION}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center cursor-help">
+                    <Info className="h-3 w-3 ml-1" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">
+                    <p>Version: {APP_VERSION}</p>
+                    <p>Build date: {BUILD_DATE}</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-        )}
+        </div>
       </aside>
 
       <div className="flex flex-1 flex-col">
