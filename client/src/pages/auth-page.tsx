@@ -15,7 +15,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Loader2, Shield, BarChart3, Database, CheckCircle2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Shield, BarChart3, Database, CheckCircle2, Mail } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Login form schema
 const loginFormSchema = z.object({
@@ -23,12 +31,22 @@ const loginFormSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// Email confirmation form schema
+const emailConfirmSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
 type LoginFormValues = z.infer<typeof loginFormSchema>;
+type EmailConfirmValues = z.infer<typeof emailConfirmSchema>;
 
 export default function AuthPage() {
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
   const [checkingMicrosoft, setCheckingMicrosoft] = useState(true);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [microsoftProfile, setMicrosoftProfile] = useState<{ email: string; name: string } | null>(null);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
   const { user, loginMutation } = useAuth();
+  const { toast } = useToast();
 
   // Check if Microsoft OAuth is enabled on the server
   useEffect(() => {
@@ -44,6 +62,32 @@ export default function AuthPage() {
       });
   }, []);
 
+  // Check for Microsoft email confirmation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('confirm_microsoft_email') === 'true') {
+      // Fetch Microsoft profile from session
+      fetch('/api/auth/microsoft/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.email) {
+            setMicrosoftProfile(data);
+            setShowEmailDialog(true);
+            // Remove query parameter
+            window.history.replaceState({}, '', window.location.pathname);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch Microsoft profile:', err);
+          toast({
+            title: "Error",
+            description: "Failed to load Microsoft profile. Please try again.",
+            variant: "destructive",
+          });
+        });
+    }
+  }, [toast]);
+
   // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -52,6 +96,21 @@ export default function AuthPage() {
       password: "",
     },
   });
+
+  // Email confirmation form
+  const emailForm = useForm<EmailConfirmValues>({
+    resolver: zodResolver(emailConfirmSchema),
+    defaultValues: {
+      email: microsoftProfile?.email || "",
+    },
+  });
+
+  // Update email form when Microsoft profile loads
+  useEffect(() => {
+    if (microsoftProfile?.email) {
+      emailForm.setValue('email', microsoftProfile.email);
+    }
+  }, [microsoftProfile, emailForm]);
   
   // If user is already logged in, redirect to dashboard
   if (user) {
@@ -61,6 +120,47 @@ export default function AuthPage() {
   // Handle login form submission
   const onLoginSubmit = (values: LoginFormValues) => {
     loginMutation.mutate(values);
+  };
+
+  // Handle email confirmation submission
+  const onEmailConfirm = async (values: EmailConfirmValues) => {
+    setConfirmingEmail(true);
+    try {
+      const response = await fetch('/auth/microsoft/confirm-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to confirm email');
+      }
+
+      toast({
+        title: "Success",
+        description: "Microsoft account linked successfully!",
+      });
+
+      setShowEmailDialog(false);
+
+      // Redirect based on response
+      if (data.requiresDuo) {
+        window.location.href = data.redirectTo;
+      } else {
+        window.location.href = data.redirectTo || '/';
+      }
+    } catch (error) {
+      console.error('Email confirmation error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to confirm email",
+        variant: "destructive",
+      });
+    } finally {
+      setConfirmingEmail(false);
+    }
   };
 
   return (
@@ -247,6 +347,79 @@ export default function AuthPage() {
           <span className="text-sm">Secure data management and backup tools</span>
         </div>
       </div>
+
+      {/* Email Confirmation Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-blue-600" />
+              Confirm Your Email
+            </DialogTitle>
+            <DialogDescription>
+              {microsoftProfile ? (
+                <>
+                  Welcome, <strong>{microsoftProfile.name}</strong>! Please confirm your email address to complete the sign-in process.
+                </>
+              ) : (
+                "Please confirm your email address to continue."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...emailForm}>
+            <form onSubmit={emailForm.handleSubmit(onEmailConfirm)} className="space-y-4">
+              <FormField
+                control={emailForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email"
+                        placeholder="Enter your email" 
+                        className="h-11"
+                        {...field}
+                        data-testid="input-microsoft-email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This email will be used to link your Microsoft account to your MMS account.
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEmailDialog(false)}
+                  disabled={confirmingEmail}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={confirmingEmail}
+                  data-testid="button-confirm-email"
+                >
+                  {confirmingEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Confirming...
+                    </>
+                  ) : (
+                    "Confirm & Continue"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

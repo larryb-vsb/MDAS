@@ -91,49 +91,13 @@ export function registerMicrosoftAuthRoutes(app: Express) {
         return res.redirect('/?error=profile_fetch_failed');
       }
 
-      // Check if we need to create or find this user in our database
-      let user = await storage.getUserByUsername(userProfile.email);
-
-      if (!user) {
-        // Create new user from Microsoft account
-        logger.info(`[MICROSOFT-AUTH] Creating new user for: ${userProfile.email}`);
-        
-        try {
-          user = await storage.createUser({
-            username: userProfile.email,
-            password: '', // No password for OAuth users
-            authType: 'oauth', // OAuth authentication
-            role: 'user', // Default role, can be changed by admin
-          });
-          logger.info(`[MICROSOFT-AUTH] ✅ New user created: ${userProfile.email}`);
-        } catch (createError) {
-          logger.error('[MICROSOFT-AUTH] Failed to create user:', createError);
-          return res.redirect('/?error=user_creation_failed');
-        }
-      }
-
-      // Store Microsoft profile in session
+      // Store Microsoft profile in session for email confirmation
       req.session.microsoftProfile = userProfile;
-
-      // Log in the user with passport
-      req.login(user, (err) => {
-        if (err) {
-          logger.error('[MICROSOFT-AUTH] Passport login failed:', err);
-          return res.redirect('/?error=session_creation_failed');
-        }
-
-        logger.info(`[MICROSOFT-AUTH] ✅ User logged in: ${user!.username}`);
-
-        // If Duo is enabled, redirect to Duo MFA
-        if (duoMFA.isEnabled()) {
-          logger.info('[MICROSOFT-AUTH] Redirecting to Duo MFA');
-          return res.redirect('/auth/duo');
-        }
-
-        // No Duo configured, go directly to dashboard
-        logger.info('[MICROSOFT-AUTH] No Duo MFA - authentication complete');
-        res.redirect('/');
-      });
+      
+      logger.info(`[MICROSOFT-AUTH] Microsoft authentication successful, redirecting to email confirmation`);
+      
+      // Redirect to email confirmation page
+      res.redirect('/auth/microsoft/confirm-email');
 
     } catch (error) {
       logger.error('[MICROSOFT-AUTH] Callback error:', error);
@@ -245,6 +209,119 @@ export function registerMicrosoftAuthRoutes(app: Express) {
       logger.error('[DUO-AUTH] Callback error:', error);
       res.redirect(`/?error=duo_callback_failed&details=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
     }
+  });
+
+  /**
+   * Email confirmation page - renders the email confirmation UI
+   * GET /auth/microsoft/confirm-email
+   */
+  app.get("/auth/microsoft/confirm-email", (req, res) => {
+    if (!req.session.microsoftProfile) {
+      logger.error('[MICROSOFT-AUTH] No Microsoft profile in session');
+      return res.redirect('/?error=no_microsoft_session');
+    }
+
+    // Return HTML that will trigger the frontend to show email confirmation
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Confirm Email - MMS</title>
+        <meta http-equiv="refresh" content="0; url=/?confirm_microsoft_email=true">
+      </head>
+      <body>
+        <p>Redirecting to email confirmation...</p>
+      </body>
+      </html>
+    `);
+  });
+
+  /**
+   * Handle email confirmation submission
+   * POST /auth/microsoft/confirm-email
+   */
+  app.post("/auth/microsoft/confirm-email", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!req.session.microsoftProfile) {
+        logger.error('[MICROSOFT-AUTH] No Microsoft profile in session');
+        return res.status(401).json({ error: 'No Microsoft session found' });
+      }
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      logger.info(`[MICROSOFT-AUTH] Email confirmation for: ${email}`);
+
+      // Check if user exists by email
+      let user = await storage.getUserByEmail(email);
+
+      if (user) {
+        // User exists - link Microsoft account to existing account
+        logger.info(`[MICROSOFT-AUTH] Found existing user for email ${email} (username: ${user.username})`);
+      } else {
+        // Create new OAuth user
+        logger.info(`[MICROSOFT-AUTH] Creating new OAuth user for: ${email}`);
+        
+        try {
+          user = await storage.createUser({
+            username: email,
+            email: email,
+            password: '', // No password for OAuth users
+            authType: 'oauth',
+            role: 'user',
+          });
+          logger.info(`[MICROSOFT-AUTH] ✅ New OAuth user created: ${email}`);
+        } catch (createError) {
+          logger.error('[MICROSOFT-AUTH] Failed to create user:', createError);
+          return res.status(500).json({ error: 'Failed to create user account' });
+        }
+      }
+
+      // Log in the user with passport
+      req.login(user, (err) => {
+        if (err) {
+          logger.error('[MICROSOFT-AUTH] Passport login failed:', err);
+          return res.status(500).json({ error: 'Failed to create session' });
+        }
+
+        logger.info(`[MICROSOFT-AUTH] ✅ User logged in: ${user!.username}`);
+
+        // Clear the Microsoft profile from session
+        delete req.session.microsoftProfile;
+
+        // If Duo is enabled, return that info
+        if (duoMFA.isEnabled()) {
+          logger.info('[MICROSOFT-AUTH] Duo MFA required');
+          return res.json({ success: true, requiresDuo: true, redirectTo: '/auth/duo' });
+        }
+
+        // No Duo configured, authentication complete
+        logger.info('[MICROSOFT-AUTH] Authentication complete');
+        res.json({ success: true, requiresDuo: false, redirectTo: '/' });
+      });
+
+    } catch (error) {
+      logger.error('[MICROSOFT-AUTH] Email confirmation error:', error);
+      res.status(500).json({ error: 'Email confirmation failed' });
+    }
+  });
+
+  /**
+   * Get Microsoft profile from session
+   * GET /api/auth/microsoft/profile
+   */
+  app.get("/api/auth/microsoft/profile", (req, res) => {
+    if (!req.session.microsoftProfile) {
+      return res.status(404).json({ error: 'No Microsoft profile in session' });
+    }
+    
+    res.json({
+      email: req.session.microsoftProfile.email,
+      name: req.session.microsoftProfile.name,
+    });
   });
 
   /**

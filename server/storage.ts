@@ -98,6 +98,7 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getUsers(): Promise<User[]>;
   createUser(insertUser: InsertUser): Promise<User>;
   updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User>;
@@ -709,6 +710,85 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     } catch (error) {
       console.error(`[STORAGE] Error in getUserByUsername for '${username}':`, error);
+      throw error;
+    }
+  }
+  
+  // @ENVIRONMENT-CRITICAL - User lookup by email
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    try {
+      const usersTableName = getTableName('users');
+      console.log(`[STORAGE] getUserByEmail: Looking up user with email '${email}' in table '${usersTableName}'`);
+      
+      // Try primary table first
+      let result;
+      try {
+        result = await pool.query(`
+          SELECT 
+            id,
+            username,
+            password,
+            email,
+            first_name as "firstName",
+            last_name as "lastName",
+            role,
+            auth_type as "authType",
+            developer_flag as "developerFlag",
+            default_dashboard as "defaultDashboard",
+            theme_preference as "themePreference",
+            created_at as "createdAt",
+            last_login as "lastLogin"
+          FROM ${usersTableName}
+          WHERE LOWER(email) = LOWER($1)
+        `, [email]);
+        
+        if (result.rows.length > 0) {
+          const user = result.rows[0];
+          console.log(`[STORAGE] getUserByEmail: Found user with email '${email}' in PRIMARY table '${usersTableName}' (username: ${user.username}, role: ${user.role})`);
+          return user;
+        }
+      } catch (primaryError) {
+        console.log(`[STORAGE] getUserByEmail: Primary table '${usersTableName}' query failed:`, primaryError.message);
+      }
+      
+      // FALLBACK: Try the alternate table namespace (users ↔ dev_users)
+      const fallbackTable = usersTableName === 'users' ? 'dev_users' : 'users';
+      console.log(`[STORAGE] getUserByEmail: User with email '${email}' not found in '${usersTableName}', trying FALLBACK table '${fallbackTable}'`);
+      
+      try {
+        result = await pool.query(`
+          SELECT 
+            id,
+            username,
+            password,
+            email,
+            first_name as "firstName",
+            last_name as "lastName",
+            role,
+            auth_type as "authType",
+            developer_flag as "developerFlag",
+            default_dashboard as "defaultDashboard",
+            theme_preference as "themePreference",
+            created_at as "createdAt",
+            last_login as "lastLogin"
+          FROM ${fallbackTable}
+          WHERE LOWER(email) = LOWER($1)
+        `, [email]);
+        
+        if (result.rows.length > 0) {
+          const user = result.rows[0];
+          console.log(`[STORAGE] ⚠️  getUserByEmail: Found user with email '${email}' in FALLBACK table '${fallbackTable}' (username: ${user.username}, role: ${user.role}) - ENVIRONMENT MISMATCH DETECTED`);
+          return user;
+        }
+      } catch (fallbackError) {
+        console.log(`[STORAGE] getUserByEmail: Fallback table '${fallbackTable}' query failed:`, fallbackError.message);
+      }
+      
+      console.log(`[STORAGE] getUserByEmail: User with email '${email}' not found in either '${usersTableName}' or '${fallbackTable}'`);
+      return undefined;
+    } catch (error) {
+      console.error(`[STORAGE] Error in getUserByEmail for '${email}':`, error);
       throw error;
     }
   }
