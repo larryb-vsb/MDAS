@@ -522,24 +522,30 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Version info */}
-          <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
-            <span>Version {APP_VERSION}</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center cursor-help">
-                    <Info className="h-3 w-3 ml-1" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="text-xs">
-                    <p>Version: {APP_VERSION}</p>
-                    <p>Build date: {BUILD_DATE}</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <Link href="/about" onClick={() => setOpen(false)}>
+            <div 
+              className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between hover:text-gray-300 transition-colors cursor-pointer"
+              data-testid="link-version-mobile"
+            >
+              <span>Version {APP_VERSION}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-help">
+                      <Info className="h-3 w-3 ml-1" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p>Version: {APP_VERSION}</p>
+                      <p>Build date: {BUILD_DATE}</p>
+                      <p className="text-blue-400 mt-1">Click to view API docs</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </Link>
         </div>
       </SheetContent>
     </Sheet>
@@ -633,24 +639,30 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Version info */}
-          <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
-            <span>Version {APP_VERSION}</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center cursor-help">
-                    <Info className="h-3 w-3 ml-1" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="text-xs">
-                    <p>Version: {APP_VERSION}</p>
-                    <p>Build date: {BUILD_DATE}</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <Link href="/about">
+            <div 
+              className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between hover:text-gray-300 transition-colors cursor-pointer"
+              data-testid="link-version-desktop"
+            >
+              <span>Version {APP_VERSION}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-help">
+                      <Info className="h-3 w-3 ml-1" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p>Version: {APP_VERSION}</p>
+                      <p>Build date: {BUILD_DATE}</p>
+                      <p className="text-blue-400 mt-1">Click to view API docs</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </Link>
         </div>
       </aside>
 
