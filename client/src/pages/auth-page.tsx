@@ -66,27 +66,12 @@ export default function AuthPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('confirm_microsoft_email') === 'true') {
-      // Fetch Microsoft profile from session
-      fetch('/api/auth/microsoft/profile')
-        .then(res => res.json())
-        .then(data => {
-          if (data.email) {
-            setMicrosoftProfile(data);
-            setShowEmailDialog(true);
-            // Remove query parameter
-            window.history.replaceState({}, '', window.location.pathname);
-          }
-        })
-        .catch(err => {
-          console.error('Failed to fetch Microsoft profile:', err);
-          toast({
-            title: "Error",
-            description: "Failed to load Microsoft profile. Please try again.",
-            variant: "destructive",
-          });
-        });
+      // Show email dialog immediately
+      setShowEmailDialog(true);
+      // Remove query parameter
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [toast]);
+  }, []);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -101,16 +86,9 @@ export default function AuthPage() {
   const emailForm = useForm<EmailConfirmValues>({
     resolver: zodResolver(emailConfirmSchema),
     defaultValues: {
-      email: microsoftProfile?.email || "",
+      email: "",
     },
   });
-
-  // Update email form when Microsoft profile loads
-  useEffect(() => {
-    if (microsoftProfile?.email) {
-      emailForm.setValue('email', microsoftProfile.email);
-    }
-  }, [microsoftProfile, emailForm]);
   
   // If user is already logged in, redirect to dashboard
   if (user) {
@@ -357,13 +335,7 @@ export default function AuthPage() {
               Confirm Your Email
             </DialogTitle>
             <DialogDescription>
-              {microsoftProfile ? (
-                <>
-                  Welcome, <strong>{microsoftProfile.name}</strong>! Please confirm your email address to complete the sign-in process.
-                </>
-              ) : (
-                "Please confirm your email address to continue."
-              )}
+              Please enter your email address to complete the Microsoft sign-in process.
             </DialogDescription>
           </DialogHeader>
 
