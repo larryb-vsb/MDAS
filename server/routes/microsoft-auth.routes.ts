@@ -91,21 +91,66 @@ export function registerMicrosoftAuthRoutes(app: Express) {
         return res.redirect('/?error=profile_fetch_failed');
       }
 
-      // Store Microsoft profile in session for email confirmation
-      req.session.microsoftProfile = userProfile;
-      
-      logger.info(`[MICROSOFT-AUTH] Microsoft authentication successful, redirecting to email confirmation`);
-      
-      // Save session before redirect to ensure data persists
-      req.session.save((err) => {
-        if (err) {
-          logger.error('[MICROSOFT-AUTH] Failed to save session:', err);
-          return res.redirect('/?error=session_save_failed');
-        }
+      const email = userProfile.email;
+      logger.info(`[MICROSOFT-AUTH] Microsoft authentication successful for: ${email}`);
+
+      // Check if user exists by email
+      let user = await storage.getUserByEmail(email);
+
+      if (user) {
+        // User exists - log them in
+        logger.info(`[MICROSOFT-AUTH] Found existing user for email ${email} (username: ${user.username})`);
+      } else {
+        // Create new OAuth user
+        logger.info(`[MICROSOFT-AUTH] Creating new OAuth user for: ${email}`);
         
-        logger.info('[MICROSOFT-AUTH] Session saved, redirecting to email confirmation page');
-        // Redirect to email confirmation page
-        res.redirect('/auth/microsoft/confirm-email');
+        try {
+          user = await storage.createUser({
+            username: email,
+            email: email,
+            password: '', // No password for OAuth users
+            authType: 'oauth',
+            role: 'user',
+          });
+          logger.info(`[MICROSOFT-AUTH] ✅ New OAuth user created: ${email}`);
+        } catch (createError) {
+          logger.error('[MICROSOFT-AUTH] Failed to create user:', createError);
+          return res.redirect('/?error=failed_to_create_user');
+        }
+      }
+
+      // Log in the user with passport
+      req.login(user, (err) => {
+        if (err) {
+          logger.error('[MICROSOFT-AUTH] Passport login failed:', err);
+          return res.redirect('/?error=login_failed');
+        }
+
+        logger.info(`[MICROSOFT-AUTH] ✅ User logged in: ${user!.username}`);
+
+        // Save session after login to ensure it persists
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            logger.error('[MICROSOFT-AUTH] Failed to save session after login:', saveErr);
+            return res.redirect('/?error=session_save_failed');
+          }
+
+          // If Duo is enabled, redirect to Duo MFA
+          if (duoMFA.isEnabled()) {
+            // Store Microsoft profile in session for Duo flow
+            req.session.microsoftProfile = {
+              ...userProfile,
+              msftAuthenticated: true,
+              duoAuthenticated: false,
+            };
+            logger.info('[MICROSOFT-AUTH] Duo MFA required, redirecting to /auth/duo');
+            return res.redirect('/auth/duo');
+          }
+
+          // No Duo configured, authentication complete - redirect to dashboard
+          logger.info('[MICROSOFT-AUTH] Authentication complete, redirecting to dashboard');
+          res.redirect('/');
+        });
       });
 
     } catch (error) {
