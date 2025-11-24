@@ -234,22 +234,9 @@ export function registerMicrosoftAuthRoutes(app: Express) {
       return res.redirect('/?error=no_microsoft_session');
     }
 
-    logger.info('[MICROSOFT-AUTH] Microsoft profile found, redirecting to login page with confirmation flag');
-    // Use JavaScript redirect to preserve session cookies
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Confirm Email - MMS</title>
-        <script>
-          window.location.href = '/?confirm_microsoft_email=true';
-        </script>
-      </head>
-      <body>
-        <p>Redirecting to email confirmation...</p>
-      </body>
-      </html>
-    `);
+    logger.info('[MICROSOFT-AUTH] Microsoft profile found, doing direct redirect to login with confirmation flag');
+    // Direct server-side redirect
+    res.redirect('/?confirm_microsoft_email=true');
   });
 
   /**
