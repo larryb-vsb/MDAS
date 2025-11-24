@@ -231,11 +231,6 @@ const navItems = [
     href: "/logs",
     adminOnly: true,
   },
-  {
-    icon: <Settings className="h-5 w-5 text-gray-300" />,
-    label: "Settings",
-    href: "/settings",
-  },
 ];
 
 /*
@@ -467,9 +462,26 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
+        {/* Fixed Settings Link - Mobile */}
+        <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-2">
+          <Link
+            href="/settings"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation",
+              location === "/settings"
+                ? "text-white bg-gray-700 shadow-lg"
+                : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
+            )}
+          >
+            <Settings className="h-5 w-5" />
+            <span>Settings</span>
+          </Link>
+        </div>
+
         {/* Fixed bottom section - Version info for non-logged-in users */}
         {!user && (
-          <div className="flex-shrink-0 pt-4 pb-4 border-t border-gray-700 px-6">
+          <div className="flex-shrink-0 pt-2 pb-4 border-t border-gray-700 px-6">
             <div className="text-gray-400 text-xs flex items-center justify-between">
               <span>Version {APP_VERSION}</span>
               <TooltipProvider>
@@ -493,7 +505,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* Fixed bottom section - Mobile logout */}
         {user && (
-          <div className="flex-shrink-0 pt-4 pb-6 border-t border-gray-700 px-6">
+          <div className="flex-shrink-0 pt-2 pb-6 border-t border-gray-700 px-6">
             <div className="text-gray-300 text-sm mb-2">
               <div className="font-medium">
                 {user.firstName
@@ -583,9 +595,25 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
+        {/* Fixed Settings Link - Above user info */}
+        <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-2">
+          <Link
+            href="/settings"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block",
+              location === "/settings"
+                ? "text-white bg-gray-700 shadow-lg"
+                : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
+            )}
+          >
+            <Settings className="h-5 w-5" />
+            <span>Settings</span>
+          </Link>
+        </div>
+
         {/* Fixed bottom section - Version info for non-logged-in users */}
         {!user && (
-          <div className="flex-shrink-0 pt-4 pb-4 border-t border-gray-700 px-6">
+          <div className="flex-shrink-0 pt-2 pb-4 border-t border-gray-700 px-6">
             <div className="text-gray-400 text-xs flex items-center justify-between">
               <span>Version {APP_VERSION}</span>
               <TooltipProvider>
@@ -609,7 +637,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* Fixed bottom section - User info and logout */}
         {user && (
-          <div className="flex-shrink-0 pt-4 pb-6 border-t border-gray-700 px-6">
+          <div className="flex-shrink-0 pt-2 pb-6 border-t border-gray-700 px-6">
             <div className="text-gray-300 text-sm mb-2">
               <div className="font-medium">
                 {user.firstName
