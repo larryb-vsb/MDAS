@@ -133,6 +133,16 @@ export interface IStorage {
   // Log operations
   getSystemLogs(params: any): Promise<any>;
   getSecurityLogs(params: any): Promise<any>;
+  logSecurityEvent(event: {
+    eventType: string;
+    userId?: number | null;
+    username?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    result: 'success' | 'failure';
+    reason?: string | null;
+    details?: any;
+  }): Promise<void>;
   formatLogsToCSV(logs: any[]): string;
   
   // Orphaned upload recovery
@@ -8068,6 +8078,45 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error getting security logs:', error);
       return { logs: [], pagination: { currentPage: 1, totalPages: 0, totalItems: 0, itemsPerPage: limit } };
+    }
+  }
+
+  async logSecurityEvent(event: {
+    eventType: string;
+    userId?: number | null;
+    username?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    result: 'success' | 'failure';
+    reason?: string | null;
+    details?: any;
+  }): Promise<void> {
+    try {
+      const securityLogsTableName = getTableName('security_logs');
+      
+      await pool.query(`
+        INSERT INTO ${securityLogsTableName} (
+          event_type,
+          user_id,
+          username,
+          ip_address,
+          user_agent,
+          result,
+          reason,
+          details
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        event.eventType,
+        event.userId || null,
+        event.username || null,
+        event.ipAddress || null,
+        event.userAgent || null,
+        event.result,
+        event.reason || null,
+        event.details ? JSON.stringify(event.details) : null
+      ]);
+    } catch (error) {
+      console.error('Error logging security event:', error);
     }
   }
   

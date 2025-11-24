@@ -72,10 +72,10 @@ export default function AuthPage() {
       {/* Mobile header */}
       <div className="lg:hidden bg-gray-900 p-6 text-center border-b border-gray-800">
         <h1 className="text-2xl font-bold text-white mb-2">
-          Merchant Management System
+          Merchant Datawarehouse
         </h1>
         <p className="text-gray-400 text-sm">
-          Merchant Management and Datawarehouse
+          Merchant Processing Datawarehouse
         </p>
       </div>
 
@@ -86,10 +86,10 @@ export default function AuthPage() {
             {/* Desktop header */}
             <div className="hidden lg:block text-center">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Merchant Management System
+                Merchant Datawarehouse
               </h1>
               <p className="text-gray-600 text-sm">
-                Merchant Management and Datawarehouse
+                Merchant Processing Datawarehouse
               </p>
             </div>
           </CardHeader>
@@ -202,11 +202,11 @@ export default function AuthPage() {
 
         <div className="relative z-10 max-w-lg text-white">
           <h2 className="text-4xl font-bold mb-6 leading-tight">
-            Manage Your Merchants with Confidence
+            Merchant Processing Datawarehouse
           </h2>
           <p className="text-lg mb-8 text-blue-100 leading-relaxed">
-            Our comprehensive merchant management system helps you track transactions, 
-            monitor performance, and gain valuable insights to grow your business.
+            Our comprehensive merchant processing datawarehouse system helps you track transactions and  
+            monitor performance.
           </p>
           
           <div className="space-y-4">
@@ -228,7 +228,7 @@ export default function AuthPage() {
               <div className="flex-shrink-0 w-8 h-8 bg-green-400 rounded-full flex items-center justify-center">
                 <Shield className="w-5 h-5 text-green-800" />
               </div>
-              <span className="text-white font-medium">Secure data management and backup tools</span>
+              <span className="text-white font-medium">Secure data</span>
             </div>
           </div>
         </div>

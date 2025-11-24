@@ -4,6 +4,32 @@ import { duoMFA } from "../auth/duo-mfa";
 import { logger } from "../../shared/logger";
 import { storage } from "../storage";
 
+// Helper function to get real client IP address
+function getRealClientIP(req: any): string {
+  if (req.headers['x-replit-user-ip']) {
+    return req.headers['x-replit-user-ip'];
+  }
+  if (req.headers['x-forwarded-for']) {
+    const forwarded = req.headers['x-forwarded-for'].split(',')[0].trim();
+    if (forwarded && forwarded !== '127.0.0.1' && forwarded !== '::1') {
+      return forwarded;
+    }
+  }
+  if (req.headers['x-real-ip']) {
+    const realIP = req.headers['x-real-ip'].trim();
+    if (realIP && realIP !== '127.0.0.1' && realIP !== '::1') {
+      return realIP;
+    }
+  }
+  if (req.headers['cf-connecting-ip']) {
+    return req.headers['cf-connecting-ip'];
+  }
+  if (req.ip && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+    return req.ip;
+  }
+  return '127.0.0.1';
+}
+
 /**
  * Microsoft OAuth + Duo MFA Authentication Routes
  * 
@@ -105,6 +131,29 @@ export function registerMicrosoftAuthRoutes(app: Express) {
         if (user.authType === 'local') {
           logger.info(`[MICROSOFT-AUTH] Converting user ${email} from 'local' to 'hybrid' auth type`);
           await storage.updateUserAuthType(user.id, 'hybrid');
+          
+          // Log hybrid auth type conversion to security logs
+          const ipAddress = getRealClientIP(req);
+          const userAgent = req.headers['user-agent'] || 'Unknown';
+          try {
+            await storage.logSecurityEvent({
+              eventType: 'auth_type_upgraded',
+              userId: user.id,
+              username: user.username,
+              ipAddress: ipAddress,
+              userAgent: userAgent,
+              result: 'success',
+              reason: 'User authenticated with OAuth after using local auth',
+              details: { 
+                authMethod: 'oauth',
+                previousAuthType: 'local',
+                newAuthType: 'hybrid'
+              }
+            });
+          } catch (logError) {
+            logger.error(`[MICROSOFT-AUTH] Failed to log auth type upgrade:`, logError);
+          }
+          
           // Re-fetch user to get updated auth_type for session
           const updatedUser = await storage.getUserByEmail(email);
           if (!updatedUser) {
@@ -135,6 +184,28 @@ export function registerMicrosoftAuthRoutes(app: Express) {
       // Track successful OAuth login
       await storage.updateSuccessfulLogin(user.id, 'oauth');
       logger.info(`[MICROSOFT-AUTH] ✅ Successful OAuth login tracked for user: ${user.username}`);
+      
+      // Log successful OAuth login to security logs
+      const ipAddress = getRealClientIP(req);
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      try {
+        await storage.logSecurityEvent({
+          eventType: 'login_success',
+          userId: user.id,
+          username: user.username,
+          ipAddress: ipAddress,
+          userAgent: userAgent,
+          result: 'success',
+          reason: null,
+          details: { 
+            authMethod: 'oauth',
+            provider: 'Microsoft',
+            email: email
+          }
+        });
+      } catch (logError) {
+        logger.error(`[MICROSOFT-AUTH] Failed to log successful OAuth login:`, logError);
+      }
 
       // Log in the user with passport
       req.login(user, (err) => {

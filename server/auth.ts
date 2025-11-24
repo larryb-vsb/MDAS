@@ -122,14 +122,33 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({ passReqToCallback: true }, async (req, username, password, done) => {
       try {
-        console.log(`[AUTH] Login attempt for username: ${username}`);
+        const ipAddress = getRealClientIP(req);
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        
+        console.log(`[AUTH] Login attempt for username: ${username} from IP: ${ipAddress}`);
         let user = await storage.getUserByUsername(username);
         
         if (!user) {
           console.log(`[AUTH] ❌ User not found: ${username}`);
-          // Note: Can't track failed login without user ID when user doesn't exist
+          
+          // Log failed login attempt for non-existent user
+          try {
+            await storage.logSecurityEvent({
+              eventType: 'login_failed',
+              userId: null,
+              username: username,
+              ipAddress: ipAddress,
+              userAgent: userAgent,
+              result: 'failure',
+              reason: 'User not found',
+              details: { authMethod: 'local', attemptedUsername: username }
+            });
+          } catch (logError) {
+            console.error(`[AUTH] ⚠️ Failed to log security event:`, logError);
+          }
+          
           return done(null, false, { message: "Invalid username or password" });
         }
         
@@ -139,12 +158,26 @@ export function setupAuth(app: Express) {
         
         if (!passwordMatch) {
           console.log(`[AUTH] ❌ Invalid password for user: ${username}`);
+          
           // Track failed login attempt (non-blocking - login continues if this fails)
           try {
             await storage.updateFailedLogin(user.id, 'local', 'Invalid password');
+            
+            // Log to security logs
+            await storage.logSecurityEvent({
+              eventType: 'login_failed',
+              userId: user.id,
+              username: user.username,
+              ipAddress: ipAddress,
+              userAgent: userAgent,
+              result: 'failure',
+              reason: 'Invalid password',
+              details: { authMethod: 'local' }
+            });
           } catch (failedLoginError) {
             console.error(`[AUTH] ⚠️ Failed to track failed login for ${username}:`, failedLoginError);
           }
+          
           return done(null, false, { message: "Invalid username or password" });
         }
         
