@@ -426,114 +426,116 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white">
-        <ScrollArea className="h-full py-6">
-          <div className="flex flex-col gap-6 px-4">
-            <div className="flex h-12 items-center gap-2 px-4">
-              <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
-            </div>
-            <nav className="flex flex-col gap-1">
-              {filteredNavItems.map((item, index) => (
-                <NavItem
-                  key={index}
-                  icon={item.icon}
-                  label={item.label}
-                  href={item.href}
-                  isActive={
-                    item.href
-                      ? location === item.href ||
-                        (item.href !== "/" &&
-                          location.startsWith(item.href + "/"))
-                      : false
-                  }
-                  onClick={() => {
-                    logger.navigation("Mobile nav item clicked:", item.label);
-                    // Close the sheet immediately for navigation
-                    setOpen(false);
-                  }}
-                  submenu={item.submenu}
-                  isExpanded={
-                    item.label === "Legacy" ? legacyExpanded : undefined
-                  }
-                  onToggle={
-                    item.label === "Legacy"
-                      ? () => setLegacyExpanded(!legacyExpanded)
-                      : undefined
-                  }
-                />
-              ))}
+      <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white flex flex-col">
+        {/* Header section */}
+        <div className="flex h-12 items-center gap-2 px-6 py-6 flex-shrink-0">
+          <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
+        </div>
 
-              {/* Mobile version info for non-logged-in users */}
-              {!user && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <div className="text-gray-400 text-xs flex items-center justify-between px-4">
-                    <span>Version {APP_VERSION}</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center cursor-help">
-                            <Info className="h-3 w-3 ml-1" />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-xs">
-                            <p>Version: {APP_VERSION}</p>
-                            <p>Build date: {BUILD_DATE}</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </div>
-              )}
-
-              {/* Mobile logout */}
-              {user && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <div className="text-gray-300 text-sm mb-2 px-4">
-                    <div className="font-medium">
-                      {user.firstName
-                        ? `${user.firstName} ${user.lastName || ""}`
-                        : user.username}
-                    </div>
-                    <div className="text-gray-400 text-xs">{user.email}</div>
-                  </div>
-                  <div
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700 min-h-[44px] touch-manipulation"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleLogout();
-                      setOpen(false);
-                    }}
-                  >
-                    <LogOut className="h-5 w-5 text-gray-300" />
-                    <span>Logout</span>
-                  </div>
-
-                  {/* Version info for mobile */}
-                  <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between px-4">
-                    <span>Version {APP_VERSION}</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center cursor-help">
-                            <Info className="h-3 w-3 ml-1" />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-xs">
-                            <p>Version: {APP_VERSION}</p>
-                            <p>Build date: {BUILD_DATE}</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </div>
-              )}
-            </nav>
-          </div>
+        {/* Scrollable navigation section */}
+        <ScrollArea className="flex-1 px-4">
+          <nav className="flex flex-col gap-1 pb-4">
+            {filteredNavItems.map((item, index) => (
+              <NavItem
+                key={index}
+                icon={item.icon}
+                label={item.label}
+                href={item.href}
+                isActive={
+                  item.href
+                    ? location === item.href ||
+                      (item.href !== "/" &&
+                        location.startsWith(item.href + "/"))
+                    : false
+                }
+                onClick={() => {
+                  logger.navigation("Mobile nav item clicked:", item.label);
+                  // Close the sheet immediately for navigation
+                  setOpen(false);
+                }}
+                submenu={item.submenu}
+                isExpanded={
+                  item.label === "Legacy" ? legacyExpanded : undefined
+                }
+                onToggle={
+                  item.label === "Legacy"
+                    ? () => setLegacyExpanded(!legacyExpanded)
+                    : undefined
+                }
+              />
+            ))}
+          </nav>
         </ScrollArea>
+
+        {/* Fixed bottom section - Version info for non-logged-in users */}
+        {!user && (
+          <div className="flex-shrink-0 pt-4 pb-4 border-t border-gray-700 px-6">
+            <div className="text-gray-400 text-xs flex items-center justify-between">
+              <span>Version {APP_VERSION}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-help">
+                      <Info className="h-3 w-3 ml-1" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p>Version: {APP_VERSION}</p>
+                      <p>Build date: {BUILD_DATE}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+        )}
+
+        {/* Fixed bottom section - Mobile logout */}
+        {user && (
+          <div className="flex-shrink-0 pt-4 pb-6 border-t border-gray-700 px-6">
+            <div className="text-gray-300 text-sm mb-2">
+              <div className="font-medium">
+                {user.firstName
+                  ? `${user.firstName} ${user.lastName || ""}`
+                  : user.username}
+              </div>
+              <div className="text-gray-400 text-xs">{user.email}</div>
+            </div>
+            <div
+              className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700 min-h-[44px] touch-manipulation"
+              onClick={(e) => {
+                e.preventDefault();
+                handleLogout();
+                setOpen(false);
+              }}
+              data-testid="button-logout-mobile"
+            >
+              <LogOut className="h-5 w-5 text-gray-300" />
+              <span>Logout</span>
+            </div>
+
+            {/* Version info for mobile */}
+            <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
+              <span>Version {APP_VERSION}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-help">
+                      <Info className="h-3 w-3 ml-1" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p>Version: {APP_VERSION}</p>
+                      <p>Build date: {BUILD_DATE}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
@@ -541,12 +543,15 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 flex-col md:flex border-r bg-gray-800 px-4 py-6 relative z-50">
-        <div className="flex h-12 items-center px-4 mb-6">
+      <aside className="hidden w-64 flex-col md:flex border-r bg-gray-800 relative z-50">
+        {/* Header section */}
+        <div className="flex h-12 items-center px-6 py-6 mb-4">
           <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
         </div>
-        <ScrollArea className="flex-1">
-          <nav className="flex flex-col gap-1 px-2">
+
+        {/* Scrollable navigation section */}
+        <ScrollArea className="flex-1 px-4">
+          <nav className="flex flex-col gap-1 px-2 pb-4">
             {filteredNavItems.map((item, index) => (
               <NavItem
                 key={index}
@@ -578,9 +583,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
-        {/* Version info for non-logged-in users */}
+        {/* Fixed bottom section - Version info for non-logged-in users */}
         {!user && (
-          <div className="mt-auto pt-4 border-t border-gray-700 px-4">
+          <div className="flex-shrink-0 pt-4 pb-4 border-t border-gray-700 px-6">
             <div className="text-gray-400 text-xs flex items-center justify-between">
               <span>Version {APP_VERSION}</span>
               <TooltipProvider>
@@ -602,9 +607,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* User info and logout */}
+        {/* Fixed bottom section - User info and logout */}
         {user && (
-          <div className="mt-auto pt-4 border-t border-gray-700 px-4">
+          <div className="flex-shrink-0 pt-4 pb-6 border-t border-gray-700 px-6">
             <div className="text-gray-300 text-sm mb-2">
               <div className="font-medium">
                 {user.firstName
@@ -618,6 +623,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
               className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-700"
               onClick={handleLogout}
               disabled={logoutMutation.isPending}
+              data-testid="button-logout"
             >
               {logoutMutation.isPending ? (
                 <>
