@@ -122,6 +122,30 @@ export class MemStorageFallback implements IStorage {
     }
   }
 
+  async updateUserAuthType(userId: number, authType: 'local' | 'oauth' | 'hybrid'): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      this.users[userIndex].authType = authType;
+    }
+  }
+
+  async updateSuccessfulLogin(userId: number, loginType: 'local' | 'oauth'): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      this.users[userIndex].lastLogin = new Date();
+      this.users[userIndex].lastLoginType = loginType;
+    }
+  }
+
+  async updateFailedLogin(userId: number, loginType: 'local' | 'oauth', reason: string): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      this.users[userIndex].lastFailedLogin = new Date();
+      this.users[userIndex].lastFailedLoginType = loginType;
+      this.users[userIndex].lastFailedLoginReason = reason;
+    }
+  }
+
   async updateUserPassword(userId: number, newPassword: string): Promise<void> {
     const userIndex = this.users.findIndex(u => u.id === userId);
     if (userIndex === -1) {

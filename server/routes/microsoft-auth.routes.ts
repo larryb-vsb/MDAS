@@ -98,8 +98,21 @@ export function registerMicrosoftAuthRoutes(app: Express) {
       let user = await storage.getUserByEmail(email);
 
       if (user) {
-        // User exists - log them in
-        logger.info(`[MICROSOFT-AUTH] Found existing user for email ${email} (username: ${user.username})`);
+        // User exists - check for hybrid auth type
+        logger.info(`[MICROSOFT-AUTH] Found existing user for email ${email} (username: ${user.username}, auth_type: ${user.authType})`);
+        
+        // Detect hybrid authentication: if user has 'local' auth type, upgrade to 'hybrid'
+        if (user.authType === 'local') {
+          logger.info(`[MICROSOFT-AUTH] Converting user ${email} from 'local' to 'hybrid' auth type`);
+          await storage.updateUserAuthType(user.id, 'hybrid');
+          // Re-fetch user to get updated auth_type for session
+          const updatedUser = await storage.getUserByEmail(email);
+          if (!updatedUser) {
+            logger.error(`[MICROSOFT-AUTH] Failed to re-fetch user after auth_type update`);
+            return res.redirect('/?error=user_refetch_failed');
+          }
+          user = updatedUser;
+        }
       } else {
         // Create new OAuth user
         logger.info(`[MICROSOFT-AUTH] Creating new OAuth user for: ${email}`);
@@ -118,6 +131,10 @@ export function registerMicrosoftAuthRoutes(app: Express) {
           return res.redirect('/?error=failed_to_create_user');
         }
       }
+
+      // Track successful OAuth login
+      await storage.updateSuccessfulLogin(user.id, 'oauth');
+      logger.info(`[MICROSOFT-AUTH] ✅ Successful OAuth login tracked for user: ${user.username}`);
 
       // Log in the user with passport
       req.login(user, (err) => {

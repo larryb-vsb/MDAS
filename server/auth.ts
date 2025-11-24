@@ -125,21 +125,38 @@ export function setupAuth(app: Express) {
     new LocalStrategy(async (username, password, done) => {
       try {
         console.log(`[AUTH] Login attempt for username: ${username}`);
-        const user = await storage.getUserByUsername(username);
+        let user = await storage.getUserByUsername(username);
         
         if (!user) {
           console.log(`[AUTH] ❌ User not found: ${username}`);
+          // Note: Can't track failed login without user ID when user doesn't exist
           return done(null, false, { message: "Invalid username or password" });
         }
         
-        console.log(`[AUTH] ✅ Found user: ${username}, role: ${user.role}, checking password...`);
+        console.log(`[AUTH] ✅ Found user: ${username}, role: ${user.role}, auth_type: ${user.authType}, checking password...`);
         const passwordMatch = await comparePasswords(password, user.password);
         console.log(`[AUTH] Password validation result for ${username}: ${passwordMatch ? '✅ SUCCESS' : '❌ FAILED'}`);
         
         if (!passwordMatch) {
           console.log(`[AUTH] ❌ Invalid password for user: ${username}`);
-          console.log(`[AUTH] ❌ Password comparison: supplied vs stored hash check failed`);
+          // Track failed login attempt (non-blocking - login continues if this fails)
+          try {
+            await storage.updateFailedLogin(user.id, 'local', 'Invalid password');
+          } catch (failedLoginError) {
+            console.error(`[AUTH] ⚠️ Failed to track failed login for ${username}:`, failedLoginError);
+          }
           return done(null, false, { message: "Invalid username or password" });
+        }
+        
+        // Detect hybrid authentication: if user has 'oauth' auth type, upgrade to 'hybrid'
+        if (user.authType === 'oauth') {
+          console.log(`[AUTH] Converting user ${username} from 'oauth' to 'hybrid' auth type`);
+          await storage.updateUserAuthType(user.id, 'hybrid');
+          // Re-fetch user to get updated auth_type for session
+          const updatedUser = await storage.getUser(user.id);
+          if (updatedUser) {
+            user = updatedUser;
+          }
         }
         
         console.log(`[AUTH] ✅ Login successful for user: ${username}`);
@@ -242,13 +259,14 @@ export function setupAuth(app: Express) {
           // Continue even if logging fails
         }
         
-        // Update last login time and track session start
+        // Track successful local login and session start
         try {
-          await storage.updateUserLastLogin(user.id);
+          await storage.updateSuccessfulLogin(user.id, 'local');
+          console.log(`[AUTH] ✅ Successful local login tracked for user: ${user.username}`);
           // Store login time in session for duration tracking
           req.session.loginTime = new Date().toISOString();
         } catch (error) {
-          console.error("Error updating last login time:", error);
+          console.error("Error updating login tracking:", error);
           // Continue even if this fails
         }
         

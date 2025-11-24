@@ -631,7 +631,11 @@ export class DatabaseStorage implements IStorage {
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
         created_at as "createdAt",
-        last_login as "lastLogin"
+        last_login as "lastLogin",
+        last_login_type as "lastLoginType",
+        last_failed_login as "lastFailedLogin",
+        last_failed_login_type as "lastFailedLoginType",
+        last_failed_login_reason as "lastFailedLoginReason"
       FROM ${usersTableName} 
       WHERE id = $1
     `, [id]);
@@ -662,7 +666,11 @@ export class DatabaseStorage implements IStorage {
             default_dashboard as "defaultDashboard",
             theme_preference as "themePreference",
             created_at as "createdAt",
-            last_login as "lastLogin"
+            last_login as "lastLogin",
+            last_login_type as "lastLoginType",
+            last_failed_login as "lastFailedLogin",
+            last_failed_login_type as "lastFailedLoginType",
+            last_failed_login_reason as "lastFailedLoginReason"
           FROM ${usersTableName}
           WHERE LOWER(username) = LOWER($1)
         `, [username]);
@@ -695,7 +703,11 @@ export class DatabaseStorage implements IStorage {
             default_dashboard as "defaultDashboard",
             theme_preference as "themePreference",
             created_at as "createdAt",
-            last_login as "lastLogin"
+            last_login as "lastLogin",
+            last_login_type as "lastLoginType",
+            last_failed_login as "lastFailedLogin",
+            last_failed_login_type as "lastFailedLoginType",
+            last_failed_login_reason as "lastFailedLoginReason"
           FROM ${fallbackTable}
           WHERE LOWER(username) = LOWER($1)
         `, [username]);
@@ -741,7 +753,11 @@ export class DatabaseStorage implements IStorage {
             default_dashboard as "defaultDashboard",
             theme_preference as "themePreference",
             created_at as "createdAt",
-            last_login as "lastLogin"
+            last_login as "lastLogin",
+            last_login_type as "lastLoginType",
+            last_failed_login as "lastFailedLogin",
+            last_failed_login_type as "lastFailedLoginType",
+            last_failed_login_reason as "lastFailedLoginReason"
           FROM ${usersTableName}
           WHERE LOWER(email) = LOWER($1)
         `, [email]);
@@ -774,7 +790,11 @@ export class DatabaseStorage implements IStorage {
             default_dashboard as "defaultDashboard",
             theme_preference as "themePreference",
             created_at as "createdAt",
-            last_login as "lastLogin"
+            last_login as "lastLogin",
+            last_login_type as "lastLoginType",
+            last_failed_login as "lastFailedLogin",
+            last_failed_login_type as "lastFailedLoginType",
+            last_failed_login_reason as "lastFailedLoginReason"
           FROM ${fallbackTable}
           WHERE LOWER(email) = LOWER($1)
         `, [email]);
@@ -846,7 +866,11 @@ export class DatabaseStorage implements IStorage {
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
         created_at as "createdAt",
-        last_login as "lastLogin"
+        last_login as "lastLogin",
+        last_login_type as "lastLoginType",
+        last_failed_login as "lastFailedLogin",
+        last_failed_login_type as "lastFailedLoginType",
+        last_failed_login_reason as "lastFailedLoginReason"
     `, values);
     
     return result.rows[0];
@@ -859,6 +883,36 @@ export class DatabaseStorage implements IStorage {
     await pool.query(
       `UPDATE ${usersTableName} SET last_login = NOW() WHERE id = $1`,
       [userId]
+    );
+  }
+  
+  // @ENVIRONMENT-CRITICAL - Update user auth type (local, oauth, hybrid)
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async updateUserAuthType(userId: number, authType: 'local' | 'oauth' | 'hybrid'): Promise<void> {
+    const usersTableName = getTableName('users');
+    await pool.query(
+      `UPDATE ${usersTableName} SET auth_type = $1 WHERE id = $2`,
+      [authType, userId]
+    );
+  }
+  
+  // @ENVIRONMENT-CRITICAL - Track successful login with auth type
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async updateSuccessfulLogin(userId: number, loginType: 'local' | 'oauth'): Promise<void> {
+    const usersTableName = getTableName('users');
+    await pool.query(
+      `UPDATE ${usersTableName} SET last_login = NOW(), last_login_type = $1 WHERE id = $2`,
+      [loginType, userId]
+    );
+  }
+  
+  // @ENVIRONMENT-CRITICAL - Track failed login with auth type and reason
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async updateFailedLogin(userId: number, loginType: 'local' | 'oauth', reason: string): Promise<void> {
+    const usersTableName = getTableName('users');
+    await pool.query(
+      `UPDATE ${usersTableName} SET last_failed_login = NOW(), last_failed_login_type = $1, last_failed_login_reason = $2 WHERE id = $3`,
+      [loginType, reason, userId]
     );
   }
   
@@ -880,7 +934,11 @@ export class DatabaseStorage implements IStorage {
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
         created_at as "createdAt",
-        last_login as "lastLogin"
+        last_login as "lastLogin",
+        last_login_type as "lastLoginType",
+        last_failed_login as "lastFailedLogin",
+        last_failed_login_type as "lastFailedLoginType",
+        last_failed_login_reason as "lastFailedLoginReason"
       FROM ${usersTableName} 
       ORDER BY username
     `);
@@ -893,6 +951,7 @@ export class DatabaseStorage implements IStorage {
     const usersTableName = getTableName('users');
     
     // Build dynamic SET clause based on provided userData
+    // IMPORTANT: auth_type is excluded from updates - use updateUserAuthType() instead
     const updates = [];
     const values = [];
     let paramIndex = 1;
@@ -917,10 +976,7 @@ export class DatabaseStorage implements IStorage {
       updates.push(`role = $${paramIndex++}`);
       values.push(userData.role);
     }
-    if (userData.authType !== undefined) {
-      updates.push(`auth_type = $${paramIndex++}`);
-      values.push(userData.authType);
-    }
+    // auth_type is intentionally excluded - use updateUserAuthType() instead
     if (userData.defaultDashboard !== undefined) {
       updates.push(`default_dashboard = $${paramIndex++}`);
       values.push(userData.defaultDashboard);
@@ -950,7 +1006,11 @@ export class DatabaseStorage implements IStorage {
         default_dashboard as "defaultDashboard",
         theme_preference as "themePreference",
         created_at as "createdAt",
-        last_login as "lastLogin"
+        last_login as "lastLogin",
+        last_login_type as "lastLoginType",
+        last_failed_login as "lastFailedLogin",
+        last_failed_login_type as "lastFailedLoginType",
+        last_failed_login_reason as "lastFailedLoginReason"
     `, values);
     
     return result.rows[0];

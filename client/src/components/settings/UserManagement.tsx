@@ -54,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -77,6 +78,10 @@ type User = {
   themePreference: string;
   createdAt: string;
   lastLogin: string | null;
+  lastLoginType: string | null;
+  lastFailedLogin: string | null;
+  lastFailedLoginType: string | null;
+  lastFailedLoginReason: string | null;
 };
 
 // Schema for creating a new user
@@ -431,6 +436,39 @@ export default function UserManagement() {
     return format(new Date(dateString), "PPP p");
   };
 
+  // Format login status in "Status:Type:DateTime" format
+  const formatLoginStatus = (user: User) => {
+    // Determine which login to display (most recent between success and failed)
+    const lastSuccessTime = user.lastLogin ? new Date(user.lastLogin).getTime() : 0;
+    const lastFailedTime = user.lastFailedLogin ? new Date(user.lastFailedLogin).getTime() : 0;
+
+    if (lastSuccessTime === 0 && lastFailedTime === 0) {
+      return { display: "Never", tooltip: null, isSuccess: null };
+    }
+
+    const isSuccess = lastSuccessTime >= lastFailedTime;
+    
+    if (isSuccess && user.lastLogin) {
+      const dateTime = format(new Date(user.lastLogin), "MMM d, yyyy h:mm a");
+      const loginType = user.lastLoginType ? user.lastLoginType.charAt(0).toUpperCase() + user.lastLoginType.slice(1) : "Unknown";
+      return {
+        display: `Success:${loginType}:${dateTime}`,
+        tooltip: "Success",
+        isSuccess: true
+      };
+    } else if (!isSuccess && user.lastFailedLogin) {
+      const dateTime = format(new Date(user.lastFailedLogin), "MMM d, yyyy h:mm a");
+      const loginType = user.lastFailedLoginType ? user.lastFailedLoginType.charAt(0).toUpperCase() + user.lastFailedLoginType.slice(1) : "Unknown";
+      return {
+        display: `Failed:${loginType}:${dateTime}`,
+        tooltip: user.lastFailedLoginReason || "Unknown reason",
+        isSuccess: false
+      };
+    }
+
+    return { display: "Never", tooltip: null, isSuccess: null };
+  };
+
   // If user is not an admin, show a message
   if (currentUser?.role !== "admin") {
     return (
@@ -543,8 +581,19 @@ export default function UserManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.authType === "oauth" ? "outline" : "secondary"}>
-                        {user.authType === "oauth" ? "OAuth" : "Local"}
+                      <Badge 
+                        variant={
+                          user.authType === "oauth" ? "outline" : 
+                          user.authType === "hybrid" ? "default" : 
+                          "secondary"
+                        }
+                        className={
+                          user.authType === "hybrid" ? "bg-purple-600 text-white hover:bg-purple-700" : ""
+                        }
+                      >
+                        {user.authType === "oauth" ? "OAuth" : 
+                         user.authType === "hybrid" ? "Hybrid" : 
+                         "Local"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -617,7 +666,28 @@ export default function UserManagement() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
-                    <TableCell>{formatDate(user.lastLogin)}</TableCell>
+                    <TableCell>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger className="cursor-help">
+                            <span className={
+                              formatLoginStatus(user).isSuccess === true 
+                                ? "text-green-600 dark:text-green-400" 
+                                : formatLoginStatus(user).isSuccess === false 
+                                ? "text-red-600 dark:text-red-400" 
+                                : ""
+                            }>
+                              {formatLoginStatus(user).display}
+                            </span>
+                          </TooltipTrigger>
+                          {formatLoginStatus(user).tooltip && (
+                            <TooltipContent>
+                              {formatLoginStatus(user).tooltip}
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
                         <Button
