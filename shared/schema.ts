@@ -1138,7 +1138,7 @@ export const users = pgTable(getTableName("users"), {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  authType: text("auth_type").default("local").notNull(), // "local" or "oauth"
+  authType: text("auth_type").default("local").notNull(), // "local", "oauth", or "hybrid"
   email: text("email"),
   firstName: text("first_name"),
   lastName: text("last_name"),
@@ -1147,7 +1147,11 @@ export const users = pgTable(getTableName("users"), {
   defaultDashboard: text("default_dashboard").default("main").notNull(), // "main" or "monthly"
   themePreference: text("theme_preference").default("light").notNull(), // "light" or "dark"
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastLogin: timestamp("last_login")
+  lastLogin: timestamp("last_login"),
+  lastLoginType: text("last_login_type"), // "local" or "oauth" - tracks successful login method
+  lastFailedLogin: timestamp("last_failed_login"), // Timestamp of last failed login attempt
+  lastFailedLoginType: text("last_failed_login_type"), // "local" or "oauth" - tracks failed login method
+  lastFailedLoginReason: text("last_failed_login_reason"), // Reason for last failed login
 });
 
 // API Users table for TDDF uploader client keys
@@ -1232,7 +1236,15 @@ export const hostApprovals = pgTable(getTableName("host_approvals"), {
 
 // Zod schemas for users
 export const usersSchema = createInsertSchema(users);
-export const insertUserSchema = usersSchema.omit({ id: true, createdAt: true, lastLogin: true });
+export const insertUserSchema = usersSchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  lastLogin: true,
+  lastLoginType: true,
+  lastFailedLogin: true,
+  lastFailedLoginType: true,
+  lastFailedLoginReason: true
+});
 
 // Extended user schema with validation
 export const userValidationSchema = insertUserSchema.extend({

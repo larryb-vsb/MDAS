@@ -103,6 +103,9 @@ export interface IStorage {
   createUser(insertUser: InsertUser): Promise<User>;
   updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User>;
   updateUserLastLogin(userId: number): Promise<void>;
+  updateUserAuthType(userId: number, authType: 'local' | 'oauth' | 'hybrid'): Promise<void>;
+  updateSuccessfulLogin(userId: number, loginType: 'local' | 'oauth'): Promise<void>;
+  updateFailedLogin(userId: number, loginType: 'local' | 'oauth', reason: string): Promise<void>;
   updateUserPassword(userId: number, newPassword: string): Promise<void>;
   deleteUser(userId: number): Promise<void>;
   hashPassword(password: string): Promise<string>;
