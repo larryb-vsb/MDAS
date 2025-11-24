@@ -234,9 +234,9 @@ export function registerMicrosoftAuthRoutes(app: Express) {
       return res.redirect('/?error=no_microsoft_session');
     }
 
-    logger.info('[MICROSOFT-AUTH] Microsoft profile found, doing direct redirect to login with confirmation flag');
-    // Direct server-side redirect
-    res.redirect('/?confirm_microsoft_email=true');
+    logger.info('[MICROSOFT-AUTH] Microsoft profile found, doing direct redirect to auth page with confirmation flag');
+    // Direct server-side redirect to auth page (not home, which redirects unauthenticated users and strips query params)
+    res.redirect('/auth?confirm_microsoft_email=true');
   });
 
   /**
