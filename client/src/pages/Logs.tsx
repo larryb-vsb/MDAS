@@ -13,9 +13,34 @@ import { Badge } from "@/components/ui/badge";
 import { FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { 
   Search, Download, AlertCircle, ShieldAlert, DatabaseIcon, 
-  RefreshCw, Filter, Clock, UserIcon, FileSpreadsheet 
+  RefreshCw, Filter, Clock, UserIcon, FileSpreadsheet, 
+  CheckCircle, XCircle, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { format } from "date-fns";
+
+// Helper function to describe security events in a user-friendly way
+function describeSecurityEvent(log: any): string {
+  const eventType = log.eventType || log.action?.split(':')?.[0] || '';
+  const result = log.result || 'unknown';
+  const reason = log.reason || '';
+  
+  const descriptions: Record<string, string> = {
+    'login_success': 'User signed in successfully',
+    'login_failed': reason ? `Login failed: ${reason}` : 'Login attempt failed',
+    'auth_type_upgraded': 'Authentication type upgraded to hybrid',
+    'logout': 'User signed out',
+    'login': result === 'success' ? 'User signed in successfully' : 'Login attempt failed',
+    'password_reset': 'Password reset requested',
+    'password_changed': 'Password changed successfully',
+    'account_locked': 'Account locked due to multiple failed attempts',
+    'account_unlocked': 'Account unlocked by administrator',
+    'session_expired': 'User session expired',
+    'access_denied': reason || 'Access denied',
+    'permission_changed': 'User permissions modified'
+  };
+  
+  return descriptions[eventType] || log.notes || eventType || 'Security event';
+}
 
 type LogType = "all" | "audit" | "system" | "security" | "application";
 
@@ -58,6 +83,10 @@ export default function Logs() {
   const [sortBy, setSortBy] = useState("timestamp");
   const [sortOrder, setSortOrder] = useState("desc");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // Sorting state for Security Events tab
+  const [securitySortKey, setSecuritySortKey] = useState<'timestamp' | 'username' | 'action' | 'details' | 'ipAddress'>('timestamp');
+  const [securitySortDirection, setSecuritySortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Create query parameters
   const createQueryParams = (logType: LogType): LogsPageParams => {
@@ -125,7 +154,11 @@ export default function Logs() {
           username: log.username || "anonymous",
           action: `${log.eventType}:${log.action || "access"}`,
           notes: log.notes || "",
-          ipAddress: log.ipAddress || undefined
+          ipAddress: log.ipAddress || undefined,
+          eventType: log.eventType,
+          result: log.result,
+          reason: log.reason,
+          details: log.details  // Preserve structured metadata for rendering
         };
       }
       // Use audit logs as is - but ensure consistent format
@@ -154,6 +187,43 @@ export default function Logs() {
       ipAddress: log.ipAddress,
       logType: log.logType || 'audit'
     }));
+  }
+  
+  // Apply client-side sorting for Security Events tab
+  if (activeTab === "security" && logs.length > 0) {
+    logs.sort((a: any, b: any) => {
+      let aValue, bValue;
+      
+      switch (securitySortKey) {
+        case 'timestamp':
+          aValue = new Date(a.timestamp).getTime();
+          bValue = new Date(b.timestamp).getTime();
+          break;
+        case 'username':
+          aValue = a.username?.toLowerCase() || '';
+          bValue = b.username?.toLowerCase() || '';
+          break;
+        case 'action':
+          aValue = a.eventType || a.action?.split(':')?.[0] || '';
+          bValue = b.eventType || b.action?.split(':')?.[0] || '';
+          break;
+        case 'details':
+          aValue = describeSecurityEvent(a).toLowerCase();
+          bValue = describeSecurityEvent(b).toLowerCase();
+          break;
+        case 'ipAddress':
+          aValue = a.ipAddress || '';
+          bValue = b.ipAddress || '';
+          break;
+        default:
+          aValue = 0;
+          bValue = 0;
+      }
+      
+      if (aValue < bValue) return securitySortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return securitySortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
   }
   
   const pagination = data?.pagination || { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 10 };
@@ -185,6 +255,16 @@ export default function Logs() {
     });
   };
 
+  // Handle sorting for Security Events tab
+  const handleSecuritySort = (key: typeof securitySortKey) => {
+    if (key === securitySortKey) {
+      setSecuritySortDirection(securitySortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSecuritySortKey(key);
+      setSecuritySortDirection('desc');
+    }
+  };
+
   const getLogIcon = (log: LogEntry) => {
     if (activeTab === "audit") {
       switch (log.action) {
@@ -199,6 +279,38 @@ export default function Logs() {
       }
     } else if (activeTab === "system") {
       return <DatabaseIcon className="w-4 h-4 text-yellow-600" />;
+    } else if (activeTab === "security") {
+      // Show status badge for security events
+      const logData = log as any;
+      const result = (logData.result || '').toLowerCase();
+      const eventType = logData.eventType || logData.action?.split(':')?.[0] || '';
+      
+      // List of event types that are considered successful
+      const successEventTypes = [
+        'login_success', 'logout', 'auth_type_upgraded', 
+        'password_changed', 'account_unlocked', 'permission_changed'
+      ];
+      
+      // Determine if this is a successful event
+      const isSuccess = result === 'success' || 
+                       successEventTypes.includes(eventType) ||
+                       logData.action?.includes('success');
+      
+      if (isSuccess) {
+        return (
+          <Badge className="bg-green-100 text-green-800 flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" />
+            <span>Success</span>
+          </Badge>
+        );
+      } else {
+        return (
+          <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+            <XCircle className="w-3 h-3" />
+            <span>Failed</span>
+          </Badge>
+        );
+      }
     } else {
       return <ShieldAlert className="w-4 h-4 text-red-600" />;
     }
@@ -461,21 +573,90 @@ export default function Logs() {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-slate-50">
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Timestamp</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">User</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
-                        {(activeTab === "audit" || activeTab === "all") && (
+                        {activeTab === "security" ? (
+                          // Sortable headers for Security Events
                           <>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entity Type</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entity ID</th>
+                            <th 
+                              className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              onClick={() => handleSecuritySort('timestamp')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Timestamp
+                                {securitySortKey === 'timestamp' && (
+                                  securitySortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                )}
+                                {securitySortKey !== 'timestamp' && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              onClick={() => handleSecuritySort('username')}
+                            >
+                              <div className="flex items-center gap-1">
+                                User
+                                {securitySortKey === 'username' && (
+                                  securitySortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                )}
+                                {securitySortKey !== 'username' && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              onClick={() => handleSecuritySort('action')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Action
+                                {securitySortKey === 'action' && (
+                                  securitySortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                )}
+                                {securitySortKey !== 'action' && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              onClick={() => handleSecuritySort('details')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Details
+                                {securitySortKey === 'details' && (
+                                  securitySortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                )}
+                                {securitySortKey !== 'details' && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              onClick={() => handleSecuritySort('ipAddress')}
+                            >
+                              <div className="flex items-center gap-1">
+                                IP Address
+                                {securitySortKey === 'ipAddress' && (
+                                  securitySortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                )}
+                                {securitySortKey !== 'ipAddress' && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                              </div>
+                            </th>
                           </>
-                        )}
-                        {activeTab === "all" && (
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Log Type</th>
-                        )}
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Details</th>
-                        {(activeTab === "security" || activeTab === "all") && (
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">IP Address</th>
+                        ) : (
+                          // Standard headers for other tabs
+                          <>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Timestamp</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">User</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
+                            {(activeTab === "audit" || activeTab === "all") && (
+                              <>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entity Type</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entity ID</th>
+                              </>
+                            )}
+                            {activeTab === "all" && (
+                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Log Type</th>
+                            )}
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Details</th>
+                            {activeTab === "all" && (
+                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">IP Address</th>
+                            )}
+                          </>
                         )}
                       </tr>
                     </thead>
@@ -524,9 +705,27 @@ export default function Logs() {
                             </td>
                           )}
                           <td className="px-4 py-3 text-sm">
-                            {(log as any).details && typeof (log as any).details === 'object' ? (
+                            {activeTab === "security" ? (
+                              // Security events - show friendly description with optional detailed metadata
+                              (log as any).details && typeof (log as any).details === 'object' ? (
+                                <div className="space-y-1">
+                                  <div className="font-medium">{describeSecurityEvent(log)}</div>
+                                  <div className="text-xs text-slate-600">
+                                    {(log as any).details.userRole && <div>Role: {(log as any).details.userRole}</div>}
+                                    {(log as any).details.sessionDuration && <div>Duration: {(log as any).details.sessionDuration}</div>}
+                                    {(log as any).details.previousLoginTime && <div>Previous: {new Date((log as any).details.previousLoginTime).toLocaleString()}</div>}
+                                    {(log as any).details.clientDetails?.acceptLanguage && <div>Language: {(log as any).details.clientDetails.acceptLanguage}</div>}
+                                    {(log as any).details.serverDetails?.environment && <div>Env: {(log as any).details.serverDetails.environment}</div>}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="max-w-md">
+                                  {describeSecurityEvent(log)}
+                                </div>
+                              )
+                            ) : (log as any).details && typeof (log as any).details === 'object' ? (
                               <div className="space-y-1">
-                                <div className="font-medium">{log.notes || "Security Event"}</div>
+                                <div className="font-medium">{log.notes || "Event Details"}</div>
                                 <div className="text-xs text-slate-600">
                                   {(log as any).details.userRole && <div>Role: {(log as any).details.userRole}</div>}
                                   {(log as any).details.sessionDuration && <div>Duration: {(log as any).details.sessionDuration}</div>}
