@@ -10,6 +10,30 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (November 2025)
 
+### Inline Profile Editing with Form Reset Pattern (Nov 24, 2025)
+- **New Feature**: Users can update profile information directly from sidebar without navigating to separate settings page
+- **UI/UX Enhancement**: Clickable user info section in sidebar opens profile editing dialog
+  - Desktop: Click user info section in sidebar (data-testid: button-edit-profile)
+  - Mobile: Click user info section in mobile sheet menu (data-testid: button-edit-profile-mobile)
+- **Editable Fields**: First name, last name, email, username (local auth users only)
+- **Architecture Pattern**: ForwardRef with Synchronous Reset
+  - ProfileEditDialog component uses `forwardRef<ProfileEditDialogRef>` to expose `reset(userData)` method
+  - MainLayout maintains `profileDialogRef` and `toggleProfileDialog()` helper function
+  - Form reset happens synchronously before dialog state changes, preventing stale data and flicker
+  - All close paths (Cancel, ESC, overlay click, rapid toggles, save success) route through helper
+- **Backend**: PUT /api/user/profile endpoint with validation
+  - Username uniqueness check (prevents duplicate usernames)
+  - Email format validation
+  - Returns updated user object on success
+- **State Management**: Query invalidation on ["/api/user"] triggers useAuth context refresh
+- **Testing**: End-to-end tests validate all close/reopen scenarios:
+  - Edit → Cancel → Reopen: Unsaved changes discarded, original data shown
+  - Edit → Save → Reopen: Server data persisted and reflected in UI
+  - Edit → ESC → Reopen: Unsaved changes discarded
+  - Edit → Overlay click → Reopen: Unsaved changes discarded
+  - Rapid toggle: No stale values or flicker observed
+- **Design Decision**: ForwardRef pattern chosen over useEffect-only approach to ensure synchronous form reset before render, eliminating all timing-related edge cases and visual artifacts
+
 ### Security Logs Integration (Nov 24, 2025)
 - **New Feature**: Centralized security event logging for all authentication activities in `security_logs` table
 - **Event Types Tracked**:

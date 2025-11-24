@@ -633,7 +633,7 @@ export default function HomeDashboard() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Merchant Datawarehouse</h1>
               <Badge variant="outline" className={import.meta.env.MODE === "production" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
                 {import.meta.env.MODE === "production" ? "Production" : "Development"}
               </Badge>
@@ -827,7 +827,7 @@ export default function HomeDashboard() {
 
             {/* Today's Total Transaction */}
             <ClickableMetricCard
-              title="Todays Total Transaction"
+              title="Recent Processed Transaction"
               total={metrics?.todayTotalTransaction?.total ?? '$0.00'}
               ach={metrics?.todayTotalTransaction?.ach ?? '$0.00'}
               mcc={metrics?.todayTotalTransaction?.mcc ?? '$0.00'}

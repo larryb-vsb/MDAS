@@ -375,6 +375,58 @@ export function setupAuth(app: Express) {
     res.json(req.user);
   });
 
+  app.put("/api/user/profile", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const { firstName, lastName, email, username } = req.body;
+      const userId = req.user!.id;
+
+      // Validate required fields
+      if (!firstName || !lastName || !email || !username) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+
+      // Check if username is already taken by another user
+      if (username !== req.user!.username) {
+        const existingUser = await storage.getUserByUsername(username);
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({ error: "Username already taken" });
+        }
+      }
+
+      // Check if email is already taken by another user
+      if (email !== req.user!.email) {
+        const existingUserByEmail = await storage.getUserByEmail(email);
+        if (existingUserByEmail && existingUserByEmail.id !== userId) {
+          return res.status(400).json({ error: "Email already in use" });
+        }
+      }
+
+      // Update user profile
+      const updatedUser = await storage.updateUser(userId, {
+        firstName,
+        lastName,
+        email,
+        username,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Update the session with new user data
+      req.user = updatedUser;
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
   // Middleware to check if user is authenticated
   app.use("/api/protected/*", (req, res, next) => {
     if (!req.isAuthenticated()) {

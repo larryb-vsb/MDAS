@@ -1,8 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  ProfileEditDialog,
+  ProfileEditDialogRef,
+} from "@/components/ProfileEditDialog";
 
 /*
  * =====================================================================
@@ -90,6 +94,8 @@ import {
   Archive,
   HardDrive,
   History,
+  UserCircle,
+  Edit,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -231,6 +237,11 @@ const navItems = [
     href: "/logs",
     adminOnly: true,
   },
+  {
+    icon: <Settings className="h-5 w-5 text-gray-300" />,
+    label: "Settings",
+    href: "/settings",
+  },
 ];
 
 /*
@@ -365,8 +376,19 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [legacyExpanded, setLegacyExpanded] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const profileDialogRef = useRef<ProfileEditDialogRef>(null);
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
+
+  // Helper to toggle profile dialog with proper form reset
+  // Ensures form is reset synchronously before dialog state changes to prevent flicker
+  const toggleProfileDialog = (open: boolean) => {
+    if (user && profileDialogRef.current) {
+      profileDialogRef.current.reset(user);
+    }
+    setProfileDialogOpen(open);
+  };
 
   // Check if user is admin
   const isAdmin = user?.role === "admin";
@@ -462,33 +484,27 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
-        {/* Fixed bottom section - Settings and Logout together (Mobile) */}
+        {/* Fixed bottom section - User info and Logout (Mobile) */}
         <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-6">
-          {/* Settings Link */}
-          <Link
-            href="/settings"
-            onClick={() => setOpen(false)}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation mb-2",
-              location === "/settings"
-                ? "text-white bg-gray-700 shadow-lg"
-                : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
-            )}
-          >
-            <Settings className="h-5 w-5" />
-            <span>Settings</span>
-          </Link>
-
           {/* User info and Logout for logged-in users */}
           {user && (
             <>
-              <div className="text-gray-300 text-sm mb-2 px-4 mt-3">
-                <div className="font-medium">
-                  {user.firstName
-                    ? `${user.firstName} ${user.lastName || ""}`
-                    : user.username}
+              <div 
+                className="text-gray-300 text-sm mb-2 px-4 mt-3 cursor-pointer hover:bg-gray-700 rounded-md py-2 transition-all group min-h-[44px] touch-manipulation"
+                onClick={() => toggleProfileDialog(true)}
+                data-testid="button-edit-profile-mobile"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {user.firstName
+                        ? `${user.firstName} ${user.lastName || ""}`
+                        : user.username}
+                    </div>
+                    <div className="text-gray-400 text-xs">{user.email}</div>
+                  </div>
+                  <Edit className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-gray-400 text-xs">{user.email}</div>
               </div>
               <div
                 className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700 min-h-[44px] touch-manipulation"
@@ -572,32 +588,27 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </ScrollArea>
 
-        {/* Fixed bottom section - Settings and Logout together */}
+        {/* Fixed bottom section - User info and Logout */}
         <div className="flex-shrink-0 border-t border-gray-700 px-6 pt-3 pb-6">
-          {/* Settings Link */}
-          <Link
-            href="/settings"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block mb-2",
-              location === "/settings"
-                ? "text-white bg-gray-700 shadow-lg"
-                : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
-            )}
-          >
-            <Settings className="h-5 w-5" />
-            <span>Settings</span>
-          </Link>
-
           {/* User info and Logout for logged-in users */}
           {user && (
             <>
-              <div className="text-gray-300 text-sm mb-2 px-4 mt-3">
-                <div className="font-medium">
-                  {user.firstName
-                    ? `${user.firstName} ${user.lastName || ""}`
-                    : user.username}
+              <div 
+                className="text-gray-300 text-sm mb-2 px-4 mt-3 cursor-pointer hover:bg-gray-700 rounded-md py-2 transition-all group"
+                onClick={() => toggleProfileDialog(true)}
+                data-testid="button-edit-profile"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {user.firstName
+                        ? `${user.firstName} ${user.lastName || ""}`
+                        : user.username}
+                    </div>
+                    <div className="text-gray-400 text-xs">{user.email}</div>
+                  </div>
+                  <Edit className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-gray-400 text-xs">{user.email}</div>
               </div>
               <Button
                 variant="outline"
@@ -656,6 +667,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Profile Edit Dialog */}
+      {user && (
+        <ProfileEditDialog
+          ref={profileDialogRef}
+          open={profileDialogOpen}
+          onOpenChange={toggleProfileDialog}
+          user={user}
+        />
+      )}
     </div>
   );
 }
