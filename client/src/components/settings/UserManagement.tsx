@@ -666,17 +666,20 @@ export default function UserManagement() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-testid={`cell-last-login-${user.id}`}>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger className="cursor-help">
-                            <span className={
-                              formatLoginStatus(user).isSuccess === true 
-                                ? "text-green-600 dark:text-green-400" 
-                                : formatLoginStatus(user).isSuccess === false 
-                                ? "text-red-600 dark:text-red-400" 
-                                : ""
-                            }>
+                            <span 
+                              data-testid={`text-last-login-${user.id}`}
+                              className={
+                                formatLoginStatus(user).isSuccess === true 
+                                  ? "text-green-600 dark:text-green-400" 
+                                  : formatLoginStatus(user).isSuccess === false 
+                                  ? "text-red-600 dark:text-red-400" 
+                                  : ""
+                              }
+                            >
                               {formatLoginStatus(user).display}
                             </span>
                           </TooltipTrigger>
