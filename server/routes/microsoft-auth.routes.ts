@@ -96,8 +96,17 @@ export function registerMicrosoftAuthRoutes(app: Express) {
       
       logger.info(`[MICROSOFT-AUTH] Microsoft authentication successful, redirecting to email confirmation`);
       
-      // Redirect to email confirmation page
-      res.redirect('/auth/microsoft/confirm-email');
+      // Save session before redirect to ensure data persists
+      req.session.save((err) => {
+        if (err) {
+          logger.error('[MICROSOFT-AUTH] Failed to save session:', err);
+          return res.redirect('/?error=session_save_failed');
+        }
+        
+        logger.info('[MICROSOFT-AUTH] Session saved, redirecting to email confirmation page');
+        // Redirect to email confirmation page
+        res.redirect('/auth/microsoft/confirm-email');
+      });
 
     } catch (error) {
       logger.error('[MICROSOFT-AUTH] Callback error:', error);
@@ -292,15 +301,23 @@ export function registerMicrosoftAuthRoutes(app: Express) {
         // Clear the Microsoft profile from session
         delete req.session.microsoftProfile;
 
-        // If Duo is enabled, return that info
-        if (duoMFA.isEnabled()) {
-          logger.info('[MICROSOFT-AUTH] Duo MFA required');
-          return res.json({ success: true, requiresDuo: true, redirectTo: '/auth/duo' });
-        }
+        // Save session after login to ensure it persists
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            logger.error('[MICROSOFT-AUTH] Failed to save session after login:', saveErr);
+            return res.status(500).json({ error: 'Failed to save session' });
+          }
 
-        // No Duo configured, authentication complete
-        logger.info('[MICROSOFT-AUTH] Authentication complete');
-        res.json({ success: true, requiresDuo: false, redirectTo: '/' });
+          // If Duo is enabled, return that info
+          if (duoMFA.isEnabled()) {
+            logger.info('[MICROSOFT-AUTH] Duo MFA required');
+            return res.json({ success: true, requiresDuo: true, redirectTo: '/auth/duo' });
+          }
+
+          // No Duo configured, authentication complete
+          logger.info('[MICROSOFT-AUTH] Authentication complete');
+          res.json({ success: true, requiresDuo: false, redirectTo: '/' });
+        });
       });
 
     } catch (error) {
