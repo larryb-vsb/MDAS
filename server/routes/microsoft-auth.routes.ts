@@ -235,13 +235,15 @@ export function registerMicrosoftAuthRoutes(app: Express) {
     }
 
     logger.info('[MICROSOFT-AUTH] Microsoft profile found, redirecting to login page with confirmation flag');
-    // Return HTML that will trigger the frontend to show email confirmation
+    // Use JavaScript redirect to preserve session cookies
     res.send(`
       <!DOCTYPE html>
       <html>
       <head>
         <title>Confirm Email - MMS</title>
-        <meta http-equiv="refresh" content="0; url=/?confirm_microsoft_email=true">
+        <script>
+          window.location.href = '/?confirm_microsoft_email=true';
+        </script>
       </head>
       <body>
         <p>Redirecting to email confirmation...</p>
