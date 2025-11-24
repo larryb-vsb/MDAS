@@ -10,6 +10,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (November 2025)
 
+### Security Logs Integration (Nov 24, 2025)
+- **New Feature**: Centralized security event logging for all authentication activities in `security_logs` table
+- **Event Types Tracked**:
+  - `login_success`: Successful local authentication logins with full client context
+  - `login_failed`: Failed login attempts with detailed failure reasons (user not found, invalid password)
+  - `auth_type_upgraded`: Hybrid authentication type conversions (local→hybrid, oauth→hybrid)
+- **Storage Layer**:
+  - `logSecurityEvent()`: Environment-aware method writes to dev_security_logs or security_logs
+  - Non-blocking error handling ensures authentication continues even if logging fails
+  - Captures userId, username, IP address, user agent, event type, result, reason, and custom details
+- **Authentication Flows Enhanced**:
+  - Local authentication (server/auth.ts): Logs failed logins with specific reasons and client context
+  - Microsoft OAuth (microsoft-auth.routes.ts): Logs successful OAuth logins and hybrid auth upgrades
+  - `getRealClientIP()` helper extracts real client IP from proxy headers (x-replit-user-ip, x-forwarded-for, etc.)
+- **Security Monitoring**: All authentication events logged with timestamp, IP address, user agent for audit and security analysis
+- **Design Decision**: Security logging uses try/catch to degrade gracefully without disrupting user authentication experience
+
 ### Comprehensive Login Tracking (Nov 24, 2025)
 - **New Feature**: Complete login attempt tracking for both successful and failed authentications
 - **Database Schema**: Added 4 new columns to users table:
