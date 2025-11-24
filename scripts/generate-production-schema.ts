@@ -288,20 +288,26 @@ function generateTransactionsTable(): string {
 CREATE TABLE IF NOT EXISTS transactions (
   id serial PRIMARY KEY,
   merchant_id text NOT NULL,
-  amount numeric(15, 2) NOT NULL,
-  transaction_date timestamp NOT NULL,
-  transaction_type text,
-  card_type text,
-  authorization_code text,
-  reference_number text,
+  transaction_id text,
+  amount text NOT NULL,
+  date timestamp DEFAULT NOW() NOT NULL,
+  type text NOT NULL DEFAULT 'Sale',
   created_at timestamp DEFAULT NOW(),
-  upload_id text,
-  as_of_date timestamp
+  trace_number text,
+  company text,
+  code text,
+  raw_data jsonb,
+  source_file_id text,
+  source_row_number integer,
+  recorded_at timestamp DEFAULT NOW() NOT NULL,
+  source_filename text,
+  source_file_hash text,
+  updated_at timestamp DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS transactions_merchant_id_idx ON transactions(merchant_id);
-CREATE INDEX IF NOT EXISTS transactions_date_idx ON transactions(transaction_date);
-CREATE INDEX IF NOT EXISTS transactions_upload_id_idx ON transactions(upload_id);
+CREATE INDEX IF NOT EXISTS transactions_date_idx ON transactions(date);
+CREATE INDEX IF NOT EXISTS transactions_source_filename_idx ON transactions(source_filename);
 
 `;
 }
