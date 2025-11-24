@@ -64,8 +64,14 @@ export default function AuthPage() {
 
   // Check for Microsoft email confirmation
   useEffect(() => {
+    console.log('[AUTH-PAGE] Component mounted, checking for query params');
+    console.log('[AUTH-PAGE] window.location.search:', window.location.search);
     const params = new URLSearchParams(window.location.search);
-    if (params.get('confirm_microsoft_email') === 'true') {
+    const confirmParam = params.get('confirm_microsoft_email');
+    console.log('[AUTH-PAGE] confirm_microsoft_email param:', confirmParam);
+    
+    if (confirmParam === 'true') {
+      console.log('[AUTH-PAGE] Showing email dialog!');
       // Show email dialog immediately
       setShowEmailDialog(true);
       // Remove query parameter
