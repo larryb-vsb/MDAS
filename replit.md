@@ -10,6 +10,33 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (November 2025)
 
+### Comprehensive Login Tracking (Nov 24, 2025)
+- **New Feature**: Complete login attempt tracking for both successful and failed authentications
+- **Database Schema**: Added 4 new columns to users table:
+  - `last_login_type`: Tracks authentication method (local/oauth) for last successful login
+  - `last_failed_login`: Timestamp of most recent failed login attempt
+  - `last_failed_login_type`: Authentication method (local/oauth) for last failed attempt
+  - `last_failed_login_reason`: Detailed reason for login failure (e.g., "Invalid password")
+- **Hybrid Authentication Detection**: System automatically detects when users authenticate with both methods:
+  - Local user logging in with OAuth → auth_type converts from 'local' to 'hybrid'
+  - OAuth user logging in locally → auth_type converts from 'oauth' to 'hybrid'
+  - User re-fetch after auth_type conversion ensures session has current data
+- **User Management UI Enhancements**:
+  - Last Login column displays format: "Status:Type:DateTime" (e.g., "Success:Local:Nov 24, 2025 7:08 PM")
+  - Hover tooltips show "Success" for successful logins or detailed failure reason for failed attempts
+  - Color-coded status: green for successful logins, red for failed logins
+  - Auth Type badges support: Local (secondary), OAuth (outline), Hybrid (default)
+  - Data-testid attributes added for automated testing: `text-last-login-{userId}`, `cell-last-login-{userId}`
+- **Storage Layer**: 
+  - `updateSuccessfulLogin()`: Updates last_login and last_login_type, auto-detects hybrid auth
+  - `updateFailedLogin()`: Non-blocking tracking with try/catch to prevent login disruption
+  - `updateUserAuthType()`: Dedicated method for auth_type updates (excluded from general updateUser)
+- **Authentication Flows**:
+  - Microsoft OAuth tracks successful logins and detects hybrid users
+  - Local authentication tracks both successful and failed attempts with detailed reasons
+  - Failed login tracking won't block authentication if database issues occur
+- **Data Integrity**: updateUser method excludes auth_type to prevent accidental overwrites
+
 ### User Authentication Type Tracking (Nov 22, 2025)
 - Added `auth_type` column to users table to distinguish between OAuth and local authentication
 - **OAuth Users**: Microsoft OAuth authenticated users automatically created with `auth_type: 'oauth'`
