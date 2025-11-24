@@ -217,40 +217,235 @@ export default function About() {
               {/* TDDF APIs */}
               <TabsContent value="tddf" className="space-y-4 mt-4">
                 <h3 className="text-lg font-semibold">TDDF Processing APIs</h3>
-                <div className="space-y-4">
-                  <ApiEndpoint
-                    method="GET"
-                    endpoint="/api/tddf/records"
-                    description="Get TDDF records with filtering"
-                    queryParams={{
-                      merchantId: "string",
-                      startDate: "ISO date",
-                      endDate: "ISO date",
-                      recordType: "DT | BH | P1 | P2",
-                      limit: "number"
-                    }}
-                  />
-                  <ApiEndpoint
-                    method="GET"
-                    endpoint="/api/tddf/batch-headers"
-                    description="Get batch header records"
-                  />
-                  <ApiEndpoint
-                    method="GET"
-                    endpoint="/api/tddf/transactions"
-                    description="Get transaction detail records"
-                  />
-                  <ApiEndpoint
-                    method="POST"
-                    endpoint="/api/tddf-api/upload"
-                    description="Upload TDDF file for processing"
-                    requestBody="FormData with file"
-                  />
-                  <ApiEndpoint
-                    method="GET"
-                    endpoint="/api/tddf-api/queue"
-                    description="Get queued TDDF files awaiting processing"
-                  />
+                
+                <div className="space-y-6">
+                  {/* File Management */}
+                  <div>
+                    <h4 className="font-semibold text-md mb-3 text-primary">File Management</h4>
+                    <div className="space-y-4">
+                      <ApiEndpoint
+                        method="POST"
+                        endpoint="/api/tddf-api/upload"
+                        description="Upload TDDF file for processing"
+                        requestBody="FormData with file"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/files"
+                        description="Get list of all TDDF files"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/files/:fileId/content"
+                        description="Get content of a specific TDDF file"
+                      />
+                      <ApiEndpoint
+                        method="POST"
+                        endpoint="/api/tddf-api/files/delete"
+                        description="Delete TDDF file by ID"
+                        requestBody={{
+                          fileId: "number"
+                        }}
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/queue"
+                        description="Get queued TDDF files awaiting processing"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/search-filename"
+                        description="Search TDDF files by filename"
+                        queryParams={{
+                          filename: "string"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Records Management */}
+                  <div>
+                    <h4 className="font-semibold text-md mb-3 text-primary">Records Management</h4>
+                    <div className="space-y-4">
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf/records"
+                        description="Get TDDF records with filtering"
+                        queryParams={{
+                          merchantId: "string",
+                          startDate: "ISO date",
+                          endDate: "ISO date",
+                          recordType: "DT | BH | P1 | P2",
+                          limit: "number"
+                        }}
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf/batch-headers"
+                        description="Get batch header records"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf/transactions"
+                        description="Get transaction detail records"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/records/:fileId"
+                        description="Get all records for a specific file"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/all-records"
+                        description="Get all TDDF records across all files"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/all-archive-records"
+                        description="Get all archived TDDF records"
+                      />
+                      <ApiEndpoint
+                        method="DELETE"
+                        endpoint="/api/tddf-api/records/bulk-delete"
+                        description="Bulk delete TDDF records"
+                        requestBody={{
+                          recordIds: "number[]"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Schema Management */}
+                  <div>
+                    <h4 className="font-semibold text-md mb-3 text-primary">Schema Management</h4>
+                    <div className="space-y-4">
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/schemas"
+                        description="Get all TDDF schemas"
+                      />
+                      <ApiEndpoint
+                        method="POST"
+                        endpoint="/api/tddf-api/schemas"
+                        description="Create new TDDF schema"
+                        requestBody={{
+                          name: "string",
+                          description: "string",
+                          fields: "FieldDefinition[]"
+                        }}
+                      />
+                      <ApiEndpoint
+                        method="PUT"
+                        endpoint="/api/tddf-api/field-config/:schemaId"
+                        description="Update field configuration for a schema"
+                        requestBody={{
+                          fieldConfig: "object"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* API Keys Management */}
+                  <div>
+                    <h4 className="font-semibold text-md mb-3 text-primary">API Keys Management</h4>
+                    <div className="space-y-4">
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/keys"
+                        description="Get all TDDF API keys"
+                      />
+                      <ApiEndpoint
+                        method="POST"
+                        endpoint="/api/tddf-api/keys"
+                        description="Create new TDDF API key"
+                        requestBody={{
+                          name: "string",
+                          permissions: "string[]"
+                        }}
+                      />
+                      <ApiEndpoint
+                        method="DELETE"
+                        endpoint="/api/tddf-api/keys/:id"
+                        description="Delete TDDF API key by ID"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Monitoring */}
+                  <div>
+                    <h4 className="font-semibold text-md mb-3 text-primary">Monitoring & Analytics</h4>
+                    <div className="space-y-4">
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/monitoring"
+                        description="Get TDDF processing monitoring data"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/monitoring/last-connection"
+                        description="Get last API connection information"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/monitoring/hosts"
+                        description="Get list of connected hosts"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/monitoring/connections"
+                        description="Get active API connections"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/monitoring/host-approvals"
+                        description="Get host approval status"
+                      />
+                      <ApiEndpoint
+                        method="PUT"
+                        endpoint="/api/tddf-api/monitoring/host-approvals/:id"
+                        description="Update host approval status"
+                        requestBody={{
+                          approved: "boolean"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Daily Statistics */}
+                  <div>
+                    <h4 className="font-semibold text-md mb-3 text-primary">Daily Statistics</h4>
+                    <div className="space-y-4">
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/daily/stats"
+                        description="Get daily processing statistics"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/daily/day-breakdown"
+                        description="Get detailed breakdown by day"
+                      />
+                      <ApiEndpoint
+                        method="GET"
+                        endpoint="/api/tddf-api/daily/recent-activity"
+                        description="Get recent processing activity"
+                      />
+                      <ApiEndpoint
+                        method="POST"
+                        endpoint="/api/tddf-api/daily/init-tables"
+                        description="Initialize daily statistics tables"
+                      />
+                      <ApiEndpoint
+                        method="POST"
+                        endpoint="/api/tddf-api/daily/import"
+                        description="Import daily statistics data"
+                        requestBody={{
+                          date: "ISO date",
+                          data: "object"
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
 

@@ -21,9 +21,16 @@ Preferred communication style: Simple, everyday language.
   - API documentation organized by category: Auth, Users, Merchants, TDDF, Upload, Dashboard, Reports, System
   - Interactive tabs for easy navigation between API categories
   - Detailed endpoint documentation with method badges, paths, request/response schemas
+- **TDDF API Documentation**: Expanded with 30+ endpoints organized into 6 categories:
+  - File Management (6 endpoints): upload, files listing, file content, delete, queue, filename search
+  - Records Management (7 endpoints): records filtering, batch headers, transactions, file records, all records, archive records, bulk delete
+  - Schema Management (3 endpoints): get schemas, create schema, update field config
+  - API Keys Management (3 endpoints): get keys, create key, delete key
+  - Monitoring & Analytics (6 endpoints): monitoring data, last connection, hosts, connections, host approvals
+  - Daily Statistics (5 endpoints): stats, day breakdown, recent activity, init tables, import data
 - **Route**: Registered as ProtectedRoute at /about requiring authentication
 - **Settings Page Cleanup**: Removed Database Schema Version, File Processing History, TDDF JSON Record Counts sections and uploader data status metrics to simplify interface
-- **Testing**: End-to-end tests validate desktop and mobile navigation, About page rendering, API tab switching, and mobile responsiveness
+- **Testing**: End-to-end tests validate desktop and mobile navigation, About page rendering, API tab switching, TDDF subsections, and mobile responsiveness
 - **Design Decision**: Version info made interactive to provide easy access to API documentation without cluttering main navigation
 
 ### Inline Profile Editing with Form Reset Pattern (Nov 24, 2025)
