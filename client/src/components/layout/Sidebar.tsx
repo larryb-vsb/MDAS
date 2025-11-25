@@ -96,7 +96,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
     <div className={cn(isVisible ? "block" : "hidden", className)}>
       <div className="flex flex-col w-64 bg-gray-800">
         <div className="flex items-center h-16 px-6 bg-gray-900">
-          <h1 className="text-lg font-bold text-white">MMS Dashboard</h1>
+          <h1 className="text-lg font-bold text-white">MDAS Dashboard</h1>
         </div>
         <div className="flex flex-col flex-grow px-4 py-4 overflow-y-auto">
           <nav className="flex-1 space-y-2">

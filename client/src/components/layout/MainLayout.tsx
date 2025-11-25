@@ -446,7 +446,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white flex flex-col">
         {/* Header section */}
         <div className="flex h-12 items-center gap-2 px-6 py-6 flex-shrink-0">
-          <h2 className="text-lg font-bold text-white">MDWS Dashboard</h2>
+          <h2 className="text-lg font-bold text-white">MDAS Dashboard</h2>
         </div>
 
         {/* Scrollable navigation section */}
@@ -670,7 +670,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile header */}
         <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-gray-800 text-white px-4 md:hidden shadow-sm">
           <MobileNav />
-          <h1 className="text-lg font-bold truncate">MDWS Dashboard</h1>
+          <h1 className="text-lg font-bold truncate">MDAS Dashboard</h1>
         </header>
 
         {/* Main content */}

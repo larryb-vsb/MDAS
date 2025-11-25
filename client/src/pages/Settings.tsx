@@ -409,7 +409,7 @@ export default function Settings() {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Application:</span>
-                  <span>Merchant Management System</span>
+                  <span>Merchant Datawarehouse and Automation System (MDAS)</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Environment:</span>
