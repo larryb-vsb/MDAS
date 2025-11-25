@@ -44,7 +44,7 @@ export default function About() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex justify-between items-center">
                 <span className="font-medium">Application:</span>
-                <span>Merchant Management System</span>
+                <span>Merchant Datawarehouse and Automation System (MDAS)</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-medium">Version:</span>
