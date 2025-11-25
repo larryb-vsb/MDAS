@@ -1,8 +1,8 @@
-# Merchant Management System (MMS)
+# Merchant Datawarehouse and Automation System (MDAS)
 
 ## Overview
 
-The Merchant Management System (MMS) is a comprehensive merchant data warehouse for Vermont State Bank. It integrates mainframe data processing, merchant management, and financial reporting, focusing on processing TSYS mainframe TDDF files, managing merchant ACH deposit compliance, and providing API integrations and real-time analytics.
+The Merchant Datawarehouse and Automation System (MDAS) orationly started as Merchant Mangement System (MMS) is a comprehensive merchant datawarehouse for Vermont State Bank. It integrates mainframe data processing, merchant management, and financial reporting, focusing on processing TSYS mainframe TDDF files, managing merchant ACH deposit compliance, and providing API integrations and real-time analytics.
 
 ## User Preferences
 
