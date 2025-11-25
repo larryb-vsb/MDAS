@@ -1,6 +1,7 @@
 import { ConfidentialClientApplication, type Configuration } from "@azure/msal-node";
 import type { Request, Response } from "express";
 import { logger } from "../../shared/logger";
+import { NODE_ENV } from "../env-config";
 
 /**
  * Microsoft OAuth Configuration using MSAL (Microsoft Authentication Library)
@@ -32,11 +33,30 @@ export class MicrosoftOAuthService {
         return false;
       }
 
-      // Build redirect URI based on environment
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'http://localhost:5000';
+      // Build redirect URI based on environment with comprehensive logging
+      logger.info('[MICROSOFT-OAUTH] 🔍 Environment Detection:');
+      logger.info(`[MICROSOFT-OAUTH]   NODE_ENV: ${NODE_ENV}`);
+      logger.info(`[MICROSOFT-OAUTH]   REPLIT_DEPLOYMENT: ${process.env.REPLIT_DEPLOYMENT || 'not set'}`);
+      logger.info(`[MICROSOFT-OAUTH]   REPLIT_DEV_DOMAIN: ${process.env.REPLIT_DEV_DOMAIN || 'not set'}`);
+      
+      let baseUrl: string;
+      
+      if (NODE_ENV === 'production') {
+        // Production: use the published domain
+        baseUrl = 'https://mms-vsb.replit.app';
+        logger.info('[MICROSOFT-OAUTH] 🚀 Production mode - using published domain');
+      } else if (process.env.REPLIT_DEV_DOMAIN) {
+        // Development on Replit
+        baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+        logger.info('[MICROSOFT-OAUTH] 🛠️  Development mode - using Replit dev domain');
+      } else {
+        // Local development
+        baseUrl = 'http://localhost:5000';
+        logger.info('[MICROSOFT-OAUTH] 💻 Local development - using localhost');
+      }
+      
       const redirectUri = `${baseUrl}/auth/microsoft/callback`;
+      logger.info(`[MICROSOFT-OAUTH] ✅ Redirect URI configured: ${redirectUri}`);
 
       this.config = {
         clientId,
@@ -124,10 +144,12 @@ export class MicrosoftOAuthService {
       };
 
       logger.info('[MICROSOFT-OAUTH] Exchanging authorization code for token');
+      logger.info(`[MICROSOFT-OAUTH] Using redirect URI: ${this.config.redirectUri}`);
       const response = await this.msalClient.acquireTokenByCode(tokenRequest);
 
       if (!response || !response.account) {
-        logger.error('[MICROSOFT-OAUTH] No account info in token response');
+        logger.error('[MICROSOFT-OAUTH] ❌ No account info in token response');
+        logger.error('[MICROSOFT-OAUTH] Response status: No account data returned');
         return null;
       }
 
@@ -146,6 +168,11 @@ export class MicrosoftOAuthService {
       return userProfile;
     } catch (error) {
       logger.error('[MICROSOFT-OAUTH] ❌ Token exchange failed:', error);
+      if (error instanceof Error) {
+        logger.error(`[MICROSOFT-OAUTH] Error details: ${error.message}`);
+        logger.error(`[MICROSOFT-OAUTH] Error stack: ${error.stack}`);
+      }
+      logger.error(`[MICROSOFT-OAUTH] Config at time of error - Redirect URI: ${this.config.redirectUri}`);
       return null;
     }
   }

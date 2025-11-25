@@ -10,6 +10,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (November 2025)
 
+### OAuth Environment-Aware Redirect URIs (Nov 25, 2025)
+- **Enhancement**: Microsoft OAuth now automatically detects production vs development environments
+- **Environment Detection Logic**:
+  - Production: Uses hardcoded published domain `https://mms-vsb.replit.app` when `NODE_ENV === 'production'`
+  - Development: Uses `REPLIT_DEV_DOMAIN` environment variable for dev workspace URLs
+  - Local: Falls back to `http://localhost:5000` for local development
+- **Comprehensive Logging**: Enhanced startup logging captures all environment variables and redirect URI selection:
+  - Logs NODE_ENV, REPLIT_DEPLOYMENT, and REPLIT_DEV_DOMAIN values
+  - Shows selected redirect URI with environment-specific emoji indicators
+  - Logs detailed error messages with redirect URI context when OAuth fails
+- **Azure AD Configuration**: Supports multiple redirect URIs in same app registration:
+  - Development: `https://{workspace-id}.janeway.replit.dev/auth/microsoft/callback`
+  - Production: `https://mms-vsb.replit.app/auth/microsoft/callback`
+- **Implementation**: `server/auth/microsoft-oauth.ts` imports `NODE_ENV` from `env-config.ts`
+- **Error Handling**: Token exchange failures now log error details, stack traces, and configured redirect URI
+- **Branding Update**: Mobile header and sheet menu updated from "MMS Dashboard" to "MDWS Dashboard" (matching desktop sidebar)
+
 ### About Page with API Documentation (Nov 24, 2025)
 - **New Feature**: Comprehensive About page accessible by clicking version info in sidebar
 - **UI/UX**: Clickable version links in both desktop and mobile sidebar navigation
