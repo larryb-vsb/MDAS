@@ -444,6 +444,28 @@ export function registerSystemRoutes(app: Express) {
     }
   });
 
+  // Project documentation endpoint - serves replit.md content
+  app.get("/api/system/replit-md", async (req, res) => {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      const filePath = path.join(process.cwd(), 'replit.md');
+      const content = await fs.readFile(filePath, 'utf-8');
+      
+      res.json({
+        success: true,
+        content,
+        lastModified: (await fs.stat(filePath)).mtime
+      });
+    } catch (error) {
+      console.error("Error reading replit.md:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to read project documentation"
+      });
+    }
+  });
+
   // Verbose logging configuration endpoints for automation/AI monitoring
   // Get current verbose logging configuration
   app.get("/api/system/verbose-config", isAuthenticated, async (req, res) => {

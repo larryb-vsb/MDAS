@@ -4,9 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code, Book, Database, Upload, Users, Lock, BarChart3, FileText } from "lucide-react";
+import { Code, Book, Database, Upload, Users, Lock, BarChart3, FileText, ScrollText } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface ReplitMdResponse {
+  success: boolean;
+  content: string;
+  lastModified: string;
+}
 
 export default function About() {
+  // Fetch replit.md content
+  const { data: replitMdData, isLoading: isLoadingReplitMd } = useQuery<ReplitMdResponse>({
+    queryKey: ["/api/system/replit-md"],
+  });
+
   return (
     <MainLayout>
       <div className="container mx-auto space-y-6">
@@ -48,6 +61,37 @@ export default function About() {
                 </Badge>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Project Documentation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <ScrollText className="mr-2 h-5 w-5 text-primary" />
+              Project Documentation
+            </CardTitle>
+            <CardDescription>
+              Complete project documentation from replit.md
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingReplitMd ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
+            ) : (
+              <div 
+                className="max-h-[600px] overflow-y-auto border rounded-lg p-4 bg-gray-50 dark:bg-gray-900"
+                data-testid="replit-md-content"
+              >
+                <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+                  {replitMdData?.content || 'Documentation not available'}
+                </pre>
+              </div>
+            )}
           </CardContent>
         </Card>
 
