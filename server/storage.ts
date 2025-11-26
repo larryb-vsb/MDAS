@@ -1028,9 +1028,9 @@ export class DatabaseStorage implements IStorage {
   
   // @ENVIRONMENT-CRITICAL - User password update operations
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-  async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+  // NOTE: This method expects an already-hashed password
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
     const usersTableName = getTableName('users');
-    const hashedPassword = await this.hashPassword(newPassword);
     
     await pool.query(`
       UPDATE ${usersTableName} 

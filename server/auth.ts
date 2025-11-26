@@ -381,7 +381,7 @@ export function setupAuth(app: Express) {
     }
 
     try {
-      const { firstName, lastName, email, username } = req.body;
+      const { firstName, lastName, email, username, currentPassword, newPassword } = req.body;
       const userId = req.user!.id;
 
       // Validate required fields
@@ -405,22 +405,72 @@ export function setupAuth(app: Express) {
         }
       }
 
-      // Update user profile
-      const updatedUser = await storage.updateUser(userId, {
-        firstName,
-        lastName,
-        email,
-        username,
-      });
+      let passwordChanged = false;
 
-      if (!updatedUser) {
-        return res.status(404).json({ error: "User not found" });
+      // Handle password change if provided
+      if (currentPassword && newPassword) {
+        // Get current user from database to verify password
+        const currentUser = await storage.getUser(userId);
+        if (!currentUser || !currentUser.password) {
+          return res.status(400).json({ error: "Password change not available for this account" });
+        }
+
+        // Verify current password
+        const isValidPassword = await bcrypt.compare(currentPassword, currentUser.password);
+        if (!isValidPassword) {
+          return res.status(400).json({ error: "Current password is incorrect" });
+        }
+
+        // Validate new password length
+        if (newPassword.length < 8) {
+          return res.status(400).json({ error: "New password must be at least 8 characters" });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update user profile (without password)
+        const updatedUser = await storage.updateUser(userId, {
+          firstName,
+          lastName,
+          email,
+          username,
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        // Update password separately using dedicated method
+        await storage.updateUserPassword(userId, hashedPassword);
+
+        // Update the session with new user data
+        req.user = updatedUser;
+        passwordChanged = true;
+
+        // Exclude password from response for security
+        const { password: _, ...safeUser } = updatedUser;
+        res.json({ ...safeUser, passwordChanged: true });
+      } else {
+        // Update user profile without password change
+        const updatedUser = await storage.updateUser(userId, {
+          firstName,
+          lastName,
+          email,
+          username,
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        // Update the session with new user data
+        req.user = updatedUser;
+
+        // Exclude password from response for security
+        const { password: _, ...safeUser } = updatedUser;
+        res.json({ ...safeUser, passwordChanged: false });
       }
-
-      // Update the session with new user data
-      req.user = updatedUser;
-
-      res.json(updatedUser);
     } catch (error) {
       console.error("Profile update error:", error);
       res.status(500).json({ error: "Failed to update profile" });
