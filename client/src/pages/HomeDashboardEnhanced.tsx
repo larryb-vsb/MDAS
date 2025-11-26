@@ -743,18 +743,56 @@ export default function HomeDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Merchants Total - Clickable to respective pages */}
-              <ClickableMetricCard
-                title="Merchants Total"
-                total={metrics?.merchants?.total ?? 0}
-                ach={metrics?.merchants?.ach ?? 0}
-                mcc={metrics?.merchants?.mcc ?? 0}
-                icon={<Users className="h-4 w-4" />}
-                achTooltip="ACH merchants from merchant table"
-                mccTooltip="MCC merchants from merchant table"
-                achLink="/merchants?tab=ach&status=Active/Open"
-                mccLink="/merchants?tab=mcc&status=Active/Open"
-                isClickable={true}
-              />
+              <Card className="h-full cursor-pointer hover:shadow-lg transition-shadow duration-200 hover:border-blue-300">
+                <Link href="/merchants">
+                  <CardHeader className="p-6 flex flex-row items-center justify-between space-y-0 pb-2 text-[32px]">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Merchants Total
+                      <ExternalLink className="h-3 w-3 ml-1 inline" />
+                    </CardTitle>
+                    <div className="h-4 w-4 text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold mb-3">
+                      {(metrics?.merchants?.total ?? 0).toLocaleString()}
+                    </div>
+                    <div className="space-y-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link href="/merchants?tab=ach&status=Active/Open">
+                              <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-blue-50 p-1 rounded">
+                                <span className="text-blue-600 font-medium">ACH</span>
+                                <span className="font-medium">{(metrics?.merchants?.ach ?? 0).toLocaleString()}</span>
+                              </div>
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>ACH merchants from merchant table</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link href="/merchants?tab=mcc&status=Active/Open">
+                              <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-green-50 p-1 rounded">
+                                <span className="text-green-600 font-medium">MCC</span>
+                                <span className="font-medium">{(metrics?.merchants?.mcc ?? 0).toLocaleString()}</span>
+                              </div>
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>MCC merchants from merchant table</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </CardContent>
+                </Link>
+              </Card>
 
               {/* New Merchants (30 day) */}
               <ClickableMetricCard
