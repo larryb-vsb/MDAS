@@ -311,6 +311,10 @@ app.use((req, res, next) => {
         console.log("Warning: Could not initialize schema versions:", err.message);
       });
       
+      // BACKUP FEATURE DISABLED - Re-enable when backup functionality is needed
+      // The backup scheduler was causing errors due to missing 'raw_data' column
+      // To re-enable: uncomment the code below and fix the create_backup_data.ts schema
+      /*
       // Add default backup schedule if needed
       const { addDefaultBackupSchedule } = await import('./add_default_backup_schedule');
       await addDefaultBackupSchedule().catch(err => {
@@ -321,6 +325,8 @@ app.use((req, res, next) => {
       await initializeBackupScheduler().catch(err => {
         console.log("Warning: Could not initialize backup scheduler:", err.message);
       });
+      */
+      console.log('[BACKUP] Backup scheduler disabled - re-enable when needed');
       
       // Start the TDDF API processor service
       await tddfApiProcessor.initialize();
