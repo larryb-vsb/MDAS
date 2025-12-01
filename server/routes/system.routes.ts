@@ -556,4 +556,133 @@ export function registerSystemRoutes(app: Express) {
       });
     }
   });
+
+  // Dump system logs to object storage
+  app.post("/api/system/dump-logs", isAuthenticated, async (req, res) => {
+    try {
+      const { minutes } = req.body;
+      
+      // Validate minutes parameter
+      const validMinutes = [5, 15, 30];
+      const dumpMinutes = validMinutes.includes(minutes) ? minutes : 30;
+      
+      console.log(`[LOG-DUMP] Starting log dump for last ${dumpMinutes} minutes...`);
+      
+      const systemLogsTable = getTableName('system_logs');
+      const securityLogsTable = getTableName('security_logs');
+      const cutoffTime = new Date(Date.now() - dumpMinutes * 60 * 1000);
+      
+      // Fetch system logs from the specified time window
+      const systemLogsResult = await db.execute(sql`
+        SELECT * FROM ${sql.raw(systemLogsTable)}
+        WHERE timestamp >= ${cutoffTime.toISOString()}
+        ORDER BY timestamp DESC
+      `);
+      
+      // Fetch security logs from the specified time window
+      let securityLogs: any[] = [];
+      try {
+        const securityLogsResult = await db.execute(sql`
+          SELECT * FROM ${sql.raw(securityLogsTable)}
+          WHERE created_at >= ${cutoffTime.toISOString()}
+          ORDER BY created_at DESC
+        `);
+        securityLogs = securityLogsResult.rows || [];
+      } catch (e) {
+        console.log('[LOG-DUMP] Security logs table not available, skipping');
+      }
+      
+      const systemLogs = systemLogsResult.rows || [];
+      
+      // Create log dump content
+      const dumpContent = {
+        metadata: {
+          dumpedAt: new Date().toISOString(),
+          environment: NODE_ENV,
+          minutesCovered: dumpMinutes,
+          cutoffTime: cutoffTime.toISOString(),
+          systemLogCount: systemLogs.length,
+          securityLogCount: securityLogs.length,
+          dumpedBy: (req.user as any)?.username || 'unknown'
+        },
+        systemLogs,
+        securityLogs
+      };
+      
+      // Convert to JSON string
+      const dumpJson = JSON.stringify(dumpContent, null, 2);
+      const dumpBuffer = Buffer.from(dumpJson, 'utf-8');
+      
+      // Generate storage key
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const environment = NODE_ENV === 'production' ? 'prod' : 'dev';
+      const storageKey = `${environment}-logs/dump-${dumpMinutes}min-${timestamp}.json`;
+      
+      // Upload to object storage
+      const { ReplitStorageService } = await import('../replit-storage-service');
+      const client = (ReplitStorageService as any).getClient();
+      
+      const result = await client.uploadFromBytes(storageKey, dumpBuffer);
+      
+      if (!result.ok) {
+        throw new Error(`Upload failed: ${result.error?.message || 'Unknown error'}`);
+      }
+      
+      console.log(`[LOG-DUMP] ✅ Dumped ${systemLogs.length} system logs and ${securityLogs.length} security logs to ${storageKey}`);
+      
+      res.json({
+        success: true,
+        message: `Successfully dumped logs from last ${dumpMinutes} minutes`,
+        storageKey,
+        systemLogCount: systemLogs.length,
+        securityLogCount: securityLogs.length,
+        totalSize: dumpBuffer.length,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error("[LOG-DUMP] Error dumping logs:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to dump logs"
+      });
+    }
+  });
+
+  // List previously dumped log files
+  app.get("/api/system/dump-logs/list", isAuthenticated, async (req, res) => {
+    try {
+      const environment = NODE_ENV === 'production' ? 'prod' : 'dev';
+      const prefix = `${environment}-logs/`;
+      
+      const { ReplitStorageService } = await import('../replit-storage-service');
+      const client = (ReplitStorageService as any).getClient();
+      
+      const result = await client.list({ prefix });
+      
+      if (!result.ok) {
+        throw new Error(`List failed: ${result.error?.message || 'Unknown error'}`);
+      }
+      
+      const files = (result.value || []).map((item: any) => ({
+        key: item.key || item.name || item,
+        size: item.size,
+        lastModified: item.lastModified
+      })).sort((a: any, b: any) => {
+        // Sort by key descending (newest first based on timestamp in filename)
+        return b.key.localeCompare(a.key);
+      });
+      
+      res.json({
+        success: true,
+        count: files.length,
+        files
+      });
+      
+    } catch (error) {
+      console.error("[LOG-DUMP] Error listing log dumps:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to list log dumps"
+      });
+    }
+  });
 }

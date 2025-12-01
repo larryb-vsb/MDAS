@@ -30,6 +30,9 @@ import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
 import TddfObjectStorageReport from "@/components/reports/TddfObjectStorageReport";
 
+import { useMutation } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
   version: string;
@@ -41,6 +44,136 @@ interface DatabaseStats {
   totalRows: number;
   totalSizeBytes: number;
   lastBackup: string | null;
+}
+
+function LogDumpSection() {
+  const [selectedMinutes, setSelectedMinutes] = useState<string>("30");
+  const [lastDumpResult, setLastDumpResult] = useState<{
+    success: boolean;
+    storageKey?: string;
+    systemLogCount?: number;
+    securityLogCount?: number;
+    totalSize?: number;
+    error?: string;
+  } | null>(null);
+
+  const dumpLogsMutation = useMutation({
+    mutationFn: async (minutes: number) => {
+      const response = await apiRequest('/api/system/dump-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes }),
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      setLastDumpResult({
+        success: true,
+        storageKey: data.storageKey,
+        systemLogCount: data.systemLogCount,
+        securityLogCount: data.securityLogCount,
+        totalSize: data.totalSize,
+      });
+      toast({
+        title: "Logs Dumped Successfully",
+        description: `Exported ${data.systemLogCount} system logs and ${data.securityLogCount} security logs to object storage.`,
+      });
+    },
+    onError: (error: any) => {
+      setLastDumpResult({
+        success: false,
+        error: error.message || "Failed to dump logs",
+      });
+      toast({
+        title: "Log Dump Failed",
+        description: error.message || "Failed to dump logs to object storage",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDumpLogs = () => {
+    dumpLogsMutation.mutate(parseInt(selectedMinutes));
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Label htmlFor="dump-minutes" className="text-sm font-medium mb-2 block">
+            Time Range
+          </Label>
+          <Select value={selectedMinutes} onValueChange={setSelectedMinutes}>
+            <SelectTrigger id="dump-minutes" className="w-full" data-testid="select-dump-minutes">
+              <SelectValue placeholder="Select time range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">Last 5 minutes</SelectItem>
+              <SelectItem value="15">Last 15 minutes</SelectItem>
+              <SelectItem value="30">Last 30 minutes</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-shrink-0 pt-6">
+          <Button
+            onClick={handleDumpLogs}
+            disabled={dumpLogsMutation.isPending}
+            data-testid="button-dump-logs"
+          >
+            {dumpLogsMutation.isPending ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Dumping...
+              </>
+            ) : (
+              <>
+                <DownloadCloud className="mr-2 h-4 w-4" />
+                Dump Logs
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {lastDumpResult && (
+        <div className={`p-4 rounded-lg border ${lastDumpResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          {lastDumpResult.success ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-green-700 font-medium">
+                <Info className="h-4 w-4" />
+                Log Dump Complete
+              </div>
+              <div className="text-sm text-green-600 space-y-1">
+                <div>System Logs: {lastDumpResult.systemLogCount}</div>
+                <div>Security Logs: {lastDumpResult.securityLogCount}</div>
+                <div>Total Size: {formatBytes(lastDumpResult.totalSize || 0)}</div>
+                <div className="text-xs font-mono bg-green-100 p-2 rounded mt-2 break-all">
+                  {lastDumpResult.storageKey}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              <span>{lastDumpResult.error}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        Logs are saved to object storage in the <code className="bg-muted px-1 rounded">{import.meta.env.MODE === 'production' ? 'prod' : 'dev'}-logs/</code> folder as JSON files.
+      </div>
+    </div>
+  );
 }
 
 export default function Settings() {
@@ -870,6 +1003,22 @@ export default function Settings() {
                   </DialogContent>
                 </Dialog>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Log Dump to Object Storage Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <DownloadCloud className="mr-2 h-5 w-5 text-primary" />
+                Log Dump to Object Storage
+              </CardTitle>
+              <CardDescription>
+                Export system and security logs to object storage for analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LogDumpSection />
             </CardContent>
           </Card>
       
