@@ -424,44 +424,6 @@ export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   notes: text("notes") // General notes about the file
 });
 
-// Backup history table
-export const backupHistory = pgTable("backup_history", {
-  id: text("id").primaryKey(),
-  fileName: text("file_name").notNull(),
-  filePath: text("file_path"),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  size: integer("size").notNull(), // Changed from fileSize to size to match DB column
-  tables: jsonb("tables").notNull(), // Changed from text to jsonb to match DB data type
-  notes: text("notes"),
-  downloaded: boolean("downloaded").default(false).notNull(),
-  deleted: boolean("deleted").default(false).notNull(),
-  storageType: text("storage_type").default("local").notNull(), // "local" or "s3"
-  s3Bucket: text("s3_bucket"),
-  s3Key: text("s3_key")
-  // Fields below are not in the current DB schema, will be added later if needed
-  // isScheduled: boolean("is_scheduled").default(false).notNull(),
-  // scheduleId: integer("schedule_id"),
-  // createdBy: text("created_by").default("system").notNull()
-});
-
-// Backup schedule table
-export const backupSchedules = pgTable("backup_schedules", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  frequency: text("frequency").notNull(), // "daily", "weekly", "monthly"
-  time_of_day: text("time_of_day").notNull(), // HH:MM format in 24-hour time
-  day_of_week: integer("day_of_week"), // 0-6 (Sunday to Saturday) for weekly backups
-  day_of_month: integer("day_of_month"), // 1-31 for monthly backups
-  enabled: boolean("enabled").default(true).notNull(),
-  use_s3: boolean("use_s3").default(false).notNull(),
-  retention_days: integer("retention_days").default(30).notNull(),
-  last_run: timestamp("last_run"),
-  next_run: timestamp("next_run"),
-  created_at: timestamp("created_at").defaultNow().notNull(),
-  updated_at: timestamp("updated_at").defaultNow().notNull(),
-  notes: text("notes")
-});
-
 // Schema version table
 export const schemaVersions = pgTable("schema_versions", {
   id: serial("id").primaryKey(),
@@ -1117,14 +1079,6 @@ export const insertTddfMerchantsCacheSchema = tddfMerchantsCacheSchema.omit({ id
 export type TddfMerchantCache = typeof tddfMerchantsCache.$inferSelect;
 export type InsertTddfMerchantCache = z.infer<typeof insertTddfMerchantsCacheSchema>;
 
-// Zod schemas for backup history
-export const backupHistorySchema = createInsertSchema(backupHistory);
-export const insertBackupHistorySchema = backupHistorySchema.omit({ id: true });
-
-// Zod schemas for backup schedules
-export const backupSchedulesSchema = createInsertSchema(backupSchedules);
-export const insertBackupScheduleSchema = backupSchedulesSchema;
-
 // Zod schemas for schema versions
 export const schemaVersionsSchema = createInsertSchema(schemaVersions);
 export const insertSchemaVersionSchema = schemaVersionsSchema.omit({ id: true });
@@ -1278,12 +1232,8 @@ export type ApiAchTransaction = typeof apiAchTransactions.$inferSelect;
 export type InsertApiAchTransaction = typeof apiAchTransactions.$inferInsert;
 export type UploadedFile = typeof uploadedFiles.$inferSelect;
 export type InsertUploadedFile = typeof uploadedFiles.$inferInsert;
-export type BackupHistory = typeof backupHistory.$inferSelect;
-export type InsertBackupHistory = typeof backupHistory.$inferInsert;
 export type SchemaVersion = typeof schemaVersions.$inferSelect;
 export type InsertSchemaVersion = typeof schemaVersions.$inferInsert;
-export type BackupSchedule = typeof backupSchedules.$inferSelect;
-export type InsertBackupSchedule = typeof backupSchedules.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 

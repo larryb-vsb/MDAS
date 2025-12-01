@@ -98,8 +98,6 @@ async function checkTablesExist() {
     { name: getTableName('uploader_mastercard_di_edit_records'), createFunction: createUploaderMastercardDiEditRecordsTable },
     
     // Shared system tables (no environment prefix)
-    { name: 'backup_history', createFunction: createBackupHistoryTable },
-    { name: 'backup_schedules', createFunction: createBackupSchedulesTable },
     { name: 'schema_versions', createFunction: createSchemaVersionsTable },
     { name: 'schema_content', createFunction: createSchemaContentTable }
   ];
@@ -159,8 +157,6 @@ async function createSchema() {
   await createSecurityLogsTable();
   
   // Shared system tables
-  await createBackupHistoryTable();
-  await createBackupSchedulesTable();
   await createSchemaVersionsTable();
   await createSchemaContentTable();
 }
@@ -235,48 +231,6 @@ async function createUploadedFilesTable() {
       processed BOOLEAN DEFAULT FALSE NOT NULL,
       processing_errors TEXT,
       deleted BOOLEAN DEFAULT FALSE NOT NULL
-    )
-  `);
-}
-
-// Backup history table
-async function createBackupHistoryTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS backup_history (
-      id TEXT PRIMARY KEY,
-      file_name TEXT NOT NULL,
-      file_path TEXT,
-      timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      size INTEGER NOT NULL,
-      tables JSONB NOT NULL,
-      notes TEXT,
-      downloaded BOOLEAN DEFAULT FALSE NOT NULL,
-      deleted BOOLEAN DEFAULT FALSE NOT NULL,
-      storage_type TEXT DEFAULT 'local' NOT NULL,
-      s3_bucket TEXT,
-      s3_key TEXT
-    )
-  `);
-}
-
-// Backup schedules table
-async function createBackupSchedulesTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS backup_schedules (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      frequency TEXT NOT NULL,
-      time_of_day TEXT NOT NULL,
-      day_of_week INTEGER,
-      day_of_month INTEGER,
-      enabled BOOLEAN NOT NULL DEFAULT TRUE,
-      use_s3 BOOLEAN NOT NULL DEFAULT FALSE,
-      retention_days INTEGER NOT NULL DEFAULT 30,
-      last_run TIMESTAMP WITH TIME ZONE,
-      next_run TIMESTAMP WITH TIME ZONE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      notes TEXT
     )
   `);
 }

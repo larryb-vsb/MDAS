@@ -26,8 +26,6 @@ export const TABLE_NAMES = {
   audit_logs: getTableName('audit_logs'),
   system_logs: getTableName('system_logs'),
   security_logs: getTableName('security_logs'),
-  backups: getTableName('backups'),
-  backup_schedules: getTableName('backup_schedules'),
   session: getTableName('session')
 };
 
