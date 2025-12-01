@@ -8,22 +8,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, ArchiveRestore, Database, Download, DownloadCloud, HardDrive, Info, List, RefreshCw, ScrollText, Server, Trash2, AlertTriangle, Activity } from "lucide-react";
+import { AlertCircle, Database, DownloadCloud, HardDrive, Info, RefreshCw, ScrollText, Server, Trash2, AlertTriangle, Activity } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import UserManagement from "@/components/settings/UserManagement";
 import ApiUserManagement from "@/components/settings/ApiUserManagement";
 import { PoolStatus } from "@/components/settings/PoolStatus";
 import DatabaseConnectionSettings from "@/components/settings/DatabaseConnectionSettings";
-import S3BackupSettings from "@/components/settings/S3BackupSettings";
-import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
-import BackupUploadRestore from "@/components/settings/BackupUploadRestore";
 import HierarchicalTddfMigration from "@/components/migration/HierarchicalTddfMigration";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
@@ -178,12 +172,7 @@ function LogDumpSection() {
 
 export default function Settings() {
   const [_, navigate] = useLocation();
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [backupProgress, setBackupProgress] = useState(0);
-  const [hasBackup, setHasBackup] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [useS3Storage, setUseS3Storage] = useState(false);
   const [isClearingTddfJson, setIsClearingTddfJson] = useState(false);
   const [showClearConfirmDialog, setShowClearConfirmDialog] = useState(false);
   const [showPerformanceTest, setShowPerformanceTest] = useState(false);
@@ -294,10 +283,6 @@ export default function Settings() {
     setIsMobileMenuOpen(prev => !prev);
   };
   
-  const toggleUploadModal = () => {
-    setIsUploadModalOpen(prev => !prev);
-  };
-  
   // Fetch database statistics
   const {
     data: dbStats,
@@ -307,12 +292,6 @@ export default function Settings() {
     refetch
   } = useQuery<DatabaseStats>({
     queryKey: ["/api/settings/database"],
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-  
-  // Fetch S3 config
-  const s3ConfigQuery = useQuery({
-    queryKey: ["/api/settings/s3config"],
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
@@ -338,87 +317,6 @@ export default function Settings() {
     refetchOnMount: true, // Only fetch when Settings page is opened
   });
   
-  const createBackup = async () => {
-    try {
-      setIsBackingUp(true);
-      setBackupProgress(10);
-      
-      // Simulate progress for better UX (real progress would come from the server)
-      const interval = setInterval(() => {
-        setBackupProgress(prev => {
-          const nextProgress = prev + Math.floor(Math.random() * 15);
-          return nextProgress > 90 ? 90 : nextProgress;
-        });
-      }, 500);
-      
-      try {
-        const response = await fetch("/api/settings/backup", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            useS3: useS3Storage,
-            notes: "Created from settings page"
-          }),
-          credentials: "include"
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-        
-        const responseData = await response.json();
-        
-        clearInterval(interval);
-        setBackupProgress(100);
-        
-        // Set hasBackup to true if the backup was created successfully
-        if (responseData && responseData.success) {
-          setHasBackup(true);
-          
-          const storageType = useS3Storage ? "S3 cloud storage" : "local storage";
-          
-          toast({
-            title: "Backup created successfully",
-            description: `Your database has been backed up to ${storageType}.`,
-          });
-          
-          // Refresh statistics
-          refetch();
-        } else {
-          throw new Error("Backup creation failed");
-        }
-      } catch (error) {
-        clearInterval(interval);
-        console.error("Backup error:", error);
-        
-        toast({
-          title: "Backup failed",
-          description: "Failed to create backup. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error("Outer error:", err);
-      toast({
-        title: "Backup failed",
-        description: "Failed to create backup. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setTimeout(() => {
-        setIsBackingUp(false);
-        setBackupProgress(0);
-      }, 1000);
-    }
-  };
-  
-  const downloadBackup = () => {
-    // Create a direct download link to the backup file
-    window.location.href = "/api/settings/backup/download";
-  };
-
   const clearTddfJsonDatabase = async () => {
     try {
       setIsClearingTddfJson(true);
@@ -1024,13 +922,6 @@ export default function Settings() {
       
           <div className="grid grid-cols-1 gap-6 mb-6">
             <DatabaseConnectionSettings />
-            {systemInfoQuery.data && (systemInfoQuery.data as any)?.storage?.fallbackMode && (
-              <BackupUploadRestore />
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 gap-6 mb-6">
-            <S3BackupSettings />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1082,60 +973,9 @@ export default function Settings() {
                       <span className="font-medium">Database Size:</span>
                       <span>{formatBytes(dbStats?.totalSizeBytes || 0)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Last Backup:</span>
-                      <span>{formatDate(dbStats?.lastBackup)}</span>
-                    </div>
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="use-s3-storage"
-                      checked={useS3Storage}
-                      onCheckedChange={setUseS3Storage}
-                    />
-                    <Label htmlFor="use-s3-storage">Use S3 cloud storage for backups</Label>
-                  </div>
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
-                        <Info className="h-4 w-4" />
-                        <span className="sr-only">More info</span>
-                      </Button>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80">
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold">Backup storage options</h4>
-                        <p className="text-sm">
-                          Backups can be stored locally on the server or in Amazon S3 cloud storage.
-                          To use S3, configure your credentials in the S3 Backup Settings section below.
-                        </p>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </div>
-                
-                <Button 
-                  className="w-full" 
-                  onClick={createBackup} 
-                  disabled={isBackingUp || isLoading || isError || (useS3Storage && (!s3ConfigQuery.data || !(s3ConfigQuery.data as any).accessKeyId))}
-                >
-                  {isBackingUp ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Backup...
-                    </>
-                  ) : (
-                    <>
-                      <DownloadCloud className="mr-2 h-4 w-4" />
-                      Create Backup {useS3Storage ? "to S3" : "locally"}
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
             </Card>
             
             <Card>
@@ -1186,40 +1026,8 @@ export default function Settings() {
                 )}
               </CardContent>
               <CardFooter className="flex flex-col space-y-2">
-                {isBackingUp && (
-                  <div className="w-full space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Backup progress</span>
-                      <span>{backupProgress}%</span>
-                    </div>
-                    <Progress value={backupProgress} className="w-full" />
-                  </div>
-                )}
-                
-                {/* Link to view backups page */}
-                {!isBackingUp && (
-                  <div className="flex flex-col gap-2 w-full">
-                    <div className="flex gap-2 w-full">
-                      <Button 
-                        className="flex-1" 
-                        variant="outline" 
-                        onClick={downloadBackup}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Latest Backup
-                      </Button>
-                      
-                      <Button
-                        className="flex-1"
-                        variant="outline"
-                        onClick={() => navigate("/backups")}
-                      >
-                        <ArchiveRestore className="mr-2 h-4 w-4" />
-                        View Backup Management
-                      </Button>
-                    </div>
-                    
-                    {/* Clear TDDF JSON Database Button with Warning Dialog */}
+                <div className="flex flex-col gap-2 w-full">
+                  {/* Clear TDDF JSON Database Button with Warning Dialog */}
                     <Dialog open={showClearConfirmDialog} onOpenChange={setShowClearConfirmDialog}>
                       <DialogTrigger asChild>
                         <Button 
@@ -1296,10 +1104,9 @@ export default function Settings() {
                       </DialogContent>
                     </Dialog>
                     
-                    {/* TDDF Object Storage Report Button */}
-                    <TddfObjectStorageReport />
-                  </div>
-                )}
+                  {/* TDDF Object Storage Report Button */}
+                  <TddfObjectStorageReport />
+                </div>
               </CardFooter>
             </Card>
           </div>
