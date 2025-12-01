@@ -3,7 +3,6 @@ import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeSchemaVersions } from "./schema_version";
-import { initializeBackupScheduler } from "./backup/backup_scheduler";
 import { ensureAppDirectories } from "./utils/fs-utils";
 import { config, NODE_ENV, BASE_UPLOAD_PATH } from "./env-config";
 import { pool, db } from "./db";
@@ -198,30 +197,11 @@ app.use((req, res, next) => {
       migrationSuccess
     });
 
-    // If migration fails, try to restore from the most recent backup
+    // If migration fails, switch to fallback storage
     if (!migrationSuccess) {
-      console.log("Database migration failed. Attempting to restore from backup...");
-      await systemLogger.warn('Application', 'Migration failed - attempting backup restore');
-      
-      try {
-        // Import the restore functionality
-        const { restoreMostRecentBackup } = await import('./restore-env-backup');
-        
-        // Try to restore from backup
-        const restoreSuccess = await restoreMostRecentBackup();
-        
-        if (restoreSuccess) {
-          console.log("Successfully restored database from backup");
-          migrationSuccess = true; // Consider migration successful if restore was successful
-        } else {
-          console.log("Both migration and restore failed. Switching to in-memory fallback storage.");
-          useFallbackStorage = true;
-        }
-      } catch (restoreError) {
-        console.error("Error during restore attempt:", restoreError);
-        console.log("Switching to in-memory fallback storage.");
-        useFallbackStorage = true;
-      }
+      console.log("Database migration failed. Switching to in-memory fallback storage.");
+      await systemLogger.warn('Application', 'Migration failed - switching to fallback storage');
+      useFallbackStorage = true;
     }
     
     // If we need to use fallback storage, initialize it now
@@ -240,7 +220,7 @@ app.use((req, res, next) => {
     // Fix database schema issues and ensure admin user exists
     if (migrationSuccess) {
       // Import and run database helpers
-      const { fixSchemaVersionsTable, fixBackupSchedulesTable, ensureAdminUser } = await import('./database-helpers');
+      const { fixSchemaVersionsTable, ensureAdminUser } = await import('./database-helpers');
       
       try {
         await fixSchemaVersionsTable();
@@ -249,12 +229,6 @@ app.use((req, res, next) => {
         console.error("Error fixing schema versions table:", error);
       }
       
-      try {
-        await fixBackupSchedulesTable();
-        console.log("Backup schedules table structure checked/fixed");
-      } catch (error) {
-        console.error("Error fixing backup schedules table:", error);
-      }
       
       try {
         await ensureAdminUser();
@@ -311,22 +285,6 @@ app.use((req, res, next) => {
         console.log("Warning: Could not initialize schema versions:", err.message);
       });
       
-      // BACKUP FEATURE DISABLED - Re-enable when backup functionality is needed
-      // The backup scheduler was causing errors due to missing 'raw_data' column
-      // To re-enable: uncomment the code below and fix the create_backup_data.ts schema
-      /*
-      // Add default backup schedule if needed
-      const { addDefaultBackupSchedule } = await import('./add_default_backup_schedule');
-      await addDefaultBackupSchedule().catch(err => {
-        console.log("Warning: Could not add default backup schedule:", err.message);
-      });
-      
-      // Start the backup scheduler
-      await initializeBackupScheduler().catch(err => {
-        console.log("Warning: Could not initialize backup scheduler:", err.message);
-      });
-      */
-      console.log('[BACKUP] Backup scheduler disabled - re-enable when needed');
       
       // Start the TDDF API processor service
       await tddfApiProcessor.initialize();
@@ -390,8 +348,8 @@ app.use((req, res, next) => {
       //   console.log("Warning: Could not initialize sample logs:", err.message);
       // });
     } else if (useFallbackStorage) {
-      // Skip schema version tracking and backup scheduler when using fallback storage
-      console.log("In-memory storage mode: Skipping schema version tracking and backup scheduler");
+      // Skip schema version tracking when using fallback storage
+      console.log("In-memory storage mode: Skipping schema version tracking");
     }
     
     // Create http server

@@ -14,7 +14,6 @@ import { exec } from "child_process";
 import { count, desc, eq, isNotNull, and, gte, between, sql, isNull, lte } from "drizzle-orm";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
-import { registerS3Routes } from "./routes/s3_routes";
 import { registerMerchantRoutes } from "./routes/merchants.routes";
 import { registerTransactionRoutes } from "./routes/transactions.routes";
 import { registerUserRoutes } from "./routes/users.routes";
@@ -384,8 +383,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ROUTE REGISTRATION
   // ============================================================================
   
-  // Register S3 configuration routes
-  registerS3Routes(app);
   
   // Register logs routes
   app.use(logsRoutes);
