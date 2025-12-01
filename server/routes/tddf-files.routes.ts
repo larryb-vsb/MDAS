@@ -2664,4 +2664,270 @@ export function registerTddfFilesRoutes(app: Express) {
       });
     }
   });
+
+  // ==================== DUPLICATE FILE DETECTION AND CLEANUP ====================
+  
+  // Detect duplicate files by filename (files uploaded multiple times)
+  app.get("/api/tddf/duplicate-files", isAuthenticated, async (req, res) => {
+    try {
+      const uploadsTableName = getTableName('uploader_uploads');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      
+      console.log(`[DUPLICATE-FILES] Scanning for duplicate file uploads...`);
+      
+      // Find files with same filename uploaded multiple times
+      const duplicatesResult = await pool.query(`
+        SELECT 
+          filename,
+          COUNT(*) as upload_count,
+          array_agg(id ORDER BY start_time) as upload_ids,
+          array_agg(start_time ORDER BY start_time) as upload_times,
+          MIN(start_time) as first_upload,
+          MAX(start_time) as last_upload
+        FROM ${uploadsTableName}
+        WHERE deleted_at IS NULL
+          AND filename IS NOT NULL
+        GROUP BY filename
+        HAVING COUNT(*) > 1
+        ORDER BY COUNT(*) DESC
+        LIMIT 100
+      `);
+      
+      // For each duplicate, get associated TDDF record counts
+      const duplicatesWithRecords = [];
+      for (const dup of duplicatesResult.rows) {
+        // Get TDDF record counts per upload_id
+        const recordCountsResult = await pool.query(`
+          SELECT 
+            upload_id,
+            COUNT(*) as record_count
+          FROM ${tddfJsonbTableName}
+          WHERE upload_id = ANY($1)
+          GROUP BY upload_id
+        `, [dup.upload_ids]);
+        
+        const recordCountMap: Record<string, number> = {};
+        for (const row of recordCountsResult.rows) {
+          recordCountMap[row.upload_id] = parseInt(row.record_count);
+        }
+        
+        const recordValues = Object.values(recordCountMap);
+        const totalRecords = recordValues.reduce((sum: number, count: number) => sum + count, 0);
+        const maxRecords = recordValues.length > 0 ? Math.max(...recordValues) : 0;
+        const duplicateRecords = totalRecords - maxRecords;
+        
+        duplicatesWithRecords.push({
+          filename: dup.filename,
+          uploadCount: parseInt(dup.upload_count),
+          uploadIds: dup.upload_ids,
+          uploadTimes: dup.upload_times,
+          firstUpload: dup.first_upload,
+          lastUpload: dup.last_upload,
+          recordCounts: recordCountMap,
+          totalRecords,
+          duplicateRecords
+        });
+      }
+      
+      const totalDuplicateUploads = duplicatesWithRecords.reduce((sum, d) => sum + (d.uploadCount - 1), 0);
+      const totalDuplicateRecords = duplicatesWithRecords.reduce((sum, d) => sum + d.duplicateRecords, 0);
+      
+      console.log(`[DUPLICATE-FILES] Found ${duplicatesWithRecords.length} filenames with duplicates, ${totalDuplicateUploads} extra uploads, ~${totalDuplicateRecords} duplicate records`);
+      
+      res.json({
+        success: true,
+        duplicates: duplicatesWithRecords,
+        summary: {
+          filesWithDuplicates: duplicatesWithRecords.length,
+          totalDuplicateUploads,
+          totalDuplicateRecords
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('[DUPLICATE-FILES] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to detect duplicate files',
+        message: error.message 
+      });
+    }
+  });
+  
+  // Clean up duplicate files - removes older duplicates, keeps the most recent upload
+  app.post("/api/tddf/cleanup-duplicate-files", isAuthenticated, async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+      const { keepOldest = false } = req.body;
+      const uploadsTableName = getTableName('uploader_uploads');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const user = (req as any).user;
+      const userId = user?.id || 'system';
+      
+      console.log(`[DUPLICATE-CLEANUP] Starting duplicate file cleanup (keep ${keepOldest ? 'oldest' : 'newest'})...`);
+      
+      await client.query('BEGIN');
+      
+      // Find all duplicate files
+      const duplicatesResult = await client.query(`
+        SELECT 
+          filename,
+          array_agg(id ORDER BY start_time ${keepOldest ? 'ASC' : 'DESC'}) as upload_ids
+        FROM ${uploadsTableName}
+        WHERE deleted_at IS NULL
+          AND filename IS NOT NULL
+        GROUP BY filename
+        HAVING COUNT(*) > 1
+      `);
+      
+      let totalFilesRemoved = 0;
+      let totalRecordsRemoved = 0;
+      const cleanupDetails: Array<{ filename: string; keptUploadId: string; removedUploadIds: string[]; recordsRemoved: number }> = [];
+      
+      for (const dup of duplicatesResult.rows) {
+        const uploadIds = dup.upload_ids;
+        const keepId = uploadIds[0]; // First in sorted order (oldest if keepOldest, newest otherwise)
+        const removeIds = uploadIds.slice(1);
+        
+        if (removeIds.length > 0) {
+          // Delete TDDF records for duplicate uploads
+          const deleteRecordsResult = await client.query(`
+            DELETE FROM ${tddfJsonbTableName}
+            WHERE upload_id = ANY($1)
+          `, [removeIds]);
+          
+          const recordsRemoved = deleteRecordsResult.rowCount || 0;
+          totalRecordsRemoved += recordsRemoved;
+          
+          // Soft-delete the duplicate upload records
+          await client.query(`
+            UPDATE ${uploadsTableName}
+            SET deleted_at = NOW(),
+                deleted_by = $1,
+                processing_notes = COALESCE(processing_notes, '') || ' | Duplicate cleanup: Removed as duplicate of ' || $2
+            WHERE id = ANY($3)
+          `, [userId, keepId, removeIds]);
+          
+          totalFilesRemoved += removeIds.length;
+          
+          cleanupDetails.push({
+            filename: dup.filename,
+            keptUploadId: keepId,
+            removedUploadIds: removeIds,
+            recordsRemoved
+          });
+          
+          console.log(`[DUPLICATE-CLEANUP] ${dup.filename}: Kept ${keepId}, removed ${removeIds.length} duplicates (${recordsRemoved} records)`);
+        }
+      }
+      
+      await client.query('COMMIT');
+      
+      console.log(`[DUPLICATE-CLEANUP] Completed: Removed ${totalFilesRemoved} duplicate files and ${totalRecordsRemoved} TDDF records`);
+      
+      res.json({
+        success: true,
+        summary: {
+          duplicateFilesRemoved: totalFilesRemoved,
+          tddfRecordsRemoved: totalRecordsRemoved,
+          strategy: keepOldest ? 'kept_oldest' : 'kept_newest'
+        },
+        details: cleanupDetails
+      });
+      
+    } catch (error: any) {
+      await client.query('ROLLBACK');
+      console.error('[DUPLICATE-CLEANUP] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to cleanup duplicate files',
+        message: error.message 
+      });
+    } finally {
+      client.release();
+    }
+  });
+  
+  // Preview cleanup for a specific filename - shows what would be removed
+  app.get("/api/tddf/duplicate-files/:filename/preview", isAuthenticated, async (req, res) => {
+    try {
+      const { filename } = req.params;
+      const { keepOldest = 'false' } = req.query;
+      const shouldKeepOldest = keepOldest === 'true';
+      
+      const uploadsTableName = getTableName('uploader_uploads');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      
+      console.log(`[DUPLICATE-PREVIEW] Previewing cleanup for: ${filename}`);
+      
+      // Get all uploads for this filename
+      const uploadsResult = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          start_time,
+          upload_status,
+          current_phase,
+          dt_record_count,
+          bh_record_count
+        FROM ${uploadsTableName}
+        WHERE filename = $1
+          AND deleted_at IS NULL
+        ORDER BY start_time ${shouldKeepOldest ? 'ASC' : 'DESC'}
+      `, [filename]);
+      
+      if (uploadsResult.rows.length <= 1) {
+        return res.json({
+          success: true,
+          message: 'No duplicates found for this filename',
+          filename,
+          uploads: uploadsResult.rows
+        });
+      }
+      
+      // Get TDDF record counts for each upload
+      const uploadIds = uploadsResult.rows.map(row => row.id);
+      const recordCountsResult = await pool.query(`
+        SELECT 
+          upload_id,
+          COUNT(*) as record_count
+        FROM ${tddfJsonbTableName}
+        WHERE upload_id = ANY($1)
+        GROUP BY upload_id
+      `, [uploadIds]);
+      
+      const recordCountMap: Record<string, number> = {};
+      for (const row of recordCountsResult.rows) {
+        recordCountMap[row.upload_id] = parseInt(row.record_count);
+      }
+      
+      const uploads = uploadsResult.rows.map((upload, index) => ({
+        ...upload,
+        tddfRecordCount: recordCountMap[upload.id] || 0,
+        action: index === 0 ? 'KEEP' : 'REMOVE'
+      }));
+      
+      const keptUpload = uploads[0];
+      const removedUploads = uploads.slice(1);
+      const totalRecordsToRemove = removedUploads.reduce((sum, u) => sum + u.tddfRecordCount, 0);
+      
+      res.json({
+        success: true,
+        filename,
+        strategy: shouldKeepOldest ? 'keep_oldest' : 'keep_newest',
+        preview: {
+          keptUpload,
+          removedUploads,
+          totalRecordsToRemove
+        },
+        uploads
+      });
+      
+    } catch (error: any) {
+      console.error('[DUPLICATE-PREVIEW] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to preview duplicate cleanup',
+        message: error.message 
+      });
+    }
+  });
 }

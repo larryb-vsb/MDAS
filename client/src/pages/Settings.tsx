@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, Database, DownloadCloud, HardDrive, Info, RefreshCw, ScrollText, Server, Trash2, AlertTriangle, Activity } from "lucide-react";
+import { AlertCircle, Database, DownloadCloud, HardDrive, Info, RefreshCw, ScrollText, Server, Trash2, AlertTriangle, Activity, Copy, FileWarning, CheckCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -167,6 +167,315 @@ function LogDumpSection() {
         Logs are saved to object storage in the <code className="bg-muted px-1 rounded">{import.meta.env.MODE === 'production' ? 'prod' : 'dev'}-logs/</code> folder as JSON files.
       </div>
     </div>
+  );
+}
+
+interface DuplicateFile {
+  filename: string;
+  uploadCount: number;
+  uploadIds: string[];
+  uploadTimes: string[];
+  firstUpload: string;
+  lastUpload: string;
+  recordCounts: Record<string, number>;
+  totalRecords: number;
+  duplicateRecords: number;
+}
+
+interface DuplicateFilesResponse {
+  success: boolean;
+  duplicates: DuplicateFile[];
+  summary: {
+    filesWithDuplicates: number;
+    totalDuplicateUploads: number;
+    totalDuplicateRecords: number;
+  };
+}
+
+function DuplicateFileCleanupSection() {
+  const [isScanning, setIsScanning] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [showCleanupConfirmDialog, setShowCleanupConfirmDialog] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateFilesResponse | null>(null);
+  const [lastCleanupResult, setLastCleanupResult] = useState<{
+    success: boolean;
+    duplicateFilesRemoved?: number;
+    tddfRecordsRemoved?: number;
+    error?: string;
+  } | null>(null);
+
+  const scanForDuplicates = async () => {
+    setIsScanning(true);
+    setLastCleanupResult(null);
+    
+    try {
+      const response = await fetch('/api/tddf/duplicate-files');
+      if (!response.ok) throw new Error('Failed to scan for duplicates');
+      const data = await response.json();
+      setDuplicates(data);
+      
+      if (data.duplicates.length === 0) {
+        toast({
+          title: "No Duplicates Found",
+          description: "All files are unique - no cleanup needed.",
+        });
+      } else {
+        toast({
+          title: "Duplicates Found",
+          description: `Found ${data.summary.filesWithDuplicates} files with ${(data.summary.totalDuplicateRecords || 0).toLocaleString()} duplicate records.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Scan Failed",
+        description: error instanceof Error ? error.message : "Failed to scan for duplicates",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const cleanupDuplicates = async () => {
+    setIsCleaning(true);
+    setShowCleanupConfirmDialog(false);
+    
+    try {
+      const response = await fetch('/api/tddf/cleanup-duplicate-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepOldest: false }), // Keep newest upload
+      });
+      
+      if (!response.ok) throw new Error('Failed to cleanup duplicates');
+      const result = await response.json();
+      
+      setLastCleanupResult({
+        success: true,
+        duplicateFilesRemoved: result.summary.duplicateFilesRemoved,
+        tddfRecordsRemoved: result.summary.tddfRecordsRemoved,
+      });
+      
+      // Clear duplicates list since they're now cleaned up
+      setDuplicates(null);
+      
+      toast({
+        title: "Cleanup Complete",
+        description: `Removed ${result.summary.duplicateFilesRemoved || 0} duplicate files and ${(result.summary.tddfRecordsRemoved || 0).toLocaleString()} TDDF records.`,
+      });
+    } catch (error) {
+      setLastCleanupResult({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to cleanup duplicates",
+      });
+      toast({
+        title: "Cleanup Failed",
+        description: error instanceof Error ? error.message : "Failed to cleanup duplicates",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(dateString));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Copy className="mr-2 h-5 w-5 text-orange-500" />
+          Duplicate File Cleanup
+        </CardTitle>
+        <CardDescription>
+          Detect and remove duplicate TDDF file uploads and their associated records
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Button
+            onClick={scanForDuplicates}
+            disabled={isScanning || isCleaning}
+            variant="outline"
+            data-testid="button-scan-duplicates"
+          >
+            {isScanning ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              <>
+                <FileWarning className="mr-2 h-4 w-4" />
+                Scan for Duplicates
+              </>
+            )}
+          </Button>
+          
+          {duplicates && duplicates.duplicates.length > 0 && (
+            <Dialog open={showCleanupConfirmDialog} onOpenChange={setShowCleanupConfirmDialog}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={isScanning || isCleaning}
+                  data-testid="button-cleanup-duplicates"
+                >
+                  {isCleaning ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Cleaning...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Cleanup Duplicates
+                    </>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center text-destructive">
+                    <AlertTriangle className="mr-2 h-5 w-5" />
+                    Confirm Duplicate Cleanup
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="font-medium text-destructive">
+                    This will permanently delete duplicate records!
+                  </div>
+                  <div className="text-sm space-y-2">
+                    <p>The cleanup will:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Keep the <strong>newest</strong> upload for each file</li>
+                      <li>Remove <strong>{duplicates.summary.totalDuplicateUploads || 0}</strong> duplicate file uploads</li>
+                      <li>Delete approximately <strong>{(duplicates.summary.totalDuplicateRecords || 0).toLocaleString()}</strong> duplicate TDDF records</li>
+                    </ul>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    This action cannot be undone. The newest version of each file will be preserved.
+                  </div>
+                </div>
+                <DialogFooter className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCleanupConfirmDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={cleanupDuplicates}
+                    disabled={isCleaning}
+                  >
+                    {isCleaning ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Cleaning...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Clean Up Duplicates
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        {/* Last cleanup result */}
+        {lastCleanupResult && (
+          <Alert variant={lastCleanupResult.success ? "default" : "destructive"}>
+            {lastCleanupResult.success ? (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Cleanup Complete</AlertTitle>
+                <AlertDescription>
+                  Removed {lastCleanupResult.duplicateFilesRemoved} duplicate file uploads and {lastCleanupResult.tddfRecordsRemoved?.toLocaleString()} TDDF records.
+                </AlertDescription>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Cleanup Failed</AlertTitle>
+                <AlertDescription>{lastCleanupResult.error}</AlertDescription>
+              </>
+            )}
+          </Alert>
+        )}
+
+        {/* Duplicate files table */}
+        {duplicates && duplicates.duplicates.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Badge variant="destructive" className="text-sm">
+                {duplicates.summary.filesWithDuplicates} duplicate files found
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                ~{(duplicates.summary.totalDuplicateRecords || 0).toLocaleString()} extra records
+              </span>
+            </div>
+            
+            <div className="overflow-auto max-h-[300px] border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Filename</TableHead>
+                    <TableHead className="text-center">Copies</TableHead>
+                    <TableHead className="text-right">Extra Records</TableHead>
+                    <TableHead className="text-right">First Upload</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {duplicates.duplicates.map((dup, index) => (
+                    <TableRow key={index} data-testid={`row-duplicate-${index}`}>
+                      <TableCell className="font-mono text-xs max-w-[300px] truncate" title={dup.filename}>
+                        {dup.filename}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{dup.uploadCount}x</Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-destructive font-medium">
+                        {(dup.duplicateRecords || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {formatDate(dup.firstUpload)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+
+        {duplicates && duplicates.duplicates.length === 0 && (
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>No Duplicates</AlertTitle>
+            <AlertDescription>
+              All uploaded files are unique. No cleanup is needed.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="text-xs text-muted-foreground">
+          Duplicate files occur when the same file is uploaded multiple times. Cleanup removes older uploads and their TDDF records, keeping only the newest version.
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -919,6 +1228,9 @@ export default function Settings() {
               <LogDumpSection />
             </CardContent>
           </Card>
+
+          {/* Duplicate File Cleanup Section */}
+          <DuplicateFileCleanupSection />
       
           <div className="grid grid-cols-1 gap-6 mb-6">
             <DatabaseConnectionSettings />
