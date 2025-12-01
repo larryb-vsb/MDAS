@@ -8,9 +8,10 @@ import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MonthlyTotals {
   month: string;
@@ -22,6 +23,7 @@ interface MonthlyTotals {
   dailyBreakdown: Array<{
     date: string;
     files: number;
+    filenames?: string[];
     records: number;
     transactionValue: number;
     netDepositBh: number;
@@ -850,7 +852,7 @@ export default function Tddf1MonthlyView() {
                         tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                         tick={{ fill: isDarkMode ? '#d1d5db' : '#666' }}
                       />
-                      <Tooltip 
+                      <RechartsTooltip 
                         formatter={(value: number, name: string) => {
                           const displayNames: Record<string, string> = {
                             'currentTransactionValue': `${format(currentMonth, 'MMM yyyy')} - DT Authorizations`,
@@ -961,24 +963,28 @@ export default function Tddf1MonthlyView() {
                   </thead>
                   <tbody>
                     {(() => {
-                      // Group daily breakdown by date and aggregate
+                      // Group daily breakdown by date and aggregate, preserving filenames
                       const dailyAggregated = monthlyData.dailyBreakdown.reduce((acc, entry) => {
                         const dateKey = entry.date;
                         if (!acc[dateKey]) {
                           acc[dateKey] = {
                             date: dateKey,
                             files: 0,
+                            filenames: [] as string[],
                             records: 0,
                             transactionValue: 0,
                             netDepositBh: 0
                           };
                         }
                         acc[dateKey].files += entry.files;
+                        if (entry.filenames && entry.filenames.length > 0) {
+                          acc[dateKey].filenames = [...acc[dateKey].filenames, ...entry.filenames];
+                        }
                         acc[dateKey].records += entry.records;
                         acc[dateKey].transactionValue += entry.transactionValue;
                         acc[dateKey].netDepositBh += entry.netDepositBh;
                         return acc;
-                      }, {} as Record<string, { date: string; files: number; records: number; transactionValue: number; netDepositBh: number }>);
+                      }, {} as Record<string, { date: string; files: number; filenames: string[]; records: number; transactionValue: number; netDepositBh: number }>);
 
                       // Convert to array and sort by date
                       return Object.values(dailyAggregated)
@@ -1002,7 +1008,37 @@ export default function Tddf1MonthlyView() {
                             <span className="hidden sm:inline">{format(new Date(day.date), 'EEE, MMM dd, yyyy')}</span>
                             <span className="sm:hidden">{format(new Date(day.date), 'EEE, MMM dd')}</span>
                           </td>
-                        <td className={`py-1 sm:py-2 px-1 sm:px-4 text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{day.files}</td>
+                        <td className={`py-1 sm:py-2 px-1 sm:px-4 text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {day.filenames && day.filenames.length > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={300}>
+                                <TooltipTrigger asChild>
+                                  <span 
+                                    className="cursor-help underline decoration-dotted underline-offset-2"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {day.files}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  side="left" 
+                                  className={`max-w-sm ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white'}`}
+                                >
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-medium mb-1">Files for {format(new Date(day.date), 'MMM dd')}:</div>
+                                    {day.filenames.map((filename, i) => (
+                                      <div key={i} className="truncate max-w-[280px] text-muted-foreground">
+                                        {filename}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            day.files
+                          )}
+                        </td>
                         <td className={`py-1 sm:py-2 px-1 sm:px-4 text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           <span className="hidden sm:inline">{formatNumber(day.records)}</span>
                           <span className="sm:hidden">{day.records > 1000 ? `${(day.records/1000).toFixed(1)}k` : day.records}</span>

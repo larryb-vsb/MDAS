@@ -9,7 +9,8 @@ import { useRoute, useLocation } from 'wouter';
 import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
-import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import clsx from 'clsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,6 +29,7 @@ interface MonthlyTotals {
   dailyBreakdown: Array<{
     date: string;
     files: number;
+    filenames?: string[];
     records: number;
     transactionValue: number;
     netDepositBh: number;
@@ -1009,7 +1011,7 @@ export default function History() {
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                     />
-                    <Tooltip 
+                    <RechartsTooltip 
                       contentStyle={{ 
                         backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                         border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
@@ -1074,7 +1076,7 @@ export default function History() {
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                     />
-                    <Tooltip 
+                    <RechartsTooltip 
                       contentStyle={{ 
                         backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                         border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
@@ -1182,7 +1184,37 @@ export default function History() {
                         data-testid={`row-day-${day.date}`}
                       >
                         <td className={`p-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{format(new Date(day.date), 'MMM dd, yyyy')}</td>
-                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{day.files}</td>
+                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {day.filenames && day.filenames.length > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={300}>
+                                <TooltipTrigger asChild>
+                                  <span 
+                                    className="cursor-help underline decoration-dotted underline-offset-2"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {day.files}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  side="left" 
+                                  className={`max-w-sm ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white'}`}
+                                >
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-medium mb-1">Files for {format(new Date(day.date), 'MMM dd')}:</div>
+                                    {day.filenames.map((filename, i) => (
+                                      <div key={i} className="truncate max-w-[280px] text-muted-foreground">
+                                        {filename}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            day.files
+                          )}
+                        </td>
                         <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatNumber(day.records)}</td>
                         <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.transactionValue)}</td>
                         <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.netDepositBh)}</td>
@@ -1489,7 +1521,7 @@ export default function History() {
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                     />
-                    <Tooltip 
+                    <RechartsTooltip 
                       contentStyle={{ 
                         backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                         border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
@@ -1559,7 +1591,7 @@ export default function History() {
                       stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
                       tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                     />
-                    <Tooltip 
+                    <RechartsTooltip 
                       contentStyle={{ 
                         backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                         border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,

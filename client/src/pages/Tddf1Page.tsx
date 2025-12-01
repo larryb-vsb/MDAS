@@ -603,7 +603,7 @@ function Tddf1Page() {
   // File deletion mutation
   const deleteFileMutation = useMutation({
     mutationFn: async (uploadId: string) => {
-      return apiRequest("DELETE", `/api/uploader/uploads/${uploadId}`);
+      return apiRequest(`/api/uploader/uploads/${uploadId}`, { method: "DELETE" });
     },
     onSuccess: (data, uploadId) => {
       toast({

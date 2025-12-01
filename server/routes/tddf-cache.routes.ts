@@ -1237,6 +1237,7 @@ export function registerTddfCacheRoutes(app: Express) {
       `, [startDate, endDate, startDate, endDate]);
       
       // Count files by filename date for each day (matching Data Files tab logic)
+      // Also get array of filenames for tooltip display
       // Exclude deleted files
       const fileCountsByDate = await client.query(`
         SELECT 
@@ -1244,7 +1245,8 @@ export function registerTddfCacheRoutes(app: Express) {
             to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
             'YYYY-MM-DD'
           ) as date,
-          COUNT(*) as files
+          COUNT(*) as files,
+          array_agg(filename ORDER BY start_time DESC) as filenames
         FROM ${uploaderTableName}
         WHERE split_part(filename, '_', 4) ~ '^\\d{8}$'
           AND deleted_at IS NULL
@@ -1263,10 +1265,12 @@ export function registerTddfCacheRoutes(app: Express) {
         ORDER BY date
       `, [startDate, endDate]);
       
-      // Create a map of file counts by date
+      // Create a map of file counts and filenames by date
       const fileCountMap = new Map<string, number>();
+      const filenameMap = new Map<string, string[]>();
       fileCountsByDate.rows.forEach(row => {
         fileCountMap.set(row.date, parseInt(row.files) || 0);
+        filenameMap.set(row.date, row.filenames || []);
       });
       
       const result = {
@@ -1279,6 +1283,7 @@ export function registerTddfCacheRoutes(app: Express) {
         dailyBreakdown: dailyBreakdown.rows.map((entry) => ({
           date: entry.date,
           files: fileCountMap.get(entry.date) || 0,  // Use filename date count
+          filenames: filenameMap.get(entry.date) || [],  // File names for tooltip
           records: parseInt(entry.records),
           transactionValue: parseFloat(entry.transaction_value || '0'),
           netDepositBh: parseFloat(entry.net_deposit_bh || '0')
@@ -2146,10 +2151,10 @@ export function registerTddfCacheRoutes(app: Express) {
             THEN (r.extracted_fields->>'transactionAmount')::numeric 
             ELSE 0 
           END) as transaction_amounts
-        FROM ${masterTableName} r
-        JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        JOIN file_batch_dates fbd ON r.upload_id = fbd.upload_id
-        LEFT JOIN file_transaction_dates ftd ON r.upload_id = ftd.upload_id
+        FROM ${uploaderTableName} u
+        LEFT JOIN ${masterTableName} r ON r.upload_id = u.id
+        LEFT JOIN file_batch_dates fbd ON u.id = fbd.upload_id
+        LEFT JOIN file_transaction_dates ftd ON u.id = ftd.upload_id
         WHERE split_part(u.filename, '_', 4) ~ '^\\d{8}$'
           AND to_char(
             to_date(split_part(u.filename, '_', 4), 'MMDDYYYY'),
