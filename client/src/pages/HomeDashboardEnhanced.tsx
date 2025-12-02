@@ -633,7 +633,7 @@ export default function HomeDashboard() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight">Merchant Datawarehouse and Automation System</h1>
+              <h1 className="text-3xl font-bold tracking-tight">MDAS</h1>
               <Badge variant="outline" className={import.meta.env.MODE === "production" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
                 {import.meta.env.MODE === "production" ? "Production" : "Development"}
               </Badge>
