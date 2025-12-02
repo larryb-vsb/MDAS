@@ -10,8 +10,8 @@ import { withRetry, withConnectionCheck } from './db-retry-util.js';
 const MAX_STEP6_RETRIES = 3; // Maximum number of retry attempts before marking file as failed
 const STEP6_TIMEOUT_MS = 300000; // 5 minutes timeout for Step 6 processing
 
-// Step 6 Concurrency Configuration
-const MAX_STEP6_CONCURRENT_FILES = parseInt(process.env.MAX_STEP6_CONCURRENT_FILES) || 3; // Max files processing simultaneously
+// Step 6 Concurrency Configuration - Initial default, can be overridden by database setting
+const DEFAULT_MAX_STEP6_CONCURRENT_FILES = parseInt(process.env.MAX_STEP6_CONCURRENT_FILES) || 3;
 const STEP6_INTERVAL_MS = parseInt(process.env.STEP6_INTERVAL_MS) || 60000; // Check interval (60 seconds)
 
 class MMSWatcher {
@@ -26,7 +26,8 @@ class MMSWatcher {
     this.auto45Enabled = false; // Auto 4-5 processing DISABLED by default - user must enable manually
     this.manual45Queue = new Set(); // Manual processing queue for single-step progression
     
-    // Step 6 Concurrency Management
+    // Step 6 Concurrency Management - Dynamic value loaded from database
+    this.maxStep6Concurrent = DEFAULT_MAX_STEP6_CONCURRENT_FILES; // Will be loaded from DB on start
     this.isStep6SweepRunning = false; // Prevents overlapping Step 6 intervals
     this.step6ActiveSlots = new Set(); // Track active processing slots (upload IDs)
     this.step6QueuedFiles = []; // Files waiting for available slot
@@ -43,7 +44,53 @@ class MMSWatcher {
     console.log('[MMS-WATCHER] 🔧 MERCHANT DETAIL DETECTION CODE IS LOADED - Ready to detect DACQ_MER_DTL files');
     console.log(`[MMS-WATCHER] Auto 4-5 initialized to: ${this.auto45Enabled ? 'ENABLED' : 'DISABLED'}`);
     console.log(`[MMS-WATCHER] Step 6 retry limits: MAX_RETRIES=${MAX_STEP6_RETRIES}, TIMEOUT=${STEP6_TIMEOUT_MS}ms`);
-    console.log(`[MMS-WATCHER] Step 6 concurrency: MAX_CONCURRENT=${MAX_STEP6_CONCURRENT_FILES}, INTERVAL=${STEP6_INTERVAL_MS}ms`);
+    console.log(`[MMS-WATCHER] Step 6 concurrency: MAX_CONCURRENT=${this.maxStep6Concurrent} (default), INTERVAL=${STEP6_INTERVAL_MS}ms`);
+    
+    // Load dynamic config from database on startup
+    this.loadStep6Config().catch(err => {
+      console.warn('[MMS-WATCHER] Could not load Step 6 config from database, using default:', err.message);
+    });
+  }
+  
+  // Load Step 6 configuration from database
+  async loadStep6Config() {
+    try {
+      const { db } = await import('./db.js');
+      const { sql } = await import('drizzle-orm');
+      const { getTableName } = await import('./table-config.js');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'step6_max_concurrent'
+      `);
+      
+      if (result.rows.length > 0) {
+        const dbValue = parseInt(result.rows[0].setting_value);
+        if (dbValue >= 1 && dbValue <= 10) {
+          this.maxStep6Concurrent = dbValue;
+          console.log(`[MMS-WATCHER] [CONFIG] Loaded Step 6 max concurrent from database: ${this.maxStep6Concurrent}`);
+        }
+      }
+    } catch (error) {
+      console.warn('[MMS-WATCHER] [CONFIG] Error loading Step 6 config:', error.message);
+    }
+  }
+  
+  // Set max concurrent slots (called from API endpoint)
+  setMaxConcurrent(value) {
+    if (typeof value === 'number' && value >= 1 && value <= 10) {
+      const oldValue = this.maxStep6Concurrent;
+      this.maxStep6Concurrent = value;
+      console.log(`[MMS-WATCHER] [CONFIG] Max concurrent updated: ${oldValue} → ${value}`);
+      return true;
+    }
+    console.warn(`[MMS-WATCHER] [CONFIG] Invalid max concurrent value: ${value}`);
+    return false;
+  }
+  
+  // Get current max concurrent value
+  getMaxConcurrent() {
+    return this.maxStep6Concurrent;
   }
 
   start() {
@@ -107,7 +154,7 @@ class MMSWatcher {
         // Guard: Skip if previous sweep still running
         if (this.isStep6SweepRunning) {
           console.log('[MMS-WATCHER] [AUTO-STEP6] ⏭️  Skipping interval - previous sweep still running');
-          console.log(`[MMS-WATCHER] [AUTO-STEP6] 📊 Active slots: ${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES}, Queued: ${this.step6QueuedFiles.length}`);
+          console.log(`[MMS-WATCHER] [AUTO-STEP6] 📊 Active slots: ${this.step6ActiveSlots.size}/${this.maxStep6Concurrent}, Queued: ${this.step6QueuedFiles.length}`);
           return;
         }
         
@@ -2152,7 +2199,7 @@ class MMSWatcher {
 
   // Step 6 Slot Management Helpers
   canAcquireSlot() {
-    return this.step6ActiveSlots.size < MAX_STEP6_CONCURRENT_FILES;
+    return this.step6ActiveSlots.size < this.maxStep6Concurrent;
   }
 
   acquireSlot(uploadId) {
@@ -2160,14 +2207,14 @@ class MMSWatcher {
       return false;
     }
     this.step6ActiveSlots.add(uploadId);
-    console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔓 Acquired slot for ${uploadId} (${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES} active)`);
+    console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔓 Acquired slot for ${uploadId} (${this.step6ActiveSlots.size}/${this.maxStep6Concurrent} active)`);
     return true;
   }
 
   releaseSlot(uploadId) {
     const wasActive = this.step6ActiveSlots.delete(uploadId);
     if (wasActive) {
-      console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔒 Released slot for ${uploadId} (${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES} active)`);
+      console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔒 Released slot for ${uploadId} (${this.step6ActiveSlots.size}/${this.maxStep6Concurrent} active)`);
     }
     return wasActive;
   }
@@ -2213,7 +2260,7 @@ class MMSWatcher {
     this.isStep6SweepRunning = true;
     
     try {
-      console.log(`[MMS-WATCHER] [AUTO-STEP6] 🔄 Starting Step 6 sweep (slots: ${this.step6ActiveSlots.size}/${MAX_STEP6_CONCURRENT_FILES}, queued: ${this.step6QueuedFiles.length})`);
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] 🔄 Starting Step 6 sweep (slots: ${this.step6ActiveSlots.size}/${this.maxStep6Concurrent}, queued: ${this.step6QueuedFiles.length})`);
       
       // Step 1: Process queued files first (fill available slots)
       await this.processQueuedFiles();
@@ -2476,7 +2523,7 @@ class MMSWatcher {
     return {
       activeSlots: {
         count: this.step6ActiveSlots.size,
-        max: MAX_STEP6_CONCURRENT_FILES,
+        max: this.maxStep6Concurrent,
         uploadIds: activeSlotIds,
         progress: progressSnapshot
       },
