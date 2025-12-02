@@ -216,7 +216,9 @@ export function registerUserRoutes(app: Express) {
           return res.status(400).json({ error: "Current password is incorrect" });
         }
         
-        await storage.updateUserPassword(userId, newPassword);
+        // Hash the password before storing
+        const hashedPassword = await storage.hashPassword(newPassword);
+        await storage.updateUserPassword(userId, hashedPassword);
         
         // Log password change by user (skip if database size limit reached)
         try {
@@ -242,7 +244,9 @@ export function registerUserRoutes(app: Express) {
           return res.status(400).json({ error: "New password is required" });
         }
         
-        await storage.updateUserPassword(userId, newPassword);
+        // Hash the password before storing
+        const hashedPassword = await storage.hashPassword(newPassword);
+        await storage.updateUserPassword(userId, hashedPassword);
         
         // Log admin password reset (skip if database size limit reached)
         try {
