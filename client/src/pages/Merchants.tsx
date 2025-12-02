@@ -207,47 +207,54 @@ export default function Merchants() {
   
   return (
     <MainLayout>
-      <div className="container py-6 mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-bold">Merchants</h1>
+      <div className="w-full max-w-7xl py-4 sm:py-6 mx-auto px-3 sm:px-4 overflow-x-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold">Merchants</h1>
           <div className="flex space-x-2">
             <Button 
               variant="outline"
               onClick={handleRefresh}
               disabled={isLoading}
               className="hover:bg-blue-50"
+              size="sm"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              <RefreshCw className={`h-4 w-4 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
             {(activeTab === "all" || activeTab === "mcc" || activeTab === "ach") && (
               <Button 
                 onClick={() => setLocation('/merchants/new')}
                 className="bg-gradient-to-r from-blue-500 to-blue-700"
+                size="sm"
               >
-                Add Merchant
+                <span className="hidden sm:inline">Add Merchant</span>
+                <span className="sm:hidden">+ Add</span>
               </Button>
             )}
           </div>
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              All Merchants
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-[800px] h-auto gap-1">
+            <TabsTrigger value="all" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
+              <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">All Merchants</span>
+              <span className="sm:hidden">All</span>
             </TabsTrigger>
-            <TabsTrigger value="mcc" className="flex items-center gap-2">
-              <Store className="h-4 w-4" />
-              MCC Merchants
+            <TabsTrigger value="mcc" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
+              <Store className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">MCC Merchants</span>
+              <span className="sm:hidden">MCC</span>
             </TabsTrigger>
-            <TabsTrigger value="ach" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              ACH Merchants
+            <TabsTrigger value="ach" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
+              <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">ACH Merchants</span>
+              <span className="sm:hidden">ACH</span>
             </TabsTrigger>
-            <TabsTrigger value="mcc-config" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              MCC TSYS Config
+            <TabsTrigger value="mcc-config" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">MCC TSYS Config</span>
+              <span className="sm:hidden">Config</span>
             </TabsTrigger>
           </TabsList>
           

@@ -145,6 +145,76 @@ export default function MerchantList({
   
 
 
+  // Mobile card component for each merchant
+  const MobileCard = ({ merchant }: { merchant: Merchant }) => (
+    <div 
+      className={`bg-white border rounded-lg p-4 mb-3 ${(selectedMerchants || []).includes(merchant.id) ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
+      data-testid={`mobile-merchant-card-${merchant.id}`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <Checkbox 
+            checked={(selectedMerchants || []).includes(merchant.id)}
+            onCheckedChange={() => toggleMerchantSelection(merchant.id)}
+            aria-label={`Select ${merchant.name}`}
+          />
+          <div className="flex-shrink-0">
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${getAvatarBgColor(merchant.name)}`}>
+              <span className="text-sm font-medium">{getInitials(merchant.name)}</span>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div 
+              className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600"
+              onClick={() => setLocation(`/merchants/${merchant.id}`)}
+            >
+              {merchant.name}
+            </div>
+            <div className="text-xs text-gray-500 truncate">ID: #{merchant.id}</div>
+          </div>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 flex-shrink-0"
+          onClick={() => setLocation(`/merchants/${merchant.id}`)}
+          data-testid={`view-merchant-${merchant.id}`}
+        >
+          <Eye className="w-5 h-5" />
+        </Button>
+      </div>
+      
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <span className="text-gray-500">Status:</span>
+          <span className={`ml-1 inline-flex px-1.5 py-0.5 text-xs font-semibold leading-4 rounded-full ${getStatusBadgeColor(merchant.status)}`}>
+            {merchant.status}
+          </span>
+        </div>
+        <div>
+          <span className="text-gray-500">MID:</span>
+          <span className="ml-1 text-gray-700">{merchant.clientMID || '-'}</span>
+        </div>
+        <div className="col-span-2">
+          <span className="text-gray-500">Last Batch:</span>
+          <span className="ml-1 text-gray-700">
+            {merchant.lastBatch?.date 
+              ? new Date(merchant.lastBatch.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : 'No data'}
+          </span>
+        </div>
+        <div className="col-span-2">
+          <span className="text-gray-500">Last Transaction:</span>
+          <span className="ml-1 text-gray-700">
+            {merchant.lastTransaction?.date 
+              ? new Date(merchant.lastTransaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : 'No data'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col mt-4">
       {/* Selection actions */}
@@ -159,7 +229,7 @@ export default function MerchantList({
           </div>
           
           {(selectedMerchants || []).length > 0 && (
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               {(selectedMerchants || []).length >= 2 && (
                 <Button 
                   variant="outline" 
@@ -169,7 +239,8 @@ export default function MerchantList({
                   disabled={mergeMutation?.isPending}
                 >
                   <GitMerge className="w-4 h-4 mr-1" />
-                  Merge Selected
+                  <span className="hidden sm:inline">Merge Selected</span>
+                  <span className="sm:hidden">Merge</span>
                 </Button>
               )}
               <Button 
@@ -180,14 +251,62 @@ export default function MerchantList({
                 disabled={deleteMutation?.isPending}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                Delete Selected
+                <span className="hidden sm:inline">Delete Selected</span>
+                <span className="sm:hidden">Delete</span>
               </Button>
             </div>
           )}
         </div>
       )}
-      
-      <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+
+      {/* Mobile Card View - visible only on small screens */}
+      <div className="block md:hidden">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="w-32 h-4 mb-1" />
+                  <Skeleton className="w-20 h-3" />
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            </div>
+          ))
+        ) : merchants.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-gray-500">No merchants found</p>
+            <Button 
+              onClick={() => setLocation('/uploads')}
+              className="mt-4"
+            >
+              Upload Data
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Select All for mobile */}
+            <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg">
+              <Checkbox 
+                checked={(selectedMerchants || []).length === merchants.length && merchants.length > 0} 
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all"
+              />
+              <span className="text-sm text-gray-600">Select all</span>
+            </div>
+            {merchants.map((merchant) => (
+              <MobileCard key={merchant.id} merchant={merchant} />
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Desktop Table View - hidden on small screens */}
+      <div className="hidden md:block -mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
         <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
           <div className="overflow-hidden shadow sm:rounded-lg">
             <Table>
