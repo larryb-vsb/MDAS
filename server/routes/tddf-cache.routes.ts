@@ -3151,4 +3151,94 @@ export function registerTddfCacheRoutes(app: Express) {
       });
     }
   });
+
+  // Step 6 Configuration - Get current slot configuration
+  app.get("/api/uploader/step6-config", isAuthenticated, async (req, res) => {
+    try {
+      const systemSettingsTable = getTableName('system_settings');
+      
+      // Get max concurrent setting from system_settings
+      const result = await pool.query(`
+        SELECT setting_value FROM ${systemSettingsTable}
+        WHERE setting_key = 'step6_max_concurrent'
+      `);
+      
+      // Default to 3 if not set
+      const maxConcurrent = result.rows.length > 0 ? parseInt(result.rows[0].setting_value) : 3;
+      
+      // Get current watcher status if available
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      let currentStatus = null;
+      if (mmsWatcher && typeof mmsWatcher.getStep6Status === 'function') {
+        currentStatus = mmsWatcher.getStep6Status();
+      }
+      
+      res.json({
+        maxConcurrent,
+        minAllowed: 1,
+        maxAllowed: 10,
+        currentStatus: currentStatus ? {
+          activeSlots: currentStatus.activeSlots.count,
+          queuedFiles: currentStatus.queue.count,
+          metrics: currentStatus.metrics
+        } : null
+      });
+    } catch (error) {
+      console.error('Error getting Step 6 config:', error);
+      res.status(500).json({ 
+        error: 'Failed to get Step 6 configuration',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Step 6 Configuration - Update slot configuration
+  app.put("/api/uploader/step6-config", isAuthenticated, async (req, res) => {
+    try {
+      const { maxConcurrent } = req.body;
+      
+      // Validate input
+      if (typeof maxConcurrent !== 'number' || maxConcurrent < 1 || maxConcurrent > 10) {
+        return res.status(400).json({ 
+          error: 'Invalid maxConcurrent value. Must be a number between 1 and 10.' 
+        });
+      }
+      
+      const systemSettingsTable = getTableName('system_settings');
+      const userId = (req.user as any)?.id || 'system';
+      const username = (req.user as any)?.username || 'system';
+      
+      // Upsert the setting
+      await pool.query(`
+        INSERT INTO ${systemSettingsTable} (setting_key, setting_value, setting_type, description, last_updated_by)
+        VALUES ('step6_max_concurrent', $1, 'number', 'Maximum concurrent Step 6 processing slots', $2)
+        ON CONFLICT (setting_key) 
+        DO UPDATE SET 
+          setting_value = $1,
+          last_updated_by = $2,
+          updated_at = NOW()
+      `, [maxConcurrent.toString(), username]);
+      
+      // Update the watcher's runtime value if available
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (mmsWatcher && typeof mmsWatcher.setMaxConcurrent === 'function') {
+        mmsWatcher.setMaxConcurrent(maxConcurrent);
+        console.log(`[STEP6-CONFIG] Updated max concurrent to ${maxConcurrent} (runtime + database)`);
+      } else {
+        console.log(`[STEP6-CONFIG] Updated max concurrent to ${maxConcurrent} (database only - watcher will pick up on next cycle)`);
+      }
+      
+      res.json({ 
+        success: true, 
+        maxConcurrent,
+        message: `Step 6 max concurrent slots updated to ${maxConcurrent}`
+      });
+    } catch (error) {
+      console.error('Error updating Step 6 config:', error);
+      res.status(500).json({ 
+        error: 'Failed to update Step 6 configuration',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 }
