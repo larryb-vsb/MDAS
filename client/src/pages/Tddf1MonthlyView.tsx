@@ -1022,12 +1022,12 @@ export default function Tddf1MonthlyView() {
                                 </TooltipTrigger>
                                 <TooltipContent 
                                   side="left" 
-                                  className={`max-w-sm ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white'}`}
+                                  className={`max-w-xl ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white'}`}
                                 >
                                   <div className="text-xs space-y-1">
                                     <div className="font-medium mb-1">Files for {format(new Date(day.date), 'MMM dd')}:</div>
                                     {day.filenames.map((filename, i) => (
-                                      <div key={i} className="truncate max-w-[280px] text-muted-foreground">
+                                      <div key={i} className="text-muted-foreground font-mono text-[11px]">
                                         {filename}
                                       </div>
                                     ))}
