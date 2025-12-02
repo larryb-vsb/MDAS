@@ -2181,7 +2181,8 @@ export function registerTddfRecordsRoutes(app: Express) {
 
   // ==================== TDDF-API RECORDS ====================
   
-  // Get all TDDF raw records with summary statistics for Raw Data tab
+  // Get TDDF raw records for Raw Data tab - optimized for speed (no expensive COUNT queries)
+  // Like Transactions page: just fetch recent records with pagination
   app.get('/api/tddf-api/all-records', isAuthenticated, async (req, res) => {
     try {
       const { 
@@ -2191,142 +2192,70 @@ export function registerTddfRecordsRoutes(app: Express) {
         search,
         filename,
         merchant_account,
-        sortBy = 'line_number',
-        sortOrder = 'asc'
+        batch_date
       } = req.query;
       
-      // Build WHERE conditions separately for summary and records queries
-      let summaryWhereConditions = [];
-      let recordsWhereConditions = [];
-      const summaryParams = [];
-      const recordsParams = [];
-      let summaryParamIndex = 1;
-      let recordsParamIndex = 1;
+      // Validate and cap limit to prevent abuse
+      const parsedLimit = Math.min(Math.max(parseInt(limit as string) || 100, 10), 500);
+      const parsedOffset = Math.max(parseInt(offset as string) || 0, 0);
       
-      // Add common conditions to both queries
+      // Build WHERE conditions
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+      
+      // Record type filter
       if (recordType && recordType !== 'all') {
-        summaryWhereConditions.push(`r.record_type = $${summaryParamIndex}`);
-        recordsWhereConditions.push(`r.record_type = $${recordsParamIndex}`);
-        summaryParams.push(recordType as string);
-        recordsParams.push(recordType as string);
-        summaryParamIndex++;
-        recordsParamIndex++;
+        whereConditions.push(`r.record_type = $${paramIndex}`);
+        params.push(recordType as string);
+        paramIndex++;
       }
       
+      // Search filter
       if (search) {
-        summaryWhereConditions.push(`r.raw_line ILIKE $${summaryParamIndex}`);
-        recordsWhereConditions.push(`r.raw_line ILIKE $${recordsParamIndex}`);
-        summaryParams.push(`%${search}%`);
-        recordsParams.push(`%${search}%`);
-        summaryParamIndex++;
-        recordsParamIndex++;
+        whereConditions.push(`r.raw_line ILIKE $${paramIndex}`);
+        params.push(`%${search}%`);
+        paramIndex++;
       }
-
-      // Add filename condition only if filename is provided (for both queries since both will have JOIN)
-      // Support comma-separated filenames for multi-file filtering
+      
+      // Filename filter
       if (filename) {
         const filenames = (filename as string).split(',').map(f => f.trim()).filter(f => f);
         if (filenames.length === 1) {
-          // Single filename - use simple equality
-          summaryWhereConditions.push(`u.filename = $${summaryParamIndex}`);
-          recordsWhereConditions.push(`u.filename = $${recordsParamIndex}`);
-          summaryParams.push(filenames[0]);
-          recordsParams.push(filenames[0]);
-          summaryParamIndex++;
-          recordsParamIndex++;
+          whereConditions.push(`u.filename = $${paramIndex}`);
+          params.push(filenames[0]);
+          paramIndex++;
         } else if (filenames.length > 1) {
-          // Multiple filenames - use ANY with array
-          summaryWhereConditions.push(`u.filename = ANY($${summaryParamIndex}::text[])`);
-          recordsWhereConditions.push(`u.filename = ANY($${recordsParamIndex}::text[])`);
-          summaryParams.push(filenames);
-          recordsParams.push(filenames);
-          summaryParamIndex++;
-          recordsParamIndex++;
+          whereConditions.push(`u.filename = ANY($${paramIndex}::text[])`);
+          params.push(filenames);
+          paramIndex++;
         }
       }
       
-      // Add merchant_account filtering (normalize to 16-digit format)
+      // Merchant account filter (normalize to 16-digit format)
       if (merchant_account) {
         const merchantAcct = merchant_account as string;
-        // Normalize: strip leading zeros then pad to exactly 16 digits
         const normalizedMerchantAcct = merchantAcct.replace(/^0+/, '').padStart(16, '0');
-        
-        summaryWhereConditions.push(`r.record_data->>'merchantAccountNumber' = $${summaryParamIndex}`);
-        recordsWhereConditions.push(`r.record_data->>'merchantAccountNumber' = $${recordsParamIndex}`);
-        summaryParams.push(normalizedMerchantAcct);
-        recordsParams.push(normalizedMerchantAcct);
-        summaryParamIndex++;
-        recordsParamIndex++;
+        whereConditions.push(`r.record_data->>'merchantAccountNumber' = $${paramIndex}`);
+        params.push(normalizedMerchantAcct);
+        paramIndex++;
       }
       
-      // Add date filtering (using text comparison since YYYY-MM-DD sorts correctly)
-      const { date_from, date_to, batch_date } = req.query;
-      
-      // Single date filter (exact match) - takes precedence over date range
+      // Date filter (single date match)
       if (batch_date) {
-        summaryWhereConditions.push(`(r.record_data->>'batchDate') = $${summaryParamIndex}`);
-        recordsWhereConditions.push(`(r.record_data->>'batchDate') = $${recordsParamIndex}`);
-        summaryParams.push(batch_date as string);
-        recordsParams.push(batch_date as string);
-        summaryParamIndex++;
-        recordsParamIndex++;
-      } else {
-        // Date range filtering (only if batch_date not specified)
-        if (date_from) {
-          summaryWhereConditions.push(`(r.record_data->>'batchDate') >= $${summaryParamIndex}`);
-          recordsWhereConditions.push(`(r.record_data->>'batchDate') >= $${recordsParamIndex}`);
-          summaryParams.push(date_from as string);
-          recordsParams.push(date_from as string);
-          summaryParamIndex++;
-          recordsParamIndex++;
-        }
-        
-        if (date_to) {
-          summaryWhereConditions.push(`(r.record_data->>'batchDate') <= $${summaryParamIndex}`);
-          recordsWhereConditions.push(`(r.record_data->>'batchDate') <= $${recordsParamIndex}`);
-          summaryParams.push(date_to as string);
-          recordsParams.push(date_to as string);
-          summaryParamIndex++;
-          recordsParamIndex++;
-        }
+        whereConditions.push(`(r.record_data->>'batchDate') = $${paramIndex}`);
+        params.push(batch_date as string);
+        paramIndex++;
       }
       
-      const summaryWhereClause = summaryWhereConditions.length > 0 ? 
-        `WHERE ${summaryWhereConditions.join(' AND ')}` : '';
-      const recordsWhereClause = recordsWhereConditions.length > 0 ? 
-        `WHERE ${recordsWhereConditions.join(' AND ')}` : '';
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
       
-      // Build dynamic ORDER BY clause
-      const sortColumnMap: Record<string, string> = {
-        'record_type': 'r.record_type',
-        'line_number': 'r.line_number',
-        'filename': 'u.filename',
-        'transaction_date': "r.record_data->>'transactionDate'",
-        'batch_date': "r.record_data->>'batchDate'",
-        'scheduled_slot': 'u.created_at'
-      };
-      
-      const sortColumn = sortColumnMap[sortBy as string] || 'r.line_number';
-      const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
-      const orderByClause = `ORDER BY ${sortColumn} ${sortDirection}, r.line_number ASC`;
-      
-      // Get summary statistics from master TDDF JSONB table (same as History page)
       const jsonbTableName = getTableName('tddf_jsonb');
       const uploaderTableName = getTableName('uploader_uploads');
       
-      const summaryResult = await pool.query(`
-        SELECT 
-          COUNT(*) as total_records,
-          COUNT(CASE WHEN r.record_type = 'BH' THEN 1 END) as bh_records,
-          COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
-          COUNT(DISTINCT r.upload_id) as total_files
-        FROM ${jsonbTableName} r
-        JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        ${summaryWhereClause}
-      `, summaryParams);
-      
-      // Get paginated records from master TDDF JSONB table
-      const finalRecordsParams = [...recordsParams, limit, offset];
+      // Just fetch records - ORDER BY id DESC for most recent first, no expensive COUNT
+      const finalParams = [...params, parsedLimit, parsedOffset];
       const recordsResult = await pool.query(`
         SELECT 
           r.id,
@@ -2337,71 +2266,21 @@ export function registerTddfRecordsRoutes(app: Express) {
           r.record_data as parsed_data,
           r.created_at,
           u.filename,
-          u.created_at as business_day,
-          u.encoding_time_ms,
-          u.started_at,
-          u.completed_at
+          u.created_at as business_day
         FROM ${jsonbTableName} r
         JOIN ${uploaderTableName} u ON r.upload_id = u.id
-        ${recordsWhereClause}
-        ${orderByClause}
-        LIMIT $${recordsParamIndex} OFFSET $${recordsParamIndex + 1}
-      `, finalRecordsParams);
+        ${whereClause}
+        ORDER BY r.id DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, finalParams);
       
-      const summary = summaryResult.rows[0];
-      
-      // Process records to add intelligent processing time calculation and scheduled slot info
-      const processedRecords = recordsResult.rows.map(record => {
-        let file_processing_time = 'N/A';
-        let scheduledSlot = null;
-        let scheduledSlotLabel = null;
-        let slotDayOffset = 0;
-        
-        // Try intelligent filename parsing first
-        const filenameParseResult = parseTddfFilename(record.filename);
-        
-        if (filenameParseResult.parseSuccess) {
-          // Extract scheduled slot information
-          scheduledSlot = filenameParseResult.scheduledSlotRaw;
-          scheduledSlotLabel = filenameParseResult.scheduledSlotLabel;
-          slotDayOffset = filenameParseResult.slotDayOffset;
-          
-          // Calculate processing time
-          if (filenameParseResult.processingDelaySeconds !== null) {
-            file_processing_time = formatProcessingTime(filenameParseResult.processingDelaySeconds);
-          }
-        }
-        
-        // Fallback to encoding time if filename parsing failed
-        if (file_processing_time === 'N/A' && record.encoding_time_ms !== null) {
-          if (record.encoding_time_ms < 1000) {
-            file_processing_time = `${record.encoding_time_ms}ms`;
-          } else {
-            file_processing_time = `${(record.encoding_time_ms / 1000).toFixed(2)}s`;
-          }
-        }
-        
-        return {
-          ...record,
-          file_processing_time,
-          scheduledSlot,
-          scheduledSlotLabel,
-          slotDayOffset
-        };
-      });
-      
+      // Simple response - just records with pagination info
       const responseData = {
-        data: processedRecords,
-        summary: {
-          totalRecords: parseInt(summary.total_records),
-          bhRecords: parseInt(summary.bh_records),
-          dtRecords: parseInt(summary.dt_records),
-          totalFiles: parseInt(summary.total_files)
-        },
+        data: recordsResult.rows,
         pagination: {
-          limit: parseInt(limit as string),
-          offset: parseInt(offset as string),
-          total: parseInt(summary.total_records)
+          limit: parsedLimit,
+          offset: parsedOffset,
+          hasMore: recordsResult.rows.length === parsedLimit
         }
       };
       
