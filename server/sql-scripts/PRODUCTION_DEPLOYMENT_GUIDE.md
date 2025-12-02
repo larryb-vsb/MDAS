@@ -406,8 +406,184 @@ If you encounter any issues during deployment:
 - [ ] Deployment documented
 
 ---
+
+# v1014 Security Auth Upgrade (December 2025)
+
+## Overview
+This upgrade adds comprehensive security event logging and enhanced user authentication tracking. Run this **after** completing the v1010 migration above.
+
+## Prerequisites
+- [ ] v1010 migration completed successfully (connection_log, ip_blocklist, host_approvals, master_object_keys exist)
+- [ ] Production database backup created
+- [ ] Review of migration script (`production-security-auth-upgrade.sql`)
+
+## What This Script Does
+
+### 1. Creates security_logs Table
+Comprehensive security event audit log:
+- **Event Types**: login_success, login_failed, password_changed, password_reset, auth_type_upgraded
+- **Tracking**: User ID, username, IP address, user agent, timestamp
+- **Details**: JSON field for additional context (changedBy, failure reason, etc.)
+- **Severity Levels**: info, warning, error, critical
+
+### 2. Adds 12 Columns to users Table
+
+**Profile Columns:**
+- `first_name` - User's first name
+- `last_name` - User's last name
+
+**Preference Columns:**
+- `developer_flag` - Show developer features (default: false)
+- `dark_mode` - Dark mode preference (default: false)
+- `can_create_users` - Permission to create users (default: false)
+- `default_dashboard` - Default landing page (default: 'merchants')
+- `theme_preference` - Theme setting: 'light', 'dark', 'system' (default: 'system')
+
+**Authentication Tracking:**
+- `auth_type` - Authentication method: 'local', 'oauth', 'hybrid' (default: 'local')
+- `last_login_type` - Method used for last successful login
+- `last_failed_login` - Timestamp of last failed login attempt
+- `last_failed_login_type` - Method used for last failed attempt
+- `last_failed_login_reason` - Why the last login failed
+
+### What This Script DOES NOT Do
+- ✅ No data deletion
+- ✅ No existing table modifications (only adds columns)
+- ✅ No destructive operations
+- ✅ Safe to run multiple times (idempotent)
+
+## Deployment Steps
+
+### Step 1: Run the Migration Script
+
+**Option A: From psql**
+```sql
+\i server/sql-scripts/production-security-auth-upgrade.sql
+```
+
+**Option B: Copy and Paste**
+1. Open `production-security-auth-upgrade.sql`
+2. Copy entire contents
+3. Paste into SQL editor
+4. Execute
+
+### Step 2: Verify Migration Success
+You should see output like:
+```
+NOTICE: ✓ Created security_logs table with indexes
+NOTICE: ✓ Added first_name column to users table
+NOTICE: ✓ Added last_name column to users table
+NOTICE: ✓ Added user preference columns
+NOTICE: ✓ Added auth_type column to users table
+...
+NOTICE: ✓ All 12 new columns added to users table successfully
+NOTICE: ✓ All security_logs indexes created successfully
+NOTICE: ═══════════════════════════════════════════════════════
+NOTICE: SECURITY AUTH UPGRADE COMPLETED SUCCESSFULLY
+NOTICE: ═══════════════════════════════════════════════════════
+```
+
+### Step 3: Verify Table Structure
+
+**Check security_logs table exists:**
+```sql
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_name = 'security_logs';
+```
+
+**Verify security_logs structure:**
+```sql
+\d security_logs
+```
+
+**Verify users new columns:**
+```sql
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'users' 
+AND column_name IN (
+    'auth_type', 'last_login_type', 'last_failed_login',
+    'last_failed_login_type', 'last_failed_login_reason',
+    'first_name', 'last_name', 'developer_flag', 'dark_mode',
+    'can_create_users', 'default_dashboard', 'theme_preference'
+)
+ORDER BY column_name;
+```
+
+### Step 4: Verify Indexes
+```sql
+SELECT indexname
+FROM pg_indexes
+WHERE tablename = 'security_logs'
+ORDER BY indexname;
+```
+
+Expected: At least 5 indexes (timestamp, event_type, user_id, user_action, result)
+
+## Post-Migration Verification
+
+### Test Security Logging
+After migration, security events will be automatically logged:
+1. Try a login (success should be logged)
+2. Try a failed login (failure should be logged)
+3. Change password (should be logged)
+
+**View recent security logs:**
+```sql
+SELECT event_type, username, result, timestamp, ip_address
+FROM security_logs
+ORDER BY timestamp DESC
+LIMIT 10;
+```
+
+### Test User Authentication Tracking
+After users log in, you should see:
+```sql
+SELECT username, auth_type, last_login_type, last_login
+FROM users
+WHERE last_login IS NOT NULL
+ORDER BY last_login DESC;
+```
+
+## Rollback Plan
+
+If you need to rollback this migration, run:
+
+```sql
+\i server/sql-scripts/production-security-auth-rollback.sql
+```
+
+**⚠️ Warning:** This will:
+- DELETE all security_logs data permanently
+- Remove all 12 new columns from users table
+- Lose user profile and preference data
+
+Only rollback if absolutely necessary.
+
+## v1014 Summary Checklist
+- [ ] v1010 migration completed first
+- [ ] Production database backup created
+- [ ] Migration script reviewed
+- [ ] Migration executed successfully
+- [ ] security_logs table created with 17 columns
+- [ ] 5 security_logs indexes created
+- [ ] 12 new users columns added
+- [ ] Existing users backfilled with auth_type='local'
+- [ ] Application restarted
+- [ ] Security logging tested (login success/failure)
+- [ ] User management UI shows auth_type column
+
+---
 **Migration Version:** 2.0.0  
 **Date:** November 6, 2025  
 **Components:** Security Monitoring + Storage Management  
 **Tables Added:** 4 (connection_log, ip_blocklist, host_approvals, master_object_keys)  
 **Columns Added:** 3 (api_users: last_used, last_used_ip, request_count)
+
+---
+**Migration Version:** 2.1.0 (v1014)  
+**Date:** December 2, 2025  
+**Components:** Security Logging + User Authentication Tracking  
+**Tables Added:** 1 (security_logs)  
+**Columns Added:** 12 (users: profile, preferences, auth tracking)

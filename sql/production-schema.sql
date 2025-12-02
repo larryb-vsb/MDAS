@@ -1,8 +1,8 @@
 -- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
--- Version: 2.8.0
--- Last Updated: 2025-11-24
+-- Version: 2.9.0 (v1014)
+-- Last Updated: 2025-12-02
 -- 
 -- This file creates a complete production database schema from scratch.
 -- Safe to run multiple times (uses IF NOT EXISTS).
@@ -360,11 +360,60 @@ CREATE TABLE IF NOT EXISTS users (
   role text DEFAULT 'user',
   is_active boolean DEFAULT true,
   created_at timestamp DEFAULT NOW() NOT NULL,
-  last_login timestamp
+  last_login timestamp,
+  
+  -- Profile columns (v1014)
+  first_name varchar(255),
+  last_name varchar(255),
+  
+  -- User preference columns (v1014)
+  developer_flag boolean DEFAULT false,
+  dark_mode boolean DEFAULT false,
+  can_create_users boolean DEFAULT false,
+  default_dashboard varchar(255) DEFAULT 'merchants',
+  theme_preference varchar(255) DEFAULT 'system',
+  
+  -- Authentication tracking columns (v1014)
+  auth_type text DEFAULT 'local',
+  last_login_type text,
+  last_failed_login timestamp,
+  last_failed_login_type text,
+  last_failed_login_reason text
 );
 
 CREATE INDEX IF NOT EXISTS users_username_idx ON users(username);
 CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
+
+
+-- =====================================================================
+-- SECURITY LOGS TABLE (v1014)
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS security_logs (
+  id serial PRIMARY KEY,
+  event_type text NOT NULL,
+  user_id integer,
+  username text,
+  timestamp timestamptz DEFAULT NOW() NOT NULL,
+  ip_address text,
+  user_agent text,
+  resource_type text,
+  resource_id text,
+  action text,
+  result text NOT NULL,
+  details jsonb,
+  session_id text,
+  reason text,
+  severity text DEFAULT 'info',
+  message text,
+  source text DEFAULT 'authentication'
+);
+
+CREATE INDEX IF NOT EXISTS security_logs_timestamp_idx ON security_logs(timestamp);
+CREATE INDEX IF NOT EXISTS security_logs_event_type_idx ON security_logs(event_type);
+CREATE INDEX IF NOT EXISTS security_logs_user_id_idx ON security_logs(user_id);
+CREATE INDEX IF NOT EXISTS security_logs_user_action_idx ON security_logs(user_id, action);
+CREATE INDEX IF NOT EXISTS security_logs_result_idx ON security_logs(result);
 
 
 -- =====================================================================
