@@ -9,7 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { getFilePath } from '../env-config';
 import { storage } from '../storage';
 import { pool, db } from '../db';
-import { restoreBackupToEnvironment } from '../restore-env-backup';
 
 /**
  * Convert the in-memory fallback data to a live database
@@ -40,20 +39,13 @@ export async function convertFallbackToDatabase(): Promise<{ success: boolean; m
       };
     }
 
-    // Try to restore the backup to the environment-specific database
-    const restored = await restoreBackupToEnvironment(backupFilePath);
+    // Note: restoreBackupToEnvironment functionality has been deprecated
+    // The backup file has been created but automatic restore is not available
+    console.log(`Backup file created at: ${backupFilePath}`);
     
-    if (!restored) {
-      return { 
-        success: false, 
-        message: "Failed to restore backup to database. Database might be unavailable or corrupted." 
-      };
-    }
-
     return { 
-      success: true, 
-      message: "Successfully converted in-memory data to database. Application will restart.",
-      needsRestart: true 
+      success: false, 
+      message: `Backup file created at ${backupFilePath}. Manual restore required.` 
     };
   } catch (error) {
     console.error("Error converting fallback to database:", error);
