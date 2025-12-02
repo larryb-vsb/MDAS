@@ -24,8 +24,9 @@ function setupProcessMonitoring() {
     };
     
     // Log significant memory changes (indicating scaling events)
-    if (memUsageMB.rss > 512 || memUsageMB.heapTotal > 256) {
-      systemLogger.warn('Infrastructure', 'High memory usage detected - potential scaling event', {
+    // Thresholds: 4GB RSS, 2GB heap - only log when approaching limits
+    if (memUsageMB.rss > 4096 || memUsageMB.heapTotal > 2048) {
+      systemLogger.info('Infrastructure', 'High memory usage detected - monitoring', {
         memoryUsageMB: memUsageMB,
         uptime: process.uptime(),
         environment: process.env.NODE_ENV
