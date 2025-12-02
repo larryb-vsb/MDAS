@@ -2508,6 +2508,7 @@ export default function TddfApiDataPage() {
   const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
   const [autoStep6Enabled, setAutoStep6Enabled] = useState<boolean>(false);
   const [autoStep7Enabled, setAutoStep7Enabled] = useState<boolean>(false);
+  const [step6MaxConcurrent, setStep6MaxConcurrent] = useState<number>(3);
 
   // Load Auto 4-5 setting on mount
   const { data: auto45Setting } = useQuery({
@@ -2524,6 +2525,12 @@ export default function TddfApiDataPage() {
   // Load Auto Step 7 setting on mount
   const { data: autoStep7Setting } = useQuery<AutoStep7Setting>({
     queryKey: ['/api/uploader/auto-step7-setting'],
+    enabled: true
+  });
+
+  // Load Step 6 slot configuration
+  const { data: step6Config } = useQuery<{ maxConcurrent: number; minAllowed: number; maxAllowed: number; currentStatus?: any }>({
+    queryKey: ['/api/uploader/step6-config'],
     enabled: true
   });
 
@@ -2546,6 +2553,13 @@ export default function TddfApiDataPage() {
       setAutoStep7Enabled(autoStep7Setting.autoStep7Enabled);
     }
   }, [autoStep7Setting]);
+
+  // Update Step 6 max concurrent state when API data loads
+  useEffect(() => {
+    if (step6Config?.maxConcurrent !== undefined) {
+      setStep6MaxConcurrent(step6Config.maxConcurrent);
+    }
+  }, [step6Config]);
 
   // Mutation to toggle Auto 4-5
   const saveAuto45Setting = useMutation({
@@ -2648,6 +2662,40 @@ export default function TddfApiDataPage() {
   const handleAutoStep7Change = async (enabled: boolean) => {
     setAutoStep7Enabled(enabled); // Update local state immediately for responsive UI
     saveAutoStep7Setting.mutate(enabled);
+  };
+
+  // Mutation to save Step 6 max concurrent slots
+  const saveStep6MaxConcurrent = useMutation<{ success: boolean; maxConcurrent: number; message: string }, Error, number>({
+    mutationFn: async (maxConcurrent: number) => {
+      const data = await apiRequest('/api/uploader/step6-config', {
+        method: 'PUT',
+        body: JSON.stringify({ maxConcurrent }),
+        headers: { 'Content-Type': 'application/json' }
+      }) as { success: boolean; maxConcurrent: number; message: string };
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Slot Configuration Updated",
+        description: `Step 6 now uses ${data.maxConcurrent} concurrent processing slots`,
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/step6-config'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update slot configuration",
+        variant: "destructive"
+      });
+      console.error('Error saving Step 6 slot config:', error);
+    }
+  });
+
+  // Handle Step 6 max concurrent change
+  const handleStep6MaxConcurrentChange = async (value: number) => {
+    setStep6MaxConcurrent(value); // Update local state immediately for responsive UI
+    saveStep6MaxConcurrent.mutate(value);
   };
 
   const [statusFilter, setStatusFilter] = useState('all');
@@ -4131,6 +4179,35 @@ export default function TddfApiDataPage() {
                   disabled={saveAutoStep6Setting.isPending}
                   data-testid="switch-auto-step6-overview"
                 />
+              </div>
+
+              {/* Step 6 Processing Slots */}
+              <div className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Activity className="h-5 w-5 text-indigo-600" />
+                  <div>
+                    <div className="font-medium text-indigo-800">Step 6 Processing Slots</div>
+                    <div className="text-sm text-indigo-600">
+                      Concurrent file processing capacity ({step6Config?.currentStatus?.activeSlots || 0} active, {step6Config?.currentStatus?.queuedFiles || 0} queued)
+                    </div>
+                  </div>
+                </div>
+                <Select
+                  value={step6MaxConcurrent.toString()}
+                  onValueChange={(value) => handleStep6MaxConcurrentChange(parseInt(value))}
+                  disabled={saveStep6MaxConcurrent.isPending}
+                >
+                  <SelectTrigger className="w-[100px]" data-testid="select-step6-slots">
+                    <SelectValue placeholder="Slots" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {num === 1 ? 'slot' : 'slots'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Auto 7 Archive */}
