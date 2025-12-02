@@ -1216,6 +1216,7 @@ function RawDataTab({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [searchTriggered, setSearchTriggered] = useState(false);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -1242,13 +1243,20 @@ function RawDataTab({
     return `/api/tddf-api/all-records?${params.toString()}`;
   };
 
-  // Fetch records using React Query (like Transactions page)
-  const { data, isLoading, error } = useQuery<{
+  // Fetch records using React Query - only when search is triggered
+  const { data, isLoading, error, refetch } = useQuery<{
     data: any[];
     pagination: { limit: number; offset: number; hasMore: boolean };
   }>({
     queryKey: [buildQueryUrl()],
+    enabled: searchTriggered,
   });
+
+  // Handle search button click
+  const handleSearch = () => {
+    setSearchTriggered(true);
+    setPage(1);
+  };
 
   const records = data?.data || [];
   const hasMore = data?.pagination?.hasMore ?? false;
@@ -1361,20 +1369,38 @@ function RawDataTab({
           </Select>
         </div>
 
-        <Button variant="ghost" size="sm" onClick={clearFilters}>
+        <Button 
+          onClick={handleSearch}
+          className="bg-blue-600 hover:bg-blue-700"
+          data-testid="button-search-records"
+        >
+          <Search className="mr-2 h-4 w-4" />
+          Search
+        </Button>
+
+        <Button variant="ghost" size="sm" onClick={() => { clearFilters(); setSearchTriggered(false); }}>
           Clear Filters
         </Button>
       </div>
 
       {/* Showing X records indicator */}
       <div className="text-sm text-muted-foreground">
-        Showing {records.length} records {hasMore && '(more available)'}
+        {searchTriggered 
+          ? `Showing ${records.length} records ${hasMore ? '(more available)' : ''}`
+          : 'Click Search to load records'
+        }
       </div>
 
       {/* Records Display */}
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
+          {!searchTriggered ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">Ready to Search</p>
+              <p className="text-sm">Set your filters above and click Search to load TDDF records</p>
+            </div>
+          ) : isLoading ? (
             <div className="p-8 space-y-4">
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
