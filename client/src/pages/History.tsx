@@ -1224,7 +1224,7 @@ export default function History() {
                     const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
                     const holidays = getUSBankHolidays(year);
                     const dailyDataMap = new Map(
-                      monthlyData.dailyBreakdown.map(d => [format(new Date(d.date), 'yyyy-MM-dd'), d])
+                      monthlyData.dailyBreakdown.map(d => [d.date, d])
                     );
 
                     return allDays.map((date) => {
