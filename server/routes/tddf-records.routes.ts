@@ -2310,9 +2310,9 @@ export function registerTddfRecordsRoutes(app: Express) {
       const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
       const orderByClause = `ORDER BY ${sortColumn} ${sortDirection}, r.line_number ASC`;
       
-      // Get summary statistics from uploader TDDF records (environment-specific table)
-      const environment = process.env.NODE_ENV || 'development';
-      const jsonbTableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      // Get summary statistics from master TDDF JSONB table (same as History page)
+      const jsonbTableName = getTableName('tddf_jsonb');
+      const uploaderTableName = getTableName('uploader_uploads');
       
       const summaryResult = await pool.query(`
         SELECT 
@@ -2321,11 +2321,11 @@ export function registerTddfRecordsRoutes(app: Express) {
           COUNT(CASE WHEN r.record_type = 'DT' THEN 1 END) as dt_records,
           COUNT(DISTINCT r.upload_id) as total_files
         FROM ${jsonbTableName} r
-        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        JOIN ${uploaderTableName} u ON r.upload_id = u.id
         ${summaryWhereClause}
       `, summaryParams);
       
-      // Get paginated records from uploader TDDF records
+      // Get paginated records from master TDDF JSONB table
       const finalRecordsParams = [...recordsParams, limit, offset];
       const recordsResult = await pool.query(`
         SELECT 
@@ -2342,7 +2342,7 @@ export function registerTddfRecordsRoutes(app: Express) {
           u.started_at,
           u.completed_at
         FROM ${jsonbTableName} r
-        JOIN ${getTableName('uploader_uploads')} u ON r.upload_id = u.id
+        JOIN ${uploaderTableName} u ON r.upload_id = u.id
         ${recordsWhereClause}
         ${orderByClause}
         LIMIT $${recordsParamIndex} OFFSET $${recordsParamIndex + 1}
