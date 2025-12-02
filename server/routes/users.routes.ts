@@ -2,6 +2,26 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "./middleware";
 
+// Helper to get real client IP through proxies
+function getRealClientIP(req: any): string {
+  const headers = [
+    'x-replit-user-ip',
+    'x-forwarded-for',
+    'x-real-ip',
+    'cf-connecting-ip'
+  ];
+  
+  for (const header of headers) {
+    const value = req.headers[header];
+    if (value) {
+      const ip = Array.isArray(value) ? value[0] : value.split(',')[0].trim();
+      if (ip) return ip;
+    }
+  }
+  
+  return req.ip || req.connection?.remoteAddress || 'Unknown';
+}
+
 export function registerUserRoutes(app: Express) {
   // User management endpoints
   app.get("/api/users", async (req, res) => {
@@ -220,7 +240,26 @@ export function registerUserRoutes(app: Express) {
         const hashedPassword = await storage.hashPassword(newPassword);
         await storage.updateUserPassword(userId, hashedPassword);
         
-        // Log password change by user (skip if database size limit reached)
+        const ipAddress = getRealClientIP(req);
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        
+        // Log password change to security logs
+        try {
+          await storage.logSecurityEvent({
+            eventType: 'password_changed',
+            userId: userId,
+            username: targetUser.username,
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            result: 'success',
+            reason: 'User changed their own password',
+            details: { changedBy: 'self' }
+          });
+        } catch (securityLogError) {
+          console.warn("Security logging failed:", (securityLogError as Error).message);
+        }
+        
+        // Log password change by user to audit logs (skip if database size limit reached)
         try {
           await storage.createAuditLog({
             entityType: "user",
@@ -248,7 +287,26 @@ export function registerUserRoutes(app: Express) {
         const hashedPassword = await storage.hashPassword(newPassword);
         await storage.updateUserPassword(userId, hashedPassword);
         
-        // Log admin password reset (skip if database size limit reached)
+        const ipAddress = getRealClientIP(req);
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        
+        // Log admin password reset to security logs
+        try {
+          await storage.logSecurityEvent({
+            eventType: 'password_reset',
+            userId: userId,
+            username: targetUser.username,
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            result: 'success',
+            reason: `Password reset by admin '${req.user?.username}'`,
+            details: { changedBy: 'admin', adminUsername: req.user?.username }
+          });
+        } catch (securityLogError) {
+          console.warn("Security logging failed:", (securityLogError as Error).message);
+        }
+        
+        // Log admin password reset to audit logs (skip if database size limit reached)
         try {
           await storage.createAuditLog({
             entityType: "user",

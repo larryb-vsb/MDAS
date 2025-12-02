@@ -74,6 +74,15 @@ Preferred communication style: Simple, everyday language.
   - Rapid toggle: No stale values or flicker observed
 - **Design Decision**: ForwardRef pattern chosen over useEffect-only approach to ensure synchronous form reset before render, eliminating all timing-related edge cases and visual artifacts
 
+### Password Change Security Logging (Dec 2, 2025)
+- **Enhancement**: All password changes now logged to security_logs table
+- **Event Types**:
+  - `password_changed`: User changed their own password (self-service)
+  - `password_reset`: Admin reset a user's password
+- **Logged Details**: User ID, username, IP address, user agent, result, reason, and details (changedBy: 'self' or 'admin')
+- **Implementation**: `server/routes/users.routes.ts` with `getRealClientIP()` helper for proxy-aware IP extraction
+- **Non-blocking**: Security logging uses try/catch to prevent authentication disruption if logging fails
+
 ### Security Logs Integration (Nov 24, 2025)
 - **New Feature**: Centralized security event logging for all authentication activities in `security_logs` table
 - **Event Types Tracked**:
