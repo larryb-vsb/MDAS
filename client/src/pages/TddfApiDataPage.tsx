@@ -3804,12 +3804,11 @@ export default function TddfApiDataPage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="raw-data">Raw Data</TabsTrigger>
-          <TabsTrigger value="archive-data">Archive Data</TabsTrigger>
           <TabsTrigger value="processing">Processing</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
@@ -5944,27 +5943,6 @@ export default function TddfApiDataPage() {
             setViewMode={setViewMode}
             getMerchantName={getMerchantName}
           />
-        </TabsContent>
-
-        <TabsContent value="archive-data" className="space-y-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold">Archive Data</h2>
-              <p className="text-muted-foreground">View archived TDDF records from permanent storage</p>
-            </div>
-            <Button 
-              variant="outline"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/all-archive-records"], exact: false });
-                toast({ title: "Archive data refreshed" });
-              }}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh Data
-            </Button>
-          </div>
-          
-          <ArchiveDataTab />
         </TabsContent>
 
         <TabsContent value="processing" className="space-y-4">
