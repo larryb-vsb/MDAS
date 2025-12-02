@@ -205,7 +205,7 @@ function ClickableMetricCard({
       <CardContent>
         {/* Total Value */}
         {total !== undefined && (
-          <div className="text-2xl font-bold mb-3">
+          <div className="font-bold mb-3 text-[20px]">
             {formatValue(total)}
           </div>
         )}
@@ -755,7 +755,7 @@ export default function HomeDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold mb-3">
+                    <div className="font-bold mb-3 text-[20px]">
                       {(metrics?.merchants?.total ?? 0).toLocaleString()}
                     </div>
                     <div className="space-y-2">
