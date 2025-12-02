@@ -913,10 +913,15 @@ function MccTddfTransactionsTab() {
   const [filtersApplied, setFiltersApplied] = useState(false);
   const [merchantComboboxOpen, setMerchantComboboxOpen] = useState(false);
 
-  // Merchant options from loaded data (post-load calculation)
-  const [merchantOptions, setMerchantOptions] = useState<
-    Array<{ account: string; name: string; display: string }>
-  >([]);
+  // Merchant options from API (all merchants with status)
+  interface MerchantOption {
+    id: number;
+    name: string;
+    accountNumber: string;
+    status: string;
+    merchantType: string;
+  }
+  const [merchantOptions, setMerchantOptions] = useState<MerchantOption[]>([]);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -975,50 +980,22 @@ function MccTddfTransactionsTab() {
     }
   }, [lookupData]);
 
-  // Extract unique merchants from loaded data (post-load calculation)
+  // Fetch all merchants for the dropdown (like History page)
   useEffect(() => {
-    if (
-      data?.data &&
-      merchantLookup &&
-      Object.keys(merchantLookup).length > 0
-    ) {
-      const uniqueAccounts = new Set<string>();
-      const merchantOptionsMap = new Map<
-        string,
-        { account: string; name: string; display: string }
-      >();
-
-      // Extract unique merchant accounts from loaded records
-      data.data.forEach((record) => {
-        const accountNumber = extractMerchantAccountNumber(record);
-        if (accountNumber) {
-          const normalizedAccount = accountNumber.startsWith("0")
-            ? accountNumber.substring(1)
-            : accountNumber;
-          uniqueAccounts.add(normalizedAccount);
+    const fetchMerchants = async () => {
+      try {
+        const response = await fetch('/api/merchants/for-filter');
+        if (response.ok) {
+          const data = await response.json();
+          setMerchantOptions(data);
         }
-      });
+      } catch (error) {
+        console.error('Error fetching merchant options:', error);
+      }
+    };
 
-      // Build merchant options with names
-      uniqueAccounts.forEach((account) => {
-        const name = merchantLookup[account];
-        if (name) {
-          merchantOptionsMap.set(account, {
-            account: account,
-            name: name,
-            display: `${name} (${account})`,
-          });
-        }
-      });
-
-      // Sort by merchant name
-      const sortedOptions = Array.from(merchantOptionsMap.values()).sort(
-        (a, b) => a.name.localeCompare(b.name),
-      );
-
-      setMerchantOptions(sortedOptions);
-    }
-  }, [data?.data, merchantLookup]);
+    fetchMerchants();
+  }, []);
 
   const getMerchantName = (merchantAccount: string | null): string | null => {
     if (!merchantAccount) return null;
@@ -1226,34 +1203,40 @@ function MccTddfTransactionsTab() {
                       <CommandList>
                         <CommandEmpty>No merchant found.</CommandEmpty>
                         <CommandGroup>
-                          {merchantOptions.map((merchant) => (
-                            <CommandItem
-                              key={merchant.account}
-                              value={merchant.display}
-                              onSelect={() => {
-                                setMerchantName(merchant.display);
-                                // Convert back to 16-digit TDDF format for filtering (add leading zero)
-                                const tddfAccount = merchant.account.padStart(
-                                  16,
-                                  "0",
-                                );
-                                setMerchantAccount(tddfAccount);
-                                setPage(1);
-                                setMerchantComboboxOpen(false);
-                              }}
-                              data-testid={`merchant-option-${merchant.account}`}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  merchantName === merchant.display
-                                    ? "opacity-100"
-                                    : "opacity-0",
-                                )}
-                              />
-                              {merchant.display}
-                            </CommandItem>
-                          ))}
+                          {merchantOptions.map((merchant) => {
+                            const displayText = merchant.status === 'Active' || merchant.status === 'Active/Open'
+                              ? merchant.name
+                              : `${merchant.name} (${merchant.status})`;
+                            const searchValue = `${merchant.name} (${merchant.accountNumber})`;
+                            return (
+                              <CommandItem
+                                key={merchant.accountNumber}
+                                value={searchValue}
+                                onSelect={() => {
+                                  setMerchantName(displayText);
+                                  // Convert back to 16-digit TDDF format for filtering (add leading zero)
+                                  const tddfAccount = merchant.accountNumber.padStart(
+                                    16,
+                                    "0",
+                                  );
+                                  setMerchantAccount(tddfAccount);
+                                  setPage(1);
+                                  setMerchantComboboxOpen(false);
+                                }}
+                                data-testid={`merchant-option-${merchant.accountNumber}`}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    merchantName === displayText
+                                      ? "opacity-100"
+                                      : "opacity-0",
+                                  )}
+                                />
+                                {displayText}
+                              </CommandItem>
+                            );
+                          })}
                         </CommandGroup>
                       </CommandList>
                     </Command>
