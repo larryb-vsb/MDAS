@@ -1203,978 +1203,284 @@ function FileViewDisplay({
 function RawDataTab({ 
   globalFilenameFilter, 
   setGlobalFilenameFilter,
-  viewMode,
-  setViewMode,
   getMerchantName
 }: { 
   globalFilenameFilter: string; 
   setGlobalFilenameFilter: (filename: string) => void; 
-  viewMode: 'tree' | 'flat' | 'file';
-  setViewMode: (mode: 'tree' | 'flat' | 'file') => void;
   getMerchantName: (merchantAccountNumber: string | null) => string | null;
 }) {
-  const { toast } = useToast();
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(100);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [recordType, setRecordType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showRecords, setShowRecords] = useState(false);
-  const [expandedRecord, setExpandedRecord] = useState<number | null>(null);
-  
-  // Tree view state
-  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
-  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
-  
-  // File view state
-  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
-  const [expandedFileBatches, setExpandedFileBatches] = useState<Set<string>>(new Set());
-  const [expandedFileTransactions, setExpandedFileTransactions] = useState<Set<string>>(new Set());
-  
-  // File filtering state (now using global state)
-  // const [rawDataFilenameFilter, setRawDataFilenameFilter] = useState<string>(''); // Moved to global state
-  
-  // Selection state for bulk operations
-  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
-  const [isSelectAllChecked, setIsSelectAllChecked] = useState(false);
-  
-  // Sorting state
-  const [sortBy, setSortBy] = useState<string>('line_number');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  // Global filename filtering state (now passed from main component)
-  
-  // Auto-enable showRecords when globalFilenameFilter is applied (e.g., from TDDF1 navigation)
-  useEffect(() => {
+  // Calculate offset based on page and limit
+  const offset = (page - 1) * limit;
+
+  // Build query URL like Transactions page
+  const buildQueryUrl = () => {
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+    
+    if (selectedDate) {
+      params.append('batch_date', format(selectedDate, 'yyyy-MM-dd'));
+    }
+    if (recordType && recordType !== 'all') {
+      params.append('recordType', recordType);
+    }
+    if (searchQuery.trim()) {
+      params.append('search', searchQuery.trim());
+    }
     if (globalFilenameFilter) {
-      setShowRecords(true);
-    }
-  }, [globalFilenameFilter]);
-  
-  // Handle column header click for sorting
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      // Toggle sort order if same column
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New column, default to ascending
-      setSortBy(column);
-      setSortOrder('asc');
-    }
-    setCurrentPage(0); // Reset to first page when sorting changes
-  };
-  
-  // Sortable header component
-  const SortableHeader = ({ column, label, className = '' }: { column: string; label: string; className?: string }) => {
-    const isSorted = sortBy === column;
-    return (
-      <TableHead 
-        className={cn("cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800", className)}
-        onClick={() => handleSort(column)}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {isSorted && (
-            sortOrder === 'asc' ? 
-              <ChevronUp className="h-4 w-4" /> : 
-              <ChevronDown className="h-4 w-4" />
-          )}
-        </div>
-      </TableHead>
-    );
-  };
-  
-  // Pagination options
-  const pageSizeOptions = [
-    { value: 10, label: '10' },
-    { value: 100, label: '100' },
-    { value: 500, label: '500' },
-    { value: 1000, label: '1K' },
-    { value: 3000, label: '3K' },
-    { value: 5000, label: '5K' },
-    { value: 10000, label: '10K' },
-    { value: 25000, label: '25K' },
-    { value: 50000, label: '50K' },
-    { value: 100000, label: '100K' },
-    { value: 150000, label: '150K' }
-  ];
-
-  // Tree view supporting functions
-  const getRecordTypeBadgeColor = (recordType: string) => {
-    switch (recordType) {
-      case '01': case 'BH': return 'bg-green-500 hover:bg-green-600';
-      case '47': case 'DT': return 'bg-blue-500 hover:bg-blue-600';
-      case '98': case 'TR': return 'bg-red-500 hover:bg-red-600';
-      case 'P1': return 'bg-purple-500 hover:bg-purple-600';
-      case 'P2': return 'bg-purple-600 hover:bg-purple-700';
-      case 'G2': return 'bg-indigo-500 hover:bg-indigo-600';
-      case 'A1': return 'bg-yellow-500 hover:bg-yellow-600';
-      case 'E1': return 'bg-pink-500 hover:bg-pink-600';
-      case 'LG': return 'bg-teal-500 hover:bg-teal-600';
-      case '10': return 'bg-green-600 hover:bg-green-700';
-      default: return 'bg-gray-500 hover:bg-gray-600';
-    }
-  };
-
-  const getRecordTypeName = (recordType: string) => {
-    switch (recordType) {
-      case '01': case 'BH': return 'Batch Header';
-      case '10': return 'File Header';
-      case '47': case 'DT': return 'Detail Transaction';
-      case '98': case 'TR': return 'Trailer';
-      case 'G2': return 'Geographic Extension';
-      case 'A1': return 'Airline Extension';
-      case 'E1': return 'E-Commerce Extension';
-      case 'P1': return 'Purchasing Card';
-      case 'P2': return 'Purchasing Card Ext';
-      case 'LG': return 'Lodge/Hotel';
-      default: return `Record ${recordType}`;
-    }
-  };
-
-  const formatFieldValue = (key: string, value: any) => {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'string' && value.trim() === '') return '-';
-    
-    if (key === 'merchantAccountNumber' && value) {
-      return value.toString().trim();
+      params.append('filename', globalFilenameFilter);
     }
     
-    if (typeof value === 'number') {
-      if (key.toLowerCase().includes('amount') || key.toLowerCase().includes('fee')) {
-        return (value / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-      }
-      return value.toLocaleString();
-    }
-    
-    if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
-      try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleString();
-        }
-      } catch (e) {
-        // Not a valid date, return as string
-      }
-    }
-    
-    return value.toString();
+    return `/api/tddf-api/all-records?${params.toString()}`;
   };
 
-  // Group records into hierarchical structure
-  const groupRecordsHierarchically = (records: any[]) => {
-    console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
-    
-    const recordTypes = Array.from(new Set(records.map(r => r.record_type)));
-    console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
-    
-    const batches: Array<{
-      batchHeader: any | null;
-      transactions: Array<{
-        dtRecord: any;
-        extensions: any[];
-      }>;
-      trailer: any | null;
-    }> = [];
-
-    let currentBatch: any = null;
-    let currentTransaction: any = null;
-
-    for (const record of records) {
-      const recordType = record.record_type;
-
-      if (['01', 'BH', '10', '02'].includes(recordType)) {
-        if (currentBatch) {
-          batches.push(currentBatch);
-        }
-        currentBatch = {
-          batchHeader: record,
-          transactions: [],
-          trailer: null
-        };
-        currentTransaction = null;
-        console.log(`[TREE-VIEW] Started new batch with header record type ${recordType}`);
-      }
-      else if (['47', 'DT'].includes(recordType)) {
-        if (!currentBatch) {
-          currentBatch = {
-            batchHeader: null,
-            transactions: [],
-            trailer: null
-          };
-        }
-        currentTransaction = {
-          dtRecord: record,
-          extensions: []
-        };
-        currentBatch.transactions.push(currentTransaction);
-        console.log(`[TREE-VIEW] Added transaction record type ${recordType} to batch`);
-      }
-      else if (['98', 'TR', '99'].includes(recordType)) {
-        if (currentBatch) {
-          currentBatch.trailer = record;
-        }
-      }
-      else {
-        if (currentTransaction) {
-          currentTransaction.extensions.push(record);
-          console.log(`[TREE-VIEW] Added extension record type ${recordType} to current transaction`);
-        }
-      }
-    }
-
-    if (currentBatch) {
-      batches.push(currentBatch);
-    }
-
-    console.log(`[TREE-VIEW] Created ${batches.length} batches`);
-    return batches;
-  };
-
-  // Group records by files for file-centric view
-  const groupRecordsByFiles = (records: any[]) => {
-    console.log(`[FILE-VIEW] Grouping ${records.length} records by filename`);
-    
-    const fileGroups: Record<string, any[]> = {};
-    
-    // Group records by filename
-    for (const record of records) {
-      const filename = record.filename || 'Unknown';
-      if (!fileGroups[filename]) {
-        fileGroups[filename] = [];
-      }
-      fileGroups[filename].push(record);
-    }
-    
-    // Convert to array with file-centric structure
-    const files = Object.entries(fileGroups).map(([filename, fileRecords]) => {
-      console.log(`[FILE-VIEW] Processing file: ${filename} with ${fileRecords.length} records`);
-      
-      // Group records within this file hierarchically (batches → transactions)
-      const batches = groupRecordsHierarchically(fileRecords);
-      
-      // Count record types within this file
-      const bhRecords = fileRecords.filter(r => ['01', 'BH', '10', '02'].includes(r.record_type)).length;
-      const dtRecords = fileRecords.filter(r => ['47', 'DT'].includes(r.record_type)).length;
-      
-      return {
-        filename,
-        records: fileRecords,
-        batches,
-        recordCounts: {
-          total: fileRecords.length,
-          bh: bhRecords,
-          dt: dtRecords
-        }
-      };
-    });
-    
-    console.log(`[FILE-VIEW] Created ${files.length} file groups`);
-    return files;
-  };
-
-  // Toggle handlers
-  const toggleBatchExpansion = (batchIndex: number) => {
-    const batchKey = `batch-${batchIndex}`;
-    setExpandedBatches(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(batchKey)) {
-        newSet.delete(batchKey);
-      } else {
-        newSet.add(batchKey);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleTransactionExpansion = (batchIndex: number, transactionIndex: number) => {
-    const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
-    setExpandedTransactions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(transactionKey)) {
-        newSet.delete(transactionKey);
-      } else {
-        newSet.add(transactionKey);
-      }
-      return newSet;
-    });
-  };
-
-  // File view toggle handlers
-  const toggleFileExpansion = (filename: string) => {
-    setExpandedFiles(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(filename)) {
-        newSet.delete(filename);
-      } else {
-        newSet.add(filename);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleFileBatchExpansion = (filename: string, batchIndex: number) => {
-    const batchKey = `${filename}-batch-${batchIndex}`;
-    setExpandedFileBatches(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(batchKey)) {
-        newSet.delete(batchKey);
-      } else {
-        newSet.add(batchKey);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleFileTransactionExpansion = (filename: string, batchIndex: number, transactionIndex: number) => {
-    const transactionKey = `${filename}-transaction-${batchIndex}-${transactionIndex}`;
-    setExpandedFileTransactions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(transactionKey)) {
-        newSet.delete(transactionKey);
-      } else {
-        newSet.add(transactionKey);
-      }
-      return newSet;
-    });
-  };
-
-  // Selection handlers for bulk operations
-  const handleSelectRecord = (recordId: number) => {
-    const newSelected = new Set(selectedRecords);
-    if (newSelected.has(recordId)) {
-      newSelected.delete(recordId);
-    } else {
-      newSelected.add(recordId);
-    }
-    setSelectedRecords(newSelected);
-    
-    // Update select all state
-    if (newSelected.size === 0) {
-      setIsSelectAllChecked(false);
-    } else if (newSelected.size === records.length) {
-      setIsSelectAllChecked(true);
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (isSelectAllChecked || selectedRecords.size === records.length) {
-      // Deselect all
-      setSelectedRecords(new Set());
-      setIsSelectAllChecked(false);
-    } else {
-      // Select all visible records
-      const allRecordIds = new Set(records.map((record: any) => record.id) as number[]);
-      setSelectedRecords(allRecordIds);
-      setIsSelectAllChecked(true);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedRecords.size === 0) {
-      toast({
-        title: "No Records Selected",
-        description: "Please select records to delete.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const recordIds = Array.from(selectedRecords);
-      await apiRequest('/api/tddf-api/records/bulk-delete', {
-        method: 'DELETE',
-        body: JSON.stringify({ recordIds }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      toast({
-        title: "Records Deleted",
-        description: `Successfully deleted ${recordIds.length} records.`,
-      });
-
-      // Clear selection and refetch data
-      setSelectedRecords(new Set());
-      setIsSelectAllChecked(false);
-      refetch();
-    } catch (error) {
-      console.error('Error deleting records:', error);
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete selected records. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Fetch raw data with React Query
-  const { data: rawData, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/tddf-api/all-records', { 
-      limit: pageSize, 
-      offset: currentPage * pageSize,
-      recordType: recordType === 'all' ? undefined : recordType,
-      search: searchQuery || undefined,
-      filename: globalFilenameFilter || undefined,
-      sortBy,
-      sortOrder
-    }],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        limit: pageSize.toString(),
-        offset: (currentPage * pageSize).toString(),
-        sortBy: sortBy,
-        sortOrder: sortOrder
-      });
-      
-      if (recordType !== 'all') {
-        params.append('recordType', recordType);
-      }
-      
-      if (searchQuery) {
-        params.append('search', searchQuery);
-      }
-      
-      if (globalFilenameFilter) {
-        params.append('filename', globalFilenameFilter);
-      }
-      
-      return await apiRequest(`/api/tddf-api/all-records?${params}`);
-    },
-    enabled: showRecords,
-    refetchOnWindowFocus: false
+  // Fetch records using React Query (like Transactions page)
+  const { data, isLoading, error } = useQuery<{
+    data: any[];
+    pagination: { limit: number; offset: number; hasMore: boolean };
+  }>({
+    queryKey: [buildQueryUrl()],
   });
 
-  const summary = (rawData as any)?.summary || {
-    totalRecords: 0,
-    bhRecords: 0,
-    dtRecords: 0,
-    totalFiles: 0
-  };
+  const records = data?.data || [];
+  const hasMore = data?.pagination?.hasMore ?? false;
 
-  const records = (rawData as any)?.data || [];
-  const totalPages = (rawData as any)?.pagination?.total ? Math.ceil((rawData as any).pagination.total / pageSize) : 0;
-
-  const handleShowAllRecords = () => {
-    setShowRecords(true);
-    setCurrentPage(0);
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(0);
-  };
-
-  const handleSearch = () => {
-    setCurrentPage(0);
-    refetch();
-  };
-
-  const formatRecordContent = (record: any) => {
-    if (record.parsed_data && Object.keys(record.parsed_data).length > 0) {
-      return Object.entries(record.parsed_data)
-        .slice(0, 3) // Show first 3 parsed fields
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(' | ');
+  // Toggle row expansion
+  const toggleRow = (recordId: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(recordId)) {
+      newExpanded.delete(recordId);
+    } else {
+      newExpanded.add(recordId);
     }
-    return record.raw_data ? record.raw_data.substring(0, 100) + '...' : 'No data';
+    setExpandedRows(newExpanded);
+  };
+
+  // Helper functions
+  const getRecordTypeBadgeColor = (type: string) => {
+    switch (type) {
+      case 'BH': return 'bg-green-500';
+      case 'DT': return 'bg-blue-500';
+      case 'TR': return 'bg-red-500';
+      case 'P1': case 'P2': return 'bg-purple-500';
+      case 'G2': return 'bg-indigo-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const extractAmount = (record: any): string => {
+    const parsed = record.parsed_data;
+    if (!parsed) return '-';
+    const amount = parsed.transactionAmount || parsed.TransactionAmount || parsed.netDeposit || parsed.NetDeposit;
+    if (amount) {
+      return `$${(Number(amount) / 100).toFixed(2)}`;
+    }
+    return '-';
+  };
+
+  const extractMerchant = (record: any): string => {
+    const parsed = record.parsed_data;
+    if (!parsed) return '-';
+    return parsed.merchantAccountNumber || parsed.MerchantAccountNumber || '-';
+  };
+
+  const extractDate = (record: any): string => {
+    const parsed = record.parsed_data;
+    if (!parsed) return '-';
+    return parsed.batchDate || parsed.BatchDate || parsed.transactionDate || '-';
+  };
+
+  // Clear filters
+  const clearFilters = () => {
+    setSelectedDate(null);
+    setRecordType('all');
+    setSearchQuery('');
+    setGlobalFilenameFilter('');
+    setPage(1);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Filename Filter Indicator */}
-      {globalFilenameFilter && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-900">
-              Filtered by file: <code className="bg-white px-2 py-1 rounded text-xs">{globalFilenameFilter}</code>
-            </span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setGlobalFilenameFilter('')}
-              className="ml-auto h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
-              title="Clear filename filter"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
+    <div className="space-y-4">
+      {/* Filter Controls - Like Transactions Page */}
+      <div className="flex flex-wrap gap-4 items-end">
+        <div className="flex items-center gap-2">
+          <Label>Date:</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                <Calendar className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'Select date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate || undefined}
+                onSelect={(date) => {
+                  setSelectedDate(date || null);
+                  setPage(1);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-      )}
 
-      {/* Summary Cards - Matching the design from attached image */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">BH Records</p>
-                <p className="text-2xl font-bold">{summary.bhRecords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Batch Headers</p>
-              </div>
-              <Database className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2">
+          <Label>Type:</Label>
+          <Select value={recordType} onValueChange={(v) => { setRecordType(v); setPage(1); }}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="BH">BH - Batch Header</SelectItem>
+              <SelectItem value="DT">DT - Transaction</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">DT Records</p>
-                <p className="text-2xl font-bold">{summary.dtRecords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Detail Transactions</p>
-              </div>
-              <BarChart3 className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2">
+          <Label>Per page:</Label>
+          <Select value={limit.toString()} onValueChange={(v) => { setLimit(parseInt(v)); setPage(1); }}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">Total Records</p>
-                <p className="text-2xl font-bold">{summary.totalRecords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">All Types</p>
-              </div>
-              <Activity className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
+        <Button variant="ghost" size="sm" onClick={clearFilters}>
+          Clear Filters
+        </Button>
       </div>
 
-      {/* Controls Section */}
+      {/* Showing X records indicator */}
+      <div className="text-sm text-muted-foreground">
+        Showing {records.length} records {hasMore && '(more available)'}
+      </div>
+
+      {/* Records Display */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Raw Data Controls</CardTitle>
-              <CardDescription>Configure pagination and filters for TDDF records</CardDescription>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
             </div>
-            {!showRecords && (
-              <Button 
-                onClick={handleShowAllRecords}
-                className="bg-blue-600 hover:bg-blue-700"
-                data-testid="button-show-all-records"
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Show All Records
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Pagination Size */}
-            <div>
-              <Label>Records per page</Label>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={(value) => handlePageSizeChange(parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value.toString()}>
-                      {option.label} records
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          ) : error ? (
+            <div className="p-8 text-center text-red-600">
+              Failed to load records. Please try again.
             </div>
+          ) : records.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              No records found. Try adjusting your filters.
+            </div>
+          ) : (
+            <div>
+              {records.map((record: any) => {
+                const isExpanded = expandedRows.has(record.id);
+                const merchantAccount = extractMerchant(record);
+                const merchantName = getMerchantName(merchantAccount);
+                const amount = extractAmount(record);
+                const batchDate = extractDate(record);
 
-            {/* Record Type Filter */}
-            <div>
-              <Label>Record Type</Label>
-              <Select 
-                value={recordType} 
-                onValueChange={setRecordType}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="BH">BH - Batch Header</SelectItem>
-                  <SelectItem value="DT">DT - Detail Transaction</SelectItem>
-                  <SelectItem value="G2">G2 - Geographic Data</SelectItem>
-                  <SelectItem value="P1">P1 - Processing Data</SelectItem>
-                  <SelectItem value="E1">E1 - Enhanced Data</SelectItem>
-                  <SelectItem value="DR">DR - Detail Record</SelectItem>
-                  <SelectItem value="TR">TR - Trailer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                return (
+                  <div key={record.id}>
+                    <div
+                      className="px-4 py-2 border-t cursor-pointer hover:bg-gray-50 flex items-center gap-2 text-sm"
+                      onClick={() => toggleRow(record.id)}
+                      data-testid={`row-record-${record.id}`}
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                      )}
 
-            {/* View Mode */}
-            <div>
-              <Label>View Mode</Label>
-              <Select 
-                value={viewMode} 
-                onValueChange={(value: 'tree' | 'flat' | 'file') => setViewMode(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="flat">Flat View</SelectItem>
-                  <SelectItem value="tree">Tree View</SelectItem>
-                  <SelectItem value="file">File View</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                      <Badge className={`${getRecordTypeBadgeColor(record.record_type)} text-white text-xs`}>
+                        {record.record_type}
+                      </Badge>
 
-            {/* Search */}
-            <div>
-              <Label>Search</Label>
-              <Input
-                placeholder="Search raw data..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
+                      <span className="font-mono text-xs text-gray-600">{merchantAccount}</span>
+                      
+                      {merchantName && (
+                        <Badge variant="outline" className="text-xs">{merchantName}</Badge>
+                      )}
 
-            {/* Search Button */}
-            <div className="flex items-end">
-              <Button onClick={handleSearch} variant="outline" className="w-full">
-                <Search className="mr-2 h-4 w-4" />
-                Search
-              </Button>
+                      <span className="text-green-600 font-medium">{amount}</span>
+                      
+                      <span className="text-gray-500">{batchDate}</span>
+
+                      <span className="ml-auto text-xs text-gray-400">
+                        {record.filename?.split('_').slice(3, 5).join('_') || 'Unknown'} | Line {record.line_number}
+                      </span>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="px-4 py-3 bg-gray-50 border-t">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                          {record.parsed_data && Object.entries(record.parsed_data).slice(0, 12).map(([key, value]) => (
+                            <div key={key} className="flex flex-col">
+                              <span className="font-medium text-gray-500">{key}</span>
+                              <span className="text-gray-900">{String(value) || '-'}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {record.raw_data && (
+                          <div className="mt-2 p-2 bg-white rounded border">
+                            <span className="text-xs font-medium text-gray-500">Raw Data:</span>
+                            <pre className="text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap break-all">
+                              {record.raw_data}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Records Table */}
-      {showRecords && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>TDDF Records ({records.length} of {(rawData as any)?.pagination?.total || 0})</CardTitle>
-                <CardDescription>Raw TDDF data with parsed fields</CardDescription>
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                    disabled={currentPage === 0 || isLoading}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Page {currentPage + 1} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                    disabled={currentPage >= totalPages - 1 || isLoading}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                Loading records...
-              </div>
-            ) : error ? (
-              <div className="text-center py-8 text-red-600">
-                Error loading records: {error instanceof Error ? error.message : 'Unknown error'}
-              </div>
-            ) : records.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No records found matching your criteria
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {/* Bulk Operation Controls */}
-                {selectedRecords.size > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <CheckSquare className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                        {selectedRecords.size} record{selectedRecords.size !== 1 ? 's' : ''} selected
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBulkDelete}
-                        disabled={selectedRecords.size === 0}
-                        data-testid="button-bulk-delete"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete Selected
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedRecords(new Set());
-                          setIsSelectAllChecked(false);
-                        }}
-                        data-testid="button-clear-selection"
-                      >
-                        Clear Selection
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Flat View Display */}
-                {viewMode === 'flat' && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={isSelectAllChecked}
-                            onCheckedChange={handleSelectAll}
-                            data-testid="checkbox-select-all"
-                          />
-                        </TableHead>
-                        <SortableHeader column="record_type" label="Type" className="w-20" />
-                        <TableHead>Content</TableHead>
-                        <SortableHeader column="filename" label="File" className="w-40" />
-                        <SortableHeader column="line_number" label="Line" className="w-16" />
-                        <SortableHeader column="transaction_date" label="Transaction Date" className="w-32" />
-                        <SortableHeader column="batch_date" label="Batch Date" className="w-32" />
-                        <SortableHeader column="scheduled_slot" label="Scheduled Slot" className="w-24" />
-                        <TableHead className="w-16">View</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {records.map((record: any) => [
-                      <TableRow key={record.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedRecords.has(record.id)}
-                            onCheckedChange={() => handleSelectRecord(record.id)}
-                            data-testid={`checkbox-record-${record.id}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              className={record.record_type === 'BH' ? 'bg-green-500 hover:bg-green-600 text-white' : record.record_type === 'DT' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
-                              variant={record.record_type === 'BH' || record.record_type === 'DT' ? 'default' : 'outline'}
-                            >
-                              {record.record_type}
-                            </Badge>
-                            {/* Show card type badge for DT records */}
-                            {(record.record_type === 'DT' || record.record_type === '47') && (() => {
-                              const cardType = extractCardType(record);
-                              
-                              return cardType ? (
-                                <span 
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(cardType).className}`}
-                                  data-testid={`badge-card-type-${cardType.toLowerCase()}`}
-                                >
-                                  <CreditCard className="h-3 w-3" />
-                                  {getCardTypeBadges(cardType).label}
-                                </span>
-                              ) : null;
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          {record.record_type === 'BH' ? (
-                            <div className="flex items-center gap-3 text-sm">
-                              {/* Merchant Account and Name */}
-                              {(() => {
-                                const merchantAccountNumber = extractMerchantAccountNumber(record);
-                                const merchantName = getMerchantName(merchantAccountNumber);
-                                return merchantAccountNumber ? (
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-blue-600">
-                                      {merchantAccountNumber}
-                                    </span>
-                                    {merchantName && (
-                                      <span className="text-xs font-semibold text-green-600">
-                                        {merchantName}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              {/* Batch Date and Net Deposit */}
-                              {(() => {
-                                const batchDate = extractBatchDate(record);
-                                const netDeposit = record.parsed_data?.netDeposit || record.record_data?.netDeposit;
-                                return (batchDate || netDeposit) ? (
-                                  <div className="ml-auto flex items-center gap-3">
-                                    {batchDate && (
-                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <CalendarIcon className="h-4 w-4" />
-                                        {batchDate}
-                                      </span>
-                                    )}
-                                    {netDeposit && (
-                                      <span className="font-medium text-gray-700">
-                                        ${Number(netDeposit).toFixed(2)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                            </div>
-                          ) : (record.record_type === 'DT' || record.record_type === '47') ? (
-                            <div className="flex items-center gap-3 text-sm">
-                              {/* Merchant Account and Name for DT records */}
-                              {(() => {
-                                const merchantAccountNumber = extractMerchantAccountNumber(record);
-                                const merchantName = getMerchantName(merchantAccountNumber);
-                                return merchantAccountNumber ? (
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-blue-600">
-                                      {merchantAccountNumber}
-                                    </span>
-                                    {merchantName && (
-                                      <span className="text-xs font-semibold text-green-600">
-                                        {merchantName}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              {/* Transaction Date and Amount */}
-                              {(() => {
-                                const transactionDate = extractTransactionDate(record);
-                                const transactionAmount = extractTransactionAmount(record);
-                                return (transactionDate || transactionAmount !== null) ? (
-                                  <div className="ml-auto flex items-center gap-3">
-                                    {transactionDate && (
-                                      <span className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <CalendarIcon className="h-4 w-4" />
-                                        {transactionDate}
-                                      </span>
-                                    )}
-                                    {transactionAmount !== null && (
-                                      <span className="font-medium text-gray-700">
-                                        ${Number(transactionAmount).toFixed(2)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : null;
-                              })()}
-                            </div>
-                          ) : (
-                            <div className="truncate font-mono text-xs" title={record.raw_line || record.raw_data}>
-                              {formatRecordContent(record)}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="truncate text-sm" title={record.original_filename || record.filename}>
-                          {record.original_filename || record.filename || 'Unknown'}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{record.line_number || 'N/A'}</TableCell>
-                        <TableCell className="text-sm">
-                          {(() => {
-                            const transactionDate = extractTransactionDate(record);
-                            return transactionDate ? (
-                              <span className="text-blue-600 font-medium">{transactionDate}</span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {(() => {
-                            const batchDate = extractBatchDate(record);
-                            return batchDate ? (
-                              <span className="text-green-600 font-medium">{batchDate}</span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {record.scheduledSlotLabel ? (
-                            <Badge variant="outline" className="text-xs">
-                              {record.scheduledSlotLabel}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
-                            data-testid={`button-view-record-${record.id}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>,
-                      expandedRecord === record.id && (
-                        <TableRow key={`${record.id}-detail`}>
-                          <TableCell colSpan={9} className="p-0">
-                            <div className="border-t bg-muted/30 p-4">
-                              <RecordDetailView record={record} />
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                      ]).flat().filter(Boolean)}
-                    </TableBody>
-                  </Table>
-                )}
-
-                {/* Tree View Display */}
-                {viewMode === 'tree' && (
-                  <TreeViewDisplay 
-                    records={records}
-                    expandedBatches={expandedBatches}
-                    expandedTransactions={expandedTransactions}
-                    onToggleBatch={toggleBatchExpansion}
-                    onToggleTransaction={toggleTransactionExpansion}
-                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
-                    getRecordTypeName={getRecordTypeName}
-                    formatFieldValue={formatFieldValue}
-                    groupRecordsHierarchically={groupRecordsHierarchically}
-                    getMerchantName={getMerchantName}
-                  />
-                )}
-
-                {/* File View Display */}
-                {viewMode === 'file' && (
-                  <FileViewDisplay 
-                    records={records}
-                    expandedFiles={expandedFiles}
-                    expandedFileBatches={expandedFileBatches}
-                    expandedFileTransactions={expandedFileTransactions}
-                    onToggleFile={toggleFileExpansion}
-                    onToggleFileBatch={toggleFileBatchExpansion}
-                    onToggleFileTransaction={toggleFileTransactionExpansion}
-                    getRecordTypeBadgeColor={getRecordTypeBadgeColor}
-                    getRecordTypeName={getRecordTypeName}
-                    formatFieldValue={formatFieldValue}
-                    groupRecordsByFiles={groupRecordsByFiles}
-                    getMerchantName={getMerchantName}
-                  />
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Pagination */}
+      {records.length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Page {page}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" /> Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(page + 1)}
+              disabled={!hasMore}
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
