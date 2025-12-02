@@ -691,7 +691,7 @@ export default function HomeDashboard() {
               className="flex items-center gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${refreshCacheMutation.isPending ? 'animate-spin' : ''}`} />
-              {refreshCacheMutation.isPending ? 'Refreshing...' : 'Refresh Data'}
+              {refreshCacheMutation.isPending ? 'Refreshing...' : 'Refresh'}
             </Button>
             <CacheControlWidget 
               isDarkMode={false}
