@@ -50,6 +50,54 @@ class MMSWatcher {
     this.loadStep6Config().catch(err => {
       console.warn('[MMS-WATCHER] Could not load Step 6 config from database, using default:', err.message);
     });
+    this.loadAuto45Config().catch(err => {
+      console.warn('[MMS-WATCHER] Could not load Auto 4-5 config from database, using default:', err.message);
+    });
+  }
+  
+  // Load Auto 4-5 configuration from database
+  async loadAuto45Config() {
+    try {
+      const { db } = await import('./db.js');
+      const { sql } = await import('drizzle-orm');
+      const { getTableName } = await import('./table-config.js');
+      
+      const result = await db.execute(sql`
+        SELECT setting_value FROM ${sql.identifier(getTableName('system_settings'))}
+        WHERE setting_key = 'auto_45_enabled'
+      `);
+      
+      if (result.rows.length > 0) {
+        const dbValue = result.rows[0].setting_value === 'true';
+        this.auto45Enabled = dbValue;
+        console.log(`[MMS-WATCHER] [CONFIG] Loaded Auto 4-5 from database: ${this.auto45Enabled ? 'ENABLED' : 'DISABLED'}`);
+      }
+    } catch (error) {
+      console.warn('[MMS-WATCHER] [CONFIG] Error loading Auto 4-5 config:', error.message);
+    }
+  }
+  
+  // Save Auto 4-5 configuration to database
+  async saveAuto45Config(enabled) {
+    try {
+      const { db } = await import('./db.js');
+      const { sql } = await import('drizzle-orm');
+      const { getTableName } = await import('./table-config.js');
+      
+      await db.execute(sql`
+        INSERT INTO ${sql.identifier(getTableName('system_settings'))} 
+          (setting_key, setting_value, setting_type, description, last_updated_by)
+        VALUES ('auto_45_enabled', ${enabled.toString()}, 'boolean', 'Auto 4-5 processing enabled', 'watcher')
+        ON CONFLICT (setting_key) 
+        DO UPDATE SET 
+          setting_value = ${enabled.toString()},
+          updated_at = NOW()
+      `);
+      
+      console.log(`[MMS-WATCHER] [CONFIG] Saved Auto 4-5 to database: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+    } catch (error) {
+      console.warn('[MMS-WATCHER] [CONFIG] Error saving Auto 4-5 config:', error.message);
+    }
   }
   
   // Load Step 6 configuration from database
@@ -1952,6 +2000,10 @@ class MMSWatcher {
   setAuto45Enabled(enabled) {
     this.auto45Enabled = enabled;
     console.log(`[MMS-WATCHER] Auto 4-5 processing ${enabled ? 'enabled' : 'disabled'}`);
+    // Persist to database
+    this.saveAuto45Config(enabled).catch(err => {
+      console.warn('[MMS-WATCHER] Failed to persist Auto 4-5 setting:', err.message);
+    });
   }
 
   getAuto45Status() {
