@@ -1197,44 +1197,40 @@ export function registerTddfCacheRoutes(app: Express) {
         'AD': parseInt(summary.ad_records) || 0
       };
       
-      // Get daily breakdown - aggregate by date
-      // Filter out deleted files by joining with uploader_uploads (modern upload tracking system)
-      // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
-      // Use $1,$2 for DATE columns and $3,$4 for JSONB text fields to avoid type conflicts
+      // Get daily breakdown - aggregate by FILENAME DATE (not internal batch/transaction dates)
+      // This ensures consistency with file counts which are also keyed by filename date
+      // Filter out deleted files by joining with uploader_uploads
       const dailyBreakdown = await client.query(`
         SELECT 
-          COALESCE(
-            CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
-                 WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'
-            END
+          to_char(
+            to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
           ) as date,
           COUNT(*) as records,
           COALESCE(SUM(CASE WHEN t.record_type = 'DT' THEN (t.extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
           COALESCE(SUM(CASE WHEN t.record_type = 'BH' THEN (t.extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
         FROM ${masterTableName} t
-        LEFT JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
-        WHERE u2.id IS NOT NULL 
-          AND u2.deleted_at IS NULL
-          AND (
-            (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
-             AND t.record_type = 'BH' AND t.extracted_fields->>'batchDate' >= $3 AND t.extracted_fields->>'batchDate' <= $4)
-            OR
-            (t.tddf_processing_date >= $1 AND t.tddf_processing_date <= $2 
-             AND t.record_type = 'DT' AND t.extracted_fields->>'transactionDate' >= $3 AND t.extracted_fields->>'transactionDate' <= $4)
-          )
+        INNER JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
+        WHERE u2.deleted_at IS NULL
+          AND split_part(u2.filename, '_', 4) ~ '^\\d{8}$'
+          AND t.tddf_processing_date >= $1 
+          AND t.tddf_processing_date <= $2
+          AND t.record_type IN ('BH', 'DT')
+          AND to_char(
+            to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
+          ) >= $1
+          AND to_char(
+            to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
+          ) <= $2
           ${filterClause}
-        GROUP BY COALESCE(
-          CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
-               WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'
-          END
+        GROUP BY to_char(
+          to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+          'YYYY-MM-DD'
         )
-        HAVING COALESCE(
-          CASE WHEN t.record_type = 'BH' THEN t.extracted_fields->>'batchDate'
-               WHEN t.record_type = 'DT' THEN t.extracted_fields->>'transactionDate'
-          END
-        ) IS NOT NULL
         ORDER BY date
-      `, [startDate, endDate, startDate, endDate]);
+      `, [startDate, endDate]);
       
       // Count files by filename date for each day (matching Data Files tab logic)
       // Also get array of filenames for tooltip display
@@ -1246,8 +1242,9 @@ export function registerTddfCacheRoutes(app: Express) {
               to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
               'YYYY-MM-DD'
             ) as date,
-            -- Strip "(1)", "(2)", etc. suffixes and .TSYS extension for canonical name
-            regexp_replace(filename, ' \\(\\d+\\)(\\.TSYS)?$', '\\1') as canonical_name,
+            -- Strip "(1)", "(2)", etc. suffixes for canonical name
+            -- Simply remove ' (N)' pattern, keeping the rest of the filename intact
+            regexp_replace(filename, ' \\(\\d+\\)', '') as canonical_name,
             filename,
             start_time
           FROM ${uploaderTableName}
@@ -1333,11 +1330,12 @@ export function registerTddfCacheRoutes(app: Express) {
       }
       
       const masterTableName = getTableName('tddf_jsonb');
+      const uploaderUploadsTable = getTableName('uploader_uploads');
       
       // Build filter conditions
       const filterConditions: string[] = [];
       const filterValues: string[] = [];
-      let filterParamIndex = 5; // Start after date params (1-4)
+      let filterParamIndex = 3; // Start after date params (1-2)
       
       if (group && group !== 'all') {
         filterConditions.push(`extracted_fields->>'group' = $${filterParamIndex++}`);
@@ -1384,39 +1382,40 @@ export function registerTddfCacheRoutes(app: Express) {
         const endDate = `${yr}-${mth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         
         // Get daily breakdown for the month from master table
-        // PARTITION PRUNING: Each OR branch includes tddf_processing_date for optimal pruning
-        // Use $1,$2 for DATE columns and $3,$4 for JSONB text fields to avoid type conflicts
+        // Aggregate by FILENAME DATE (not internal batch/transaction dates) for consistency
+        // Join with uploader_uploads to get filename dates
         const dailyBreakdown = await client.query(`
           SELECT 
-            COALESCE(
-              CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
-                   WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
-              END
+            to_char(
+              to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+              'YYYY-MM-DD'
             ) as date,
-            COUNT(DISTINCT upload_id) as files,
+            COUNT(DISTINCT t.upload_id) as files,
             COUNT(*) as records,
-            COALESCE(SUM(CASE WHEN record_type = 'DT' THEN (extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
-            COALESCE(SUM(CASE WHEN record_type = 'BH' THEN (extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
-          FROM ${masterTableName}
-          WHERE (
-              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-               AND record_type = 'BH' AND extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
-              OR
-              (tddf_processing_date >= $1 AND tddf_processing_date <= $2 
-               AND record_type = 'DT' AND extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
-            )${additionalWhere}
-          GROUP BY COALESCE(
-            CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
-                 WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
-            END
+            COALESCE(SUM(CASE WHEN t.record_type = 'DT' THEN (t.extracted_fields->>'transactionAmount')::decimal END), 0) as transaction_value,
+            COALESCE(SUM(CASE WHEN t.record_type = 'BH' THEN (t.extracted_fields->>'netDeposit')::decimal END), 0) as net_deposit_bh
+          FROM ${masterTableName} t
+          INNER JOIN ${uploaderUploadsTable} u2 ON t.upload_id = u2.id
+          WHERE u2.deleted_at IS NULL
+            AND split_part(u2.filename, '_', 4) ~ '^\\d{8}$'
+            AND t.tddf_processing_date >= $1 
+            AND t.tddf_processing_date <= $2
+            AND t.record_type IN ('BH', 'DT')
+            AND to_char(
+              to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+              'YYYY-MM-DD'
+            ) >= $1
+            AND to_char(
+              to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+              'YYYY-MM-DD'
+            ) <= $2
+            ${additionalWhere}
+          GROUP BY to_char(
+            to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
+            'YYYY-MM-DD'
           )
-          HAVING COALESCE(
-            CASE WHEN record_type = 'BH' THEN extracted_fields->>'batchDate'
-                 WHEN record_type = 'DT' THEN extracted_fields->>'transactionDate'
-            END
-          ) IS NOT NULL
           ORDER BY date
-        `, [startDate, endDate, startDate, endDate, ...filterValues]);
+        `, [startDate, endDate, ...filterValues]);
         
         return dailyBreakdown.rows.map((entry) => ({
           date: entry.date,
