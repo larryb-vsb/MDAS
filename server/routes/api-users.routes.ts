@@ -88,6 +88,7 @@ export function registerApiUserRoutes(app: Express) {
         apiKey: user.api_key,  // Provide camelCase for frontend
         isActive: user.is_active,  // Map is_active to isActive for frontend
         requestCount: user.request_count || 0,  // Database column is request_count
+        lastUsed: user.last_used,  // Map last_used to lastUsed for frontend
         lastUsedIp: user.last_used_ip,  // Map last_used_ip to lastUsedIp for frontend
         rateLimitPerMinute: 100 // Default value for now
       }));
@@ -122,6 +123,8 @@ export function registerApiUserRoutes(app: Express) {
         apiKey: apiUser.api_key,  // Also provide camelCase for consistency
         isActive: apiUser.is_active,  // Map is_active to isActive for frontend
         requestCount: apiUser.request_count || 0,  // Map request_count to requestCount
+        lastUsed: apiUser.last_used,  // Map last_used to lastUsed for frontend
+        lastUsedIp: apiUser.last_used_ip,  // Map last_used_ip to lastUsedIp for frontend
         rateLimitPerMinute: 100 // Default value
       });
     } catch (error) {
