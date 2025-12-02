@@ -1185,10 +1185,22 @@ export default function History() {
           </Card>
         )}
 
-        {/* Daily Breakdown Table */}
+        {/* Daily Breakdown Table - Shows all days of month */}
         <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
           <CardHeader>
-            <CardTitle className={isDarkMode ? 'text-white' : ''}>Daily Breakdown</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className={isDarkMode ? 'text-white' : ''}>Daily Breakdown</CardTitle>
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className={`inline-block w-3 h-3 rounded ${isDarkMode ? 'bg-blue-900/60' : 'bg-blue-50'} border ${isDarkMode ? 'border-blue-700' : 'border-blue-200'}`}></span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Weekend</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={`inline-block w-3 h-3 rounded ${isDarkMode ? 'bg-red-900/60' : 'bg-red-50'} border ${isDarkMode ? 'border-red-700' : 'border-red-200'}`}></span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Holiday</span>
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -1196,6 +1208,7 @@ export default function History() {
                 <thead>
                   <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                     <th className={`text-left p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Date</th>
+                    <th className={`text-left p-2 w-16 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Day</th>
                     <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Files</th>
                     <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Records</th>
                     <th className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>DT Authorizations</th>
@@ -1203,68 +1216,118 @@ export default function History() {
                   </tr>
                 </thead>
                 <tbody>
-                  {monthlyData.dailyBreakdown.map((day) => {
-                    const shouldHighlight = day.files > 2;
-                    return (
-                      <tr 
-                        key={day.date} 
-                        className={clsx(
-                          'border-b cursor-pointer',
-                          shouldHighlight 
-                            ? isDarkMode 
-                              ? 'bg-amber-900/40 hover:bg-amber-900/60 border-amber-800' 
-                              : 'bg-amber-50 hover:bg-amber-100 border-amber-200'
-                            : isDarkMode 
-                              ? 'border-gray-700 hover:bg-gray-700' 
-                              : 'border-gray-100 hover:bg-gray-50'
-                        )}
-                        onClick={() => {
-                          const date = new Date(day.date);
-                          const dayNum = date.getDate();
-                          const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-                          const monthName = parsedRoute.monthName || monthNames[(parsedRoute.month || 1) - 1];
-                          setLocation(`/history/${parsedRoute.year}/${monthName}/${dayNum}`);
-                        }}
-                        data-testid={`row-day-${day.date}`}
-                      >
-                        <td className={`p-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{format(new Date(day.date), 'MMM dd, yyyy')}</td>
-                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {day.filenames && day.filenames.length > 0 ? (
-                            <TooltipProvider>
-                              <Tooltip delayDuration={300}>
-                                <TooltipTrigger asChild>
-                                  <span 
-                                    className="cursor-help underline decoration-dotted underline-offset-2"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {day.files}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent 
-                                  side="left" 
-                                  className={`max-w-xl ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white'}`}
-                                >
-                                  <div className="text-xs space-y-1">
-                                    <div className="font-medium mb-1">Files for {format(new Date(day.date), 'MMM dd')}:</div>
-                                    {day.filenames.map((filename, i) => (
-                                      <div key={i} className="text-muted-foreground font-mono text-[11px]">
-                                        {filename}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            day.files
-                          )}
-                        </td>
-                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatNumber(day.records)}</td>
-                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.transactionValue)}</td>
-                        <td className={`text-right p-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formatCurrency(day.netDepositBh)}</td>
-                      </tr>
+                  {(() => {
+                    const year = parsedRoute.year || new Date().getFullYear();
+                    const month = (parsedRoute.month || 1) - 1;
+                    const monthStart = startOfMonth(new Date(year, month, 1));
+                    const monthEnd = endOfMonth(monthStart);
+                    const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                    const holidays = getUSBankHolidays(year);
+                    const dailyDataMap = new Map(
+                      monthlyData.dailyBreakdown.map(d => [format(new Date(d.date), 'yyyy-MM-dd'), d])
                     );
-                  })}
+
+                    return allDays.map((date) => {
+                      const dateKey = format(date, 'yyyy-MM-dd');
+                      const dayData = dailyDataMap.get(dateKey);
+                      const dayOfWeek = getDay(date);
+                      const isWeekendDay = isWeekend(date);
+                      const holidayName = isUSBankHoliday(date, holidays);
+                      const hasData = dayData && (dayData.files > 0 || dayData.records > 0);
+                      const shouldHighlight = dayData && dayData.files > 2;
+
+                      return (
+                        <tr 
+                          key={dateKey} 
+                          className={clsx(
+                            'border-b',
+                            hasData ? 'cursor-pointer' : 'cursor-default',
+                            holidayName
+                              ? isDarkMode 
+                                ? 'bg-red-900/40 hover:bg-red-900/60 border-red-800' 
+                                : 'bg-red-50 hover:bg-red-100 border-red-200'
+                              : isWeekendDay
+                                ? isDarkMode
+                                  ? 'bg-blue-900/30 hover:bg-blue-900/50 border-blue-800'
+                                  : 'bg-blue-50 hover:bg-blue-100 border-blue-200'
+                                : shouldHighlight 
+                                  ? isDarkMode 
+                                    ? 'bg-amber-900/40 hover:bg-amber-900/60 border-amber-800' 
+                                    : 'bg-amber-50 hover:bg-amber-100 border-amber-200'
+                                  : isDarkMode 
+                                    ? 'border-gray-700 hover:bg-gray-700' 
+                                    : 'border-gray-100 hover:bg-gray-50'
+                          )}
+                          onClick={() => {
+                            if (!hasData) return;
+                            const dayNum = date.getDate();
+                            const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                            const monthName = parsedRoute.monthName || monthNames[(parsedRoute.month || 1) - 1];
+                            setLocation(`/history/${parsedRoute.year}/${monthName}/${dayNum}`);
+                          }}
+                          data-testid={`row-day-${dateKey}`}
+                        >
+                          <td className={`p-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            <div className="flex items-center gap-2">
+                              <span>{format(date, 'MMM dd, yyyy')}</span>
+                              {holidayName && (
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isDarkMode ? 'border-red-600 text-red-400' : 'border-red-300 text-red-600'}`}>
+                                  {holidayName}
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className={`p-2 font-medium ${
+                            isWeekendDay 
+                              ? isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                              : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            {DAY_ABBREVS[dayOfWeek]}
+                          </td>
+                          <td className={`text-right p-2 ${hasData ? (isDarkMode ? 'text-gray-300' : 'text-gray-700') : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>
+                            {dayData && dayData.filenames && dayData.filenames.length > 0 ? (
+                              <TooltipProvider>
+                                <Tooltip delayDuration={300}>
+                                  <TooltipTrigger asChild>
+                                    <span 
+                                      className="cursor-help underline decoration-dotted underline-offset-2"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {dayData.files}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent 
+                                    side="left" 
+                                    className={`max-w-xl ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white'}`}
+                                  >
+                                    <div className="text-xs space-y-1">
+                                      <div className="font-medium mb-1">Files for {format(date, 'MMM dd')}:</div>
+                                      {dayData.filenames.map((filename, i) => (
+                                        <div key={i} className="text-muted-foreground font-mono text-[11px]">
+                                          {filename}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              dayData?.files || '-'
+                            )}
+                          </td>
+                          <td className={`text-right p-2 ${hasData ? (isDarkMode ? 'text-gray-300' : 'text-gray-700') : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>
+                            {dayData ? formatNumber(dayData.records) : '-'}
+                          </td>
+                          <td className={`text-right p-2 ${hasData ? (isDarkMode ? 'text-gray-300' : 'text-gray-700') : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>
+                            {dayData ? formatCurrency(dayData.transactionValue) : '-'}
+                          </td>
+                          <td className={`text-right p-2 ${hasData ? (isDarkMode ? 'text-gray-300' : 'text-gray-700') : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>
+                            {dayData ? formatCurrency(dayData.netDepositBh) : '-'}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
