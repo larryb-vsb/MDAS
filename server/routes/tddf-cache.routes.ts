@@ -1238,30 +1238,42 @@ export function registerTddfCacheRoutes(app: Express) {
       
       // Count files by filename date for each day (matching Data Files tab logic)
       // Also get array of filenames for tooltip display
-      // Exclude deleted files
+      // Exclude deleted files and dedupe by stripping "(1)", "(2)" suffixes
       const fileCountsByDate = await client.query(`
-        SELECT 
-          to_char(
-            to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
-            'YYYY-MM-DD'
-          ) as date,
-          COUNT(*) as files,
-          array_agg(filename ORDER BY start_time DESC) as filenames
-        FROM ${uploaderTableName}
-        WHERE split_part(filename, '_', 4) ~ '^\\d{8}$'
-          AND deleted_at IS NULL
-          AND to_char(
-            to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
-            'YYYY-MM-DD'
-          ) >= $1
-          AND to_char(
-            to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
-            'YYYY-MM-DD'
-          ) <= $2
-        GROUP BY to_char(
-          to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
-          'YYYY-MM-DD'
+        WITH base_filenames AS (
+          SELECT 
+            to_char(
+              to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+              'YYYY-MM-DD'
+            ) as date,
+            -- Strip "(1)", "(2)", etc. suffixes and .TSYS extension for canonical name
+            regexp_replace(filename, ' \\(\\d+\\)(\\.TSYS)?$', '\\1') as canonical_name,
+            filename,
+            start_time
+          FROM ${uploaderTableName}
+          WHERE split_part(filename, '_', 4) ~ '^\\d{8}$'
+            AND deleted_at IS NULL
+            AND to_char(
+              to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+              'YYYY-MM-DD'
+            ) >= $1
+            AND to_char(
+              to_date(split_part(filename, '_', 4), 'MMDDYYYY'),
+              'YYYY-MM-DD'
+            ) <= $2
+        ),
+        deduped AS (
+          SELECT DISTINCT ON (date, canonical_name)
+            date, canonical_name, start_time
+          FROM base_filenames
+          ORDER BY date, canonical_name, start_time DESC
         )
+        SELECT 
+          date,
+          COUNT(*) as files,
+          array_agg(canonical_name ORDER BY start_time DESC) as filenames
+        FROM deduped
+        GROUP BY date
         ORDER BY date
       `, [startDate, endDate]);
       
