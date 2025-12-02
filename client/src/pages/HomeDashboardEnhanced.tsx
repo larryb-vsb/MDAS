@@ -638,7 +638,7 @@ export default function HomeDashboard() {
                 {import.meta.env.MODE === "production" ? "Production" : "Development"}
               </Badge>
             </div>
-            <p className="text-muted-foreground">Merchant Datawarehouse & Automation</p>
+            <p className="text-muted-foreground">Merchant Datawarehouse & Automation Sys</p>
             {/* Cache Status with Visual Indicators */}
             {metrics?.cacheMetadata && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
