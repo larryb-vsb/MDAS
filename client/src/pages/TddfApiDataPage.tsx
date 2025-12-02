@@ -4042,7 +4042,6 @@ export default function TddfApiDataPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="schemas">Schemas</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="raw-data">Raw Data</TabsTrigger>
@@ -4050,6 +4049,7 @@ export default function TddfApiDataPage() {
           <TabsTrigger value="processing">Processing</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+          <TabsTrigger value="schemas">Schemas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
