@@ -1216,14 +1216,8 @@ export function registerTddfCacheRoutes(app: Express) {
           AND t.tddf_processing_date >= $1 
           AND t.tddf_processing_date <= $2
           AND t.record_type IN ('BH', 'DT')
-          AND to_char(
-            to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
-            'YYYY-MM-DD'
-          ) >= $1
-          AND to_char(
-            to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
-            'YYYY-MM-DD'
-          ) <= $2
+          AND to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY') >= $1::date
+          AND to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY') <= $2::date
           ${filterClause}
         GROUP BY to_char(
           to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
@@ -1401,14 +1395,8 @@ export function registerTddfCacheRoutes(app: Express) {
             AND t.tddf_processing_date >= $1 
             AND t.tddf_processing_date <= $2
             AND t.record_type IN ('BH', 'DT')
-            AND to_char(
-              to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
-              'YYYY-MM-DD'
-            ) >= $1
-            AND to_char(
-              to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
-              'YYYY-MM-DD'
-            ) <= $2
+            AND to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY') >= $1::date
+            AND to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY') <= $2::date
             ${additionalWhere}
           GROUP BY to_char(
             to_date(split_part(u2.filename, '_', 4), 'MMDDYYYY'),
