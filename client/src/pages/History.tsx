@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
-import { format, parse, startOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays } from 'date-fns';
+import { format, parse, startOfMonth, endOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays, eachDayOfInterval, getDay, isWeekend, isSameDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
 import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
@@ -136,6 +136,50 @@ interface ParsedRoute {
   day?: number;
   date?: Date;
 }
+
+function getNthDayOfMonth(year: number, month: number, dayOfWeek: number, n: number): Date {
+  const firstDay = new Date(year, month, 1);
+  const firstDayOfWeek = getDay(firstDay);
+  let dayOffset = dayOfWeek - firstDayOfWeek;
+  if (dayOffset < 0) dayOffset += 7;
+  return new Date(year, month, 1 + dayOffset + (n - 1) * 7);
+}
+
+function getLastDayOfMonth(year: number, month: number, dayOfWeek: number): Date {
+  const lastDay = endOfMonth(new Date(year, month, 1));
+  let date = lastDay;
+  while (getDay(date) !== dayOfWeek) {
+    date = addDays(date, -1);
+  }
+  return date;
+}
+
+function getUSBankHolidays(year: number): Array<{ date: Date; name: string }> {
+  return [
+    { date: new Date(year, 0, 1), name: "New Year's Day" },
+    { date: getNthDayOfMonth(year, 0, 1, 3), name: "MLK Day" },
+    { date: getNthDayOfMonth(year, 1, 1, 3), name: "Presidents' Day" },
+    { date: getLastDayOfMonth(year, 4, 1), name: "Memorial Day" },
+    { date: new Date(year, 5, 19), name: "Juneteenth" },
+    { date: new Date(year, 6, 4), name: "Independence Day" },
+    { date: getNthDayOfMonth(year, 8, 1, 1), name: "Labor Day" },
+    { date: getNthDayOfMonth(year, 9, 1, 2), name: "Columbus Day" },
+    { date: new Date(year, 10, 11), name: "Veterans Day" },
+    { date: getNthDayOfMonth(year, 10, 4, 4), name: "Thanksgiving" },
+    { date: new Date(year, 11, 25), name: "Christmas Day" },
+  ];
+}
+
+function isUSBankHoliday(date: Date, holidays: Array<{ date: Date; name: string }>): string | null {
+  for (const holiday of holidays) {
+    if (isSameDay(date, holiday.date)) {
+      return holiday.name;
+    }
+  }
+  return null;
+}
+
+const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function History() {
   const [location, setLocation] = useLocation();
