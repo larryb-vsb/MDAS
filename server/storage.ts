@@ -8830,6 +8830,9 @@ export class DatabaseStorage implements IStorage {
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
     const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
     
+    // Map camelCase to snake_case for database columns
+    const camelToSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    
     // DECOMMISSION DETECTION: Check if terminal name indicates decommissioned status
     const deviceName = insertSubMerchantTerminal.deviceName;
     if (deviceName && isTerminalDecommissioned(deviceName)) {
@@ -8858,7 +8861,8 @@ export class DatabaseStorage implements IStorage {
         : 'AUTOMATIC DECOMMISSION DETECTION: Terminal marked as decommissioned based on name keywords';
     }
     
-    const columns = Object.keys(insertSubMerchantTerminal).join(', ');
+    // Convert camelCase keys to snake_case for database columns
+    const columns = Object.keys(insertSubMerchantTerminal).map(camelToSnake).join(', ');
     const placeholders = Object.keys(insertSubMerchantTerminal).map((_, i) => `$${i + 1}`).join(', ');
     const values = Object.values(insertSubMerchantTerminal);
     
@@ -8876,8 +8880,11 @@ export class DatabaseStorage implements IStorage {
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
     const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
     
+    // Map camelCase to snake_case for database columns
+    const camelToSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    
     const setClause = Object.keys(updates)
-      .map((key, i) => `${key} = $${i + 2}`)
+      .map((key, i) => `${camelToSnake(key)} = $${i + 2}`)
       .join(', ');
     const values = [id, ...Object.values(updates)];
     
