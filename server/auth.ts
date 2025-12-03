@@ -154,7 +154,6 @@ export function setupAuth(app: Express) {
         
         console.log(`[AUTH] ✅ Found user: ${username}, role: ${user.role}, auth_type: ${user.authType}, checking password...`);
         const passwordMatch = await comparePasswords(password, user.password);
-        console.log(`[AUTH] Password validation result for ${username}: ${passwordMatch ? '✅ SUCCESS' : '❌ FAILED'}`);
         
         if (!passwordMatch) {
           console.log(`[AUTH] ❌ Invalid password for user: ${username}`);
