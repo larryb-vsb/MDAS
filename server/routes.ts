@@ -4178,6 +4178,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Assign merchant to terminal (Sub Terminals functionality)
+  app.patch("/api/terminals/:id/merchant", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = parseInt(req.params.id);
+      const { merchantId } = req.body;
+      
+      if (!merchantId) {
+        return res.status(400).json({ error: "merchantId is required" });
+      }
+      
+      // Update terminal with new merchant assignment
+      const updateData = {
+        merchantId: merchantId === 'UNKNOWN' ? null : merchantId,
+        updatedAt: new Date(),
+        lastUpdate: new Date(),
+        updateSource: `Merchant Assignment: ${req.user?.username || "System"}`,
+        updatedBy: req.user?.username || "System"
+      };
+      
+      const terminal = await storage.updateTerminal(terminalId, updateData);
+      res.json(terminal);
+    } catch (error) {
+      console.error('Error assigning merchant to terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to assign merchant to terminal" 
+      });
+    }
+  });
+
   // Delete terminal
   app.delete("/api/terminals/:id", isAuthenticated, async (req, res) => {
     try {
