@@ -915,7 +915,7 @@ export default function TerminalsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Terminal ID</TableHead>
-                        <TableHead>Terminal Name</TableHead>
+                        <TableHead>Merchant Name</TableHead>
                         <TableHead>POS Merchant #</TableHead>
                         <TableHead>Current Merchant</TableHead>
                         <TableHead>Status</TableHead>
