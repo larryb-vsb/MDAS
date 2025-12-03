@@ -447,15 +447,20 @@ function StuckFileResetButton() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  interface ResetStuckFilesResponse {
+    filesReset: number;
+    slotsCleared: number;
+  }
+
   const resetMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<ResetStuckFilesResponse> => {
       return await apiRequest('/api/admin/reset-stuck-step6-files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: ResetStuckFilesResponse) => {
       toast({
         title: "Success",
         description: `Reset ${data.filesReset} stuck file(s). ${data.slotsCleared} slot(s) cleared.`,

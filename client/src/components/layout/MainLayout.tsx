@@ -421,7 +421,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white flex flex-col">
+      <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white flex flex-col" accessibleTitle="Navigation Menu">
         {/* Header section */}
         <div className="flex h-12 items-center gap-2 px-6 py-6 flex-shrink-0">
           <h2 className="text-lg font-bold text-white">MDAS Dashboard</h2>
