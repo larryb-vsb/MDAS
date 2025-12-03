@@ -18,7 +18,6 @@ import Merchants from "@/pages/Merchants";
 import Transactions from "@/pages/Transactions";
 import TerminalsPage from "@/pages/TerminalsPage";
 import TerminalViewPage from "@/pages/TerminalViewPage";
-import TddfPage from "@/pages/tddf-page";
 import TddfJsonPage from "@/pages/TddfJsonPage";
 import TddfJsonTestPage from "@/pages/TddfJsonTestPage";
 import Tddf1Page from "@/pages/Tddf1Page";
@@ -58,7 +57,6 @@ function Router() {
       <ProtectedRoute path="/orphan-terminals" component={OrphanTerminalsPage} />
       <ProtectedRoute path="/orphan-terminals/:terminalId" component={OrphanTerminalViewPage} />
       <ProtectedRoute path="/transactions" component={Transactions} />
-      <ProtectedRoute path="/tddf-records" component={TddfPage} />
       <ProtectedRoute path="/tddf-json" component={TddfJsonPage} />
       <ProtectedRoute path="/tddf-json-test" component={TddfJsonTestPage} />
       <ProtectedRoute path="/tddf1" component={Tddf1Page} />
