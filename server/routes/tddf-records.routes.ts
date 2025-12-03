@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 import { parseTddfFilename, formatProcessingTime } from "../utils/tddfFilename";
 import { backfillUniversalTimestamps } from "../services/universal-timestamp";
 import { logger } from "../../shared/logger";
+import { getDTFieldByKey } from "../../shared/dtFields";
 
 // MEMORY SAFETY: Simple in-memory cache for expensive duplicate stats queries
 // Prevents production OOM crashes from repeated expensive ARRAY_AGG queries
@@ -2192,7 +2193,9 @@ export function registerTddfRecordsRoutes(app: Express) {
         search,
         filename,
         merchant_account,
-        batch_date
+        batch_date,
+        fieldKey,
+        fieldValue
       } = req.query;
       
       // Validate and cap limit to prevent abuse
@@ -2204,8 +2207,20 @@ export function registerTddfRecordsRoutes(app: Express) {
       const params: any[] = [];
       let paramIndex = 1;
       
-      // Record type filter
-      if (recordType && recordType !== 'all') {
+      // DT Field search - must be DT records when searching by field
+      if (fieldKey && fieldValue) {
+        const fieldDef = getDTFieldByKey(fieldKey as string);
+        if (fieldDef) {
+          // Force DT record type when searching by field
+          whereConditions.push(`r.record_type = 'DT'`);
+          // Use SUBSTRING to extract the field from raw_line and search
+          // SUBSTRING in PostgreSQL is 1-indexed: SUBSTRING(raw_line FROM start FOR length)
+          whereConditions.push(`TRIM(SUBSTRING(r.raw_line FROM ${fieldDef.start} FOR ${fieldDef.length})) ILIKE $${paramIndex}`);
+          params.push(`%${fieldValue}%`);
+          paramIndex++;
+        }
+      } else if (recordType && recordType !== 'all') {
+        // Record type filter (only when not doing field search)
         whereConditions.push(`r.record_type = $${paramIndex}`);
         params.push(recordType as string);
         paramIndex++;

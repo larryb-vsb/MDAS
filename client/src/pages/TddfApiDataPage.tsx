@@ -31,6 +31,7 @@ import { UploaderUpload } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize, getStatusBadgeVariant, TddfApiFile, TddfApiSchema } from '@/lib/tddf-shared';
 import { EnhancedProcessingQueue } from "@/components/processing/EnhancedProcessingQueue";
+import { DT_FIELDS, getDTFieldByKey } from "@shared/dtFields";
 
 // Timing Display Component for Step-6/JSONB Encoding Times
 function TimingDisplay({ uploadId }: { uploadId: string }) {
@@ -1217,9 +1218,23 @@ function RawDataTab({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [searchTriggered, setSearchTriggered] = useState(false);
+  
+  // DT Field Search state
+  const [selectedField, setSelectedField] = useState<string>('');
+  const [fieldSearchValue, setFieldSearchValue] = useState<string>('');
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
+
+  // Handle field selection - auto-set record type to DT
+  const handleFieldChange = (value: string) => {
+    setSelectedField(value);
+    setFieldSearchValue(''); // Clear previous search value
+    if (value) {
+      setRecordType('DT'); // Auto-select DT when a field is chosen
+    }
+    setPage(1);
+  };
 
   // Build query URL like Transactions page
   const buildQueryUrl = () => {
@@ -1238,6 +1253,11 @@ function RawDataTab({
     }
     if (globalFilenameFilter) {
       params.append('filename', globalFilenameFilter);
+    }
+    // Add field search parameters
+    if (selectedField && fieldSearchValue.trim()) {
+      params.append('fieldKey', selectedField);
+      params.append('fieldValue', fieldSearchValue.trim());
     }
     
     return `/api/tddf-api/all-records?${params.toString()}`;
@@ -1312,8 +1332,13 @@ function RawDataTab({
     setRecordType('all');
     setSearchQuery('');
     setGlobalFilenameFilter('');
+    setSelectedField('');
+    setFieldSearchValue('');
     setPage(1);
   };
+
+  // Get the selected field definition for display
+  const selectedFieldDef = selectedField ? getDTFieldByKey(selectedField) : null;
 
   return (
     <div className="space-y-4">
@@ -1343,7 +1368,18 @@ function RawDataTab({
 
         <div className="flex items-center gap-2">
           <Label>Type:</Label>
-          <Select value={recordType} onValueChange={(v) => { setRecordType(v); setPage(1); }}>
+          <Select 
+            value={recordType} 
+            onValueChange={(v) => { 
+              setRecordType(v); 
+              if (v !== 'DT') {
+                setSelectedField('');
+                setFieldSearchValue('');
+              }
+              setPage(1); 
+            }}
+            disabled={!!selectedField} // Disable when field search is active
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
@@ -1381,6 +1417,65 @@ function RawDataTab({
         <Button variant="ghost" size="sm" onClick={() => { clearFilters(); setSearchTriggered(false); }}>
           Clear Filters
         </Button>
+      </div>
+
+      {/* DT Field Search - Second Row */}
+      <div className="flex flex-wrap gap-4 items-end border-t pt-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-blue-600 font-medium">DT Field:</Label>
+          <Select value={selectedField} onValueChange={handleFieldChange}>
+            <SelectTrigger className="w-[220px]" data-testid="select-dt-field">
+              <SelectValue placeholder="Select a DT field..." />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="">-- No Field Selected --</SelectItem>
+              {DT_FIELDS.map((field) => (
+                <SelectItem key={field.key} value={field.key}>
+                  {field.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedField && (
+          <div className="flex items-center gap-2">
+            <Label>Search Value:</Label>
+            <Input
+              placeholder={`Enter ${selectedFieldDef?.label || 'value'}...`}
+              value={fieldSearchValue}
+              onChange={(e) => setFieldSearchValue(e.target.value)}
+              className="w-[200px]"
+              maxLength={selectedFieldDef?.length || 50}
+              data-testid="input-field-search-value"
+            />
+            {selectedFieldDef && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-xs cursor-help">
+                      Pos {selectedFieldDef.start}-{selectedFieldDef.start + selectedFieldDef.length - 1}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p><strong>Field:</strong> {selectedFieldDef.label}</p>
+                      <p><strong>Position:</strong> {selectedFieldDef.start} - {selectedFieldDef.start + selectedFieldDef.length - 1}</p>
+                      <p><strong>Length:</strong> {selectedFieldDef.length} chars</p>
+                      <p><strong>Format:</strong> {selectedFieldDef.format === 'N' ? 'Numeric' : 'Alphanumeric'}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
+
+        {selectedField && (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+            Searching DT records only
+          </Badge>
+        )}
       </div>
 
       {/* Showing X records indicator */}
