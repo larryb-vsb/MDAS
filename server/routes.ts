@@ -3998,7 +3998,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/terminals", isAuthenticated, async (req, res) => {
     try {
       const terminals = await storage.getTerminals();
-      res.json(terminals);
+      
+      // Get all active sub-merchant terminal links to add merchantId to terminals
+      const subMerchantLinks = await storage.getSubMerchantTerminals();
+      const activeLinks = subMerchantLinks.filter(link => link.isActive);
+      
+      // Create a map of terminalId -> merchantId for quick lookup
+      const terminalMerchantMap = new Map<number, string>();
+      for (const link of activeLinks) {
+        if (link.terminalId && link.merchantId) {
+          terminalMerchantMap.set(link.terminalId, link.merchantId);
+        }
+      }
+      
+      // Add merchantId to each terminal
+      const terminalsWithMerchants = terminals.map(terminal => ({
+        ...terminal,
+        merchantId: terminalMerchantMap.get(terminal.id) || null
+      }));
+      
+      res.json(terminalsWithMerchants);
     } catch (error) {
       console.error('Error fetching terminals:', error);
       res.status(500).json({ 
@@ -4179,6 +4198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assign merchant to terminal (Sub Terminals functionality)
+  // Uses sub_merchant_terminals cross-reference table
   app.patch("/api/terminals/:id/merchant", isAuthenticated, async (req, res) => {
     try {
       const terminalId = parseInt(req.params.id);
@@ -4188,17 +4208,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "merchantId is required" });
       }
       
-      // Update terminal with new merchant assignment
-      const updateData = {
-        merchantId: merchantId === 'UNKNOWN' ? null : merchantId,
-        updatedAt: new Date(),
-        lastUpdate: new Date(),
-        updateSource: `Merchant Assignment: ${req.user?.username || "System"}`,
-        updatedBy: req.user?.username || "System"
-      };
+      // Get terminal info for the cross-reference
+      const terminal = await storage.getTerminal(terminalId);
+      if (!terminal) {
+        return res.status(404).json({ error: "Terminal not found" });
+      }
       
-      const terminal = await storage.updateTerminal(terminalId, updateData);
-      res.json(terminal);
+      // Check for existing cross-reference for this terminal
+      const existingLinks = await storage.getSubMerchantTerminalsByTerminal(terminalId);
+      
+      if (merchantId === 'UNKNOWN') {
+        // Remove all merchant assignments for this terminal
+        for (const link of existingLinks) {
+          await storage.deleteSubMerchantTerminal(link.id);
+        }
+        return res.json({ success: true, message: "Merchant assignment removed", terminal });
+      }
+      
+      // Check if there's already a link to this specific merchant
+      const existingLink = existingLinks.find(link => link.merchantId === merchantId);
+      
+      if (existingLink) {
+        // Already linked
+        return res.json({ success: true, message: "Terminal already assigned to this merchant", terminal });
+      }
+      
+      // Deactivate existing links and create new one
+      for (const link of existingLinks) {
+        await storage.updateSubMerchantTerminal(link.id, { isActive: false });
+      }
+      
+      // Create new cross-reference entry
+      const newLink = await storage.createSubMerchantTerminal({
+        deviceName: terminal.dbaName || terminal.vNumber || `Terminal-${terminalId}`,
+        dNumber: terminal.vNumber || String(terminalId),
+        merchantId: merchantId,
+        terminalId: terminalId,
+        matchType: 'manual',
+        isActive: true,
+        createdBy: req.user?.username || 'System',
+        notes: `Manual assignment via Sub Terminals UI`
+      });
+      
+      res.json({ success: true, message: "Merchant assigned successfully", terminal, link: newLink });
     } catch (error) {
       console.error('Error assigning merchant to terminal:', error);
       res.status(500).json({ 

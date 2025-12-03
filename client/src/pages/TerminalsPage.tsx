@@ -54,12 +54,12 @@ export default function TerminalsPage() {
     gcTime: 0,
   });
   
-  // Fetch ACH merchants only for Sub Terminals tab (merchantType=3)
+  // Fetch all merchants for Sub Terminals tab
   const { data: merchantsResponse } = useQuery({
-    queryKey: ['/api/merchants', { merchantType: '3' }],
+    queryKey: ['/api/merchants'],
     queryFn: async () => {
-      const response = await fetch('/api/merchants?merchantType=3', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch ACH merchants');
+      const response = await fetch('/api/merchants', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch merchants');
       return response.json();
     },
     enabled: activeTab === 'sub-terminals'
@@ -895,7 +895,7 @@ export default function TerminalsPage() {
                               onClick={() => createMerchantMutation.mutate({
                                 id: `merchant_${Date.now()}`,
                                 ...newMerchant,
-                                merchantType: '3'
+                                merchantType: 'ACH'
                               })}
                               disabled={createMerchantMutation.isPending || !newMerchant.name}
                               data-testid="button-submit-new-merchant"
