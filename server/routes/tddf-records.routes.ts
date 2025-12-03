@@ -2523,7 +2523,7 @@ export function registerTddfRecordsRoutes(app: Express) {
     }
   });
 
-  // TDDF JSON records endpoint (truncated)
+  // TDDF JSON records endpoint
   app.get("/api/tddf-json/records", isAuthenticated, async (req, res) => {
     try {
       const {
@@ -2539,8 +2539,147 @@ export function registerTddfRecordsRoutes(app: Express) {
         endDate
       } = req.query;
       
-      // Implementation truncated for brevity - full implementation in original routes.ts
-      res.json({ message: "TDDF JSON records - full implementation available" });
+      const pageNum = parseInt(page as string) || 1;
+      const limitNum = Math.min(parseInt(limit as string) || 50, 200);
+      const offset = (pageNum - 1) * limitNum;
+      
+      const tableName = getTableName('tddf_jsonb');
+      
+      // Build WHERE conditions
+      let whereConditions = [];
+      let params: any[] = [];
+      let paramIndex = 1;
+      
+      if (recordType && recordType !== 'all') {
+        if (recordType === 'other') {
+          whereConditions.push(`record_type NOT IN ('DT', 'BH', 'P1', 'P2')`);
+        } else {
+          whereConditions.push(`record_type = $${paramIndex}`);
+          params.push(recordType);
+          paramIndex++;
+        }
+      }
+      
+      if (search) {
+        whereConditions.push(`(
+          extracted_fields->>'merchantName' ILIKE $${paramIndex} OR
+          extracted_fields->>'referenceNumber' ILIKE $${paramIndex} OR
+          upload_id ILIKE $${paramIndex}
+        )`);
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      if (dateFilter) {
+        console.log(`[TDDF-JSON-RECORDS] Date filter received: ${dateFilter}`);
+        whereConditions.push(`DATE(extracted_fields->>'transactionDate') = $${paramIndex}`);
+        params.push(dateFilter);
+        paramIndex++;
+      }
+      
+      if (year) {
+        console.log(`[TDDF-JSON-RECORDS] Year filter received: ${year}`);
+        whereConditions.push(`EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $${paramIndex}`);
+        params.push(parseInt(year as string));
+        paramIndex++;
+      }
+      
+      // Month range filtering (startDate and endDate)
+      if (startDate && endDate) {
+        console.log(`[TDDF-JSON-RECORDS] Month range filter received: ${startDate} to ${endDate}`);
+        whereConditions.push(`(extracted_fields->>'transactionDate')::date >= $${paramIndex} AND (extracted_fields->>'transactionDate')::date <= $${paramIndex + 1}`);
+        params.push(startDate, endDate);
+        paramIndex += 2;
+      } else if (startDate) {
+        console.log(`[TDDF-JSON-RECORDS] Start date filter received: ${startDate}`);
+        whereConditions.push(`(extracted_fields->>'transactionDate')::date >= $${paramIndex}`);
+        params.push(startDate);
+        paramIndex++;
+      } else if (endDate) {
+        console.log(`[TDDF-JSON-RECORDS] End date filter received: ${endDate}`);
+        whereConditions.push(`(extracted_fields->>'transactionDate')::date <= $${paramIndex}`);
+        params.push(endDate);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Build ORDER BY clause - default to DESC and validate direction
+      let orderClause = 'ORDER BY created_at DESC';
+      const rawSortDirection = ((sortOrder as string) || 'DESC').toUpperCase();
+      const sortDirection = rawSortDirection === 'ASC' ? 'ASC' : 'DESC';
+      
+      switch (sortBy) {
+        case 'record_type':
+          orderClause = `ORDER BY record_type ${sortDirection}`;
+          break;
+        case 'upload_id':
+        case 'file':
+          orderClause = `ORDER BY upload_id ${sortDirection}`;
+          break;
+        case 'transaction_date':
+        case 'date':
+          orderClause = `ORDER BY (extracted_fields->>'transactionDate') ${sortDirection}`;
+          break;
+        case 'transaction_amount':
+        case 'amount':
+          orderClause = `ORDER BY CAST(extracted_fields->>'transactionAmount' AS NUMERIC) ${sortDirection}`;
+          break;
+        case 'merchant_name':
+        case 'merchant':
+          orderClause = `ORDER BY (extracted_fields->>'merchantName') ${sortDirection}`;
+          break;
+        case 'terminal_id':
+        case 'terminal':
+          orderClause = `ORDER BY (extracted_fields->>'terminalId') ${sortDirection}`;
+          break;
+        case 'card_type':
+          orderClause = `ORDER BY (extracted_fields->>'cardType') ${sortDirection}`;
+          break;
+        case 'line_number':
+          orderClause = `ORDER BY line_number ${sortDirection}`;
+          break;
+        case 'reference_number':
+          orderClause = `ORDER BY (extracted_fields->>'referenceNumber') ${sortDirection}`;
+          break;
+        case 'created_at':
+        default:
+          orderClause = `ORDER BY created_at ${sortDirection}`;
+          break;
+      }
+      
+      // Get records
+      const recordsQuery = `
+        SELECT * FROM ${tableName}
+        ${whereClause}
+        ${orderClause}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      params.push(limitNum, offset);
+      
+      console.log(`[TDDF-JSON-RECORDS] Query: ${recordsQuery}`);
+      console.log(`[TDDF-JSON-RECORDS] Params: ${JSON.stringify(params)}`);
+      
+      const recordsResult = await pool.query(recordsQuery, params);
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total FROM ${tableName}
+        ${whereClause}
+      `;
+      const countResult = await pool.query(countQuery, params.slice(0, -2));
+      
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const totalPages = Math.ceil(total / limitNum);
+      
+      res.json({
+        records: recordsResult.rows,
+        total,
+        totalPages,
+        currentPage: pageNum,
+        pageSize: limitNum
+      });
     } catch (error) {
       console.error('Error fetching TDDF JSON records:', error);
       res.status(500).json({ error: 'Failed to fetch records' });

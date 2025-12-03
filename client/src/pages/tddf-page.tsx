@@ -2313,38 +2313,97 @@ export default function TddfPage() {
 
 
 
-  // Fetch TDDF records with pagination and filters
+  // Fetch TDDF records with pagination and filters using TDDF JSON data source
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["/api/tddf", currentPage, itemsPerPage, effectiveFilters, selectedDate],
+    queryKey: ["/api/tddf-json/records", "DT", currentPage, itemsPerPage, effectiveFilters, selectedDate],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
+        recordType: "DT",
         ...(effectiveFilters.search && { search: effectiveFilters.search }),
-        ...(effectiveFilters.txnDateFrom && { txnDateFrom: effectiveFilters.txnDateFrom }),
-        ...(effectiveFilters.txnDateTo && { txnDateTo: effectiveFilters.txnDateTo }),
-        ...(effectiveFilters.merchantId && { merchantId: effectiveFilters.merchantId }),
-        ...(effectiveFilters.cardType && effectiveFilters.cardType !== "all" && { cardType: effectiveFilters.cardType }),
-        ...(effectiveFilters.vNumber && { vNumber: effectiveFilters.vNumber }),
-        ...(effectiveFilters.sortBy && { sortBy: effectiveFilters.sortBy }),
+        ...(effectiveFilters.sortBy && { sortBy: mapSortField(effectiveFilters.sortBy) }),
         ...(effectiveFilters.sortOrder && { sortOrder: effectiveFilters.sortOrder }),
       });
+      
+      // Date filtering: use dateFilter for single date, or startDate/endDate for range
+      if (selectedDate) {
+        params.append('dateFilter', selectedDate);
+      } else if (effectiveFilters.txnDateFrom && effectiveFilters.txnDateTo) {
+        params.append('startDate', effectiveFilters.txnDateFrom);
+        params.append('endDate', effectiveFilters.txnDateTo);
+      } else if (effectiveFilters.txnDateFrom) {
+        params.append('startDate', effectiveFilters.txnDateFrom);
+      } else if (effectiveFilters.txnDateTo) {
+        params.append('endDate', effectiveFilters.txnDateTo);
+      }
 
-      const response = await fetch(`/api/tddf?${params}`, {
+      const response = await fetch(`/api/tddf-json/records?${params}`, {
         credentials: "include"
       });
       if (!response.ok) {
         throw new Error("Failed to fetch TDDF records");
       }
       const result = await response.json();
-      console.log('[TDDF DEBUG] API Response:', result);
-      console.log('[TDDF DEBUG] Date filter active:', !!selectedDate);
-      console.log('[TDDF DEBUG] Total items:', result?.pagination?.totalItems);
-      return result;
+      console.log('[TDDF-JSON DEBUG] API Response:', result);
+      console.log('[TDDF-JSON DEBUG] Date filter active:', !!selectedDate);
+      console.log('[TDDF-JSON DEBUG] Total records:', result?.total);
+      
+      // Transform the response to match expected format
+      // Map extracted_fields from TDDF JSON to TddfRecord structure
+      const transformedRecords = (result.records || []).map((record: any) => {
+        const ef = record.extracted_fields || {};
+        return {
+          id: record.id,
+          transaction_date: ef.transactionDate || null,
+          reference_number: ef.referenceNumber || null,
+          merchant_name: ef.merchantName || null,
+          transaction_amount: ef.transactionAmount || null,
+          authorization_number: ef.authorizationNumber || null,
+          terminal_id: ef.terminalId || null,
+          card_type: ef.cardType || null,
+          merchant_account_number: ef.merchantAccountNumber || null,
+          debit_credit_indicator: ef.debitCreditIndicator || null,
+          mcc_code: ef.mccCode || null,
+          batch_julian_date: ef.batchJulianDate || null,
+          cardholder_account_number: ef.cardholderAccountNumber || null,
+          auth_source: ef.authSource || null,
+          auth_amount: ef.authAmount || null,
+          reject_reason: ef.rejectReason || null,
+          sourceFileId: record.upload_id || null,
+          sourceRowNumber: record.line_number || null,
+          recordedAt: record.created_at || null,
+          createdAt: record.created_at || null,
+          recordData: ef,
+        };
+      });
+      
+      return {
+        data: transformedRecords,
+        pagination: {
+          totalItems: result.total || 0,
+          currentPage: result.currentPage || currentPage,
+          totalPages: result.totalPages || 1,
+          pageSize: result.pageSize || itemsPerPage
+        }
+      };
     },
   });
+  
+  // Helper function to map sort field names to TDDF JSON API format
+  function mapSortField(field: string): string {
+    const fieldMap: Record<string, string> = {
+      'transactionDate': 'transaction_date',
+      'terminalId': 'terminal_id',
+      'merchantName': 'merchant_name',
+      'transactionAmount': 'transaction_amount',
+      'referenceNumber': 'reference_number',
+      'authorizationNumber': 'reference_number', // Map auth to reference
+    };
+    return fieldMap[field] || field;
+  }
 
-  // Delete mutation
+  // Delete mutation - Note: Delete functionality uses legacy API but updates new cache
   const deleteMutation = useMutation({
     mutationFn: async (recordIds: number[]) => {
       const response = await fetch("/api/tddf", {
@@ -2361,8 +2420,9 @@ export default function TddfPage() {
         description: `Deleted ${selectedRecords.size} TDDF record(s)`,
       });
       setSelectedRecords(new Set());
+      // Invalidate both old and new query keys to ensure cache refresh
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-json/records"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tddf"] });
-      // Note: Intentionally not invalidating /api/tddf/batch-headers to prevent BH tab clearing
     },
     onError: (error: Error) => {
       toast({

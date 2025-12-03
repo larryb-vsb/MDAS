@@ -55,3 +55,19 @@ Preferred communication style: Simple, everyday language.
 **Processing APIs**: Internal APIs for real-time processing stats, file management, merchant data queries, and transaction reporting.
 **Payment Processing**: TSYS merchant processing system.
 **File Format Support**: TDDF, TSYSO, CSV/TSV, Excel files.
+
+## Recent Changes
+
+### December 3, 2025 - TDDF Records Page Data Source Migration
+**Change**: Connected the Legacy TDDF Records page (`/legacy/tddf`) DT Records tab to use the `tddf_json` data source instead of the legacy `/api/tddf` endpoint.
+
+**Files Modified**:
+- `client/src/pages/tddf-page.tsx`: Updated DT Records query to use `/api/tddf-json/records` with `recordType=DT` filter
+- `server/routes/tddf-records.routes.ts`: Implemented full `/api/tddf-json/records` endpoint with filtering, pagination, and sorting
+
+**Technical Details**:
+- Query endpoint changed from `/api/tddf` to `/api/tddf-json/records?recordType=DT`
+- Response data is transformed from `extracted_fields` JSON structure to expected TddfRecord format
+- Filter parameters mapped: `txnDateFrom/txnDateTo` → `dateFilter` or `startDate/endDate`
+- Sort field names mapped: `transactionDate` → `transaction_date`, etc.
+- Cache invalidation updated for both old and new query keys
