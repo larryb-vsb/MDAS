@@ -44,6 +44,19 @@ export default function TerminalsPage() {
   const [editingTerminal, setEditingTerminal] = useState<any>(null);
   const [isCreateMerchantDialogOpen, setIsCreateMerchantDialogOpen] = useState(false);
   const [newMerchant, setNewMerchant] = useState({ name: '', clientMID: '', status: 'Active' });
+  
+  // Sub Terminals sorting state
+  const [subTerminalSortColumn, setSubTerminalSortColumn] = useState<string>('terminalId');
+  const [subTerminalSortDirection, setSubTerminalSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  const handleSubTerminalSort = (column: string) => {
+    if (subTerminalSortColumn === column) {
+      setSubTerminalSortDirection(subTerminalSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSubTerminalSortColumn(column);
+      setSubTerminalSortDirection('asc');
+    }
+  };
   const { toast } = useToast();
 
   // Fetch terminals data
@@ -914,11 +927,61 @@ export default function TerminalsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Terminal ID</TableHead>
-                        <TableHead>Merchant DBA Name</TableHead>
-                        <TableHead>POS Merchant #</TableHead>
-                        <TableHead>Sub Merchant Name</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSubTerminalSort('terminalId')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Terminal ID
+                            {subTerminalSortColumn === 'terminalId' ? (
+                              subTerminalSortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSubTerminalSort('dbaName')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Merchant DBA Name
+                            {subTerminalSortColumn === 'dbaName' ? (
+                              subTerminalSortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSubTerminalSort('posMerchantNumber')}
+                        >
+                          <div className="flex items-center gap-1">
+                            POS Merchant #
+                            {subTerminalSortColumn === 'posMerchantNumber' ? (
+                              subTerminalSortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSubTerminalSort('subMerchant')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Sub Merchant Name
+                            {subTerminalSortColumn === 'subMerchant' ? (
+                              subTerminalSortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSubTerminalSort('status')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Status
+                            {subTerminalSortColumn === 'status' ? (
+                              subTerminalSortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+                          </div>
+                        </TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -934,6 +997,50 @@ export default function TerminalsPage() {
                             (!terminal.merchantId || terminal.merchantId === 'UNKNOWN');
 
                           return matchesTerminalSearch && matchesUnmatchedFilter;
+                        })
+                        .sort((a: any, b: any) => {
+                          let aValue: string | boolean = '';
+                          let bValue: string | boolean = '';
+                          
+                          switch (subTerminalSortColumn) {
+                            case 'terminalId':
+                              aValue = a.terminalId || '';
+                              bValue = b.terminalId || '';
+                              break;
+                            case 'dbaName':
+                              aValue = a.dbaName || '';
+                              bValue = b.dbaName || '';
+                              break;
+                            case 'posMerchantNumber':
+                              aValue = a.posMerchantNumber || '';
+                              bValue = b.posMerchantNumber || '';
+                              break;
+                            case 'subMerchant':
+                              const aMerchant = achMerchants.find((m: any) => m.id === a.merchantId);
+                              const bMerchant = achMerchants.find((m: any) => m.id === b.merchantId);
+                              aValue = aMerchant?.name || 'zzz';
+                              bValue = bMerchant?.name || 'zzz';
+                              break;
+                            case 'status':
+                              const aDecom = a.dbaName?.toLowerCase().includes('decommission') || 
+                                            a.dbaName?.toLowerCase().includes('decomm') || 
+                                            a.dbaName?.toLowerCase().includes('inactive');
+                              const bDecom = b.dbaName?.toLowerCase().includes('decommission') || 
+                                            b.dbaName?.toLowerCase().includes('decomm') || 
+                                            b.dbaName?.toLowerCase().includes('inactive');
+                              aValue = aDecom ? 'Decommissioned' : 'Active';
+                              bValue = bDecom ? 'Decommissioned' : 'Active';
+                              break;
+                            default:
+                              aValue = a.terminalId || '';
+                              bValue = b.terminalId || '';
+                          }
+                          
+                          if (typeof aValue === 'string' && typeof bValue === 'string') {
+                            const comparison = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
+                            return subTerminalSortDirection === 'asc' ? comparison : -comparison;
+                          }
+                          return 0;
                         })
                         .slice(0, 50)
                         .map((terminal: any) => {
