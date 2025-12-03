@@ -54,12 +54,12 @@ export default function TerminalsPage() {
     gcTime: 0,
   });
   
-  // Fetch all merchants for Sub Terminals tab
+  // Fetch Type 3 (ACH) merchants for Sub Terminals tab
   const { data: merchantsResponse } = useQuery({
-    queryKey: ['/api/merchants'],
+    queryKey: ['/api/merchants', { merchantType: '3', limit: 500 }],
     queryFn: async () => {
-      const response = await fetch('/api/merchants', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch merchants');
+      const response = await fetch('/api/merchants?merchantType=3&limit=500', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch ACH merchants');
       return response.json();
     },
     enabled: activeTab === 'sub-terminals'
@@ -96,7 +96,7 @@ export default function TerminalsPage() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants', { merchantType: '3', limit: 500 }] });
       toast({ title: 'Success', description: 'Merchant created successfully' });
       setIsCreateMerchantDialogOpen(false);
       setNewMerchant({ name: '', clientMID: '', status: 'Active' });
