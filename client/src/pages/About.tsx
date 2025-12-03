@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code, Book, Database, Upload, Users, Lock, BarChart3, FileText, ScrollText } from "lucide-react";
+import { Code, Book, Database, Upload, Users, Lock, BarChart3, FileText, ScrollText, History } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -12,6 +12,109 @@ interface ReplitMdResponse {
   success: boolean;
   content: string;
   lastModified: string;
+}
+
+// Helper component for displaying changelog entries
+function ChangelogDisplay({ content, limit }: { content: string; limit?: number }) {
+  // Extract the Recent Changes section from replit.md
+  const recentChangesMatch = content.match(/## Recent Changes\n([\s\S]*?)(?=\n## |$)/);
+  
+  if (!recentChangesMatch) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        No changelog entries found.
+      </div>
+    );
+  }
+
+  const recentChangesContent = recentChangesMatch[1];
+  
+  // Parse individual changelog entries (each starts with ### )
+  const entries = recentChangesContent.split(/(?=### )/).filter(entry => entry.trim().startsWith('###'));
+  
+  // Apply limit if specified
+  const displayEntries = limit ? entries.slice(0, limit) : entries;
+
+  if (displayEntries.length === 0) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        No changelog entries found.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 max-h-[500px] overflow-y-auto" data-testid="changelog-content">
+      {displayEntries.map((entry, index) => {
+        // Parse entry: ### Date - Title
+        const titleMatch = entry.match(/### (.+)\n/);
+        const title = titleMatch ? titleMatch[1] : 'Unknown Change';
+        
+        // Extract date from title if present (format: Month Day, Year or similar)
+        const dateMatch = title.match(/^([A-Za-z]+ \d+, \d{4})/);
+        const date = dateMatch ? dateMatch[1] : null;
+        const titleWithoutDate = date ? title.replace(date + ' - ', '') : title;
+        
+        // Get the content after the title
+        const contentStart = entry.indexOf('\n') + 1;
+        const entryContent = entry.substring(contentStart).trim();
+        
+        // Parse the content into structured sections
+        const changeMatch = entryContent.match(/\*\*Change\*\*:\s*([\s\S]+?)(?=\n\n|\n\*\*|$)/);
+        const filesMatch = entryContent.match(/\*\*Files Modified[^*]*\*\*:\s*([\s\S]+?)(?=\n\n\*\*|$)/);
+        const technicalMatch = entryContent.match(/\*\*Technical Details\*\*:\s*([\s\S]+?)(?=\n\n\*\*|$)/);
+
+        return (
+          <div key={index} className="border rounded-lg p-4 bg-card hover:bg-accent/5 transition-colors">
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <h4 className="font-semibold text-foreground">{titleWithoutDate}</h4>
+              {date && (
+                <Badge variant="outline" className="text-xs shrink-0">
+                  {date}
+                </Badge>
+              )}
+            </div>
+            
+            {changeMatch && (
+              <p className="text-sm text-muted-foreground mb-3">
+                {changeMatch[1].trim()}
+              </p>
+            )}
+            
+            {filesMatch && (
+              <div className="mt-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Files Modified:</p>
+                <div className="text-xs bg-muted p-2 rounded font-mono">
+                  {filesMatch[1].split('\n').filter(line => line.trim()).map((line, i) => (
+                    <div key={i} className="py-0.5">{line.replace(/^-\s*/, '• ')}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {technicalMatch && (
+              <details className="mt-2">
+                <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground">
+                  Technical Details
+                </summary>
+                <div className="text-xs bg-muted p-2 rounded mt-1 font-mono">
+                  {technicalMatch[1].split('\n').filter(line => line.trim()).map((line, i) => (
+                    <div key={i} className="py-0.5">{line.replace(/^-\s*/, '• ')}</div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        );
+      })}
+      
+      {limit && entries.length > limit && (
+        <p className="text-sm text-muted-foreground text-center py-2">
+          Showing {limit} of {entries.length} entries. Switch to "All History" to see more.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function About() {
@@ -92,6 +195,49 @@ export default function About() {
                 </pre>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Changelog */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <History className="mr-2 h-5 w-5 text-primary" />
+              Changelog
+            </CardTitle>
+            <CardDescription>
+              Recent changes and updates to the application
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="recent" className="w-full">
+              <TabsList>
+                <TabsTrigger value="recent">Recent Changes</TabsTrigger>
+                <TabsTrigger value="all">All History</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="recent" className="mt-4">
+                {isLoadingReplitMd ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ) : (
+                  <ChangelogDisplay content={replitMdData?.content || ''} limit={5} />
+                )}
+              </TabsContent>
+              
+              <TabsContent value="all" className="mt-4">
+                {isLoadingReplitMd ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ) : (
+                  <ChangelogDisplay content={replitMdData?.content || ''} />
+                )}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
