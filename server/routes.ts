@@ -4209,7 +4209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get terminal info for the cross-reference
-      const terminal = await storage.getTerminal(terminalId);
+      const terminal = await storage.getTerminalById(terminalId);
       if (!terminal) {
         return res.status(404).json({ error: "Terminal not found" });
       }
