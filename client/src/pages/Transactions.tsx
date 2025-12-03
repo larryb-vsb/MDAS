@@ -1687,20 +1687,20 @@ export default function Transactions() {
 
         <Tabs defaultValue="mcc-tddf" className="space-y-4 sm:space-y-6">
           <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="mcc-tddf" className="flex-1 sm:flex-none text-sm sm:text-base" data-testid="tab-mcc-tddf">
+              MCC/TDDF
+            </TabsTrigger>
             <TabsTrigger value="ach" className="flex-1 sm:flex-none text-sm sm:text-base" data-testid="tab-ach-transactions">
               ACH Transactions
             </TabsTrigger>
-            <TabsTrigger value="mcc" className="flex-1 sm:flex-none text-sm sm:text-base" data-testid="tab-mcc-tddf">
-              MCC/TDDF
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="mcc-tddf">
+            <MccTddfTransactionsTab />
+          </TabsContent>
 
           <TabsContent value="ach">
             <AchTransactionsTab />
-          </TabsContent>
-
-          <TabsContent value="mcc">
-            <MccTddfTransactionsTab />
           </TabsContent>
         </Tabs>
       </div>
