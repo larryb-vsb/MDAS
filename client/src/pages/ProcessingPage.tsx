@@ -455,7 +455,7 @@ function StuckFileResetButton() {
         body: JSON.stringify({})
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Success",
         description: `Reset ${data.filesReset} stuck file(s). ${data.slotsCleared} slot(s) cleared.`,
@@ -498,23 +498,23 @@ function StuckFileResetButton() {
       <AlertDialogContent data-testid="dialog-reset-stuck-files">
         <AlertDialogHeader>
           <AlertDialogTitle>Reset Stuck Files?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {hasStuckFiles ? (
-              <>
-                Found <strong>{stuckCount}</strong> file(s) stuck in processing for more than 10 minutes.
-                <br /><br />
-                This will:
-                <ul className="list-disc pl-6 mt-2 space-y-1">
-                  <li>Move stuck files back to "encoded" phase for retry</li>
-                  <li>Clear any held processing slots</li>
-                  <li>Preserve retry count and add audit notes</li>
-                </ul>
-                <br />
-                The files will be retried automatically by the MMS Watcher.
-              </>
-            ) : (
-              "No stuck files found. All files are processing normally."
-            )}
+          <AlertDialogDescription asChild>
+            <div className="text-sm text-muted-foreground">
+              {hasStuckFiles ? (
+                <>
+                  <p>Found <strong>{stuckCount}</strong> file(s) stuck in processing for more than 10 minutes.</p>
+                  <p className="mt-2">This will:</p>
+                  <ul className="list-disc pl-6 mt-2 space-y-1">
+                    <li>Move stuck files back to "encoded" phase for retry</li>
+                    <li>Clear any held processing slots</li>
+                    <li>Preserve retry count and add audit notes</li>
+                  </ul>
+                  <p className="mt-2">The files will be retried automatically by the MMS Watcher.</p>
+                </>
+              ) : (
+                <p>No stuck files found. All files are processing normally.</p>
+              )}
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

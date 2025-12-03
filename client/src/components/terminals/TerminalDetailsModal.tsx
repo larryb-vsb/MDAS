@@ -99,7 +99,7 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
       firmwareVersion: editData.firmwareVersion,
       networkType: editData.networkType,
       ipAddress: editData.ipAddress,
-      genericField1: editData.genericField1,
+      termNumber: editData.termNumber,
       genericField2: editData.genericField2,
       description: editData.description,
       notes: editData.notes,
