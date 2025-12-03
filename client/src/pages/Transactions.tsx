@@ -403,17 +403,17 @@ function AchTransactionsTab() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Controls */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
+    <div className="space-y-4 md:space-y-6">
+      {/* Controls - Mobile responsive */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="Search merchant, trace #, company..."
+              placeholder="Search merchant, trace #..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="w-80"
+              className="w-full sm:w-64 md:w-80"
               data-testid="input-search-transactions"
             />
             <Button
@@ -427,7 +427,7 @@ function AchTransactionsTab() {
           </div>
 
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
-            <SelectTrigger className="w-32" data-testid="select-limit">
+            <SelectTrigger className="w-28 sm:w-32" data-testid="select-limit">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -443,7 +443,7 @@ function AchTransactionsTab() {
           variant="outline"
           onClick={handleRefresh}
           disabled={isLoading}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 w-full sm:w-auto"
           data-testid="button-refresh"
         >
           <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
@@ -466,145 +466,157 @@ function AchTransactionsTab() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort("trace_number")}
-                      data-testid="header-trace-number"
-                    >
-                      <div className="flex items-center gap-2">
-                        Trace Number {getSortIcon("trace_number")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort("merchant_name")}
-                      data-testid="header-merchant-name"
-                    >
-                      <div className="flex items-center gap-2">
-                        Merchant Name {getSortIcon("merchant_name")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort("transaction_date")}
-                      data-testid="header-transaction-date"
-                    >
-                      <div className="flex items-center gap-2">
-                        Date {getSortIcon("transaction_date")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort("code")}
-                      data-testid="header-code"
-                    >
-                      <div className="flex items-center gap-2">
-                        Type {getSortIcon("code")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50 text-right"
-                      onClick={() => handleSort("amount")}
-                      data-testid="header-amount"
-                    >
-                      <div className="flex items-center gap-2 justify-end">
-                        Amount {getSortIcon("amount")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort("company")}
-                      data-testid="header-company"
-                    >
-                      <div className="flex items-center gap-2">
-                        Company {getSortIcon("company")}
-                      </div>
-                    </TableHead>
-                    <TableHead data-testid="header-description">
-                      Description
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.data && data.data.length > 0 ? (
-                    data.data.map((transaction) => (
-                      <TableRow
-                        key={transaction.id}
-                        data-testid={`row-transaction-${transaction.id}`}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-50 min-w-[120px] md:min-w-[180px]"
+                        onClick={() => handleSort("trace_number")}
+                        data-testid="header-trace-number"
                       >
-                        <TableCell
-                          className="font-mono text-sm"
-                          data-testid={`cell-trace-${transaction.id}`}
+                        <div className="flex items-center gap-1">
+                          <span className="hidden sm:inline">Trace Number</span>
+                          <span className="sm:hidden">Trace #</span>
+                          {getSortIcon("trace_number")}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-50 min-w-[100px] md:min-w-[150px]"
+                        onClick={() => handleSort("merchant_name")}
+                        data-testid="header-merchant-name"
+                      >
+                        <div className="flex items-center gap-1">
+                          <span className="hidden sm:inline">Merchant Name</span>
+                          <span className="sm:hidden">Merchant</span>
+                          {getSortIcon("merchant_name")}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-50 min-w-[80px]"
+                        onClick={() => handleSort("transaction_date")}
+                        data-testid="header-transaction-date"
+                      >
+                        <div className="flex items-center gap-1">
+                          Date {getSortIcon("transaction_date")}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-50 min-w-[60px]"
+                        onClick={() => handleSort("code")}
+                        data-testid="header-code"
+                      >
+                        <div className="flex items-center gap-1">
+                          Type {getSortIcon("code")}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-50 text-right min-w-[90px]"
+                        onClick={() => handleSort("amount")}
+                        data-testid="header-amount"
+                      >
+                        <div className="flex items-center gap-1 justify-end">
+                          Amount {getSortIcon("amount")}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:bg-gray-50 hidden md:table-cell min-w-[120px]"
+                        onClick={() => handleSort("company")}
+                        data-testid="header-company"
+                      >
+                        <div className="flex items-center gap-1">
+                          Company {getSortIcon("company")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="hidden lg:table-cell" data-testid="header-description">
+                        Description
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data?.data && data.data.length > 0 ? (
+                      data.data.map((transaction) => (
+                        <TableRow
+                          key={transaction.id}
+                          data-testid={`row-transaction-${transaction.id}`}
                         >
-                          {transaction.trace_number}
-                        </TableCell>
-                        <TableCell
-                          className="font-medium"
-                          data-testid={`cell-merchant-${transaction.id}`}
-                        >
-                          {transaction.merchant_name}
-                        </TableCell>
-                        <TableCell data-testid={`cell-date-${transaction.id}`}>
-                          {formatDate(transaction.transaction_date)}
-                        </TableCell>
-                        <TableCell data-testid={`cell-code-${transaction.id}`}>
-                          <span
-                            className={cn(
-                              "inline-block px-2 py-1 rounded text-xs font-semibold",
-                              transaction.code
-                                ?.toLowerCase()
-                                .includes("credit") ||
+                          <TableCell
+                            className="font-mono text-xs sm:text-sm"
+                            data-testid={`cell-trace-${transaction.id}`}
+                          >
+                            {transaction.trace_number}
+                          </TableCell>
+                          <TableCell
+                            className="font-medium text-sm max-w-[150px] truncate"
+                            data-testid={`cell-merchant-${transaction.id}`}
+                            title={transaction.merchant_name}
+                          >
+                            {transaction.merchant_name}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap" data-testid={`cell-date-${transaction.id}`}>
+                            {formatDate(transaction.transaction_date)}
+                          </TableCell>
+                          <TableCell data-testid={`cell-code-${transaction.id}`}>
+                            <span
+                              className={cn(
+                                "inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-semibold",
                                 transaction.code
                                   ?.toLowerCase()
-                                  .includes("batch")
-                                ? "bg-green-100 text-green-800"
-                                : "bg-blue-100 text-blue-800",
-                            )}
+                                  .includes("credit") ||
+                                  transaction.code
+                                    ?.toLowerCase()
+                                    .includes("batch")
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-blue-100 text-blue-800",
+                              )}
+                            >
+                              {transaction.code || "N/A"}
+                            </span>
+                          </TableCell>
+                          <TableCell
+                            className="text-right font-semibold text-sm whitespace-nowrap"
+                            data-testid={`cell-amount-${transaction.id}`}
                           >
-                            {transaction.code || "N/A"}
-                          </span>
-                        </TableCell>
+                            {formatCurrency(transaction.amount)}
+                          </TableCell>
+                          <TableCell
+                            className="hidden md:table-cell text-sm max-w-[150px] truncate"
+                            data-testid={`cell-company-${transaction.id}`}
+                            title={transaction.company}
+                          >
+                            {transaction.company}
+                          </TableCell>
+                          <TableCell
+                            className="hidden lg:table-cell text-sm"
+                            data-testid={`cell-description-${transaction.id}`}
+                          >
+                            {transaction.description}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
                         <TableCell
-                          className="text-right font-semibold"
-                          data-testid={`cell-amount-${transaction.id}`}
+                          colSpan={7}
+                          className="text-center py-8 text-gray-500"
                         >
-                          {formatCurrency(transaction.amount)}
-                        </TableCell>
-                        <TableCell
-                          data-testid={`cell-company-${transaction.id}`}
-                        >
-                          {transaction.company}
-                        </TableCell>
-                        <TableCell
-                          data-testid={`cell-description-${transaction.id}`}
-                        >
-                          {transaction.description}
+                          No transactions found
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-8 text-gray-500"
-                      >
-                        No transactions found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {data && data.totalPages > 1 && (
-                <div className="p-4 border-t flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {(page - 1) * limit + 1} to{" "}
-                    {Math.min(page * limit, data.total)} of {data.total}{" "}
-                    transactions
+                <div className="p-3 sm:p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                    <span className="hidden sm:inline">Showing </span>
+                    {(page - 1) * limit + 1}-{Math.min(page * limit, data.total)}
+                    <span className="hidden sm:inline"> of</span>
+                    <span className="sm:hidden">/</span> {data.total}
+                    <span className="hidden sm:inline"> transactions</span>
                   </div>
                   <TransactionPagination
                     currentPage={page}
@@ -1093,20 +1105,20 @@ function MccTddfTransactionsTab() {
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header Controls */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-gray-600">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <p className="text-xs sm:text-sm text-gray-600">
             {data?.total !== undefined
               ? filtersApplied
-                ? `Showing ${data.total} filtered records`
-                : `${data.total} DT (Detail Transaction) records`
+                ? `${data.total} filtered records`
+                : `${data.total} DT records`
               : "Loading..."}
           </p>
 
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
-            <SelectTrigger className="w-32" data-testid="select-limit-dt">
+            <SelectTrigger className="w-28 sm:w-32" data-testid="select-limit-dt">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1122,7 +1134,7 @@ function MccTddfTransactionsTab() {
           variant="outline"
           onClick={handleRefresh}
           disabled={isLoading}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 w-full sm:w-auto"
           data-testid="button-refresh-dt"
         >
           <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
@@ -1132,11 +1144,11 @@ function MccTddfTransactionsTab() {
 
       {/* Filter Bar */}
       <Card className="bg-gray-50">
-        <CardContent className="pt-6">
-          <div className="space-y-4">
+        <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+          <div className="space-y-3 sm:space-y-4">
             {/* Date Navigation */}
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700 min-w-24">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <label className="text-sm font-medium text-gray-700 sm:min-w-24">
                 Date:
               </label>
               <div className="flex items-center gap-2">
@@ -1148,7 +1160,7 @@ function MccTddfTransactionsTab() {
                 >
                   ←
                 </Button>
-                <div className="px-4 py-2 bg-white border rounded-md text-sm font-medium min-w-40 text-center">
+                <div className="px-3 sm:px-4 py-2 bg-white border rounded-md text-xs sm:text-sm font-medium min-w-[120px] sm:min-w-40 text-center">
                   {selectedDate
                     ? format(selectedDate, "MMM dd, yyyy")
                     : "All Dates"}
@@ -1175,11 +1187,11 @@ function MccTddfTransactionsTab() {
             </div>
 
             {/* Filter Inputs */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* Merchant Name Filter - Auto-populates account */}
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">
-                  Merchant Name:
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  Merchant:
                 </label>
                 <Popover
                   open={merchantComboboxOpen}
@@ -1244,57 +1256,56 @@ function MccTddfTransactionsTab() {
                 </Popover>
               </div>
 
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">
-                  Merchant Acct:
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  Acct #:
                 </label>
                 <Input
                   value={merchantAccount}
                   onChange={(e) => {
                     setMerchantAccount(e.target.value);
-                    // Clear merchant name if manually editing account
                     if (merchantName) setMerchantName("");
                   }}
-                  placeholder="16-digit account number"
+                  placeholder="16-digit account"
                   className="flex-1"
                   data-testid="input-merchant-account"
                 />
               </div>
 
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">
-                  Association #:
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  Assoc #:
                 </label>
                 <Input
                   value={associationNumber}
                   onChange={(e) => setAssociationNumber(e.target.value)}
-                  placeholder="Association number"
+                  placeholder="Association #"
                   className="flex-1"
                   data-testid="input-association-number"
                 />
               </div>
 
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
                   Group #:
                 </label>
                 <Input
                   value={groupNumber}
                   onChange={(e) => setGroupNumber(e.target.value)}
-                  placeholder="Group number"
+                  placeholder="Group #"
                   className="flex-1"
                   data-testid="input-group-number"
                 />
               </div>
 
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">
-                  Terminal ID:
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  Terminal:
                 </label>
                 <Input
                   value={terminalId}
                   onChange={(e) => setTerminalId(e.target.value)}
-                  placeholder="Terminal identifier"
+                  placeholder="Terminal ID"
                   className="flex-1"
                   data-testid="input-terminal-id"
                 />
@@ -1302,14 +1313,14 @@ function MccTddfTransactionsTab() {
             </div>
 
             {/* Card Type and POS Entry Mode filters */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-24">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
                   Card Type:
                 </label>
                 <Select value={cardType} onValueChange={setCardType}>
                   <SelectTrigger
-                    className="w-48"
+                    className="w-full sm:w-48"
                     data-testid="select-card-type"
                   >
                     <SelectValue />
@@ -1328,13 +1339,13 @@ function MccTddfTransactionsTab() {
                 </Select>
               </div>
 
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700 min-w-32">
-                  POS Entry Mode:
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  POS Entry:
                 </label>
                 <Select value={posEntryMode} onValueChange={setPosEntryMode}>
                   <SelectTrigger
-                    className="w-64"
+                    className="w-full sm:w-64"
                     data-testid="select-pos-entry-mode"
                   >
                     <SelectValue />
@@ -1418,7 +1429,7 @@ function MccTddfTransactionsTab() {
                       <div key={record.id}>
                         {/* Compact Inline Row */}
                         <div
-                          className="px-4 py-2 border-t cursor-pointer hover:bg-gray-50 flex items-center gap-2 text-sm"
+                          className="px-3 sm:px-4 py-2 border-t cursor-pointer hover:bg-gray-50 flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2 text-sm"
                           onClick={() => toggleRow(record.id)}
                           data-testid={`row-dt-${record.id}`}
                         >
@@ -1431,7 +1442,7 @@ function MccTddfTransactionsTab() {
 
                           {/* DT Badge */}
                           <Badge
-                            className="bg-blue-500 hover:bg-blue-600 text-white flex-shrink-0"
+                            className="bg-blue-500 hover:bg-blue-600 text-white flex-shrink-0 text-xs"
                             data-testid={`badge-dt-${record.id}`}
                           >
                             DT
@@ -1448,10 +1459,20 @@ function MccTddfTransactionsTab() {
                             </Badge>
                           )}
 
-                          {/* Transaction Title */}
+                          {/* Amount with icon - prioritize on mobile */}
+                          {transactionAmount !== null && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-green-600 font-medium text-xs sm:text-sm">
+                                💰
+                              </span>
+                              <span className="font-mono text-xs sm:text-sm">
+                                ${Number(transactionAmount).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
 
-                          {/* Merchant Account with icon */}
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          {/* Merchant Account with icon - hide on mobile */}
+                          <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
                             <CreditCard className="h-4 w-4 text-blue-600" />
                             <span className="font-mono text-xs text-blue-600 font-bold">
                               {merchantAccountNumber || "-"}
@@ -1460,7 +1481,7 @@ function MccTddfTransactionsTab() {
 
                           {/* Merchant Name with icon */}
                           {merchantName && (
-                            <div className="flex items-center gap-1 truncate">
+                            <div className="hidden md:flex items-center gap-1 truncate">
                               <Badge
                                 variant="outline"
                                 className="bg-green-50 text-green-700 border-green-300 text-xs flex-shrink-0"
@@ -1470,29 +1491,17 @@ function MccTddfTransactionsTab() {
                             </div>
                           )}
 
-                          {/* Amount with icon */}
-                          {transactionAmount !== null && (
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <span className="text-green-600 font-medium">
-                                💰
-                              </span>
-                              <span className="font-mono text-sm">
-                                ${Number(transactionAmount).toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-
                           {/* Date with icon */}
                           {transactionDate && (
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <CalendarIcon className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm">{transactionDate}</span>
+                              <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                              <span className="text-xs sm:text-sm">{transactionDate}</span>
                             </div>
                           )}
 
-                          {/* Terminal ID with icon */}
+                          {/* Terminal ID with icon - hide on mobile */}
                           {terminalId && (
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="hidden lg:flex items-center gap-1 flex-shrink-0">
                               <span className="text-purple-600 text-xs">
                                 🖥️
                               </span>
@@ -1502,16 +1511,16 @@ function MccTddfTransactionsTab() {
                             </div>
                           )}
 
-                          {/* Filename (truncated) */}
+                          {/* Filename (truncated) - hide on mobile */}
                           <span
-                            className="text-xs text-gray-500 ml-auto flex-shrink-0"
+                            className="hidden md:inline text-xs text-gray-500 ml-auto flex-shrink-0"
                             title={record.filename || "Unknown"}
                           >
                             {displayFilename}
                           </span>
-                          {/* Line Number */}
-                          <span className="text-sm font-mono text-muted-foreground flex-shrink-0">
-                            Line {record.line_number || "N/A"}
+                          {/* Line Number - always show but compact on mobile */}
+                          <span className="text-xs sm:text-sm font-mono text-muted-foreground flex-shrink-0 ml-auto sm:ml-0">
+                            L{record.line_number || "?"}
                           </span>
                         </div>
 
@@ -1536,11 +1545,13 @@ function MccTddfTransactionsTab() {
 
               {/* Pagination */}
               {data && totalPages > 1 && (
-                <div className="p-4 border-t flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {offset + 1} to{" "}
-                    {Math.min(offset + limit, data.total)} of {data.total}{" "}
-                    records
+                <div className="p-3 sm:p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                    <span className="hidden sm:inline">Showing </span>
+                    {offset + 1}-{Math.min(offset + limit, data.total)}
+                    <span className="hidden sm:inline"> of</span>
+                    <span className="sm:hidden">/</span> {data.total}
+                    <span className="hidden sm:inline"> records</span>
                   </div>
                   <TransactionPagination
                     currentPage={page}
@@ -1561,18 +1572,18 @@ function MccTddfTransactionsTab() {
 export default function Transactions() {
   return (
     <MainLayout>
-      <div className="container mx-auto py-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Transactions</h1>
-          <p className="text-gray-600 mt-2">View and manage transaction data</p>
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold">Transactions</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">View and manage transaction data</p>
         </div>
 
-        <Tabs defaultValue="ach" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="ach" data-testid="tab-ach-transactions">
+        <Tabs defaultValue="ach" className="space-y-4 sm:space-y-6">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="ach" className="flex-1 sm:flex-none text-sm sm:text-base" data-testid="tab-ach-transactions">
               ACH Transactions
             </TabsTrigger>
-            <TabsTrigger value="mcc" data-testid="tab-mcc-tddf">
+            <TabsTrigger value="mcc" className="flex-1 sm:flex-none text-sm sm:text-base" data-testid="tab-mcc-tddf">
               MCC/TDDF
             </TabsTrigger>
           </TabsList>
