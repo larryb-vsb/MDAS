@@ -58,6 +58,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### December 3, 2025 - DT Field Search on TDDF API Raw Data Tab
+**Change**: Added advanced field-based search capability for DT records on the Raw Data tab. Users can now select a specific DT field (e.g., Merchant Account Number, Transaction Amount, Reference Number) and search for values within that field position in the raw TDDF data.
+
+**Files Created/Modified**:
+- `shared/dtFields.ts`: **Created** - Complete DT field definitions with 90+ fields, including positions, lengths, formats, and descriptions
+- `client/src/pages/TddfApiDataPage.tsx`: Added DT Field dropdown and Search Value input with auto-force to DT record type
+- `server/routes/tddf-records.routes.ts`: Added field-based search using SUBSTRING extraction on raw_line data
+
+**Technical Details**:
+- Field positions defined in shared constants ensure consistency between frontend and backend
+- Search uses PostgreSQL SUBSTRING(raw_line FROM start FOR length) for precise field extraction
+- When field search is active, record type is automatically set to DT for safety
+- Query parameters: `fieldKey` (field name), `fieldValue` (search value)
+- Parameterized queries prevent SQL injection
+
+### December 3, 2025 - Navigation Updates
+**Change**: Renamed "MMS Uploader" to "MDAS Uploader" in Legacy submenu for consistency with system name.
+
+**Files Modified**:
+- `client/src/components/layout/MainLayout.tsx`: Updated submenu label
+
 ### December 3, 2025 - Accessibility and TypeScript Bug Fixes
 **Change**: Fixed DOM nesting errors, TypeScript type safety issues, and accessibility warnings across multiple components.
 
