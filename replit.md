@@ -58,6 +58,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### December 3, 2025 - Accessibility and TypeScript Bug Fixes
+**Change**: Fixed DOM nesting errors, TypeScript type safety issues, and accessibility warnings across multiple components.
+
+**Files Modified**:
+- `client/src/pages/ProcessingPage.tsx`: 
+  - Fixed AlertDialogDescription DOM nesting error by using `asChild` with `<div>` wrapper (prevents `<ul>` inside `<p>`)
+  - Added `ResetStuckFilesResponse` interface for proper mutation typing
+- `client/src/components/ui/sheet.tsx`:
+  - Added `accessibleTitle` prop for screen reader-accessible titles
+  - Added `hideDefaultTitle` prop for cases where consumers provide their own SheetTitle
+  - Imports `VisuallyHidden` from `@radix-ui/react-visually-hidden`
+- `client/src/components/layout/MainLayout.tsx`: Added `accessibleTitle="Navigation Menu"` to mobile nav SheetContent
+- `client/src/components/ui/sidebar.tsx`: Added `hideDefaultTitle` to avoid duplicate hidden titles
+
 ### December 3, 2025 - Removed TDDF Records Page Entirely
 **Change**: Completely removed the TDDF Records page (`/tddf-records`) and associated code.
 
