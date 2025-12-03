@@ -8820,7 +8820,7 @@ export class DatabaseStorage implements IStorage {
       FROM ${subMerchantTerminalsTableName} smt
       LEFT JOIN ${getTableName('merchants')} m ON smt.merchant_id = m.id
       WHERE smt.terminal_id = $1 AND smt.is_active = true
-      ORDER BY smt.match_score DESC NULLS LAST, smt.created_at DESC
+      ORDER BY smt.match_confidence DESC NULLS LAST, smt.created_at DESC
     `, [terminalId]);
     return result.rows;
   }
