@@ -946,8 +946,8 @@ function MccTddfTransactionsTab() {
     dNumber: string;
     merchantId: string;
     terminalId: number;
-    merchant_name: string;
-    terminal_v_number: string;
+    merchantName: string;
+    terminalVNumber: string;
   }
   const [subMerchantOptions, setSubMerchantOptions] = useState<SubMerchantTerminalOption[]>([]);
 
@@ -1379,8 +1379,8 @@ function MccTddfTransactionsTab() {
                         <CommandEmpty>No sub merchant found.</CommandEmpty>
                         <CommandGroup>
                           {subMerchantOptions.map((subMerchant) => {
-                            const displayText = subMerchant.merchant_name || subMerchant.deviceName || 'Unknown';
-                            const terminalVNumber = subMerchant.terminal_v_number || subMerchant.dNumber || '';
+                            const displayText = subMerchant.merchantName || subMerchant.deviceName || 'Unknown';
+                            const terminalVNumber = subMerchant.terminalVNumber || subMerchant.dNumber || '';
                             const searchValue = `${displayText} (${terminalVNumber})`;
                             return (
                               <CommandItem

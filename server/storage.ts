@@ -8786,8 +8786,8 @@ export class DatabaseStorage implements IStorage {
         smt.updated_at as "updatedAt",
         smt.created_by as "createdBy",
         smt.notes,
-        m.name as merchant_name,
-        t.v_number as terminal_v_number
+        m.name as "merchantName",
+        t.v_number as "terminalVNumber"
       FROM ${subMerchantTerminalsTableName} smt
       LEFT JOIN ${getTableName('merchants')} m ON smt.merchant_id = m.id
       LEFT JOIN ${getTableName('terminals')} t ON smt.terminal_id = t.id
