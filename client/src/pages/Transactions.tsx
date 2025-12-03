@@ -1388,7 +1388,9 @@ function MccTddfTransactionsTab() {
                                 value={searchValue}
                                 onSelect={() => {
                                   setSubMerchantName(displayText);
-                                  setTerminalId(terminalVNumber);
+                                  // Convert V prefix to 7 (e.g., V7097187 -> 77097187)
+                                  const terminalIdConverted = terminalVNumber.replace(/^V/i, '7');
+                                  setTerminalId(terminalIdConverted);
                                   setPage(1);
                                   setSubMerchantComboboxOpen(false);
                                 }}
