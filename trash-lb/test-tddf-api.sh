@@ -4,16 +4,16 @@
 
 # TDDF1 API User Configuration
 # User: TDDF1 
-# Key: mms_1753247424700_l7d6n1wa2qm
+# Key: Provide via TDDF_API_KEY environment variable or --api-key argument
 # Permissions: tddf:upload
 # Production URL: https://merchant-management-system-mms--vermont-state-bank.replit.app
 #
 # Usage Examples:
-# ./test-tddf-api.sh --ping-only                   # Test connectivity only
-# ./test-tddf-api.sh                               # Full upload test with default file
-# ./test-tddf-api.sh --file myfile.TSYSO          # Upload specific file
+# TDDF_API_KEY=your_key ./test-tddf-api.sh --ping-only    # Test connectivity only
+# TDDF_API_KEY=your_key ./test-tddf-api.sh                # Full upload test with default file
+# ./test-tddf-api.sh --api-key your_key --file myfile.TSYSO  # Upload specific file
 
-API_KEY="mms_1753247424700_l7d6n1wa2qm"
+API_KEY="${TDDF_API_KEY:-}"
 BASE_URL="https://merchant-management-system--vermont-state-bank.replit.app" 
 LOCAL_URL="http://localhost:5000"
 FILE_PATH="test_tddf_sample.TSYSO"
@@ -50,6 +50,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# Validate API key is provided
+if [ -z "$API_KEY" ]; then
+    echo "❌ Error: API key is required"
+    echo "Provide it via:"
+    echo "  - Environment variable: export TDDF_API_KEY=your_key"
+    echo "  - Command line argument: --api-key your_key"
+    exit 1
+fi
 
 echo "🚀 TDDF API Test"
 if [ "$PING_ONLY" = true ]; then
