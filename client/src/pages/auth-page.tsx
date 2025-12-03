@@ -72,10 +72,10 @@ export default function AuthPage() {
       {/* Mobile header */}
       <div className="lg:hidden bg-gray-900 p-6 text-center border-b border-gray-800">
         <h1 className="text-2xl font-bold text-white mb-2">
-          Merchant Datawarehouse
+          MDAS
         </h1>
         <p className="text-gray-400 text-sm">
-          Merchant Processing Datawarehouse
+          Merchant Datawarehouse & Automation System
         </p>
       </div>
 
@@ -86,10 +86,10 @@ export default function AuthPage() {
             {/* Desktop header */}
             <div className="hidden lg:block text-center">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Merchant Datawarehouse
+                MDAS
               </h1>
               <p className="text-gray-600 text-sm">
-                Merchant Processing Datawarehouse
+                Merchant Datawarehouse & Automation System
               </p>
             </div>
           </CardHeader>
@@ -202,11 +202,10 @@ export default function AuthPage() {
 
         <div className="relative z-10 max-w-lg text-white">
           <h2 className="text-4xl font-bold mb-6 leading-tight">
-            Merchant Processing Datawarehouse
+            MDAS
           </h2>
           <p className="text-lg mb-8 text-blue-100 leading-relaxed">
-            Our comprehensive merchant processing datawarehouse system helps you track transactions and  
-            monitor performance.
+            Merchant processing datawarehouse & automation sytem aka MDAS is a powerful tool for managing and analyzing merchant processing data
           </p>
           
           <div className="space-y-4">
@@ -228,7 +227,7 @@ export default function AuthPage() {
               <div className="flex-shrink-0 w-8 h-8 bg-green-400 rounded-full flex items-center justify-center">
                 <Shield className="w-5 h-5 text-green-800" />
               </div>
-              <span className="text-white font-medium">Secure data</span>
+              <span className="text-white font-medium">Secure First</span>
             </div>
           </div>
         </div>
