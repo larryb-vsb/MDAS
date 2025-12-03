@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { AlertCircle, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 export const FallbackStorageAlert: React.FC = () => {
   const [isInFallbackMode, setIsInFallbackMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const checkFallbackStatus = async () => {
@@ -56,12 +57,15 @@ export const FallbackStorageAlert: React.FC = () => {
           <li>Use the new Convert to Database feature to move in-memory data to a database</li>
         </ul>
         <div className="flex items-center gap-2 mt-2">
-          <Link to="/settings">
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              <Database className="h-4 w-4" />
-              Go to Settings
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1"
+            onClick={() => setLocation("/settings")}
+          >
+            <Database className="h-4 w-4" />
+            Go to Settings
+          </Button>
         </div>
       </AlertDescription>
     </Alert>

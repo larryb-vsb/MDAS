@@ -30,7 +30,8 @@ function extractTddfProcessingDatetime(filename: string): {
 
   try {
     // Match TDDF filename pattern: [PREFIX]_TDDF_[SYSTEM]_[MMDDYYYY]_[HHMMSS].TSYSO
-    const tddfPattern = /.*_TDDF_\d+_(\d{8})_(\d{6})\.TSYSO$/i;
+    // Also handles duplicate suffixes like " (1).TSYSO" or " (2).TSYSO"
+    const tddfPattern = /.*_TDDF_\d+_(\d{8})_(\d{6})(?:\s*\(\d+\))?\.TSYSO$/i;
     const match = filename.match(tddfPattern);
     
     if (match) {
@@ -373,7 +374,17 @@ export async function processAllRecordsToMasterTable(
     
     // Extract filename metadata for universal TDDF processing
     const filenameData = extractTddfProcessingDatetime(upload.filename);
-    const { processingDate, processingDatetime } = filenameData;
+    // Provide fallback values if filename parsing fails (e.g., for files with " (1)" suffixes)
+    // Use upload's startTime timestamp as fallback for deterministic dating
+    const uploadStartTime = upload.startTime ? new Date(upload.startTime) : new Date();
+    const fallbackDate = uploadStartTime.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const fallbackDatetime = uploadStartTime.toISOString();
+    const processingDate = filenameData.processingDate || fallbackDate;
+    const processingDatetime = filenameData.processingDatetime || fallbackDatetime;
+    
+    if (!filenameData.processingDate) {
+      console.warn(`[STEP-6-PROCESSING] Could not parse date from filename "${upload.filename}", using upload startTime as fallback: ${fallbackDate}`);
+    }
     
     let masterRecordCount = 0;
     let apiRecordCount = 0;
