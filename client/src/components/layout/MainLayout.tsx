@@ -201,7 +201,7 @@ const navItems = [
     submenu: [
       {
         icon: <UploadCloud className="h-4 w-4 text-gray-300" />,
-        label: "MMS Uploader",
+        label: "MDAS Uploader",
         href: "/uploader",
       },
       {
