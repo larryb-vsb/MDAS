@@ -58,6 +58,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### December 3, 2025 - Route Cleanup: Removed /tddf Duplicate
+**Change**: Removed the duplicate `/tddf` route, keeping only `/tddf-records` as the canonical path for the TDDF Records page.
+
+**Files Modified**:
+- `client/src/App.tsx`: Removed duplicate route `/tddf` (line 62)
+- `client/src/components/layout/MainLayout.tsx`: Updated sidebar link from `/tddf` to `/tddf-records`, updated location check logic
+
 ### December 3, 2025 - TDDF Records Page Data Source Migration
 **Change**: Connected the Legacy TDDF Records page (`/legacy/tddf`) DT Records tab to use the `tddf_json` data source instead of the legacy `/api/tddf` endpoint.
 
