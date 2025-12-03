@@ -1685,7 +1685,7 @@ export default function Transactions() {
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">View and manage transaction data</p>
         </div>
 
-        <Tabs defaultValue="ach" className="space-y-4 sm:space-y-6">
+        <Tabs defaultValue="mcc-tddf" className="space-y-4 sm:space-y-6">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="ach" className="flex-1 sm:flex-none text-sm sm:text-base" data-testid="tab-ach-transactions">
               ACH Transactions
