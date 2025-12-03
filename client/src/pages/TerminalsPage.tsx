@@ -13,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Activity } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Activity, Building, Edit, Users } from "lucide-react";
 import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
@@ -21,6 +24,7 @@ import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TerminalsPage() {
+  const [activeTab, setActiveTab] = useState("directory");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
@@ -32,13 +36,74 @@ export default function TerminalsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  
+  // Sub Terminals state
+  const [terminalSearchFilter, setTerminalSearchFilter] = useState('');
+  const [merchantSearchFilter, setMerchantSearchFilter] = useState('');
+  const [showOnlyUnmatched, setShowOnlyUnmatched] = useState(false);
+  const [editingTerminal, setEditingTerminal] = useState<any>(null);
+  const [isCreateMerchantDialogOpen, setIsCreateMerchantDialogOpen] = useState(false);
+  const [newMerchant, setNewMerchant] = useState({ name: '', clientMID: '', status: 'Active' });
+  const { toast } = useToast();
 
   // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
     queryKey: ["/api/terminals"],
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    staleTime: 0, // Always consider data stale to ensure fresh fetches
-    gcTime: 0, // Don't cache data in garbage collection
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  
+  // Fetch ACH merchants only for Sub Terminals tab (merchantType=3)
+  const { data: merchantsResponse } = useQuery({
+    queryKey: ['/api/merchants', { merchantType: '3' }],
+    queryFn: async () => {
+      const response = await fetch('/api/merchants?merchantType=3', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch ACH merchants');
+      return response.json();
+    },
+    enabled: activeTab === 'sub-terminals'
+  });
+  
+  const achMerchants = merchantsResponse?.merchants || [];
+  
+  // Mutation for updating terminal-merchant relationship
+  const updateTerminalMerchantMutation = useMutation({
+    mutationFn: async ({ terminalId, merchantId }: { terminalId: number; merchantId: string }) => {
+      const response = await apiRequest(`/api/terminals/${terminalId}/merchant`, {
+        method: 'PATCH',
+        body: { merchantId }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/terminals'] });
+      toast({ title: 'Success', description: 'Terminal-merchant relationship updated' });
+      setEditingTerminal(null);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to update terminal', variant: 'destructive' });
+    }
+  });
+  
+  // Mutation for creating new merchant
+  const createMerchantMutation = useMutation({
+    mutationFn: async (merchantData: any) => {
+      const response = await apiRequest('/api/merchants', {
+        method: 'POST',
+        body: merchantData
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+      toast({ title: 'Success', description: 'Merchant created successfully' });
+      setIsCreateMerchantDialogOpen(false);
+      setNewMerchant({ name: '', clientMID: '', status: 'Active' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to create merchant', variant: 'destructive' });
+    }
   });
 
 
@@ -202,8 +267,6 @@ export default function TerminalsPage() {
     }
   };
 
-  const { toast } = useToast();
-
   // Simple terminal import mutation
   const simpleImportMutation = useMutation({
     mutationFn: async () => {
@@ -363,8 +426,22 @@ export default function TerminalsPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {/* Tabs for Directory and Sub Terminals */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="directory" data-testid="tab-terminal-directory">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Terminal Directory
+            </TabsTrigger>
+            <TabsTrigger value="sub-terminals" data-testid="tab-sub-terminals">
+              <Building className="h-4 w-4 mr-2" />
+              Sub Terminals
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="directory" className="space-y-6 mt-4">
+            {/* Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
@@ -672,18 +749,353 @@ export default function TerminalsPage() {
           )}
         </CardContent>
         
-        {/* Pagination */}
-        {pagination.totalItems > 0 && (
-          <TerminalPagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.totalItems}
-            itemsPerPage={pagination.itemsPerPage}
-            onPageChange={setCurrentPage}
-            onItemsPerPageChange={setItemsPerPage}
-          />
-        )}
-        </Card>
+            {/* Pagination */}
+            {pagination.totalItems > 0 && (
+              <TerminalPagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.totalItems}
+                itemsPerPage={pagination.itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+              />
+            )}
+            </Card>
+          </TabsContent>
+
+          {/* Sub Terminals Tab */}
+          <TabsContent value="sub-terminals" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Sub Terminals Management
+                </CardTitle>
+                <CardDescription>
+                  Terminal-merchant relationship management with manual assignment and merchant creation capabilities
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Statistics Overview */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-2xl font-bold text-blue-600">{terminals.length}</div>
+                    <div className="text-sm text-blue-700">Total Terminals</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-2xl font-bold text-green-600">
+                      {terminals.filter((t: any) => t.merchantId && t.merchantId !== 'UNKNOWN').length}
+                    </div>
+                    <div className="text-sm text-green-700">Matched</div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {terminals.filter((t: any) => !t.merchantId || t.merchantId === 'UNKNOWN').length}
+                    </div>
+                    <div className="text-sm text-orange-700">Unmatched</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="text-2xl font-bold text-purple-600">{achMerchants.length}</div>
+                    <div className="text-sm text-purple-700">ACH Merchants</div>
+                  </div>
+                </div>
+
+                {/* Search and Filter Controls */}
+                <div className="flex flex-wrap gap-4 items-center justify-between">
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      <Label>Terminal Search:</Label>
+                      <Input
+                        type="text"
+                        placeholder="Search terminals..."
+                        value={terminalSearchFilter}
+                        onChange={(e) => setTerminalSearchFilter(e.target.value)}
+                        className="w-48"
+                        data-testid="input-terminal-search"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Label>Merchant Search:</Label>
+                      <Input
+                        type="text"
+                        placeholder="Search merchants..."
+                        value={merchantSearchFilter}
+                        onChange={(e) => setMerchantSearchFilter(e.target.value)}
+                        className="w-48"
+                        data-testid="input-merchant-search"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={showOnlyUnmatched}
+                        onCheckedChange={(checked) => setShowOnlyUnmatched(checked === true)}
+                        data-testid="checkbox-unmatched-only"
+                      />
+                      <Label>Show only unmatched terminals</Label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Dialog open={isCreateMerchantDialogOpen} onOpenChange={setIsCreateMerchantDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="flex items-center gap-2" data-testid="button-create-merchant">
+                          <Plus className="h-4 w-4" />
+                          Create Merchant
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Create New Merchant</DialogTitle>
+                          <DialogDescription>
+                            Add a new merchant to enable terminal matching
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="merchant-name">Merchant Name</Label>
+                            <Input
+                              id="merchant-name"
+                              value={newMerchant.name}
+                              onChange={(e) => setNewMerchant({ ...newMerchant, name: e.target.value })}
+                              placeholder="Enter merchant name"
+                              data-testid="input-new-merchant-name"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="client-mid">Client MID</Label>
+                            <Input
+                              id="client-mid"
+                              value={newMerchant.clientMID}
+                              onChange={(e) => setNewMerchant({ ...newMerchant, clientMID: e.target.value })}
+                              placeholder="Enter client MID"
+                              data-testid="input-new-merchant-mid"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="status">Status</Label>
+                            <Select value={newMerchant.status} onValueChange={(value) => setNewMerchant({ ...newMerchant, status: value })}>
+                              <SelectTrigger data-testid="select-new-merchant-status">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setIsCreateMerchantDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={() => createMerchantMutation.mutate({
+                                id: `merchant_${Date.now()}`,
+                                ...newMerchant,
+                                merchantType: '3'
+                              })}
+                              disabled={createMerchantMutation.isPending || !newMerchant.name}
+                              data-testid="button-submit-new-merchant"
+                            >
+                              {createMerchantMutation.isPending ? 'Creating...' : 'Create Merchant'}
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+
+                {/* Terminals Table */}
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Terminal ID</TableHead>
+                        <TableHead>Terminal Name</TableHead>
+                        <TableHead>POS Merchant #</TableHead>
+                        <TableHead>Current Merchant</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {terminals
+                        .filter((terminal: any) => {
+                          const matchesTerminalSearch = !terminalSearchFilter || 
+                            terminal.terminalId?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
+                            terminal.dbaName?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
+                            terminal.posMerchantNumber?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
+                          
+                          const matchesUnmatchedFilter = !showOnlyUnmatched || 
+                            (!terminal.merchantId || terminal.merchantId === 'UNKNOWN');
+
+                          return matchesTerminalSearch && matchesUnmatchedFilter;
+                        })
+                        .slice(0, 50)
+                        .map((terminal: any) => {
+                          const currentMerchant = achMerchants.find((m: any) => m.id === terminal.merchantId);
+                          const isDecommissioned = terminal.dbaName?.toLowerCase().includes('decommission') ||
+                                                 terminal.dbaName?.toLowerCase().includes('decomm') ||
+                                                 terminal.dbaName?.toLowerCase().includes('inactive');
+                          
+                          return (
+                            <TableRow key={terminal.id} data-testid={`row-terminal-${terminal.id}`}>
+                              <TableCell className="font-mono text-sm">{terminal.terminalId}</TableCell>
+                              <TableCell>
+                                <div className="max-w-[200px] truncate" title={terminal.dbaName}>
+                                  {terminal.dbaName}
+                                  {isDecommissioned && (
+                                    <Badge variant="outline" className="ml-2 text-xs text-red-600 border-red-200">
+                                      Decommissioned
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-sm">{terminal.posMerchantNumber}</TableCell>
+                              <TableCell>
+                                {currentMerchant ? (
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-green-600 border-green-200">
+                                      {currentMerchant.name}
+                                    </Badge>
+                                    {currentMerchant.clientMID && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({currentMerchant.clientMID})
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <Badge variant="outline" className="text-orange-600 border-orange-200">
+                                    Unmatched
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={isDecommissioned ? 'destructive' : 'default'}>
+                                  {isDecommissioned ? 'Decommissioned' : 'Active'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Dialog open={editingTerminal?.id === terminal.id} onOpenChange={(open) => {
+                                    if (!open) setEditingTerminal(null);
+                                  }}>
+                                    <DialogTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => setEditingTerminal(terminal)}
+                                        data-testid={`button-edit-terminal-${terminal.id}`}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle>Assign Merchant to Terminal</DialogTitle>
+                                        <DialogDescription>
+                                          Select a merchant for terminal: {terminal.dbaName || terminal.terminalId}
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="space-y-4">
+                                        <div>
+                                          <Label>Current Assignment</Label>
+                                          <div className="p-2 bg-gray-50 border rounded">
+                                            {currentMerchant ? currentMerchant.name : 'No merchant assigned'}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <Label>Select New Merchant</Label>
+                                          <Select onValueChange={(merchantId) => {
+                                            updateTerminalMerchantMutation.mutate({
+                                              terminalId: terminal.id,
+                                              merchantId
+                                            });
+                                          }}>
+                                            <SelectTrigger data-testid="select-merchant-assignment">
+                                              <SelectValue placeholder="Choose a merchant..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="UNKNOWN">Remove Assignment</SelectItem>
+                                              {achMerchants
+                                                .filter((m: any) => merchantSearchFilter === '' || 
+                                                  m.name.toLowerCase().includes(merchantSearchFilter.toLowerCase()) ||
+                                                  m.clientMID?.toLowerCase().includes(merchantSearchFilter.toLowerCase())
+                                                )
+                                                .map((merchant: any) => (
+                                                  <SelectItem key={merchant.id} value={merchant.id}>
+                                                    {merchant.name} {merchant.clientMID && `(${merchant.clientMID})`}
+                                                  </SelectItem>
+                                                ))
+                                              }
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                          <strong>Terminal Details:</strong><br />
+                                          ID: {terminal.terminalId}<br />
+                                          POS Merchant #: {terminal.posMerchantNumber}<br />
+                                          Status: {isDecommissioned ? 'Decommissioned' : 'Active'}
+                                        </div>
+                                      </div>
+                                    </DialogContent>
+                                  </Dialog>
+                                  
+                                  <Link href={`/merchants/create-from-terminal/${terminal.id}`}>
+                                    <Button variant="outline" size="sm" title="Create merchant from this terminal" data-testid={`button-create-from-terminal-${terminal.id}`}>
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Summary Information */}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium text-blue-800">Quick Stats</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Showing:</span> {Math.min(50, terminals.filter((t: any) => {
+                        const matchesTerminalSearch = !terminalSearchFilter || 
+                          t.terminalId?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
+                          t.dbaName?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
+                        const matchesUnmatchedFilter = !showOnlyUnmatched || (!t.merchantId || t.merchantId === 'UNKNOWN');
+                        return matchesTerminalSearch && matchesUnmatchedFilter;
+                      }).length)} terminals
+                    </div>
+                    <div>
+                      <span className="font-medium">Match Rate:</span> {terminals.length > 0 ? 
+                        Math.round((terminals.filter((t: any) => t.merchantId && t.merchantId !== 'UNKNOWN').length / terminals.length) * 100)
+                      : 0}%
+                    </div>
+                    <div>
+                      <span className="font-medium">Decommissioned:</span> {terminals.filter((t: any) => 
+                        t.dbaName?.toLowerCase().includes('decommission') ||
+                        t.dbaName?.toLowerCase().includes('decomm') ||
+                        t.dbaName?.toLowerCase().includes('inactive')
+                      ).length}
+                    </div>
+                    <div>
+                      <span className="font-medium">ACH Merchants:</span> {achMerchants.length}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Add Terminal Modal */}
         <AddTerminalModal 
