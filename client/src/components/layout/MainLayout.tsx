@@ -200,6 +200,16 @@ const navItems = [
     label: "Legacy",
     submenu: [
       {
+        icon: <UploadCloud className="h-4 w-4 text-gray-300" />,
+        label: "MMS Uploader",
+        href: "/uploader",
+      },
+      {
+        icon: <Database className="h-4 w-4 text-gray-300" />,
+        label: "TDDF1",
+        href: "/tddf1",
+      },
+      {
         icon: <FileJson className="h-4 w-4 text-gray-300" />,
         label: "TDDF JSON",
         href: "/tddf-json",
@@ -380,6 +390,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Check if any Legacy submenu items are active
   const isLegacyActive =
+    location === "/uploader" ||
+    location.startsWith("/uploader/") ||
+    location === "/tddf1" ||
+    location.startsWith("/tddf1/") ||
     location === "/tddf-json" ||
     location.startsWith("/tddf-json/");
 
