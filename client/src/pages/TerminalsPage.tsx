@@ -1062,12 +1062,6 @@ export default function TerminalsPage() {
                                       </div>
                                     </DialogContent>
                                   </Dialog>
-                                  
-                                  <Link href={`/merchants/create-from-terminal/${terminal.id}`}>
-                                    <Button variant="outline" size="sm" title="Create merchant from this terminal" data-testid={`button-create-from-terminal-${terminal.id}`}>
-                                      <Plus className="h-4 w-4" />
-                                    </Button>
-                                  </Link>
                                 </div>
                               </TableCell>
                             </TableRow>
