@@ -3950,7 +3950,13 @@ export default function TddfApiDataPage() {
 
                 {/* Auto 4-5 Encode Switch */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div className="flex items-center gap-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <Switch
+                      checked={auto45Enabled}
+                      onCheckedChange={handleAuto45Change}
+                      disabled={saveAuto45Setting.isPending}
+                      data-testid="switch-auto-45"
+                    />
                     <div className="flex items-center gap-3">
                       <Zap className="h-5 w-5 text-purple-600" />
                       <div>
@@ -3960,18 +3966,17 @@ export default function TddfApiDataPage() {
                         </div>
                       </div>
                     </div>
-                    <Switch
-                      checked={auto45Enabled}
-                      onCheckedChange={handleAuto45Change}
-                      disabled={saveAuto45Setting.isPending}
-                      data-testid="switch-auto-45"
-                    />
                   </div>
                 </div>
 
                 {/* Auto 6 Json Encode Switch */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Switch
+                      checked={autoStep6Enabled}
+                      onCheckedChange={handleAutoStep6Change}
+                      disabled={saveAutoStep6Setting.isPending}
+                    />
                     <div className="flex items-center gap-3">
                       <Pause className="h-5 w-5 text-blue-600" />
                       <div>
@@ -3981,17 +3986,18 @@ export default function TddfApiDataPage() {
                         </div>
                       </div>
                     </div>
-                    <Switch
-                      checked={autoStep6Enabled}
-                      onCheckedChange={handleAutoStep6Change}
-                      disabled={saveAutoStep6Setting.isPending}
-                    />
                   </div>
                 </div>
 
                 {/* Auto 7 Archive Switch */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <Switch
+                      checked={autoStep7Enabled}
+                      onCheckedChange={handleAutoStep7Change}
+                      disabled={saveAutoStep7Setting.isPending}
+                      data-testid="switch-auto-step7"
+                    />
                     <div className="flex items-center gap-3">
                       <Database className="h-5 w-5 text-green-600" />
                       <div>
@@ -4001,12 +4007,6 @@ export default function TddfApiDataPage() {
                         </div>
                       </div>
                     </div>
-                    <Switch
-                      checked={autoStep7Enabled}
-                      onCheckedChange={handleAutoStep7Change}
-                      disabled={saveAutoStep7Setting.isPending}
-                      data-testid="switch-auto-step7"
-                    />
                   </div>
                 </div>
               </div>
