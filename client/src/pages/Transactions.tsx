@@ -924,6 +924,10 @@ function MccTddfTransactionsTab() {
   const [posEntryMode, setPosEntryMode] = useState<string>("all");
   const [filtersApplied, setFiltersApplied] = useState(false);
   const [merchantComboboxOpen, setMerchantComboboxOpen] = useState(false);
+  
+  // Sub Merchant dropdown states
+  const [subMerchantName, setSubMerchantName] = useState<string>("");
+  const [subMerchantComboboxOpen, setSubMerchantComboboxOpen] = useState(false);
 
   // Merchant options from API (all merchants with status)
   interface MerchantOption {
@@ -934,6 +938,18 @@ function MccTddfTransactionsTab() {
     merchantType: string;
   }
   const [merchantOptions, setMerchantOptions] = useState<MerchantOption[]>([]);
+  
+  // Sub Merchant Terminal options from API
+  interface SubMerchantTerminalOption {
+    id: number;
+    deviceName: string;
+    dNumber: string;
+    merchantId: string;
+    terminalId: number;
+    merchant_name: string;
+    terminal_v_number: string;
+  }
+  const [subMerchantOptions, setSubMerchantOptions] = useState<SubMerchantTerminalOption[]>([]);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -1008,6 +1024,23 @@ function MccTddfTransactionsTab() {
 
     fetchMerchants();
   }, []);
+  
+  // Fetch sub merchant terminals for the dropdown
+  useEffect(() => {
+    const fetchSubMerchantTerminals = async () => {
+      try {
+        const response = await fetch('/api/sub-merchant-terminals', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setSubMerchantOptions(data);
+        }
+      } catch (error) {
+        console.error('Error fetching sub merchant terminals:', error);
+      }
+    };
+
+    fetchSubMerchantTerminals();
+  }, []);
 
   const getMerchantName = (merchantAccount: string | null): string | null => {
     if (!merchantAccount) return null;
@@ -1073,6 +1106,7 @@ function MccTddfTransactionsTab() {
     setAssociationNumber("");
     setGroupNumber("");
     setTerminalId("");
+    setSubMerchantName("");
     setCardType("all");
     setPosEntryMode("all");
     setFiltersApplied(false);
@@ -1089,6 +1123,7 @@ function MccTddfTransactionsTab() {
       associationNumber.trim() !== "" ||
       groupNumber.trim() !== "" ||
       terminalId.trim() !== "" ||
+      subMerchantName.trim() !== "" ||
       (cardType !== "all" && cardType !== "");
     setFiltersApplied(hasFilters);
   }, [
@@ -1098,7 +1133,9 @@ function MccTddfTransactionsTab() {
     associationNumber,
     groupNumber,
     terminalId,
+    subMerchantName,
     cardType,
+    posEntryMode,
   ]);
 
   // Calculate total pages
@@ -1304,11 +1341,79 @@ function MccTddfTransactionsTab() {
                 </label>
                 <Input
                   value={terminalId}
-                  onChange={(e) => setTerminalId(e.target.value)}
+                  onChange={(e) => {
+                    setTerminalId(e.target.value);
+                    if (subMerchantName) setSubMerchantName("");
+                  }}
                   placeholder="Terminal ID"
                   className="flex-1"
                   data-testid="input-terminal-id"
                 />
+              </div>
+              
+              {/* Sub Merchant dropdown - auto-populates Terminal ID */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  Sub Merchant:
+                </label>
+                <Popover
+                  open={subMerchantComboboxOpen}
+                  onOpenChange={setSubMerchantComboboxOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={subMerchantComboboxOpen}
+                      className="flex-1 justify-between"
+                      data-testid="combobox-sub-merchant"
+                    >
+                      {subMerchantName || "Select sub merchant..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search sub merchant..." />
+                      <CommandList>
+                        <CommandEmpty>No sub merchant found.</CommandEmpty>
+                        <CommandGroup>
+                          {subMerchantOptions.map((subMerchant) => {
+                            const displayText = subMerchant.merchant_name || subMerchant.deviceName || 'Unknown';
+                            const terminalVNumber = subMerchant.terminal_v_number || subMerchant.dNumber || '';
+                            const searchValue = `${displayText} (${terminalVNumber})`;
+                            return (
+                              <CommandItem
+                                key={subMerchant.id}
+                                value={searchValue}
+                                onSelect={() => {
+                                  setSubMerchantName(displayText);
+                                  setTerminalId(terminalVNumber);
+                                  setPage(1);
+                                  setSubMerchantComboboxOpen(false);
+                                }}
+                                data-testid={`sub-merchant-option-${subMerchant.id}`}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    subMerchantName === displayText
+                                      ? "opacity-100"
+                                      : "opacity-0",
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{displayText}</span>
+                                  <span className="text-xs text-gray-500">Terminal: {terminalVNumber}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
