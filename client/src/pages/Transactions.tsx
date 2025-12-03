@@ -65,6 +65,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar } from "@/components/ui/calendar";
 import MainLayout from "@/components/layout/MainLayout";
 
 // ACH Transaction interface matching backend
@@ -928,6 +929,9 @@ function MccTddfTransactionsTab() {
   // Sub Merchant dropdown states
   const [subMerchantName, setSubMerchantName] = useState<string>("");
   const [subMerchantComboboxOpen, setSubMerchantComboboxOpen] = useState(false);
+  
+  // Calendar popover state
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Merchant options from API (all merchants with status)
   interface MerchantOption {
@@ -1197,11 +1201,32 @@ function MccTddfTransactionsTab() {
                 >
                   ←
                 </Button>
-                <div className="px-3 sm:px-4 py-2 bg-white border rounded-md text-xs sm:text-sm font-medium min-w-[120px] sm:min-w-40 text-center">
-                  {selectedDate
-                    ? format(selectedDate, "MMM dd, yyyy")
-                    : "All Dates"}
-                </div>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium min-w-[120px] sm:min-w-40 justify-center"
+                      data-testid="button-date-picker"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate
+                        ? format(selectedDate, "MMM dd, yyyy")
+                        : "All Dates"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate || undefined}
+                      onSelect={(date) => {
+                        setSelectedDate(date || null);
+                        setPage(1);
+                        setCalendarOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <Button
                   variant="outline"
                   size="sm"
