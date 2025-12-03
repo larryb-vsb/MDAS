@@ -659,7 +659,7 @@ export default function TerminalsPage() {
                         {getSortIcon('vNumber')}
                       </div>
                     </TableHead>
-                    <TableHead>DBA Name</TableHead>
+                    <TableHead>Merchant DBA Name</TableHead>
                     <TableHead>POS Merchant #</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50"
@@ -915,7 +915,7 @@ export default function TerminalsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Terminal ID</TableHead>
-                        <TableHead>Merchant Name</TableHead>
+                        <TableHead>Merchant DBA Name</TableHead>
                         <TableHead>POS Merchant #</TableHead>
                         <TableHead>Current Merchant</TableHead>
                         <TableHead>Status</TableHead>
