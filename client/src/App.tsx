@@ -59,7 +59,6 @@ function Router() {
       <ProtectedRoute path="/orphan-terminals/:terminalId" component={OrphanTerminalViewPage} />
       <ProtectedRoute path="/transactions" component={Transactions} />
       <ProtectedRoute path="/tddf-records" component={TddfPage} />
-      <ProtectedRoute path="/tddf" component={TddfPage} />
       <ProtectedRoute path="/tddf-json" component={TddfJsonPage} />
       <ProtectedRoute path="/tddf-json-test" component={TddfJsonTestPage} />
       <ProtectedRoute path="/tddf1" component={Tddf1Page} />
