@@ -209,11 +209,6 @@ const navItems = [
         label: "TDDF1",
         href: "/tddf1",
       },
-      {
-        icon: <FileJson className="h-4 w-4 text-gray-300" />,
-        label: "TDDF JSON",
-        href: "/tddf-json",
-      },
     ],
   },
   {
@@ -393,9 +388,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     location === "/uploader" ||
     location.startsWith("/uploader/") ||
     location === "/tddf1" ||
-    location.startsWith("/tddf1/") ||
-    location === "/tddf-json" ||
-    location.startsWith("/tddf-json/");
+    location.startsWith("/tddf1/");
 
   // Auto-expand Legacy submenu if any of its items are active
   useEffect(() => {
