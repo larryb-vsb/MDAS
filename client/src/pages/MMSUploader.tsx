@@ -1452,7 +1452,7 @@ export default function MMSUploader() {
         <div>
           <div className="flex items-center gap-4 mb-2">
             <div>
-              <h1 className="text-3xl font-bold">MMS Uploader</h1>
+              <h1 className="text-3xl font-bold">MDAS Uploader</h1>
               <p className="text-muted-foreground">
                 Session-controlled 3-phase upload system (started → uploading → uploaded)
               </p>
@@ -3190,7 +3190,6 @@ export default function MMSUploader() {
         </TabsContent>
       </Tabs>
       </div>
-
       {/* File Content Viewer Dialog */}
       <Dialog open={!!selectedFileForView} onOpenChange={() => setSelectedFileForView(null)}>
         <DialogContent className="max-w-6xl max-h-[90vh]">
@@ -3207,7 +3206,7 @@ export default function MMSUploader() {
           <div className="space-y-4 overflow-auto">
             {(selectedFileForView as any)?.showJsonSample && (selectedFileForView as any)?.encodingResult ? (
               /* JSON Sample Display with TddfJsonViewer */
-              <div className="space-y-4">
+              (<div className="space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="text-sm font-medium text-blue-800 mb-2">
                     Encoding Results: {(selectedFileForView as any).encodingResult.message}
@@ -3218,7 +3217,6 @@ export default function MMSUploader() {
                     </div>
                   )}
                 </div>
-                
                 <div className="space-y-4">
                   <div className="bg-gray-50 border rounded-lg p-4">
                     <div className="text-sm font-medium text-gray-700 mb-2">JSON Sample:</div>
@@ -3233,7 +3231,7 @@ export default function MMSUploader() {
                     </pre>
                   </div>
                 </div>
-              </div>
+              </div>)
             ) : isLoadingContent ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-muted-foreground">Loading file contents...</div>
@@ -3264,7 +3262,6 @@ export default function MMSUploader() {
           </div>
         </DialogContent>
       </Dialog>
-      
       {/* JSONB Data Viewer Modal */}
       <Dialog open={jsonbViewerOpen && !!selectedUploadForJsonb} onOpenChange={(open) => {
         if (!open) {
