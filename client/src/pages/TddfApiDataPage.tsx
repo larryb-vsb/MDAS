@@ -2874,45 +2874,45 @@ export default function TddfApiDataPage() {
 
   return (
     <MainLayout>
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setLocation('/')}
-            className="flex items-center gap-2"
-            data-testid="button-back-home"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">API Data System</h1>
-            <p className="text-muted-foreground">
-              High-performance position-based flat file processing with dynamic schema configuration
-            </p>
+      <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setLocation('/')}
+              className="flex items-center gap-2 w-fit"
+              data-testid="button-back-home"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div>
+              <h1 className="text-xl sm:text-3xl font-bold tracking-tight">API Data System</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+                High-performance position-based flat file processing with dynamic schema configuration
+              </p>
+            </div>
           </div>
+          <Badge variant="outline" className="w-fit text-xs">
+            {files.length} Files | {schemas.length} Schemas | {apiKeys.length} API Keys
+          </Badge>
         </div>
-        <Badge variant="outline">
-          {files.length} Files | {schemas.length} Schemas | {apiKeys.length} API Keys
-        </Badge>
-      </div>
 
       {/* Global Filename Search */}
       <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-blue-600" />
+        <CardHeader className="p-3 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             Global Filename Search
           </CardTitle>
-          <CardDescription>
-            Search for files in both active uploads and archive. Try full name like "VERMNTSB.6759_TDDF_830_10022025_083400.TSYSO" or partial match like "10022025"
+          <CardDescription className="text-xs sm:text-sm">
+            Search for files in both active uploads and archive. Try full or partial filename match.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
           {/* Search Input */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1">
               <Input
                 placeholder="Enter filename or partial match (e.g., 10022025)"
@@ -2925,47 +2925,52 @@ export default function TddfApiDataPage() {
                     refetchSearch();
                   }
                 }}
-                className="text-base"
+                className="text-sm sm:text-base"
                 data-testid="input-global-search"
               />
             </div>
-            <Button
-              onClick={() => {
-                if (globalSearchTerm.trim()) {
-                  setPerformSearch(true);
-                  setShowSearchResults(true);
-                  refetchSearch();
-                }
-              }}
-              disabled={!globalSearchTerm.trim() || isSearching}
-              data-testid="button-global-search"
-            >
-              {isSearching ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </>
-              )}
-            </Button>
-            {showSearchResults && (
+            <div className="flex gap-2">
               <Button
-                variant="outline"
                 onClick={() => {
-                  setGlobalSearchTerm('');
-                  setPerformSearch(false);
-                  setShowSearchResults(false);
+                  if (globalSearchTerm.trim()) {
+                    setPerformSearch(true);
+                    setShowSearchResults(true);
+                    refetchSearch();
+                  }
                 }}
-                data-testid="button-clear-search"
+                disabled={!globalSearchTerm.trim() || isSearching}
+                data-testid="button-global-search"
+                className="flex-1 sm:flex-none"
               >
-                <X className="h-4 w-4 mr-2" />
-                Clear
+                {isSearching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span className="hidden sm:inline">Searching...</span>
+                    <span className="sm:hidden">...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Search</span>
+                  </>
+                )}
               </Button>
-            )}
+              {showSearchResults && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setGlobalSearchTerm('');
+                    setPerformSearch(false);
+                    setShowSearchResults(false);
+                  }}
+                  data-testid="button-clear-search"
+                  className="flex-1 sm:flex-none"
+                >
+                  <X className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Clear</span>
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Search Results */}
@@ -3137,22 +3142,25 @@ export default function TddfApiDataPage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-          <TabsTrigger value="data">Data</TabsTrigger>
-          <TabsTrigger value="raw-data">Raw Data</TabsTrigger>
-          <TabsTrigger value="processing">Processing</TabsTrigger>
-          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
-          <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
-          <TabsTrigger value="schemas">Schemas</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+          <TabsList className="inline-flex w-max sm:grid sm:w-full sm:grid-cols-8 gap-1">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap">Overview</TabsTrigger>
+            <TabsTrigger value="files" className="text-xs sm:text-sm whitespace-nowrap">Files</TabsTrigger>
+            <TabsTrigger value="data" className="text-xs sm:text-sm whitespace-nowrap">Data</TabsTrigger>
+            <TabsTrigger value="raw-data" className="text-xs sm:text-sm whitespace-nowrap">Raw Data</TabsTrigger>
+            <TabsTrigger value="processing" className="text-xs sm:text-sm whitespace-nowrap">Processing</TabsTrigger>
+            <TabsTrigger value="api-keys" className="text-xs sm:text-sm whitespace-nowrap">API Keys</TabsTrigger>
+            <TabsTrigger value="monitoring" className="text-xs sm:text-sm whitespace-nowrap">Monitoring</TabsTrigger>
+            <TabsTrigger value="schemas" className="text-xs sm:text-sm whitespace-nowrap">Schemas</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">System Overview</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+            <h2 className="text-lg sm:text-2xl font-bold">System Overview</h2>
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ["/api/uploader"], exact: false });
                 queryClient.invalidateQueries({ queryKey: ["/api/uploader/processing-status"], exact: false });
@@ -3163,8 +3171,8 @@ export default function TddfApiDataPage() {
               }}
               disabled={filesLoading || queueLoading || dashboardStatsLoading}
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
+              <RefreshCw className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -3806,25 +3814,25 @@ export default function TddfApiDataPage() {
 
         <TabsContent value="files" className="space-y-4">
           {/* Combined Upload & Files Tab */}
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">TDDF Upload & Files</h2>
-            <Badge variant="outline">
-              {uploads.length} Uploads | {files.length} Processed Files
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h2 className="text-lg sm:text-2xl font-bold">TDDF Upload & Files</h2>
+            <Badge variant="outline" className="text-xs">
+              {uploads.length} Uploads | {files.length} Files
             </Badge>
           </div>
 
           {/* Upload Section */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
                 File Upload
               </CardTitle>
-              <CardDescription>
-                Session-controlled upload for TDDF files to the King database system
+              <CardDescription className="text-xs sm:text-sm">
+                Session-controlled upload for TDDF files
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
               <div className="space-y-4">
                 {/* File Type Selection */}
                 <div className="space-y-3">
@@ -3840,7 +3848,7 @@ export default function TddfApiDataPage() {
                           }
                         }}
                         className={`
-                          relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
+                          relative px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 transform hover:scale-105
                           ${selectedFileType === type.value 
                             ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -3848,9 +3856,9 @@ export default function TddfApiDataPage() {
                         `}
                         title={type.description}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div className={`
-                            w-2 h-2 rounded-full transition-all duration-300
+                            w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full transition-all duration-300
                             ${selectedFileType === type.value 
                               ? 'bg-white animate-pulse' 
                               : 'bg-gray-400'
@@ -3906,15 +3914,15 @@ export default function TddfApiDataPage() {
                         }
                       }}
                     >
-                      <div className="flex items-center justify-center space-x-3">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:space-x-3">
                         <Upload className="h-6 w-6 text-blue-400" />
-                        <div>
-                          <p className="font-medium text-blue-600">File Upload Zone</p>
+                        <div className="text-center sm:text-left">
+                          <p className="font-medium text-blue-600 text-sm">File Upload Zone</p>
                           <p className="text-xs text-blue-500/80">Drag & drop TDDF files here, or click to browse</p>
                         </div>
-                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600">
+                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600 mt-2 sm:mt-0">
                           <Upload className="h-3 w-3 mr-1" />
-                          Browse Files
+                          Browse
                         </Button>
                       </div>
                     </div>
