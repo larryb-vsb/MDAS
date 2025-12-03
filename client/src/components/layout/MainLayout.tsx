@@ -200,21 +200,6 @@ const navItems = [
     label: "Legacy",
     submenu: [
       {
-        icon: <Zap className="h-5 w-5 text-orange-400" />,
-        label: "MMS Uploader",
-        href: "/uploader",
-      },
-      {
-        icon: <FileJson className="h-5 w-5 text-blue-400" />,
-        label: "TDDF 1",
-        href: "/tddf1",
-      },
-      {
-        icon: <Database className="h-4 w-4 text-gray-300" />,
-        label: "Merchant Management",
-        href: "/merchant-management",
-      },
-      {
         icon: <FileJson className="h-4 w-4 text-gray-300" />,
         label: "TDDF JSON",
         href: "/tddf-json",
