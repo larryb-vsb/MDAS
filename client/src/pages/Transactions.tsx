@@ -1218,6 +1218,7 @@ function MccTddfTransactionsTab() {
                     <Calendar
                       mode="single"
                       selected={selectedDate || undefined}
+                      defaultMonth={selectedDate || undefined}
                       onSelect={(date) => {
                         setSelectedDate(date || null);
                         setPage(1);
