@@ -37,7 +37,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 import CacheControlWidget from '@/components/shared/CacheControlWidget';
 
 // Interface for dashboard metrics with cache metadata
@@ -169,6 +169,8 @@ function ClickableMetricCard({
   terminalLink,
   isClickable = false
 }: ClickableMetricCardProps) {
+  const [, setLocation] = useLocation();
+  
   const formatValue = (value: number | string | undefined) => {
     if (value === undefined) return '0';
     if (format === 'currency') {
@@ -177,22 +179,48 @@ function ClickableMetricCard({
     return typeof value === 'string' ? value : value.toLocaleString();
   };
 
-  const CardWrapper = isClickable && terminalLink ? 
-    ({ children }: { children: React.ReactNode }) => (
-      <Link href={terminalLink}>
-        <Card className="h-full cursor-pointer hover:shadow-lg transition-shadow duration-200 hover:border-blue-300">
-          {children}
-        </Card>
-      </Link>
-    ) : 
-    ({ children }: { children: React.ReactNode }) => (
-      <Card className="h-full">
-        {children}
-      </Card>
-    );
+  const hasInnerLinks = achLink || mccLink;
+  
+  const handleCardClick = () => {
+    if (isClickable && terminalLink && !hasInnerLinks) {
+      setLocation(terminalLink);
+    }
+  };
+
+  const handleAchClick = (e: React.MouseEvent) => {
+    if (achLink) {
+      e.stopPropagation();
+      setLocation(achLink);
+    }
+  };
+
+  const handleMccClick = (e: React.MouseEvent) => {
+    if (mccLink) {
+      e.stopPropagation();
+      setLocation(mccLink);
+    }
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Enter' || e.key === ' ') && isClickable && terminalLink && !hasInnerLinks) {
+      e.preventDefault();
+      setLocation(terminalLink);
+    }
+  };
+
+  const isCardClickable = isClickable && terminalLink && !hasInnerLinks;
+  const cardClassName = isCardClickable
+    ? "h-full cursor-pointer hover:shadow-lg transition-shadow duration-200 hover:border-blue-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+    : "h-full";
 
   return (
-    <CardWrapper>
+    <Card 
+      className={cardClassName} 
+      onClick={handleCardClick}
+      role={isCardClickable ? "button" : undefined}
+      tabIndex={isCardClickable ? 0 : undefined}
+      onKeyDown={isCardClickable ? handleCardKeyDown : undefined}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
@@ -210,25 +238,22 @@ function ClickableMetricCard({
           </div>
         )}
         
-        {/* ACH/MMC Breakdown with Links */}
+        {/* ACH/MMC Breakdown with Click Handlers */}
         <div className="space-y-2">
           {ach !== undefined && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  {achLink ? (
-                    <Link href={achLink}>
-                      <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-blue-50 p-1 rounded">
-                        <span className="text-blue-600 font-medium">ACH</span>
-                        <span className="font-medium">{formatValue(ach)}</span>
-                      </div>
-                    </Link>
-                  ) : (
-                    <div className="flex justify-between items-center text-sm cursor-help">
-                      <span className="text-blue-600 font-medium">ACH</span>
-                      <span className="font-medium">{formatValue(ach)}</span>
-                    </div>
-                  )}
+                  <div 
+                    className={`flex justify-between items-center text-sm p-1 rounded ${achLink ? 'cursor-pointer hover:bg-blue-50' : 'cursor-help'}`}
+                    onClick={achLink ? handleAchClick : undefined}
+                    role={achLink ? "button" : undefined}
+                    tabIndex={achLink ? 0 : undefined}
+                    onKeyDown={achLink ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleAchClick(e as unknown as React.MouseEvent); } } : undefined}
+                  >
+                    <span className="text-blue-600 font-medium">ACH</span>
+                    <span className="font-medium">{formatValue(ach)}</span>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{achTooltip || 'ACH data'}</p>
@@ -241,19 +266,16 @@ function ClickableMetricCard({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  {mccLink ? (
-                    <Link href={mccLink}>
-                      <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-green-50 p-1 rounded">
-                        <span className="text-green-600 font-medium">MCC</span>
-                        <span className="font-medium">{formatValue(mcc)}</span>
-                      </div>
-                    </Link>
-                  ) : (
-                    <div className="flex justify-between items-center text-sm cursor-help">
-                      <span className="text-green-600 font-medium">MCC</span>
-                      <span className="font-medium">{formatValue(mcc)}</span>
-                    </div>
-                  )}
+                  <div 
+                    className={`flex justify-between items-center text-sm p-1 rounded ${mccLink ? 'cursor-pointer hover:bg-green-50' : 'cursor-help'}`}
+                    onClick={mccLink ? handleMccClick : undefined}
+                    role={mccLink ? "button" : undefined}
+                    tabIndex={mccLink ? 0 : undefined}
+                    onKeyDown={mccLink ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleMccClick(e as unknown as React.MouseEvent); } } : undefined}
+                  >
+                    <span className="text-green-600 font-medium">MCC</span>
+                    <span className="font-medium">{formatValue(mcc)}</span>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{mccTooltip || 'MCC data'}</p>
@@ -263,7 +285,7 @@ function ClickableMetricCard({
           )}
         </div>
       </CardContent>
-    </CardWrapper>
+    </Card>
   );
 }
 
@@ -743,56 +765,18 @@ export default function HomeDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Merchants Total - Clickable to respective pages */}
-              <Card className="h-full cursor-pointer hover:shadow-lg transition-shadow duration-200 hover:border-blue-300">
-                <Link href="/merchants">
-                  <CardHeader className="p-6 flex flex-row items-center justify-between space-y-0 pb-2 text-[32px]">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Merchants Total
-                      <ExternalLink className="h-3 w-3 ml-1 inline" />
-                    </CardTitle>
-                    <div className="h-4 w-4 text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="font-bold mb-3 text-[20px]">
-                      {(metrics?.merchants?.total ?? 0).toLocaleString()}
-                    </div>
-                    <div className="space-y-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link href="/merchants?tab=ach&status=Active/Open">
-                              <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-blue-50 p-1 rounded">
-                                <span className="text-blue-600 font-medium">ACH</span>
-                                <span className="font-medium">{(metrics?.merchants?.ach ?? 0).toLocaleString()}</span>
-                              </div>
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>ACH merchants from merchant table</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link href="/merchants?tab=mcc&status=Active/Open">
-                              <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-green-50 p-1 rounded">
-                                <span className="text-green-600 font-medium">MCC</span>
-                                <span className="font-medium">{(metrics?.merchants?.mcc ?? 0).toLocaleString()}</span>
-                              </div>
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>MCC merchants from merchant table</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </CardContent>
-                </Link>
-              </Card>
+              <ClickableMetricCard
+                title="Merchants Total"
+                total={metrics?.merchants?.total ?? 0}
+                ach={metrics?.merchants?.ach ?? 0}
+                mcc={metrics?.merchants?.mcc ?? 0}
+                icon={<Users className="h-4 w-4" />}
+                achTooltip="ACH merchants from merchant table"
+                mccTooltip="MCC merchants from merchant table"
+                achLink="/merchants?tab=ach&status=Active/Open"
+                mccLink="/merchants?tab=mcc&status=Active/Open"
+                isClickable={true}
+              />
 
               {/* New Merchants (30 day) */}
               <ClickableMetricCard

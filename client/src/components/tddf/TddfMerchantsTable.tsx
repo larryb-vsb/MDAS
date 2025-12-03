@@ -146,9 +146,8 @@ export default function TddfMerchantsTable() {
   // Cache refresh mutation
   const refreshCacheMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/tddf-merchants/refresh-cache", {});
-      const data = await response.json();
-      return data;
+      const response = await apiRequest<{ rebuilt?: number; performance?: { buildTimeMs?: number } }>("/api/tddf-merchants/refresh-cache", { method: "POST" });
+      return response;
     },
     onSuccess: (data) => {
       // Handle the response structure correctly
