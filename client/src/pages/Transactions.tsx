@@ -1223,6 +1223,9 @@ function MccTddfTransactionsTab() {
                         setPage(1);
                         setCalendarOpen(false);
                       }}
+                      captionLayout="dropdown-buttons"
+                      fromYear={2020}
+                      toYear={2030}
                       initialFocus
                     />
                   </PopoverContent>
