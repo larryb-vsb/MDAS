@@ -4217,12 +4217,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for existing cross-reference for this terminal
       const existingLinks = await storage.getSubMerchantTerminalsByTerminal(terminalId);
       
-      if (merchantId === 'UNKNOWN') {
+      if (merchantId === 'UNKNOWN' || merchantId === 'CLEAR') {
         // Remove all merchant assignments for this terminal
         for (const link of existingLinks) {
           await storage.deleteSubMerchantTerminal(link.id);
         }
-        return res.json({ success: true, message: "Merchant assignment removed", terminal });
+        return res.json({ success: true, message: "Merchant assignment cleared", terminal });
       }
       
       // Check if there's already a link to this specific merchant

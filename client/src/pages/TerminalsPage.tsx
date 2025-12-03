@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Activity, Building, Edit, Users } from "lucide-react";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Activity, Building, Edit, Users, X } from "lucide-react";
 import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
@@ -917,7 +917,7 @@ export default function TerminalsPage() {
                         <TableHead>Terminal ID</TableHead>
                         <TableHead>Merchant DBA Name</TableHead>
                         <TableHead>POS Merchant #</TableHead>
-                        <TableHead>Sub Mechant Name</TableHead>
+                        <TableHead>Sub Merchant Name</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -1004,8 +1004,26 @@ export default function TerminalsPage() {
                                       <div className="space-y-4">
                                         <div>
                                           <Label>Current Assignment</Label>
-                                          <div className="p-2 bg-gray-50 border rounded">
-                                            {currentMerchant ? currentMerchant.name : 'No merchant assigned'}
+                                          <div className="p-2 bg-gray-50 border rounded flex items-center justify-between">
+                                            <span>{currentMerchant ? currentMerchant.name : 'No merchant assigned'}</span>
+                                            {currentMerchant && (
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm"
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 px-2"
+                                                onClick={() => {
+                                                  updateTerminalMerchantMutation.mutate({
+                                                    terminalId: terminal.id,
+                                                    merchantId: 'CLEAR'
+                                                  });
+                                                }}
+                                                disabled={updateTerminalMerchantMutation.isPending}
+                                                data-testid="button-clear-assignment"
+                                              >
+                                                <X className="h-4 w-4 mr-1" />
+                                                Clear
+                                              </Button>
+                                            )}
                                           </div>
                                         </div>
                                         <div>
