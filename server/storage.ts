@@ -8772,7 +8772,22 @@ export class DatabaseStorage implements IStorage {
     const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
     
     const result = await pool.query(`
-      SELECT smt.*, m.name as merchant_name, t.v_number as terminal_v_number
+      SELECT 
+        smt.id,
+        smt.device_name as "deviceName",
+        smt.d_number as "dNumber",
+        smt.merchant_id as "merchantId",
+        smt.terminal_id as "terminalId",
+        smt.match_type as "matchType",
+        smt.match_confidence as "matchConfidence",
+        smt.is_active as "isActive",
+        smt.matched_at as "matchedAt",
+        smt.created_at as "createdAt",
+        smt.updated_at as "updatedAt",
+        smt.created_by as "createdBy",
+        smt.notes,
+        m.name as merchant_name,
+        t.v_number as terminal_v_number
       FROM ${subMerchantTerminalsTableName} smt
       LEFT JOIN ${getTableName('merchants')} m ON smt.merchant_id = m.id
       LEFT JOIN ${getTableName('terminals')} t ON smt.terminal_id = t.id
@@ -8816,7 +8831,21 @@ export class DatabaseStorage implements IStorage {
     const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
     
     const result = await pool.query(`
-      SELECT smt.*, m.name as merchant_name
+      SELECT 
+        smt.id,
+        smt.device_name as "deviceName",
+        smt.d_number as "dNumber",
+        smt.merchant_id as "merchantId",
+        smt.terminal_id as "terminalId",
+        smt.match_type as "matchType",
+        smt.match_confidence as "matchConfidence",
+        smt.is_active as "isActive",
+        smt.matched_at as "matchedAt",
+        smt.created_at as "createdAt",
+        smt.updated_at as "updatedAt",
+        smt.created_by as "createdBy",
+        smt.notes,
+        m.name as merchant_name
       FROM ${subMerchantTerminalsTableName} smt
       LEFT JOIN ${getTableName('merchants')} m ON smt.merchant_id = m.id
       WHERE smt.terminal_id = $1 AND smt.is_active = true
