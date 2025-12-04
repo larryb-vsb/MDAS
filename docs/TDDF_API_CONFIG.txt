@@ -1,74 +1,57 @@
 # TDDF API Configuration for External Testing
-# Last Updated: July 23, 2025
+# Last Updated: December 4, 2025
 
 ## API User Details
-User ID: TDDF1
-API Key: mms_1753247424700_l7d6n1wa2qm
+User ID: (Create via Admin Panel)
+API Key: (Set via TDDF_API_KEY environment variable)
 Permissions: tddf:upload
-Status: Active
-Created: July 23, 2025
+Status: Configured per environment
 
 ## Endpoint Information
-Production URL: https://merchant-management-system--vermont-state-bank.replit.app
+Production URL: https://mms-vsb.replit.app
 Development URL: http://localhost:5000 (local testing only)
 Upload Endpoint: /api/tddf/upload
 Method: POST
 Content-Type: multipart/form-data
 
 ## Required Headers
-X-API-Key: mms_1753247424700_l7d6n1wa2qm
+X-API-Key: <YOUR_API_KEY>
 X-Requested-With: XMLHttpRequest
-Origin: https://merchant-management-system--vermont-state-bank.replit.app
-Referer: https://merchant-management-system--vermont-state-bank.replit.app
+Origin: <YOUR_BASE_URL>
+Referer: <YOUR_BASE_URL>
+
+## Environment Variable Setup
+Before running test scripts, set your API key:
+
+PowerShell:
+  $env:TDDF_API_KEY = "your_api_key_here"
+
+Bash:
+  export TDDF_API_KEY="your_api_key_here"
 
 ## Testing Status
-✅ Local Testing (localhost:5000): CONFIRMED WORKING
-🚀 Production Deployment: READY FOR TESTING
-✅ API Key Authentication: VERIFIED FUNCTIONAL  
-✅ Endpoint Implementation: COMPLETE AND OPERATIONAL
-
-## External Access Issue Analysis
-From PowerShell test results:
-- Error: "Cannot POST /t/vermont-state-bank/repls/MMS/api/tddf/upload"
-- Status: 404 Not Found
-- Root Cause: Replit deployment URL routing may restrict external API access
-- Solution: API works perfectly for local development and internal testing
-
-## Alternative External Testing Approaches
-1. Use Replit's deployment URL: https://merchant-management-system--vermont-state-bank.replit.app/api/tddf/upload
-2. Test from within Replit environment (confirmed working locally)
-3. Consider deploying to external hosting for production API access
-4. Use VPN or network routing that allows direct access to Replit deployments
-
-## Simplified Local Testing Scripts
-For guaranteed local testing:
-
-1. test-local-tddf-simple.ps1 (auto-creates test file)
-   - PowerShell: .\test-local-tddf-simple.ps1 -PingOnly
-   - PowerShell: .\test-local-tddf-simple.ps1 (full upload test)
-
-2. test-tddf-local-only.ps1 (production-ready for real files)
-   - PowerShell: .\test-tddf-local-only.ps1 -PingOnly  
-   - PowerShell: .\test-tddf-local-only.ps1 YOUR_FILE.TSYSO
-   - Comprehensive error handling and result display
-   - Designed for actual TDDF file testing
-
-Both scripts target localhost:5000 exclusively for reliable local development testing.
+- Local Testing (localhost:5000): CONFIRMED WORKING
+- Production Deployment: READY FOR TESTING
+- API Key Authentication: VERIFIED FUNCTIONAL  
+- Endpoint Implementation: COMPLETE AND OPERATIONAL
 
 ## Test Scripts Available
-1. PowerShell: test-tddf-api.ps1
-   - Production upload: .\test-tddf-api.ps1
-   - Production ping: .\test-tddf-api.ps1 -PingOnly
-   - Local testing: .\test-tddf-api.ps1 -Local
-   - Local ping: .\test-tddf-api.ps1 -Local -PingOnly
-   - Custom file: .\test-tddf-api.ps1 -FilePath "myfile.TSYSO"
 
-2. Bash: test-tddf-api.sh
-   - Production upload: ./test-tddf-api.sh
-   - Production ping: ./test-tddf-api.sh --ping-only
-   - Local testing: ./test-tddf-api.sh --local
-   - Local ping: ./test-tddf-api.sh --local --ping-only
-   - Custom file: ./test-tddf-api.sh --file myfile.TSYSO
+### PowerShell: test-production-tddf.ps1
+  - Production upload: .\test-production-tddf.ps1
+  - Production ping: .\test-production-tddf.ps1 -PingOnly
+  - Local testing: .\test-production-tddf.ps1 -Local
+  - Local ping: .\test-production-tddf.ps1 -Local -PingOnly
+  - Custom file: .\test-production-tddf.ps1 -FilePath "myfile.TSYSO"
+  - Override API key: .\test-production-tddf.ps1 -ApiKey "your_key"
+
+### Bash: test-tddf-api.sh
+  - Production upload: ./test-tddf-api.sh
+  - Production ping: ./test-tddf-api.sh --ping-only
+  - Local testing: ./test-tddf-api.sh --local
+  - Local ping: ./test-tddf-api.sh --local --ping-only
+  - Custom file: ./test-tddf-api.sh --file myfile.TSYSO
+  - Override API key: ./test-tddf-api.sh --api-key "your_key"
 
 ## Sample TDDF File Format
 File extension: .TSYSO
@@ -95,3 +78,4 @@ Error responses include detailed error messages and HTTP status codes.
 - External URL access requires proper CSRF headers
 - API key authentication verified functional
 - Processing handles large files with progress tracking
+- API keys should be created via Admin Panel and stored securely
