@@ -58,6 +58,33 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### December 4, 2025 - TypeScript Bug Fixes (31 LSP Errors Resolved)
+**Change**: Fixed 31 TypeScript type safety issues across backend route files identified by static code analysis.
+
+**Files Modified**:
+- `server/routes.ts`: 27 fixes applied
+- `server/routes/tddf-files.routes.ts`: 4 fixes applied
+
+**Technical Details**:
+- **Type Safety**: Added `Record<string, any>` type assertions for dynamic object property access (extractedFields, merchantAccountNumber, merchantName)
+- **Buffer Handling**: Added `Buffer.isBuffer()` guards before calling `toString()` on ReplitStorageService responses
+- **Error Handling**: Added proper type guards (`error instanceof Error ? error.message : String(error)`) for unknown error types in catch blocks
+- **File Path Types**: Added explicit type assertions for storage_path when used with fs.existsSync/readFileSync
+- **Implicit Any**: Added explicit `: string` type annotations for filter/callback parameters
+- **Strict Mode**: Converted function declaration to arrow function for formatCSV helper
+- **Property Access**: Changed `upload.createdAt` to `upload.startTime` with fallback for date calculations
+
+### December 4, 2025 - SQL Injection False Positive Fix
+**Change**: Refactored SQL query construction to use direct parameterized placeholders (`$1`) instead of interpolated placeholder variables.
+
+**Files Modified**:
+- `server/routes/tddf-files.routes.ts`: Lines 928, 945, 951
+
+**Technical Details**:
+- Removed unnecessary `const placeholders = '$1';` variable
+- Replaced `${placeholders}` with direct `$1` in parameterized queries
+- Code was not actually exploitable (hardcoded placeholder) but violated best practices
+
 ### December 3, 2025 - DT Field Search on TDDF API Raw Data Tab
 **Change**: Added advanced field-based search capability for DT records on the Raw Data tab. Users can now select a specific DT field (e.g., Merchant Account Number, Transaction Amount, Reference Number) and search for values within that field position in the raw TDDF data.
 
