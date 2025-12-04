@@ -921,11 +921,10 @@ export function registerTddfFilesRoutes(app: Express) {
             
           } else if (Number.isInteger(fileId)) {
             // Try tddf_api_files table (numeric IDs - old system)
-            const placeholders = '$1';
             const filesResult = await pool.query(`
               SELECT id, filename, storage_path 
               FROM ${getTableName('tddf_api_files')} 
-              WHERE id = ${placeholders}
+              WHERE id = $1
             `, [fileId]);
 
             if (filesResult.rows.length > 0) {
@@ -940,13 +939,13 @@ export function registerTddfFilesRoutes(app: Express) {
               // Delete from queue first (foreign key constraint)
               await pool.query(`
                 DELETE FROM ${getTableName('tddf_api_queue')} 
-                WHERE file_id = ${placeholders}
+                WHERE file_id = $1
               `, [fileId]);
 
               // Delete from files table
               await pool.query(`
                 DELETE FROM ${getTableName('tddf_api_files')} 
-                WHERE id = ${placeholders}
+                WHERE id = $1
               `, [fileId]);
 
               totalFilesDeleted++;
