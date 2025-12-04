@@ -1228,9 +1228,10 @@ function RawDataTab({
 
   // Handle field selection - auto-set record type to DT
   const handleFieldChange = (value: string) => {
-    setSelectedField(value);
+    const effectiveValue = value === '__none__' ? '' : value;
+    setSelectedField(effectiveValue);
     setFieldSearchValue(''); // Clear previous search value
-    if (value) {
+    if (effectiveValue) {
       setRecordType('DT'); // Auto-select DT when a field is chosen
     }
     setPage(1);
@@ -1423,12 +1424,12 @@ function RawDataTab({
       <div className="flex flex-wrap gap-4 items-end border-t pt-4">
         <div className="flex items-center gap-2">
           <Label className="text-blue-600 font-medium">DT Field:</Label>
-          <Select value={selectedField} onValueChange={handleFieldChange}>
+          <Select value={selectedField || '__none__'} onValueChange={handleFieldChange}>
             <SelectTrigger className="w-[220px]" data-testid="select-dt-field">
               <SelectValue placeholder="Select a DT field..." />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
-              <SelectItem value="">-- No Field Selected --</SelectItem>
+              <SelectItem value="__none__">-- No Field Selected --</SelectItem>
               {DT_FIELDS.map((field) => (
                 <SelectItem key={field.key} value={field.key}>
                   {field.label}

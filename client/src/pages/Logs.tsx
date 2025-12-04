@@ -90,12 +90,14 @@ export default function Logs() {
 
   // Create query parameters
   const createQueryParams = (logType: LogType): LogsPageParams => {
+    const effectiveEntityType = filters.entityType === '__all__' ? '' : filters.entityType;
+    const effectiveAction = filters.action === '__all__' ? '' : filters.action;
     return {
       page: currentPage,
       limit: 10,
-      ...(filters.entityType && { entityType: filters.entityType }),
+      ...(effectiveEntityType && { entityType: effectiveEntityType }),
       ...(filters.entityId && { entityId: filters.entityId }),
-      ...(filters.action && { action: filters.action }),
+      ...(effectiveAction && { action: effectiveAction }),
       ...(filters.username && { username: filters.username }),
       ...(filters.startDate && { startDate: filters.startDate }),
       ...(filters.endDate && { endDate: filters.endDate }),
@@ -392,7 +394,7 @@ export default function Logs() {
                     <SelectValue placeholder="Select entity type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="__all__">All Types</SelectItem>
                     <SelectItem value="merchant">Merchant</SelectItem>
                     <SelectItem value="transaction">Transaction</SelectItem>
                     <SelectItem value="user">User</SelectItem>
@@ -430,7 +432,7 @@ export default function Logs() {
                     <SelectValue placeholder="Select action" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Actions</SelectItem>
+                    <SelectItem value="__all__">All Actions</SelectItem>
                     <SelectItem value="create">Create</SelectItem>
                     <SelectItem value="update">Update</SelectItem>
                     <SelectItem value="delete">Delete</SelectItem>
