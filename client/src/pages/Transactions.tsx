@@ -245,6 +245,23 @@ function extractTransactionAmount(record: any): number | null {
   return null;
 }
 
+function extractCardNumber(record: any): string | null {
+  let cardNumber =
+    record.parsed_data?.cardholderAccountNumber ||
+    record.record_data?.cardholderAccountNumber ||
+    record.parsed_data?.CardholderAccountNumber ||
+    record.record_data?.CardholderAccountNumber ||
+    record.jsonb_data?.cardholderAccountNumber ||
+    record.parsed_data?.cardNumber ||
+    record.record_data?.cardNumber;
+
+  if (!cardNumber && record.raw_data && record.raw_data.length >= 143) {
+    cardNumber = record.raw_data.substring(123, 142).trim() || null;
+  }
+
+  return cardNumber ? cardNumber.trim() : null;
+}
+
 // Helper function to format currency
 const formatCurrency = (amount: string | number) => {
   const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
@@ -1547,6 +1564,7 @@ function MccTddfTransactionsTab() {
                     const transactionAmount = extractTransactionAmount(record);
                     const cardType = extractCardType(record);
                     const terminalId = extractTerminalId(record);
+                    const cardNumber = extractCardNumber(record);
 
                     // Extract middle substring from filename (date_time portion)
                     const getShortFilename = (filename: string) => {
@@ -1593,6 +1611,15 @@ function MccTddfTransactionsTab() {
                             >
                               {getCardTypeBadges(cardType).label}
                             </Badge>
+                          )}
+
+                          {/* Card Number - hide on mobile */}
+                          {cardNumber && (
+                            <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+                              <span className="font-mono text-xs text-gray-600" data-testid={`text-card-number-${record.id}`}>
+                                💳 {cardNumber}
+                              </span>
+                            </div>
                           )}
 
                           {/* Amount with icon - prioritize on mobile */}
