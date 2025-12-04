@@ -600,7 +600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const files = await ReplitStorageService.listFiles(searchPrefix);
-        config.fileCount = files.length;
+        (config as any).fileCount = files.length;
         (config as any).actualPrefix = actualPrefix;
         
         console.log(`[STORAGE-CONFIG] Successfully counted ${files.length} files for prefix: ${actualPrefix}, searchPrefix: ${searchPrefix}`);
@@ -1982,7 +1982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const timestamp = parseInt(timestampMatch[1]);
               uploadDate = new Date(timestamp).toISOString().split('T')[0];
             } else {
-              uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+              uploadDate = new Date(upload.startTime || new Date()).toISOString().split('T')[0];
             }
             
             storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
@@ -2073,7 +2073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Retrieve file content from Replit Object Storage
       const fileBuffer = await ReplitStorageService.getFileContent(upload.s3Key);
-      const fileContent = fileBuffer.toString('utf-8');
+      const fileContent = Buffer.isBuffer(fileBuffer) ? fileBuffer.toString('utf-8') : String(fileBuffer);
       const lines = fileContent.split('\n');
       
       // Create preview (first 50 lines)
@@ -2202,28 +2202,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Extract the nested extractedFields if it exists
-        let extractedFields = {};
-        if (recordData.extractedFields && typeof recordData.extractedFields === 'object') {
-          extractedFields = recordData.extractedFields;
-        } else if (Object.keys(recordData).length > 0) {
+        let extractedFields: Record<string, any> = {};
+        const typedRecordData = recordData as Record<string, any>;
+        if (typedRecordData.extractedFields && typeof typedRecordData.extractedFields === 'object') {
+          extractedFields = typedRecordData.extractedFields;
+        } else if (Object.keys(typedRecordData).length > 0) {
           // If no nested extractedFields, use the recordData directly
-          extractedFields = recordData;
+          extractedFields = typedRecordData;
         }
         
         // Extract merchant account number for direct access
         let merchantAccountNumber = null;
         if (extractedFields.merchantAccountNumber) {
           merchantAccountNumber = extractedFields.merchantAccountNumber;
-        } else if (recordData.merchantAccountNumber) {
-          merchantAccountNumber = recordData.merchantAccountNumber;
+        } else if (typedRecordData.merchantAccountNumber) {
+          merchantAccountNumber = typedRecordData.merchantAccountNumber;
         }
         
         // Extract merchant name for direct access
         let merchantName = null;
         if (extractedFields.merchantName) {
           merchantName = extractedFields.merchantName;
-        } else if (recordData.merchantName) {
-          merchantName = recordData.merchantName;
+        } else if (typedRecordData.merchantName) {
+          merchantName = typedRecordData.merchantName;
         }
         
         return {
@@ -2270,8 +2271,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           }
         }
-      } catch (timingError) {
-        console.log(`[JSONB-API] Could not fetch timing metadata: ${timingError.message}`);
+      } catch (timingError: unknown) {
+        console.log(`[JSONB-API] Could not fetch timing metadata: ${timingError instanceof Error ? timingError.message : String(timingError)}`);
       }
       
       res.json({
@@ -2393,11 +2394,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recordData = {};
           }
           
-          let extractedFields = {};
-          if (recordData.extractedFields && typeof recordData.extractedFields === 'object') {
-            extractedFields = recordData.extractedFields;
-          } else if (Object.keys(recordData).length > 0) {
-            extractedFields = recordData;
+          let extractedFields: Record<string, any> = {};
+          const typedRecordData = recordData as Record<string, any>;
+          if (typedRecordData.extractedFields && typeof typedRecordData.extractedFields === 'object') {
+            extractedFields = typedRecordData.extractedFields;
+          } else if (Object.keys(typedRecordData).length > 0) {
+            extractedFields = typedRecordData;
           }
           
           return {
@@ -2599,8 +2601,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAmount: parseFloat(row.total_amount) || 0,
         totalRecords: parseInt(row.total_records) || 0
       };
-    } catch (error) {
-      console.error('[DASHBOARD-BUILD] ⚠️ Monthly cache query failed, using fallback values:', error.message);
+    } catch (error: unknown) {
+      console.error('[DASHBOARD-BUILD] ⚠️ Monthly cache query failed, using fallback values:', error instanceof Error ? error.message : String(error));
       // Fallback to reasonable defaults if monthly cache is empty
       return {
         totalTransactions: 0,
@@ -3420,8 +3422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!fileContent && file.storage_path) {
             try {
               const fs = await import('fs');
-              if (fs.existsSync(file.storage_path)) {
-                fileContent = fs.readFileSync(file.storage_path, 'utf8');
+              const storagePath = file.storage_path as string;
+              if (fs.existsSync(storagePath)) {
+                fileContent = fs.readFileSync(storagePath, 'utf8');
               }
             } catch (err) {
               console.log(`Could not read file content from ${file.storage_path}:`, err);
@@ -3429,8 +3432,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Calculate raw lines count if we have content
-          if (fileContent) {
-            const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+          if (fileContent && typeof fileContent === 'string') {
+            const lines = fileContent.split('\n').filter((line: string) => line.trim().length > 0);
             rawLinesCount = lines.length;
             
             // Store file content in database if not already there
@@ -4435,7 +4438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use EXACT same method as working action button
       const fileBuffer = await ReplitStorageService.getFileContent(terminalFile.s3Key);
-      const fileContent = fileBuffer.toString('utf-8');
+      const fileContent = Buffer.isBuffer(fileBuffer) ? fileBuffer.toString('utf-8') : String(fileBuffer);
       
       if (!fileContent) {
         return res.status(404).json({ error: 'File content not found in storage' });
@@ -4753,11 +4756,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (merchantName.includes(deviceMerchantName) || deviceMerchantName.includes(merchantName)) return true;
           
           // Word-based matching (check if key words match)
-          const deviceWords = deviceMerchantName.split(/\s+/).filter(word => word.length > 2);
-          const merchantWords = merchantName.split(/\s+/).filter(word => word.length > 2);
+          const deviceWords = deviceMerchantName.split(/\s+/).filter((word: string) => word.length > 2);
+          const merchantWords = merchantName.split(/\s+/).filter((word: string) => word.length > 2);
           
-          const matchingWords = deviceWords.filter(word => 
-            merchantWords.some(mWord => mWord.includes(word) || word.includes(mWord))
+          const matchingWords = deviceWords.filter((word: string) => 
+            merchantWords.some((mWord: string) => mWord.includes(word) || word.includes(mWord))
           );
           
           return matchingWords.length >= Math.min(2, deviceWords.length);
@@ -4891,12 +4894,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchant: newMerchant
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Add merchant error:', error);
       res.status(500).json({ 
         success: false, 
         error: 'Failed to create merchant',
-        details: error.message 
+        details: error instanceof Error ? error.message : String(error) 
       });
     }
   });

@@ -807,7 +807,7 @@ export function registerTddfFilesRoutes(app: Express) {
       const records = recordsResult.rows;
       
       // Helper function to format CSV without external dependency
-      function formatCSV(data: any[]) {
+      const formatCSV = (data: any[]): string => {
         if (!data || data.length === 0) return '';
         
         const headers = Object.keys(data[0]);
@@ -825,7 +825,7 @@ export function registerTddfFilesRoutes(app: Express) {
         }
         
         return csvRows.join('\n');
-      }
+      };
       
       // Convert to CSV format
       const csvData = records.map(record => ({
@@ -1815,7 +1815,7 @@ export function registerTddfFilesRoutes(app: Express) {
       
       // Read file content from storage
       const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
-      const fileContent = fileBuffer.toString('utf8');
+      const fileContent = Buffer.isBuffer(fileBuffer) ? fileBuffer.toString('utf8') : String(fileBuffer);
       
       res.json({
         success: true,
@@ -2025,7 +2025,7 @@ export function registerTddfFilesRoutes(app: Express) {
           // Read file content from storage
           console.log(`[ARCHIVE-STEP-6] Reading file from storage: ${archiveFile.archive_path}`);
           const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
-          const fileContent = fileBuffer.toString('utf8');
+          const fileContent = Buffer.isBuffer(fileBuffer) ? fileBuffer.toString('utf8') : String(fileBuffer);
           
           // Normalize line endings
           const normalizedContent = fileContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
@@ -2140,7 +2140,7 @@ export function registerTddfFilesRoutes(app: Express) {
           
           // Read file content from storage
           const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
-          const fileContent = fileBuffer.toString('utf8');
+          const fileContent = Buffer.isBuffer(fileBuffer) ? fileBuffer.toString('utf8') : String(fileBuffer);
           
           // Calculate correct record count with normalized line endings
           const normalizedContent = fileContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
