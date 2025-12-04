@@ -1,19 +1,25 @@
 #!/bin/bash
 # TDDF API Test Script - Bash version for Linux environments
-# This script tests the TDDF upload endpoint using the TDDF1 API key
-
-# TDDF1 API User Configuration
-# User: TDDF1 
-# Key: mms_1753247424700_l7d6n1wa2qm
-# Permissions: tddf:upload
-# Production URL: https://merchant-management-system-mms--vermont-state-bank.replit.app
+# This script tests the TDDF upload endpoint using environment variables
+#
+# REQUIRED: Set TDDF_API_KEY environment variable before running
+# Example: export TDDF_API_KEY="your_api_key_here"
 #
 # Usage Examples:
 # ./test-tddf-api.sh --ping-only                   # Test connectivity only
 # ./test-tddf-api.sh                               # Full upload test with default file
 # ./test-tddf-api.sh --file myfile.TSYSO          # Upload specific file
+# ./test-tddf-api.sh --api-key YOUR_KEY           # Override API key
 
-API_KEY="mms_1753247424700_l7d6n1wa2qm"
+# Read API key from environment variable (required)
+if [ -z "$TDDF_API_KEY" ]; then
+    echo "❌ Error: TDDF_API_KEY environment variable is not set"
+    echo "💡 Set it with: export TDDF_API_KEY=\"your_api_key_here\""
+    echo "💡 Or pass it via command line: --api-key YOUR_KEY"
+    API_KEY=""
+else
+    API_KEY="$TDDF_API_KEY"
+fi
 BASE_URL="https://merchant-management-system--vermont-state-bank.replit.app" 
 LOCAL_URL="http://localhost:5000"
 FILE_PATH="test_tddf_sample.TSYSO"

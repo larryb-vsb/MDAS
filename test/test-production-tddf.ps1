@@ -1,11 +1,14 @@
 # Comprehensive Production TDDF API Test Script
 # Tests connectivity, authentication, and file upload capabilities
-# User: TDDF1, Key: mms_1753247424700_l7d6n1wa2qm
 # Production URL: https://mms-vsb.replit.app
+#
+# REQUIRED: Set TDDF_API_KEY environment variable before running
+# Example: $env:TDDF_API_KEY = "your_api_key_here"
+# Or pass via -ApiKey parameter
 
 param(
     [string]$FilePath = "test_tddf_sample.TSYSO",
-    [string]$ApiKey = "mms_1753247424700_l7d6n1wa2qm",
+    [string]$ApiKey = $env:TDDF_API_KEY,
     [string]$BaseUrl = "https://mms-vsb.replit.app",
     [switch]$PingOnly,
     [switch]$Local,
@@ -13,6 +16,14 @@ param(
     [int]$StreamCount = 2,
     [int]$BatchSize = 100
 )
+
+# Validate API key is provided
+if ([string]::IsNullOrEmpty($ApiKey)) {
+    Write-Host "Error: API key is required" -ForegroundColor Red
+    Write-Host "Set TDDF_API_KEY environment variable: `$env:TDDF_API_KEY = 'your_key'" -ForegroundColor Yellow
+    Write-Host "Or pass via parameter: -ApiKey 'your_key'" -ForegroundColor Yellow
+    exit 1
+}
 
 # Override BaseUrl if Local switch is used
 if ($Local) {
