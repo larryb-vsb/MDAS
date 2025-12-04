@@ -5,6 +5,8 @@
 import { JsonbDuplicateCleanup } from './jsonb-duplicate-cleanup.js';
 import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
 import { withRetry, withConnectionCheck } from './db-retry-util.js';
+import fs from 'fs';
+import path from 'path';
 
 // Step 6 Processing Timeout and Retry Configuration
 const MAX_STEP6_RETRIES = 3; // Maximum number of retry attempts before marking file as failed
@@ -22,6 +24,7 @@ class MMSWatcher {
     this.identificationIntervalId = null;
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
+    this.tmpUploadsCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
     this.auto45Enabled = false; // Auto 4-5 processing DISABLED by default - user must enable manually
     this.manual45Queue = new Set(); // Manual processing queue for single-step progression
@@ -298,12 +301,23 @@ class MMSWatcher {
       await this.checkPipelineStatus();
     }, 60000); // Check every minute for pipeline recovery
     
+    // tmp_uploads cleanup service - removes old temporary files every 6 hours
+    this.tmpUploadsCleanupIntervalId = setInterval(async () => {
+      await this.cleanupTmpUploads();
+    }, 6 * 60 * 60 * 1000); // Every 6 hours
+    
+    // Run initial cleanup on startup
+    this.cleanupTmpUploads().catch(err => {
+      console.warn('[MMS-WATCHER] Initial tmp_uploads cleanup failed:', err.message);
+    });
+    
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 30 seconds (optimized)');
     console.log('[MMS-WATCHER] File encoding service started - processes identified files every 20 seconds (optimized)');
     console.log('[MMS-WATCHER] Step 6 processing service started - processes encoded files to master table every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Step 7 auto archive service started - archives completed files every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Pipeline recovery service started - handles stuck files and cache updates every minute');
+    console.log('[MMS-WATCHER] tmp_uploads cleanup service started - removes files older than 24 hours (runs every 6 hours)');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
 
@@ -339,7 +353,59 @@ class MMSWatcher {
       clearInterval(this.step7ArchiveIntervalId);
       this.step7ArchiveIntervalId = null;
     }
+    if (this.tmpUploadsCleanupIntervalId) {
+      clearInterval(this.tmpUploadsCleanupIntervalId);
+      this.tmpUploadsCleanupIntervalId = null;
+    }
     console.log('[MMS-WATCHER] Service stopped');
+  }
+
+  // Clean up old files in tmp_uploads directory (files older than 24 hours)
+  async cleanupTmpUploads() {
+    try {
+      const tmpUploadsDir = path.join(process.cwd(), 'tmp_uploads');
+      
+      // Ensure directory exists
+      if (!fs.existsSync(tmpUploadsDir)) {
+        console.log('[MMS-WATCHER] [TMP-CLEANUP] tmp_uploads directory does not exist, skipping cleanup');
+        return;
+      }
+      
+      const files = fs.readdirSync(tmpUploadsDir);
+      const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+      const now = Date.now();
+      let deletedCount = 0;
+      let totalSize = 0;
+      
+      for (const file of files) {
+        try {
+          const filePath = path.join(tmpUploadsDir, file);
+          const stats = fs.statSync(filePath);
+          
+          // Skip directories
+          if (stats.isDirectory()) continue;
+          
+          const fileAge = now - stats.mtimeMs;
+          
+          if (fileAge > maxAgeMs) {
+            totalSize += stats.size;
+            fs.unlinkSync(filePath);
+            deletedCount++;
+          }
+        } catch (fileError) {
+          console.warn(`[MMS-WATCHER] [TMP-CLEANUP] Could not process file ${file}:`, fileError.message);
+        }
+      }
+      
+      if (deletedCount > 0) {
+        const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+        console.log(`[MMS-WATCHER] [TMP-CLEANUP] ✅ Cleaned up ${deletedCount} old files (${sizeMB} MB freed)`);
+      } else {
+        console.log('[MMS-WATCHER] [TMP-CLEANUP] No old files to clean up');
+      }
+    } catch (error) {
+      console.error('[MMS-WATCHER] [TMP-CLEANUP] Error during tmp_uploads cleanup:', error);
+    }
   }
 
   async cleanupOrphanedSessions() {

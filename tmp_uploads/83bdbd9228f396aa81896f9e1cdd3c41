@@ -1,3 +1,0 @@
-Transaction ID,Client ID,Amount,Transaction Date,Transaction Type,Merchant ID,Description
-TX_FINAL_001,FINAL001,99.99,2025-07-18,Sale,MID_FINAL_001,Final Test Purchase
-TX_FINAL_002,FINAL002,150.00,2025-07-18,Sale,MID_FINAL_002,Final Test Order
