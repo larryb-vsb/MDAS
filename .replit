@@ -18,66 +18,6 @@ NODE_ENV = "production"
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 33189
-externalPort = 3002
-
-[[ports]]
-localPort = 33403
-externalPort = 5173
-
-[[ports]]
-localPort = 33527
-externalPort = 3001
-
-[[ports]]
-localPort = 33955
-externalPort = 9000
-
-[[ports]]
-localPort = 36769
-externalPort = 8081
-
-[[ports]]
-localPort = 39771
-externalPort = 6800
-
-[[ports]]
-localPort = 40475
-externalPort = 8008
-
-[[ports]]
-localPort = 40679
-externalPort = 5000
-
-[[ports]]
-localPort = 41925
-externalPort = 3000
-
-[[ports]]
-localPort = 42499
-externalPort = 6000
-
-[[ports]]
-localPort = 42645
-externalPort = 8000
-
-[[ports]]
-localPort = 43367
-externalPort = 4200
-
-[[ports]]
-localPort = 43655
-externalPort = 8080
-
-[[ports]]
-localPort = 44369
-externalPort = 3003
-
-[[ports]]
-localPort = 44899
-externalPort = 8099
-
 [workflows]
 runButton = "Start application"
 

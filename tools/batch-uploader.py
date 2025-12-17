@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-MMS Batch File Uploader (Python)
-Version: 1.2.1
-Last Updated: November 05, 2025 - 9:05 PM CST
+MDAS Batch File Uploader (Python)
+Version: 1.3.0
+Last Updated: December 17, 2025
 Status: PRODUCTION READY - TESTED
 ================================================================================
 
@@ -19,7 +19,7 @@ Features:
   - Successfully uploaded files moved to 'processed' folder
   - Duplicate filename handling (appends (1), (2), etc.)
   - Host approval status display with color coding
-  - Detailed connection logging to logs/mms-uploader.log
+  - Detailed connection logging to logs/mdas-uploader.log
   - Client fingerprint tracking with hostname
   - Automatic retry with exponential backoff
   - JSON upload reports saved to logs folder
@@ -27,6 +27,7 @@ Features:
   - Verbose mode (-v flag)
   - Optional API key for ping (validates if provided)
   - Version display in output and logs
+  - Server wake-up loop before uploads (authenticated pings until server responds)
 
 Folder Structure:
   <folder>/
@@ -49,11 +50,13 @@ from typing import Optional, Dict, Any, List
 import requests
 
 # Constants
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 CHUNK_SIZE = 25 * 1024 * 1024  # 25MB
 DEFAULT_BATCH_SIZE = 5
 DEFAULT_POLLING_INTERVAL = 10
 MAX_RETRIES = 3
+MAX_WAKEUP_ATTEMPTS = 30
+WAKEUP_INTERVAL = 5
 INBOX_FOLDER = "inbox"
 LOGS_FOLDER = "logs"
 PROCESSED_FOLDER = "processed"
@@ -72,8 +75,8 @@ class Colors:
     WHITE = "\033[97m"
 
 
-class MMSUploader:
-    """MMS Batch File Uploader with Folder Management"""
+class MDASUploader:
+    """MDAS Batch File Uploader with Folder Management"""
     
     def __init__(self, url: str, api_key: Optional[str] = None, folder: Optional[str] = None,
                  batch_size: int = DEFAULT_BATCH_SIZE,
@@ -89,7 +92,7 @@ class MMSUploader:
         if api_key:
             self.headers["X-API-Key"] = api_key
         self.hostname = socket.gethostname()
-        self.user_agent = f"MMS-BatchUploader/{VERSION} (Python; {self.hostname})"
+        self.user_agent = f"MDAS-BatchUploader/{VERSION} (Python; {self.hostname})"
         self.headers["User-Agent"] = self.user_agent
         
         # Setup folder structure
@@ -116,9 +119,9 @@ class MMSUploader:
     
     def _setup_logging(self):
         """Setup logging to logs folder"""
-        log_file = self.logs_folder / "mms-uploader.log"
+        log_file = self.logs_folder / "mdas-uploader.log"
         
-        self.logger = logging.getLogger('MMS-Uploader')
+        self.logger = logging.getLogger('MDAS-Uploader')
         self.logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
         
         # File handler (logs to logs folder) with UTF-8 encoding
@@ -138,7 +141,7 @@ class MMSUploader:
             self.logger.addHandler(ch)
         
         # Log version and folder structure when logger is initialized
-        self.logger.info(f"=== MMS Batch Uploader v{VERSION} Started ===")
+        self.logger.info(f"=== MDAS Batch Uploader v{VERSION} Started ===")
         self.logger.info(f"Hostname: {self.hostname}")
         self.logger.info(f"Base folder: {self.base_folder}")
         self.logger.info(f"Inbox folder: {self.inbox_folder}")
@@ -192,6 +195,110 @@ class MMSUploader:
             self._print_colored(f"  ⚠ Warning: Could not move file to processed: {str(e)}", Colors.YELLOW)
             return False
     
+    def _wakeup_ping(self, silent: bool = False) -> bool:
+        """Send a single authenticated ping to check if server is awake.
+        Returns True if server responds with valid authentication."""
+        try:
+            endpoint = f"{self.url}/api/uploader/ping"
+            start_time = time.time()
+            
+            response = requests.get(
+                endpoint,
+                headers=self.headers,
+                timeout=15
+            )
+            
+            elapsed = time.time() - start_time
+            
+            if response.status_code == 200:
+                data = response.json()
+                key_status = data.get('keyStatus', 'not_provided')
+                service_status = data.get('serviceStatus', 'unknown')
+                
+                # Store ping data for later checks
+                self._last_ping_data = data
+                
+                # Check if server is running AND API key is explicitly validated
+                if service_status == 'running' and key_status == 'valid':
+                    if not silent:
+                        self.logger.info(f"Wake-up ping successful: {elapsed:.2f}s, API key validated")
+                    return True
+                elif service_status == 'running':
+                    if not silent:
+                        self.logger.info(f"Wake-up ping: server running, key status: {key_status} (waiting for 'valid')")
+                    # Only return True when API key is explicitly validated
+                    return False
+            
+            if not silent:
+                self.logger.warning(f"Wake-up ping failed: HTTP {response.status_code}")
+            return False
+            
+        except requests.exceptions.Timeout:
+            if not silent:
+                self.logger.warning("Wake-up ping timeout - server may be starting up")
+            return False
+        except requests.exceptions.ConnectionError:
+            if not silent:
+                self.logger.warning("Wake-up ping connection error - server may be starting up")
+            return False
+        except Exception as e:
+            if not silent:
+                self.logger.warning(f"Wake-up ping error: {type(e).__name__}")
+            return False
+    
+    def _wakeup_server(self) -> bool:
+        """Wake up the server by sending authenticated pings until it responds.
+        Loops until the server confirms it's awake and API key is validated."""
+        
+        self._print_colored("\n" + "═" * 61, Colors.YELLOW)
+        self._print_colored("  WAKING UP SERVER", Colors.YELLOW)
+        self._print_colored("═" * 61, Colors.YELLOW)
+        
+        self._print_colored(f"\nServer: {self.url}", Colors.GRAY)
+        self._print_colored(f"API Key: {self.api_key[:20]}..." if self.api_key else "API Key: Not provided", Colors.GRAY)
+        self._print_colored(f"Max attempts: {MAX_WAKEUP_ATTEMPTS}", Colors.GRAY)
+        self._print_colored(f"Retry interval: {WAKEUP_INTERVAL}s", Colors.GRAY)
+        
+        self.logger.info("Starting server wake-up sequence")
+        self.logger.info(f"Max attempts: {MAX_WAKEUP_ATTEMPTS}, interval: {WAKEUP_INTERVAL}s")
+        
+        attempt = 0
+        while attempt < MAX_WAKEUP_ATTEMPTS:
+            attempt += 1
+            current_time = datetime.now().strftime("%H:%M:%S")
+            
+            self._print_colored(f"\n  [{current_time}] Wake-up ping {attempt}/{MAX_WAKEUP_ATTEMPTS}...", Colors.CYAN)
+            self.logger.info(f"Wake-up attempt {attempt}/{MAX_WAKEUP_ATTEMPTS}")
+            
+            if self._wakeup_ping():
+                self._print_colored(f"  ✓ Server is AWAKE and authenticated!", Colors.GREEN)
+                self.logger.info("Server wake-up successful - authenticated and ready")
+                
+                # Show confirmation details
+                if hasattr(self, '_last_ping_data'):
+                    data = self._last_ping_data
+                    self._print_colored(f"\n  Service Status: {data.get('serviceStatus', 'Unknown')}", Colors.GREEN)
+                    self._print_colored(f"  Environment: {data.get('environment', 'Unknown')}", Colors.GRAY)
+                    self._print_colored(f"  API Key: ✓ VALID", Colors.GREEN)
+                    if data.get('keyUser'):
+                        self._print_colored(f"  Key User: {data.get('keyUser')}", Colors.CYAN)
+                
+                self._print_colored("\n" + "═" * 61, Colors.GREEN)
+                self._print_colored("  SERVER READY - PROCEEDING WITH UPLOAD", Colors.GREEN)
+                self._print_colored("═" * 61, Colors.GREEN)
+                
+                return True
+            else:
+                self._print_colored(f"  ⏳ Server not ready, waiting {WAKEUP_INTERVAL}s...", Colors.YELLOW)
+                time.sleep(WAKEUP_INTERVAL)
+        
+        # Max attempts reached
+        self._print_colored(f"\n✗ Server did not respond after {MAX_WAKEUP_ATTEMPTS} attempts", Colors.RED)
+        self._print_colored("  Check server status and network connectivity.", Colors.YELLOW)
+        self.logger.error(f"Server wake-up failed after {MAX_WAKEUP_ATTEMPTS} attempts")
+        
+        return False
+    
     def ping(self) -> bool:
         """Test server connectivity with detailed client info"""
         # Show current timestamp
@@ -199,7 +306,7 @@ class MMSUploader:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         self._print_colored(f"\n{'='*70}", Colors.CYAN)
-        self._print_colored(f"  MMS Batch Uploader v{VERSION}", Colors.CYAN)
+        self._print_colored(f"  MDAS Batch Uploader v{VERSION}", Colors.CYAN)
         self._print_colored(f"  Server Ping - {current_time}", Colors.CYAN)
         self._print_colored(f"{'='*70}", Colors.CYAN)
         self._print_colored(f"Server: {self.url}", Colors.GRAY)
@@ -359,7 +466,7 @@ class MMSUploader:
     
     def get_status(self) -> Optional[Dict[str, Any]]:
         """Get upload queue status"""
-        self._print_colored(f"\n=== MMS Batch Uploader v{VERSION} - Queue Status ===", Colors.CYAN)
+        self._print_colored(f"\n=== MDAS Batch Uploader v{VERSION} - Queue Status ===", Colors.CYAN)
         self.logger.info("Requesting batch status")
         try:
             endpoint = f"{self.url}/api/uploader/batch-status"
@@ -516,7 +623,7 @@ class MMSUploader:
     
     def upload_batch(self) -> Dict[str, Any]:
         """Upload files from inbox folder in batches"""
-        self._print_colored(f"\n=== MMS Batch Uploader v{VERSION} - Batch Upload ===", Colors.CYAN)
+        self._print_colored(f"\n=== MDAS Batch Uploader v{VERSION} - Batch Upload ===", Colors.CYAN)
         
         # Always use inbox folder
         if not self.inbox_folder.exists():
@@ -544,11 +651,10 @@ class MMSUploader:
         self._print_colored(f"  Batch Size: {self.batch_size}", Colors.WHITE)
         self._print_colored(f"  Polling Interval: {self.polling_interval}s", Colors.WHITE)
         
-        # Test connection and check host approval
-        self._print_colored("\nTesting connection...", Colors.YELLOW)
-        ping_result = self.ping()
-        if not ping_result:
-            self._print_colored("\nConnection test failed. Aborting upload.", Colors.RED)
+        # WAKE UP SERVER FIRST - Loop until authenticated ping succeeds
+        if not self._wakeup_server():
+            self._print_colored("\n✗ Failed to wake up server. Aborting upload.", Colors.RED)
+            self.logger.error("Upload aborted - server wake-up failed")
             return {"total": 0, "successful": 0, "failed": 0, "uploads": []}
         
         # Check host approval status (if using API key)
@@ -660,7 +766,7 @@ def load_config(config_path: str) -> Optional[Dict[str, Any]]:
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description="MMS Batch File Uploader - Automated file upload with API key authentication",
+        description="MDAS Batch File Uploader - Automated file upload with API key authentication",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -672,7 +778,7 @@ Examples:
 Configuration File (config.json):
   {
     "url": "https://myapp.replit.dev",
-    "key": "mms_your_api_key_here",
+    "key": "mdas_your_api_key_here",
     "folder": "/path/to/upload/folder",
     "batchSize": 5,
     "pollingInterval": 10
@@ -682,7 +788,7 @@ Configuration File (config.json):
     
     # Configuration
     parser.add_argument('--config', type=str, help='Path to config file (JSON)')
-    parser.add_argument('--url', type=str, help='MMS server URL')
+    parser.add_argument('--url', type=str, help='MDAS server URL')
     parser.add_argument('--key', type=str, help='API key for authentication')
     parser.add_argument('--folder', type=str, help='Directory containing files to upload')
     parser.add_argument('--batch-size', type=int, help='Number of files per batch (default: 5)')
@@ -731,7 +837,7 @@ Configuration File (config.json):
         sys.exit(1)
     
     # Create uploader instance
-    uploader = MMSUploader(
+    uploader = MDASUploader(
         url=url,
         api_key=api_key,
         folder=folder,
@@ -742,10 +848,10 @@ Configuration File (config.json):
     
     # Log startup
     uploader.logger.info("=" * 60)
-    uploader.logger.info(f"MMS Batch Uploader v{VERSION} Started")
+    uploader.logger.info(f"MDAS Batch Uploader v{VERSION} Started")
     uploader.logger.info(f"Server: {url}")
     uploader.logger.info(f"Hostname: {uploader.hostname}")
-    uploader.logger.info(f"Log file: {uploader.logs_folder / 'mms-uploader.log'}")
+    uploader.logger.info(f"Log file: {uploader.logs_folder / 'mdas-uploader.log'}")
     uploader.logger.info("=" * 60)
     
     # Execute action
