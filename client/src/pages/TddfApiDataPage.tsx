@@ -2466,7 +2466,7 @@ export default function TddfApiDataPage() {
     }
   });
 
-  // Reset errors mutation for bulk error recovery
+  // Reset errors mutation for bulk error recovery (legacy - for error status only)
   const resetErrorsMutation = useMutation<WarningResetResponse, Error, string[]>({
     mutationFn: async (fileIds: string[]) => {
       const response = await apiRequest('/api/uploader/reset-errors', {
@@ -2487,6 +2487,43 @@ export default function TddfApiDataPage() {
     onError: (error: any) => {
       toast({ 
         title: "Reset errors failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Reset status mutation - resets files from ANY status back to uploaded
+  interface ResetStatusResponse {
+    success: boolean;
+    message: string;
+    filesReset: number;
+    skipped: number;
+    files?: Array<{ id: string; filename: string; previousPhase: string }>;
+    skippedFiles?: Array<{ id: string; filename: string; reason: string }>;
+    warnings?: string[];
+  }
+  
+  const resetStatusMutation = useMutation<ResetStatusResponse, Error, string[]>({
+    mutationFn: async (fileIds: string[]) => {
+      const response = await apiRequest('/api/uploader/reset-status', {
+        method: 'POST',
+        body: { fileIds }
+      }) as ResetStatusResponse;
+      return response;
+    },
+    onSuccess: (data: ResetStatusResponse) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      toast({ 
+        title: "Status reset completed", 
+        description: `${data.filesReset} file(s) reset to uploaded status for reprocessing.`,
+        variant: "default"
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Reset status failed", 
         description: error.message, 
         variant: "destructive" 
       });
@@ -4186,36 +4223,38 @@ export default function TddfApiDataPage() {
                         Manual Process Step 6
                       </Button>
 
-                      {/* Reset Errors Button */}
+                      {/* Reset Status Button - Resets any stuck file back to uploaded */}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const errorFiles = selectedUploads.filter(id => {
+                          // Allow resetting files in any status except 'uploaded' and 'completed'
+                          const resettableFiles = selectedUploads.filter(id => {
                             const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                            return upload && upload.currentPhase === 'error';
+                            return upload && !['uploaded', 'completed'].includes(upload.currentPhase);
                           });
                           
-                          if (errorFiles.length === 0) {
+                          if (resettableFiles.length === 0) {
                             toast({ 
-                              title: "No error files selected", 
-                              description: "Please select files that are in 'error' status to reset",
+                              title: "No files to reset", 
+                              description: "Please select files that are stuck (encoding, error, failed, etc.) to reset back to uploaded status",
                               variant: "destructive" 
                             });
                             return;
                           }
                           
-                          // Trigger reset errors API call
-                          resetErrorsMutation.mutate(errorFiles);
+                          // Trigger reset status API call
+                          resetStatusMutation.mutate(resettableFiles);
                         }}
                         className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-                        disabled={resetErrorsMutation.isPending || !selectedUploads.some(id => {
+                        disabled={resetStatusMutation.isPending || !selectedUploads.some(id => {
                           const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                          return upload && upload.currentPhase === 'error';
+                          return upload && !['uploaded', 'completed'].includes(upload.currentPhase);
                         })}
+                        data-testid="button-reset-status"
                       >
                         <RefreshCw className="h-4 w-4 mr-1" />
-                        Reset Errors
+                        Reset Status
                       </Button>
 
                       {/* Manual Step 7 (Archive) Button */}

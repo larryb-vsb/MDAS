@@ -954,6 +954,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset files from ANY status back to uploaded phase for reprocessing
+  app.post("/api/uploader/reset-status", isAuthenticated, async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { fileIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: fileIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER-RESET-STATUS] Resetting ${fileIds.length} files to uploaded phase - requested by: ${username}`);
+      
+      await client.query('BEGIN');
+      
+      // Find files to reset (any status except already uploaded or completed)
+      const filesToResetQuery = `
+        SELECT id, filename, current_phase, retry_count
+        FROM ${uploadsTableName}
+        WHERE id = ANY($1::text[])
+          AND current_phase NOT IN ('uploaded', 'completed')
+        FOR UPDATE
+      `;
+      
+      const filesToResetResult = await client.query(filesToResetQuery, [fileIds]);
+      const filesToReset = filesToResetResult.rows;
+      
+      if (filesToReset.length === 0) {
+        await client.query('ROLLBACK');
+        return res.json({
+          success: true,
+          message: "No files need resetting",
+          filesReset: 0,
+          skipped: fileIds.length,
+          warnings: [`${fileIds.length} file(s) requested but none needed reset (already uploaded or completed)`]
+        });
+      }
+      
+      console.log(`[UPLOADER-RESET-STATUS] Found ${filesToReset.length} files to reset`);
+      
+      // Reset each file back to uploaded phase
+      const resetResults: Array<{id: string, filename: string, previousPhase: string}> = [];
+      const skippedFiles: Array<{id: string, filename: string, reason: string}> = [];
+      
+      for (const file of filesToReset) {
+        console.log(`[UPLOADER-RESET-STATUS] Resetting ${file.filename} from ${file.current_phase} to uploaded`);
+        
+        // Move back to uploaded phase for complete reprocessing
+        const updateResult = await client.query(`
+          UPDATE ${uploadsTableName}
+          SET 
+            current_phase = 'uploaded',
+            processing_errors = NULL,
+            failed_at = NULL,
+            retry_count = 0,
+            last_updated = NOW()
+          WHERE id = $1
+            AND current_phase NOT IN ('uploaded', 'completed')
+        `, [file.id]);
+        
+        if (updateResult.rowCount === 0) {
+          // Race condition: file was moved by another process
+          console.log(`[UPLOADER-RESET-STATUS] ⚠️ Skipped ${file.filename} - already moved by another process`);
+          skippedFiles.push({
+            id: file.id,
+            filename: file.filename,
+            reason: 'File no longer available for reset (race condition)'
+          });
+        } else {
+          resetResults.push({
+            id: file.id,
+            filename: file.filename,
+            previousPhase: file.current_phase
+          });
+        }
+      }
+      
+      await client.query('COMMIT');
+      console.log(`[UPLOADER-RESET-STATUS] ✅ Reset complete - ${resetResults.length} files moved to uploaded phase, ${skippedFiles.length} skipped`);
+      
+      // Return 409 if all files were skipped due to race conditions
+      if (resetResults.length === 0 && skippedFiles.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: "All files were already moved by another process",
+          filesReset: 0,
+          skipped: skippedFiles.length,
+          skippedFiles
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: `Successfully reset ${resetResults.length} file(s) to uploaded phase`,
+        filesReset: resetResults.length,
+        skipped: skippedFiles.length,
+        files: resetResults,
+        ...(skippedFiles.length > 0 && { skippedFiles })
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('[UPLOADER-RESET-STATUS] Error resetting files:', error);
+      res.status(500).json({
+        error: "Failed to reset file status",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      client.release();
+    }
+  });
+
   // Start upload - Create database record and generate storage key
   app.post("/api/uploader/start", isAuthenticatedOrApiKey, isHostApproved, async (req, res) => {
     try {
