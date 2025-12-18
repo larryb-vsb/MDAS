@@ -58,6 +58,31 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### December 18, 2025 - Reset Status Button for Stuck Files
+**Change**: Added ability to reset files from ANY stuck status (encoding, error, failed, etc.) back to "uploaded" for reprocessing. Renamed "Reset Errors" button to "Reset Status" to reflect broader functionality.
+
+**Files Modified**:
+- `server/routes.ts`: Added new `/api/uploader/reset-status` endpoint
+- `client/src/pages/TddfApiDataPage.tsx`: Added `resetStatusMutation`, updated button to use new endpoint
+
+**Technical Details**:
+- Backend endpoint resets files with any status except 'uploaded' and 'completed'
+- Uses database transaction with race condition handling
+- Frontend button filters selectedUploads to only include resettable files
+- Clears processing_errors, failed_at, and retry_count on reset
+
+### December 18, 2025 - MDAS Batch Uploader v1.3.0
+**Change**: Updated Python batch uploader script with MDAS branding and server wake-up functionality.
+
+**Files Modified**:
+- `tools/batch-uploader.py`: Version 1.3.0
+
+**Technical Details**:
+- Renamed all "MMS" references to "MDAS"
+- Added server wake-up loop that sends authenticated pings until server confirms API key is validated
+- Wake-up requires `keyStatus == 'valid'` before proceeding with uploads
+- Configurable max attempts (30) and retry interval (5s)
+
 ### December 4, 2025 - TypeScript Bug Fixes (31 LSP Errors Resolved)
 **Change**: Fixed 31 TypeScript type safety issues across backend route files identified by static code analysis.
 
