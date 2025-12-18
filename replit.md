@@ -58,6 +58,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### December 18, 2025 - Fixed Timing Display and File Size Issues
+**Change**: Restored missing timing endpoint and fixed production display issues for "Unknown" file size and "no timing data".
+
+**Files Modified**:
+- `server/routes.ts`: Added `/api/uploader/:id/timing` endpoint (restored from backup)
+- `client/src/pages/TddfApiDataPage.tsx`: Updated file display to gracefully handle null fileSize and uploadedAt fields
+
+**Technical Details**:
+- Timing endpoint queries `processing_timing_logs` table first, falls back to `uploader_uploads.encoding_time_ms`
+- Returns formatted duration (e.g., "5 min 23 sec", "45 sec", "230 ms")
+- Frontend now conditionally displays file size only when available (no "Unknown" label)
+- Added proper fallback for missing uploadedAt dates
+- Changed default line count from hardcoded "9,155" to "calculating"
+
 ### December 18, 2025 - Reset Status Button for Stuck Files
 **Change**: Added ability to reset files from ANY stuck status (encoding, error, failed, etc.) back to "uploaded" for reprocessing. Renamed "Reset Errors" button to "Reset Status" to reflect broader functionality.
 

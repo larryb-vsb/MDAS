@@ -4403,7 +4403,7 @@ export default function TddfApiDataPage() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{upload.filename}</div>
                           <div className="text-sm text-muted-foreground">
-                            {formatFileSize(upload.fileSize)} • {upload.finalFileType || 'tddf'} • Started {new Date(upload.uploadedAt).toLocaleString('en-US', { 
+                            {upload.fileSize ? `${formatFileSize(upload.fileSize)} • ` : ''}{upload.finalFileType || 'tddf'} • Started {upload.uploadedAt ? new Date(upload.uploadedAt).toLocaleString('en-US', { 
                               month: 'numeric', 
                               day: 'numeric', 
                               year: 'numeric', 
@@ -4411,7 +4411,7 @@ export default function TddfApiDataPage() {
                               minute: '2-digit', 
                               hour12: true,
                               timeZone: 'America/Chicago'
-                            })} • Encoding: <TimingDisplay uploadId={upload.id} /> • {upload.lineCount ? upload.lineCount.toLocaleString() : '9,155'} lines
+                            }) : 'Unknown'} • Encoding: <TimingDisplay uploadId={upload.id} /> • {upload.lineCount ? upload.lineCount.toLocaleString() : 'calculating'} lines
                           </div>
                         </div>
                       </div>

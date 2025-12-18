@@ -2405,6 +2405,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get timing data for a specific upload (encoding/processing time)
+  app.get("/api/uploader/:id/timing", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { getTableName } = await import("./table-config");
+      
+      // First check processing_timing_logs table (for manual re-encoding)
+      const timingTableName = getTableName('processing_timing_logs');
+      const result = await pool.query(`
+        SELECT 
+          duration_seconds,
+          end_time,
+          status,
+          total_records,
+          records_per_second
+        FROM ${timingTableName}
+        WHERE upload_id = $1
+          AND status = 'completed'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [id]);
+      
+      // If no timing logs found, check uploader_uploads table for auto-processing timing data
+      if (result.rows.length === 0) {
+        const uploaderTableName = getTableName('uploader_uploads');
+        
+        const autoResult = await pool.query(`
+          SELECT 
+            encoding_time_ms,
+            encoding_at,
+            encoding_complete,
+            json_records_created,
+            current_phase
+          FROM ${uploaderTableName}
+          WHERE id = $1
+            AND encoding_time_ms IS NOT NULL
+            AND encoding_complete IS NOT NULL
+        `, [id]);
+        
+        if (autoResult.rows.length === 0) {
+          return res.json({ success: true, hasTiming: false });
+        }
+        
+        // Process auto-processing timing data
+        const autoTiming = autoResult.rows[0];
+        const durationMs = autoTiming.encoding_time_ms;
+        const durationSeconds = Math.floor(durationMs / 1000);
+        const recordsProcessed = autoTiming.json_records_created || 0;
+        const recordsPerSecond = durationSeconds > 0 ? (recordsProcessed / durationSeconds) : 0;
+        
+        // Format duration as "X min Y sec" or "X sec" or "X ms"
+        let durationText = '';
+        if (durationSeconds >= 60) {
+          const minutes = Math.floor(durationSeconds / 60);
+          const seconds = durationSeconds % 60;
+          durationText = `${minutes} min ${seconds} sec`;
+        } else if (durationSeconds > 0) {
+          durationText = `${durationSeconds} sec`;
+        } else {
+          durationText = `${durationMs} ms`;
+        }
+        
+        return res.json({
+          success: true,
+          hasTiming: true,
+          duration: durationText,
+          completedAt: autoTiming.encoding_complete,
+          recordsProcessed: recordsProcessed,
+          processingRate: recordsPerSecond.toFixed(2),
+          source: 'auto-processing'
+        });
+      }
+      
+      const timing = result.rows[0];
+      
+      // Format duration as "X min Y sec" or "X sec" - handle 0 duration
+      let durationText = '';
+      if (timing.duration_seconds !== null && timing.duration_seconds !== undefined) {
+        const minutes = Math.floor(timing.duration_seconds / 60);
+        const seconds = timing.duration_seconds % 60;
+        if (minutes > 0) {
+          durationText = `${minutes} min ${seconds} sec`;
+        } else if (seconds > 0) {
+          durationText = `${seconds} sec`;
+        } else {
+          durationText = `< 1 sec`;
+        }
+      }
+      
+      res.json({
+        success: true,
+        hasTiming: true,
+        duration: durationText,
+        completedAt: timing.end_time,
+        recordsProcessed: timing.total_records,
+        processingRate: timing.records_per_second
+      });
+    } catch (error: unknown) {
+      console.error('Get timing error:', error);
+      // Return graceful fallback instead of error
+      res.json({ success: true, hasTiming: false });
+    }
+  });
+
   // Get hierarchical JSONB data with batch-based pagination (5 batches per page)
   app.get("/api/uploader/:id/jsonb-data-hierarchical", isAuthenticated, async (req, res) => {
     try {
