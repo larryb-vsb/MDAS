@@ -20,9 +20,10 @@ function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   
   const message = error.message.toLowerCase();
+  const errorCode = (error as any).code;
   
   // Retryable database connection errors
-  return (
+  const isConnectionError = (
     message.includes('connection terminated unexpectedly') ||
     message.includes('connection timeout') ||
     message.includes('econnreset') ||
@@ -30,8 +31,22 @@ function isRetryableError(error: unknown): boolean {
     message.includes('network error') ||
     message.includes('socket hang up') ||
     message.includes('closed by the server') ||
-    message.includes('connection closed')
+    message.includes('connection closed') ||
+    message.includes('timeout acquiring connection') ||
+    message.includes('pool is full') ||
+    message.includes('cannot acquire connection')
   );
+  
+  // Retryable PostgreSQL errors (deadlocks, serialization failures)
+  const isDeadlockError = (
+    errorCode === '40001' || // serialization_failure
+    errorCode === '40P01' || // deadlock_detected
+    errorCode === '55P03' || // lock_not_available
+    message.includes('deadlock detected') ||
+    message.includes('could not serialize access')
+  );
+  
+  return isConnectionError || isDeadlockError;
 }
 
 function calculateDelay(attempt: number, baseDelay: number, maxDelay: number): number {

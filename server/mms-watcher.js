@@ -13,7 +13,7 @@ const MAX_STEP6_RETRIES = 3; // Maximum number of retry attempts before marking 
 const STEP6_TIMEOUT_MS = 600000; // 10 minutes timeout for Step 6 processing (increased for large TDDF_2400 files)
 
 // Step 6 Concurrency Configuration - Initial default, can be overridden by database setting
-const DEFAULT_MAX_STEP6_CONCURRENT_FILES = parseInt(process.env.MAX_STEP6_CONCURRENT_FILES) || 3;
+const DEFAULT_MAX_STEP6_CONCURRENT_FILES = parseInt(process.env.MAX_STEP6_CONCURRENT_FILES) || 5;
 const STEP6_INTERVAL_MS = parseInt(process.env.STEP6_INTERVAL_MS) || 60000; // Check interval (60 seconds)
 
 class MMSWatcher {
@@ -2319,11 +2319,51 @@ class MMSWatcher {
   canAcquireSlot() {
     return this.step6ActiveSlots.size < this.maxStep6Concurrent;
   }
+  
+  // Check if batch pool is healthy enough to start a new processing slot
+  async isPoolHealthy() {
+    try {
+      const { batchPool } = await import('./db.js');
+      const waitingCount = batchPool.waitingCount || 0;
+      const totalCount = batchPool.totalCount || 0;
+      const idleCount = batchPool.idleCount || 0;
+      
+      // Log pool stats for debugging
+      if (this.step6ActiveSlots.size > 0) {
+        console.log(`[MMS-WATCHER] [POOL-STATS] Batch pool: total=${totalCount}, idle=${idleCount}, waiting=${waitingCount}`);
+      }
+      
+      // Skip new slot if too many queries waiting for connections
+      if (waitingCount > 10) {
+        console.warn(`[MMS-WATCHER] [POOL-HEALTH] ⚠️  Pool stressed - ${waitingCount} queries waiting, skipping new slot`);
+        return false;
+      }
+      
+      // Skip if pool is near exhaustion (less than 5 idle connections)
+      if (totalCount > 10 && idleCount < 5) {
+        console.warn(`[MMS-WATCHER] [POOL-HEALTH] ⚠️  Pool near exhaustion - only ${idleCount} idle connections, skipping new slot`);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn(`[MMS-WATCHER] [POOL-HEALTH] Could not check pool health:`, error.message);
+      return true; // Allow slot if we can't check
+    }
+  }
 
-  acquireSlot(uploadId) {
+  async acquireSlot(uploadId) {
     if (!this.canAcquireSlot()) {
       return false;
     }
+    
+    // Check pool health before acquiring slot
+    const poolHealthy = await this.isPoolHealthy();
+    if (!poolHealthy) {
+      console.log(`[MMS-WATCHER] [STEP6-SLOT] ⏸️  Delaying slot acquisition for ${uploadId} - pool under stress`);
+      return false;
+    }
+    
     this.step6ActiveSlots.add(uploadId);
     console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔓 Acquired slot for ${uploadId} (${this.step6ActiveSlots.size}/${this.maxStep6Concurrent} active)`);
     return true;
@@ -2464,7 +2504,8 @@ class MMSWatcher {
   // Process a single Step 6 file with slot management
   async processStep6File(upload) {
     // Acquire slot (should always succeed due to prior checks, but guard anyway)
-    if (!this.acquireSlot(upload.id)) {
+    const slotAcquired = await this.acquireSlot(upload.id);
+    if (!slotAcquired) {
       console.error(`[MMS-WATCHER] [STEP6-SLOT] ❌ Failed to acquire slot for ${upload.filename} - re-queuing`);
       this.enqueueFile(upload);
       return;

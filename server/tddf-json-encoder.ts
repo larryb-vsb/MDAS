@@ -7,8 +7,27 @@
 import { UploaderUpload } from '@shared/schema';
 import { parseTddfFilename } from './filename-parser';
 import { batchPool } from './db';
+import { withRetry } from './db-retry-util';
 import crypto from 'crypto';
 import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
+
+/**
+ * Execute a database operation with retry logic using the shared withRetry helper
+ * Logs context-specific messages for Step 6 processing
+ */
+async function executeWithRetry<T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> {
+  return withRetry(operation, {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 30000,
+    onRetry: (attempt, error) => {
+      console.warn(`[STEP-6-RETRY] ${context} attempt ${attempt} failed (${error.message}), retrying...`);
+    }
+  });
+}
 
 /**
  * Extract processing datetime from TDDF filename
@@ -550,32 +569,37 @@ export async function processAllRecordsToMasterTable(
     let duplicatesRemoved = 0;
     let recordsAfterCleanup = 0;
     
-    // Count records before cleanup
-    const beforeCountResult = await batchPool.query(`
-      SELECT COUNT(*) as count FROM ${tddfJsonbTable} WHERE upload_id = $1
-    `, [upload.id]);
+    // Count records before cleanup (with retry for connection issues)
+    const beforeCountResult = await executeWithRetry(async () => {
+      return await batchPool.query(`
+        SELECT COUNT(*) as count FROM ${tddfJsonbTable} WHERE upload_id = $1
+      `, [upload.id]);
+    }, 'countBeforeCleanup');
     const recordsBeforeCleanup = parseInt(beforeCountResult.rows[0]?.count || '0', 10);
     
     // Remove duplicate records (keep newest based on MAX(id))
     // Optimized: Single-pass deletion using CTE with ROW_NUMBER() window function
-    const deleteResult = await batchPool.query(`
-      WITH duplicates_to_delete AS (
-        SELECT id
-        FROM (
-          SELECT 
-            id,
-            ROW_NUMBER() OVER (
-              PARTITION BY raw_line_hash 
-              ORDER BY id DESC
-            ) as row_num
-          FROM ${tddfJsonbTable}
-          WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
-        ) ranked
-        WHERE row_num > 1
-      )
-      DELETE FROM ${tddfJsonbTable}
-      WHERE id IN (SELECT id FROM duplicates_to_delete)
-    `, [upload.id]);
+    // With retry logic for deadlocks/connection issues during heavy concurrent processing
+    const deleteResult = await executeWithRetry(async () => {
+      return await batchPool.query(`
+        WITH duplicates_to_delete AS (
+          SELECT id
+          FROM (
+            SELECT 
+              id,
+              ROW_NUMBER() OVER (
+                PARTITION BY raw_line_hash 
+                ORDER BY id DESC
+              ) as row_num
+            FROM ${tddfJsonbTable}
+            WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
+          ) ranked
+          WHERE row_num > 1
+        )
+        DELETE FROM ${tddfJsonbTable}
+        WHERE id IN (SELECT id FROM duplicates_to_delete)
+      `, [upload.id]);
+    }, 'duplicateCleanup');
     
     duplicatesRemoved = deleteResult.rowCount || 0;
     recordsAfterCleanup = recordsBeforeCleanup - duplicatesRemoved;
@@ -710,6 +734,7 @@ export async function processAllRecordsToMasterTable(
 
 /**
  * Helper function to insert batch records into master tddfJsonb table
+ * With retry logic for connection/deadlock errors
  */
 async function insertMasterTableBatch(tableName: string, records: any[]): Promise<void> {
   if (records.length === 0) return;
@@ -735,17 +760,20 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
     record.createdAt
   ]);
   
-  await batchPool.query(`
-    INSERT INTO ${tableName} (
-      upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
-      extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
-      parsed_datetime, record_time_source, created_at
-    ) VALUES ${values}
-  `, params);
+  await executeWithRetry(async () => {
+    await batchPool.query(`
+      INSERT INTO ${tableName} (
+        upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
+        extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
+        parsed_datetime, record_time_source, created_at
+      ) VALUES ${values}
+    `, params);
+  }, 'insertMasterTableBatch');
 }
 
 /**
  * Helper function to insert batch records into uploader_tddf_jsonb_records table (Raw Data destination)
+ * With retry logic for connection/deadlock errors
  */
 async function insertApiRecordsBatch(tableName: string, records: any[]): Promise<void> {
   if (records.length === 0) return;
@@ -770,12 +798,14 @@ async function insertApiRecordsBatch(tableName: string, records: any[]): Promise
     ];
   });
   
-  await batchPool.query(`
-    INSERT INTO ${tableName} (
-      upload_id, record_type, record_data, line_number, raw_line,
-      record_identifier, created_at, raw_line_hash
-    ) VALUES ${values}
-  `, params);
+  await executeWithRetry(async () => {
+    await batchPool.query(`
+      INSERT INTO ${tableName} (
+        upload_id, record_type, record_data, line_number, raw_line,
+        record_identifier, created_at, raw_line_hash
+      ) VALUES ${values}
+    `, params);
+  }, 'insertApiRecordsBatch');
 }
 
 /**

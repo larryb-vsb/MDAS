@@ -52,11 +52,11 @@ const getPoolConfig = (poolType: 'app' | 'batch' | 'session') => {
       acquireTimeoutMillis: 30000,
     },
     batch: {
-      max: isDev ? 20 : 30,             // INCREASED: Heavy TDDF batch processing  
-      min: isDev ? 3 : 5,
+      max: isDev ? 40 : 60,             // INCREASED: Support 5 concurrent Step 6 slots (8 connections each)
+      min: isDev ? 5 : 10,
       idleTimeoutMillis: 60000,         // Longer idle time for batch jobs
       connectionTimeoutMillis: 15000,
-      acquireTimeoutMillis: 60000,      // Longer wait for batch operations
+      acquireTimeoutMillis: 90000,      // Increased wait for batch operations under load
     },
     session: {
       max: isDev ? 8 : 12,              // INCREASED: Session storage
