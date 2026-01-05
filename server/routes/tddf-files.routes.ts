@@ -731,13 +731,14 @@ export function registerTddfFilesRoutes(app: Express) {
       }
       
       // Bulk soft-delete the valid files
+      // Cast $2 to text explicitly to avoid PostgreSQL type inference issues (42P08)
       await pool.query(`
         UPDATE ${uploadsTableName}
         SET deleted_at = NOW(),
-            deleted_by = $2,
+            deleted_by = $2::text,
             last_updated = NOW(),
             processing_notes = COALESCE(processing_notes, '') || 
-              E'\\n[' || NOW()::text || '] Bulk deleted by ' || $2 || ' via queue management'
+              E'\\n[' || NOW()::text || '] Bulk deleted by ' || $2::text || ' via queue management'
         WHERE id = ANY($1)
           AND deleted_at IS NULL
       `, [validIds, username]);

@@ -10,7 +10,7 @@ import path from 'path';
 
 // Step 6 Processing Timeout and Retry Configuration
 const MAX_STEP6_RETRIES = 3; // Maximum number of retry attempts before marking file as failed
-const STEP6_TIMEOUT_MS = 300000; // 5 minutes timeout for Step 6 processing
+const STEP6_TIMEOUT_MS = 600000; // 10 minutes timeout for Step 6 processing (increased for large TDDF_2400 files)
 
 // Step 6 Concurrency Configuration - Initial default, can be overridden by database setting
 const DEFAULT_MAX_STEP6_CONCURRENT_FILES = parseInt(process.env.MAX_STEP6_CONCURRENT_FILES) || 3;
