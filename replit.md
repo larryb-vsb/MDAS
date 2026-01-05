@@ -58,6 +58,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 5, 2026 - Step 6 Concurrent Processing Improvements
+**Change**: Implemented robust concurrency support for 5 simultaneous Step 6 processing slots with retry logic and pool health monitoring.
+
+**Files Modified**:
+- `server/db.ts`: Increased batch pool from 20→40 (dev) and 30→60 (prod) max connections
+- `server/db-retry-util.ts`: Enhanced retry helper with comprehensive error detection for Neon transient failures
+- `server/tddf-json-encoder.ts`: Added retry logic for batch INSERTs and duplicate validation queries using shared withRetry helper
+- `server/mms-watcher.js`: Added pool health checks before slot acquisition, updated default to 5 concurrent slots
+
+**Technical Details**:
+- **Pool Sizing**: Each Step 6 slot requires ~5 connections at peak; 40 connections supports 5 slots + headroom
+- **Retry Logic**: Exponential backoff with jitter for deadlocks (40001, 40P01, 55P03), serialization failures, and connection timeouts
+- **Health Monitoring**: Slot acquisition blocked when waitingCount > 10 or idleCount < 5
+- **Pool Stats Logging**: Added periodic logging of pool metrics during active processing for debugging
+
 ### January 5, 2026 - Production Bug Fixes (Bulk Delete & Step 6 Timeout)
 **Change**: Fixed two production issues - bulk delete SQL type mismatch error and Step 6 processing timeouts for large TDDF files.
 
