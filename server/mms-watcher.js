@@ -1817,8 +1817,8 @@ class MMSWatcher {
             }
           }
           
-          // Update upload status
-          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          // Update upload status - mark as 'processed' since DACQ files are fully complete after encoding
+          await this.storage.updateUploaderPhase(upload.id, 'processed', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
             encodingNotes: `Successfully processed merchant detail file using MCC schema: ${merchantsCreated} created, ${merchantsUpdated} updated${warnings.length > 0 ? ` (${warnings.length} warnings)` : ''}`,
