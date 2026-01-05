@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity } from 'lucide-react';
+import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity, Sun, Moon } from 'lucide-react';
+import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
 import { useRoute, useLocation } from 'wouter';
 import { format, parse, startOfMonth, endOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays, eachDayOfInterval, getDay, isWeekend, isSameDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -228,6 +229,29 @@ export default function History() {
       setIsDarkMode(user.themePreference === 'dark');
     }
   }, [user]);
+
+  // Mutation to update user theme preference
+  const updateThemeMutation = useMutation({
+    mutationFn: async (theme: 'light' | 'dark') => {
+      if (!user) return;
+      return apiRequest(`/api/users/${user.id}`, {
+        method: 'PUT',
+        body: {
+          ...user,
+          themePreference: theme
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    }
+  });
+
+  const handleThemeToggle = () => {
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    setIsDarkMode(!isDarkMode);
+    updateThemeMutation.mutate(newTheme);
+  };
   
   // Parse URL query params for filters
   useEffect(() => {
@@ -616,6 +640,209 @@ export default function History() {
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  // PDF Styles
+  const pdfStyles = StyleSheet.create({
+    page: {
+      flexDirection: 'column',
+      backgroundColor: '#FFFFFF',
+      padding: 30,
+      fontFamily: 'Helvetica',
+    },
+    header: {
+      marginBottom: 20,
+      paddingBottom: 10,
+      borderBottomWidth: 2,
+      borderBottomColor: '#2563EB',
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#1E40AF',
+      marginBottom: 5,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: '#6B7280',
+      marginBottom: 10,
+    },
+    section: {
+      marginTop: 20,
+      marginBottom: 15,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#1F2937',
+      marginBottom: 10,
+      paddingBottom: 5,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E5E7EB',
+    },
+    summaryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginBottom: 15,
+    },
+    summaryItem: {
+      width: '48%',
+      marginBottom: 10,
+      padding: 10,
+      backgroundColor: '#F9FAFB',
+      borderRadius: 5,
+    },
+    summaryLabel: {
+      fontSize: 12,
+      color: '#6B7280',
+      marginBottom: 3,
+    },
+    summaryValue: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#1F2937',
+    },
+    tableHeader: {
+      flexDirection: 'row',
+      backgroundColor: '#F3F4F6',
+      padding: 8,
+      borderRadius: 3,
+      marginBottom: 5,
+    },
+    tableHeaderText: {
+      fontSize: 11,
+      fontWeight: 'bold',
+      color: '#374151',
+      flex: 1,
+    },
+    tableRow: {
+      flexDirection: 'row',
+      padding: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
+    },
+    tableCell: {
+      fontSize: 10,
+      color: '#4B5563',
+      flex: 1,
+    },
+    footer: {
+      position: 'absolute',
+      bottom: 30,
+      left: 30,
+      right: 30,
+      textAlign: 'center',
+      color: '#6B7280',
+      fontSize: 10,
+      borderTopWidth: 1,
+      borderTopColor: '#E5E7EB',
+      paddingTop: 10,
+    },
+  });
+
+  // PDF Document Component
+  const PDFReport = ({ data }: { data: MonthlyTotals }) => (
+    <Document>
+      <Page size="A4" style={pdfStyles.page}>
+        <View style={pdfStyles.header}>
+          <Text style={pdfStyles.title}>
+            MDAS Monthly Report - {data.month}
+          </Text>
+          <Text style={pdfStyles.subtitle}>
+            Generated on {format(new Date(), 'PPP')} at {format(new Date(), 'p')}
+          </Text>
+        </View>
+
+        <View style={pdfStyles.section}>
+          <Text style={pdfStyles.sectionTitle}>Executive Summary</Text>
+          <View style={pdfStyles.summaryGrid}>
+            <View style={pdfStyles.summaryItem}>
+              <Text style={pdfStyles.summaryLabel}>Transaction Authorizations (DT)</Text>
+              <Text style={pdfStyles.summaryValue}>{formatCurrency(data.totalTransactionValue)}</Text>
+            </View>
+            <View style={pdfStyles.summaryItem}>
+              <Text style={pdfStyles.summaryLabel}>Net Deposits (BH)</Text>
+              <Text style={pdfStyles.summaryValue}>{formatCurrency(data.totalNetDepositBh)}</Text>
+            </View>
+            <View style={pdfStyles.summaryItem}>
+              <Text style={pdfStyles.summaryLabel}>Total Records</Text>
+              <Text style={pdfStyles.summaryValue}>{formatNumber(data.totalRecords)}</Text>
+            </View>
+            <View style={pdfStyles.summaryItem}>
+              <Text style={pdfStyles.summaryLabel}>Total Files</Text>
+              <Text style={pdfStyles.summaryValue}>{formatNumber(data.totalFiles)}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={pdfStyles.section}>
+          <Text style={pdfStyles.sectionTitle}>Daily Breakdown</Text>
+          <View style={pdfStyles.tableHeader}>
+            <Text style={pdfStyles.tableHeaderText}>Date</Text>
+            <Text style={pdfStyles.tableHeaderText}>Files</Text>
+            <Text style={pdfStyles.tableHeaderText}>Records</Text>
+            <Text style={pdfStyles.tableHeaderText}>DT Amount</Text>
+            <Text style={pdfStyles.tableHeaderText}>BH Deposit</Text>
+          </View>
+          {data.dailyBreakdown.slice(0, 31).map((day) => (
+            <View key={day.date} style={pdfStyles.tableRow}>
+              <Text style={pdfStyles.tableCell}>{format(new Date(day.date), 'EEE, MMM dd')}</Text>
+              <Text style={pdfStyles.tableCell}>{day.files}</Text>
+              <Text style={pdfStyles.tableCell}>{formatNumber(day.records)}</Text>
+              <Text style={pdfStyles.tableCell}>{formatCurrency(day.transactionValue)}</Text>
+              <Text style={pdfStyles.tableCell}>{formatCurrency(day.netDepositBh)}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={pdfStyles.footer}>
+          MDAS - Merchant Datawarehouse and Automation System | Vermont State Bank
+        </Text>
+      </Page>
+    </Document>
+  );
+
+  const generatePDFReport = async () => {
+    if (!monthlyData) {
+      toast({
+        title: "No Data Available",
+        description: "Please wait for data to load before generating a report.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Generating PDF Report",
+        description: "Please wait while your report is being generated...",
+      });
+
+      const doc = <PDFReport data={monthlyData} />;
+      const blob = await pdf(doc).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MDAS-Monthly-Report-${monthlyData.month.replace(' ', '-')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Report Generated",
+        description: "Your report has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const toggleSeries = (series: keyof typeof visibleSeries) => {
@@ -2275,6 +2502,31 @@ export default function History() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleThemeToggle}
+                disabled={updateThemeMutation.isPending}
+                data-testid="button-theme-toggle"
+              >
+                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                <span className="hidden sm:inline ml-1">{isDarkMode ? 'Light' : 'Dark'}</span>
+              </Button>
+
+              {parsedRoute.viewType === 'monthly' && monthlyData && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={generatePDFReport}
+                  className="bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                  data-testid="button-pdf-report"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1">PDF Report</span>
+                  <span className="sm:hidden ml-1">PDF</span>
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 size="sm"
