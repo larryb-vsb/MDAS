@@ -193,8 +193,8 @@ export default function History() {
   const [visibleSeries, setVisibleSeries] = useState({
     currentAuth: true,
     currentDeposit: true,
-    previousAuth: true,
-    previousDeposit: true
+    previousAuth: false,
+    previousDeposit: false
   });
   
   // Quarterly pagination state (20 rows per page for ~90 days of data)
@@ -1020,7 +1020,7 @@ export default function History() {
                     htmlFor="previous-auth" 
                     className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                   >
-                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#a78bfa'}}></span>
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#f97316'}}></span>
                     {comparisonData.previousMonth.month} Authorizations
                   </label>
                 </div>
@@ -1035,7 +1035,7 @@ export default function History() {
                     htmlFor="previous-deposit" 
                     className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                   >
-                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#22d3ee'}}></span>
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#22c55e'}}></span>
                     {comparisonData.previousMonth.month} Net Deposit
                   </label>
                 </div>
@@ -1088,7 +1088,7 @@ export default function History() {
                       <Line 
                         type="monotone" 
                         dataKey="previousAuth" 
-                        stroke="#8b5cf6" 
+                        stroke="#f97316" 
                         strokeWidth={2}
                         strokeDasharray="5 5"
                         name={`${comparisonData.previousMonth.month} Authorizations`}
@@ -1099,7 +1099,7 @@ export default function History() {
                       <Line 
                         type="monotone" 
                         dataKey="previousDeposit" 
-                        stroke="#06b6d4" 
+                        stroke="#22c55e" 
                         strokeWidth={2}
                         strokeDasharray="5 5"
                         name={`${comparisonData.previousMonth.month} Net Deposit`}
@@ -1148,7 +1148,7 @@ export default function History() {
                     {visibleSeries.previousAuth && (
                       <Bar 
                         dataKey="previousAuth" 
-                        fill="#a78bfa" 
+                        fill="#f97316" 
                         name={`${comparisonData.previousMonth.month} Authorizations`}
                         maxBarSize={20}
                       />
@@ -1156,7 +1156,7 @@ export default function History() {
                     {visibleSeries.previousDeposit && (
                       <Bar 
                         dataKey="previousDeposit" 
-                        fill="#22d3ee" 
+                        fill="#22c55e" 
                         name={`${comparisonData.previousMonth.month} Net Deposit`}
                         maxBarSize={20}
                       />
