@@ -58,6 +58,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 5, 2026 - Production Bug Fixes (Bulk Delete & Step 6 Timeout)
+**Change**: Fixed two production issues - bulk delete SQL type mismatch error and Step 6 processing timeouts for large TDDF files.
+
+**Files Modified**:
+- `server/routes/tddf-files.routes.ts`: Fixed PostgreSQL type inference error in bulk delete query
+- `server/mms-watcher.js`: Increased Step 6 processing timeout
+
+**Technical Details**:
+- **Bulk Delete Fix**: Added explicit `::text` cast to username parameter ($2) to resolve PostgreSQL error 42P08 ("inconsistent types deduced for parameter - text versus character varying")
+- **Timeout Fix**: Increased STEP6_TIMEOUT_MS from 300,000ms (5 min) to 600,000ms (10 min) to accommodate large TDDF_2400 daily batch files that were timing out during processing
+
 ### December 18, 2025 - Fixed Timing Display and File Size Issues
 **Change**: Restored missing timing endpoint and fixed production display issues for "Unknown" file size and "no timing data".
 
