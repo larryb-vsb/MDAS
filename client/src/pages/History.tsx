@@ -1808,7 +1808,7 @@ export default function History() {
                     htmlFor="previous-auth" 
                     className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                   >
-                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#a78bfa'}}></span>
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#f97316'}}></span>
                     {quarterlyComparisonData.previousQuarter.quarter} {quarterlyComparisonData.previousQuarter.year} Authorizations
                   </label>
                 </div>
@@ -1823,7 +1823,7 @@ export default function History() {
                     htmlFor="previous-deposit" 
                     className={`text-sm font-medium cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
                   >
-                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#22d3ee'}}></span>
+                    <span className="inline-block w-3 h-3 mr-1 rounded" style={{backgroundColor: '#22c55e'}}></span>
                     {quarterlyComparisonData.previousQuarter.quarter} {quarterlyComparisonData.previousQuarter.year} Net Deposit
                   </label>
                 </div>
@@ -1886,8 +1886,9 @@ export default function History() {
                       <Line 
                         type="monotone" 
                         dataKey="previousAuth" 
-                        stroke="#a78bfa" 
+                        stroke="#f97316" 
                         strokeWidth={2}
+                        strokeDasharray="5 5"
                         name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Authorizations`}
                       />
                     )}
@@ -1895,8 +1896,9 @@ export default function History() {
                       <Line 
                         type="monotone" 
                         dataKey="previousDeposit" 
-                        stroke="#22d3ee" 
+                        stroke="#22c55e" 
                         strokeWidth={2}
+                        strokeDasharray="5 5"
                         name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Net Deposit`}
                       />
                     )}
@@ -1953,7 +1955,7 @@ export default function History() {
                     {visibleSeries.previousAuth && (
                       <Bar 
                         dataKey="previousAuth" 
-                        fill="#a78bfa" 
+                        fill="#f97316" 
                         name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Authorizations`}
                         maxBarSize={20}
                       />
@@ -1961,7 +1963,7 @@ export default function History() {
                     {visibleSeries.previousDeposit && (
                       <Bar 
                         dataKey="previousDeposit" 
-                        fill="#22d3ee" 
+                        fill="#22c55e" 
                         name={`${quarterlyComparisonData.previousQuarter.quarter} ${quarterlyComparisonData.previousQuarter.year} Net Deposit`}
                         maxBarSize={20}
                       />
