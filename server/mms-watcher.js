@@ -674,6 +674,81 @@ class MMSWatcher {
                 recovered_at: new Date().toISOString()
               })
             });
+          } else {
+            // Table doesn't exist - reset to identified for re-encoding
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Recovering stuck file ${upload.filename} - no table, resetting to identified`);
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              currentPhase: 'identified',
+              statusMessage: 'Recovery reset - requeued for encoding',
+              retryCount: 0,
+              processingNotes: JSON.stringify({
+                pipeline_recovery: true,
+                recovered_from: 'stuck_in_encoding_no_table',
+                recovered_at: new Date().toISOString()
+              })
+            });
+          }
+        }
+      }
+      
+      // Check for stuck files in processing phase (over 30 minutes - Step 6 timeout is 10 min, allow buffer)
+      const stuckInProcessing = await this.storage.pool.query(`
+        SELECT id, filename, current_phase, updated_at, retry_count
+        FROM ${this.storage.getTableName('uploader_uploads')}
+        WHERE current_phase = 'processing' 
+          AND updated_at < NOW() - INTERVAL '30 minutes'
+          AND deleted_at IS NULL
+          AND is_archived = false
+        LIMIT 10
+      `);
+      
+      if (stuckInProcessing.rows.length > 0) {
+        console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found ${stuckInProcessing.rows.length} files stuck in processing phase`);
+        
+        for (const upload of stuckInProcessing.rows) {
+          const retryCount = upload.retry_count || 0;
+          const stuckDurationMs = Date.now() - new Date(upload.updated_at).getTime();
+          const stuckMinutes = Math.floor(stuckDurationMs / 60000);
+          
+          // Check if this upload is in our active slots (stale worker)
+          const isActiveWorker = this.step6ActiveSlots.has(upload.id);
+          if (isActiveWorker) {
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] 🔓 Force-releasing stale worker slot for ${upload.filename} (stuck ${stuckMinutes} min)`);
+            this.step6ActiveSlots.delete(upload.id);
+            this.step6Progress.delete(upload.id);
+          }
+          
+          if (retryCount >= MAX_STEP6_RETRIES) {
+            // Max retries exceeded, mark as failed
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] ❌ Max retries exceeded for ${upload.filename} (stuck in processing ${stuckMinutes} min), marking as failed`);
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              currentPhase: 'failed',
+              failedAt: new Date(),
+              processingNotes: JSON.stringify({
+                pipeline_recovery: true,
+                recovered_from: 'stuck_in_processing',
+                reason: `Processing phase stuck for ${stuckMinutes} minutes after ${retryCount} retries`,
+                recovered_at: new Date().toISOString()
+              })
+            });
+          } else {
+            // Reset to encoded for retry
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] ✅ Recovering ${upload.filename} from processing → encoded for retry (attempt ${retryCount + 1}/${MAX_STEP6_RETRIES})`);
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              currentPhase: 'encoded',
+              statusMessage: `Processing recovery: reset after ${stuckMinutes} min stuck (attempt ${retryCount + 1}/${MAX_STEP6_RETRIES})`,
+              retryCount: retryCount + 1,
+              lastRetryAt: new Date(),
+              processingNotes: JSON.stringify({
+                pipeline_recovery: true,
+                recovered_from: 'stuck_in_processing',
+                stuck_duration_minutes: stuckMinutes,
+                recovered_at: new Date().toISOString()
+              })
+            });
           }
         }
       }
