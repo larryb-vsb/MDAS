@@ -46,7 +46,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
     if (step6Queue.length > 0) {
       const currentUploadIds = new Set(step6Queue.map((f: any) => f.uploadId));
       setSelectedFiles(prev => {
-        const filtered = new Set([...prev].filter(id => currentUploadIds.has(id)));
+        const filtered = new Set(Array.from(prev).filter(id => currentUploadIds.has(id)));
         // Only update if there's a difference to prevent unnecessary re-renders
         if (filtered.size !== prev.size) {
           return filtered;
@@ -56,14 +56,25 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
     }
   }, [step6Queue]);
   
-  // Filter files based on status
+  // Deduplicate step6Progress to prevent duplicate keys from API data
+  const uniqueProgress = step6Progress.reduce((acc: any[], p: any) => {
+    if (!acc.some((item: any) => item.uploadId === p.uploadId)) {
+      acc.push(p);
+    }
+    return acc;
+  }, []);
+  
+  // Get set of actively processing upload IDs to exclude from queue list (prevents duplicate keys)
+  const activeUploadIds = new Set(uniqueProgress.map((p: any) => p.uploadId));
+  
+  // Deduplicate step6Queue and filter by status
+  const seenUploadIds = new Set<string>();
   const filteredFiles = step6Queue.filter((file: any) => {
+    if (seenUploadIds.has(file.uploadId)) return false;
+    seenUploadIds.add(file.uploadId);
     if (statusFilter === 'all') return true;
     return file.status === statusFilter;
   });
-  
-  // Get set of actively processing upload IDs to exclude from queue list (prevents duplicate keys)
-  const activeUploadIds = new Set(step6Progress.map((p: any) => p.uploadId));
   
   // Filter out actively processing files from the queue list
   const queuedOnlyFiles = filteredFiles.filter((file: any) => !activeUploadIds.has(file.uploadId));
@@ -319,7 +330,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
               ) : (
                 <>
                   {/* Active Processing Files */}
-                  {step6Progress.map((progress: any) => {
+                  {uniqueProgress.map((progress: any) => {
                     const elapsedSeconds = Math.round(progress.elapsedMs / 1000);
                     const recordsPerSecond = elapsedSeconds > 0 
                       ? Math.round(progress.processedRecords / elapsedSeconds) 
