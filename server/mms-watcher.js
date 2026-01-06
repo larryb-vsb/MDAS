@@ -301,6 +301,16 @@ class MMSWatcher {
       await this.checkPipelineStatus();
     }, 60000); // Check every minute for pipeline recovery
     
+    // Orphan healing service - detects and resets files stuck in intermediate states
+    this.orphanHealingIntervalId = setInterval(async () => {
+      await this.healOrphanedFiles();
+    }, 300000); // Check every 5 minutes for orphaned files
+    
+    // Run initial orphan check on startup
+    this.healOrphanedFiles().catch(err => {
+      console.warn('[MMS-WATCHER] Initial orphan healing failed:', err.message);
+    });
+    
     // tmp_uploads cleanup service - removes old temporary files every 6 hours
     this.tmpUploadsCleanupIntervalId = setInterval(async () => {
       await this.cleanupTmpUploads();
@@ -317,6 +327,7 @@ class MMSWatcher {
     console.log('[MMS-WATCHER] Step 6 processing service started - processes encoded files to master table every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Step 7 auto archive service started - archives completed files every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Pipeline recovery service started - handles stuck files and cache updates every minute');
+    console.log('[MMS-WATCHER] Orphan healing service started - resets stuck files every 5 minutes (validating>10m, encoding>30m, processing>15m)');
     console.log('[MMS-WATCHER] tmp_uploads cleanup service started - removes files older than 24 hours (runs every 6 hours)');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
@@ -356,6 +367,10 @@ class MMSWatcher {
     if (this.tmpUploadsCleanupIntervalId) {
       clearInterval(this.tmpUploadsCleanupIntervalId);
       this.tmpUploadsCleanupIntervalId = null;
+    }
+    if (this.orphanHealingIntervalId) {
+      clearInterval(this.orphanHealingIntervalId);
+      this.orphanHealingIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
@@ -405,6 +420,116 @@ class MMSWatcher {
       }
     } catch (error) {
       console.error('[MMS-WATCHER] [TMP-CLEANUP] Error during tmp_uploads cleanup:', error);
+    }
+  }
+
+  // Orphan healing - detect and reset files stuck in intermediate processing states
+  // Thresholds:
+  // - validating: stuck > 10 minutes → reset to 'uploaded'
+  // - encoding: stuck > 30 minutes → reset to 'uploaded'
+  // - processing: stuck > 15 minutes → reset to 'encoded' (for Step 6 retry)
+  async healOrphanedFiles() {
+    try {
+      const { db } = await import('./db.js');
+      const { sql } = await import('drizzle-orm');
+      const { getTableName } = await import('./table-config.js');
+      
+      const tableName = getTableName('uploader_uploads');
+      
+      // Define stuck thresholds in minutes
+      const VALIDATING_STUCK_MINUTES = 10;
+      const ENCODING_STUCK_MINUTES = 30;
+      const PROCESSING_STUCK_MINUTES = 15;
+      
+      // Find and heal stuck 'validating' files (reset to 'uploaded')
+      const validatingResult = await db.execute(sql`
+        UPDATE ${sql.identifier(tableName)}
+        SET 
+          current_phase = 'uploaded',
+          updated_at = NOW(),
+          processing_notes = COALESCE(processing_notes, '') || ' [HEALED: was stuck in validating for >' || ${VALIDATING_STUCK_MINUTES} || 'min at ' || NOW()::text || ']'
+        WHERE current_phase = 'validating'
+          AND updated_at < NOW() - INTERVAL '${sql.raw(VALIDATING_STUCK_MINUTES.toString())} minutes'
+        RETURNING id, filename
+      `);
+      
+      // Find and heal stuck 'identified' files (reset to 'uploaded')
+      const identifiedResult = await db.execute(sql`
+        UPDATE ${sql.identifier(tableName)}
+        SET 
+          current_phase = 'uploaded',
+          updated_at = NOW(),
+          processing_notes = COALESCE(processing_notes, '') || ' [HEALED: was stuck in identified for >' || ${VALIDATING_STUCK_MINUTES} || 'min at ' || NOW()::text || ']'
+        WHERE current_phase = 'identified'
+          AND updated_at < NOW() - INTERVAL '${sql.raw(VALIDATING_STUCK_MINUTES.toString())} minutes'
+        RETURNING id, filename
+      `);
+      
+      // Find and heal stuck 'encoding' files (reset to 'uploaded')
+      const encodingResult = await db.execute(sql`
+        UPDATE ${sql.identifier(tableName)}
+        SET 
+          current_phase = 'uploaded',
+          updated_at = NOW(),
+          processing_notes = COALESCE(processing_notes, '') || ' [HEALED: was stuck in encoding for >' || ${ENCODING_STUCK_MINUTES} || 'min at ' || NOW()::text || ']'
+        WHERE current_phase = 'encoding'
+          AND updated_at < NOW() - INTERVAL '${sql.raw(ENCODING_STUCK_MINUTES.toString())} minutes'
+        RETURNING id, filename
+      `);
+      
+      // Find and heal stuck 'processing' files (reset to 'encoded' for Step 6 retry)
+      // Also remove from active slots if they're stuck
+      const processingResult = await db.execute(sql`
+        UPDATE ${sql.identifier(tableName)}
+        SET 
+          current_phase = 'encoded',
+          updated_at = NOW(),
+          processing_notes = COALESCE(processing_notes, '') || ' [HEALED: was stuck in processing for >' || ${PROCESSING_STUCK_MINUTES} || 'min at ' || NOW()::text || ']'
+        WHERE current_phase = 'processing'
+          AND updated_at < NOW() - INTERVAL '${sql.raw(PROCESSING_STUCK_MINUTES.toString())} minutes'
+        RETURNING id, filename
+      `);
+      
+      // Clean up stuck files from active Step 6 slots
+      const stuckProcessingIds = processingResult.rows.map(r => r.id);
+      for (const id of stuckProcessingIds) {
+        if (this.step6ActiveSlots.has(id)) {
+          this.step6ActiveSlots.delete(id);
+          this.step6Progress.delete(id);
+          console.log(`[MMS-WATCHER] [ORPHAN-HEAL] Removed stuck file ${id} from Step 6 active slots`);
+        }
+      }
+      
+      // Log healing results
+      const totalHealed = validatingResult.rowCount + identifiedResult.rowCount + 
+                          encodingResult.rowCount + processingResult.rowCount;
+      
+      if (totalHealed > 0) {
+        console.log(`[MMS-WATCHER] [ORPHAN-HEAL] ✅ Healed ${totalHealed} orphaned files:`);
+        
+        if (validatingResult.rowCount > 0) {
+          console.log(`  - ${validatingResult.rowCount} validating → uploaded`);
+          validatingResult.rows.forEach(r => console.log(`    • ${r.filename} (${r.id})`));
+        }
+        if (identifiedResult.rowCount > 0) {
+          console.log(`  - ${identifiedResult.rowCount} identified → uploaded`);
+          identifiedResult.rows.forEach(r => console.log(`    • ${r.filename} (${r.id})`));
+        }
+        if (encodingResult.rowCount > 0) {
+          console.log(`  - ${encodingResult.rowCount} encoding → uploaded`);
+          encodingResult.rows.forEach(r => console.log(`    • ${r.filename} (${r.id})`));
+        }
+        if (processingResult.rowCount > 0) {
+          console.log(`  - ${processingResult.rowCount} processing → encoded (Step 6 retry)`);
+          processingResult.rows.forEach(r => console.log(`    • ${r.filename} (${r.id})`));
+        }
+      }
+      
+      return { totalHealed, validating: validatingResult.rowCount, identified: identifiedResult.rowCount, 
+               encoding: encodingResult.rowCount, processing: processingResult.rowCount };
+    } catch (error) {
+      console.error('[MMS-WATCHER] [ORPHAN-HEAL] Error during orphan healing:', error);
+      return { totalHealed: 0, error: error.message };
     }
   }
 

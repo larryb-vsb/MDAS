@@ -40,10 +40,21 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
   const step6ActiveSlots = step6Data?.activeSlots?.uploadIds || [];
   const step6Progress = step6Data?.activeSlots?.progress || [];
   
-  // Reset selections when queue data changes to prevent stale selections
+  // Clean up selection by removing files that no longer exist in the queue
+  // This prevents stale selections without clearing all selections on every refresh
   useEffect(() => {
-    setSelectedFiles(new Set());
-  }, [step6Data]);
+    if (step6Queue.length > 0) {
+      const currentUploadIds = new Set(step6Queue.map((f: any) => f.uploadId));
+      setSelectedFiles(prev => {
+        const filtered = new Set([...prev].filter(id => currentUploadIds.has(id)));
+        // Only update if there's a difference to prevent unnecessary re-renders
+        if (filtered.size !== prev.size) {
+          return filtered;
+        }
+        return prev;
+      });
+    }
+  }, [step6Queue]);
   
   // Filter files based on status
   const filteredFiles = step6Queue.filter((file: any) => {
@@ -51,9 +62,15 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
     return file.status === statusFilter;
   });
   
-  // Pagination
-  const totalPages = Math.ceil(filteredFiles.length / itemsPerPage);
-  const paginatedFiles = filteredFiles.slice(
+  // Get set of actively processing upload IDs to exclude from queue list (prevents duplicate keys)
+  const activeUploadIds = new Set(step6Progress.map((p: any) => p.uploadId));
+  
+  // Filter out actively processing files from the queue list
+  const queuedOnlyFiles = filteredFiles.filter((file: any) => !activeUploadIds.has(file.uploadId));
+  
+  // Pagination (exclude active files from pagination)
+  const totalPages = Math.ceil(queuedOnlyFiles.length / itemsPerPage);
+  const paginatedFiles = queuedOnlyFiles.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
