@@ -321,7 +321,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                     <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
-              ) : filteredFiles.length === 0 ? (
+              ) : (uniqueProgress.length === 0 && paginatedFiles.length === 0) ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No items in processing queue
@@ -337,7 +337,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                       : 0;
                     
                     return (
-                      <TableRow key={progress.uploadId} className="bg-blue-50 dark:bg-blue-950">
+                      <TableRow key={`active-${progress.uploadId}`} className="bg-blue-50 dark:bg-blue-950">
                         <TableCell>
                           <Checkbox disabled />
                         </TableCell>
@@ -384,7 +384,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                   {/* Queued Files (Paginated) */}
                   {paginatedFiles.map((item: any) => (
                     <TableRow 
-                      key={item.uploadId}
+                      key={`queued-${item.uploadId}`}
                       className={selectedFiles.has(item.uploadId) ? 'bg-muted' : ''}
                       data-testid={`row-queue-${item.uploadId}`}
                     >
@@ -426,7 +426,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredFiles.length)} to {Math.min(currentPage * itemsPerPage, filteredFiles.length)} of {filteredFiles.length} files
+              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, queuedOnlyFiles.length)} to {Math.min(currentPage * itemsPerPage, queuedOnlyFiles.length)} of {queuedOnlyFiles.length} queued files
             </div>
             
             <div className="flex items-center gap-2">
