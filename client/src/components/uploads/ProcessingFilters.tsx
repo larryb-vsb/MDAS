@@ -435,14 +435,18 @@ export default function ProcessingFilters() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-1">
-              {queueData?.recentlyCompleted.slice(0, 2).map((file) => (
-                <div key={file.id} className="text-xs">
-                  <div className="truncate font-medium">{file.originalFilename}</div>
-                  <div className="text-muted-foreground">
-                    {formatRelativeTime(file.processingCompletedAt, 'Recently')}
+              {(queueData?.recentlyCompleted?.length ?? 0) > 0 ? (
+                queueData!.recentlyCompleted.slice(0, 2).map((file) => (
+                  <div key={file.id} className="text-xs">
+                    <div className="truncate font-medium">{file.originalFilename}</div>
+                    <div className="text-muted-foreground">
+                      {formatRelativeTime(file.processingCompletedAt, 'Recently')}
+                    </div>
                   </div>
-                </div>
-              )) || <div className="text-xs text-muted-foreground">No recent activity</div>}
+                ))
+              ) : (
+                <div className="text-xs text-muted-foreground">No recent activity</div>
+              )}
             </div>
           </CardContent>
         </Card>
