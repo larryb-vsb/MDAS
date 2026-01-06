@@ -490,6 +490,22 @@ class MMSWatcher {
         RETURNING id, filename
       `);
       
+      // Find and heal files stuck in 'encoded' phase with 'Validating' status (Step 6 post-processing timeout)
+      // These files have data already inserted but got stuck during duplicate cleanup - mark as completed
+      const validationStuckResult = await db.execute(sql`
+        UPDATE ${sql.identifier(tableName)}
+        SET 
+          current_phase = 'completed',
+          updated_at = NOW(),
+          completed_at = NOW(),
+          status_message = 'Completed (recovered from validation timeout)',
+          processing_notes = COALESCE(processing_notes, '') || ' [HEALED: validation timeout - data already inserted at ' || NOW()::text || ']'
+        WHERE current_phase = 'encoded'
+          AND status_message LIKE '%Validating%'
+          AND updated_at < NOW() - INTERVAL '${sql.raw(VALIDATING_STUCK_MINUTES.toString())} minutes'
+        RETURNING id, filename
+      `);
+      
       // Clean up stuck files from active Step 6 slots
       const stuckProcessingIds = processingResult.rows.map(r => r.id);
       for (const id of stuckProcessingIds) {
@@ -502,7 +518,7 @@ class MMSWatcher {
       
       // Log healing results
       const totalHealed = validatingResult.rowCount + identifiedResult.rowCount + 
-                          encodingResult.rowCount + processingResult.rowCount;
+                          encodingResult.rowCount + processingResult.rowCount + validationStuckResult.rowCount;
       
       if (totalHealed > 0) {
         console.log(`[MMS-WATCHER] [ORPHAN-HEAL] ✅ Healed ${totalHealed} orphaned files:`);
@@ -523,10 +539,15 @@ class MMSWatcher {
           console.log(`  - ${processingResult.rowCount} processing → encoded (Step 6 retry)`);
           processingResult.rows.forEach(r => console.log(`    • ${r.filename} (${r.id})`));
         }
+        if (validationStuckResult.rowCount > 0) {
+          console.log(`  - ${validationStuckResult.rowCount} validation timeout → completed`);
+          validationStuckResult.rows.forEach(r => console.log(`    • ${r.filename} (${r.id})`));
+        }
       }
       
       return { totalHealed, validating: validatingResult.rowCount, identified: identifiedResult.rowCount, 
-               encoding: encodingResult.rowCount, processing: processingResult.rowCount };
+               encoding: encodingResult.rowCount, processing: processingResult.rowCount,
+               validationTimeout: validationStuckResult.rowCount };
     } catch (error) {
       console.error('[MMS-WATCHER] [ORPHAN-HEAL] Error during orphan healing:', error);
       return { totalHealed: 0, error: error.message };

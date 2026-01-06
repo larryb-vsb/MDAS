@@ -580,28 +580,40 @@ export async function processAllRecordsToMasterTable(
     // Remove duplicate records (keep newest based on MAX(id))
     // Optimized: Single-pass deletion using CTE with ROW_NUMBER() window function
     // With retry logic for deadlocks/connection issues during heavy concurrent processing
-    const deleteResult = await executeWithRetry(async () => {
-      return await batchPool.query(`
-        WITH duplicates_to_delete AS (
-          SELECT id
-          FROM (
-            SELECT 
-              id,
-              ROW_NUMBER() OVER (
-                PARTITION BY raw_line_hash 
-                ORDER BY id DESC
-              ) as row_num
-            FROM ${tddfJsonbTable}
-            WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
-          ) ranked
-          WHERE row_num > 1
-        )
-        DELETE FROM ${tddfJsonbTable}
-        WHERE id IN (SELECT id FROM duplicates_to_delete)
-      `, [upload.id]);
-    }, 'duplicateCleanup');
-    
-    duplicatesRemoved = deleteResult.rowCount || 0;
+    // Added: 5-minute timeout to prevent infinite hangs on large datasets without proper indexes
+    let validationTimedOut = false;
+    try {
+      const deleteResult = await executeWithRetry(async () => {
+        // Set 5-minute statement timeout for this query only
+        await batchPool.query(`SET LOCAL statement_timeout = '300000'`); // 5 minutes in ms
+        return await batchPool.query(`
+          WITH duplicates_to_delete AS (
+            SELECT id
+            FROM (
+              SELECT 
+                id,
+                ROW_NUMBER() OVER (
+                  PARTITION BY raw_line_hash 
+                  ORDER BY id DESC
+                ) as row_num
+              FROM ${tddfJsonbTable}
+              WHERE upload_id = $1 AND raw_line_hash IS NOT NULL
+            ) ranked
+            WHERE row_num > 1
+          )
+          DELETE FROM ${tddfJsonbTable}
+          WHERE id IN (SELECT id FROM duplicates_to_delete)
+        `, [upload.id]);
+      }, 'duplicateCleanup');
+      
+      duplicatesRemoved = deleteResult.rowCount || 0;
+    } catch (validationError: any) {
+      // If query timed out or failed, log but continue - data is already inserted
+      console.warn(`[STEP-6-VALIDATION] ⚠️ Duplicate cleanup timed out or failed: ${validationError.message}`);
+      console.warn(`[STEP-6-VALIDATION] ⚠️ Skipping duplicate cleanup, marking as completed (data already inserted)`);
+      validationTimedOut = true;
+      duplicatesRemoved = 0;
+    }
     recordsAfterCleanup = recordsBeforeCleanup - duplicatesRemoved;
     
     console.log(`[STEP-6-VALIDATION] ✅ Duplicate cleanup completed:`);
@@ -627,6 +639,9 @@ export async function processAllRecordsToMasterTable(
     const recordsPerSecond = totalRecords > 0 && durationSeconds > 0 ? totalRecords / durationSeconds : 0;
     
     // Update to 'completed' status with duplicate stats and record type counts
+    const statusMessage = validationTimedOut 
+      ? `Completed: ${recordsBeforeCleanup} records (duplicate check skipped - timeout)`
+      : `Completed: ${recordsAfterCleanup} records, ${duplicatesRemoved} duplicates removed`;
     await batchPool.query(`
       UPDATE ${uploaderTableName}
       SET current_phase = 'completed', 
@@ -637,7 +652,7 @@ export async function processAllRecordsToMasterTable(
           completed_at = NOW()
       WHERE id = $2
     `, [
-      `Completed: ${recordsAfterCleanup} records, ${duplicatesRemoved} duplicates removed`, 
+      statusMessage, 
       upload.id,
       bhCount,
       dtCount,
