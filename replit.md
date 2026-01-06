@@ -58,6 +58,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 6, 2026 - Orphan Healing Service & Processing Queue UI Fixes
+**Change**: Added automated orphan healing service to detect and reset files stuck in intermediate processing states. Fixed checkbox selection bug and duplicate key warnings in Processing Queue UI.
+
+**Files Modified**:
+- `server/mms-watcher.js`: Added `healOrphanedFiles()` function and 5-minute interval, runs on startup
+- `client/src/components/processing/EnhancedProcessingQueue.tsx`: Fixed selection clearing bug, fixed duplicate key warnings
+
+**Technical Details**:
+- **Orphan Healing Thresholds**:
+  - `validating` stuck > 10 minutes → reset to `uploaded`
+  - `identified` stuck > 10 minutes → reset to `uploaded`
+  - `encoding` stuck > 30 minutes → reset to `uploaded`
+  - `processing` stuck > 15 minutes → reset to `encoded` (for Step 6 retry)
+- **Checkbox Fix**: Replaced aggressive useEffect that cleared all selections on every data refresh with smart cleanup that only removes files no longer in queue
+- **Duplicate Key Fix**: Filters actively processing files from queue list before rendering to prevent React duplicate key warnings
+- **Self-Healing Production**: Service runs every 5 minutes and on startup, automatically recovers stuck files without manual intervention
+
 ### January 5, 2026 - Step 6 Concurrent Processing Improvements
 **Change**: Implemented robust concurrency support for 5 simultaneous Step 6 processing slots with retry logic and pool health monitoring.
 
