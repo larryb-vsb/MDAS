@@ -327,7 +327,7 @@ class MMSWatcher {
     console.log('[MMS-WATCHER] Step 6 processing service started - processes encoded files to master table every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Step 7 auto archive service started - archives completed files every 60 seconds (when enabled)');
     console.log('[MMS-WATCHER] Pipeline recovery service started - handles stuck files and cache updates every minute');
-    console.log('[MMS-WATCHER] Orphan healing service started - resets stuck files every 5 minutes (validating>10m, encoding>30m, processing>15m)');
+    console.log('[MMS-WATCHER] Orphan healing service started - resets stuck files every 5 minutes (validating>10m, encoding>10m, processing>15m)');
     console.log('[MMS-WATCHER] tmp_uploads cleanup service started - removes files older than 24 hours (runs every 6 hours)');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
@@ -438,7 +438,7 @@ class MMSWatcher {
       
       // Define stuck thresholds in minutes
       const VALIDATING_STUCK_MINUTES = 10;
-      const ENCODING_STUCK_MINUTES = 30;
+      const ENCODING_STUCK_MINUTES = 10; // Reduced from 30 to prevent long encoding hangs
       const PROCESSING_STUCK_MINUTES = 15;
       
       // Find and heal stuck 'validating' files (reset to 'uploaded')

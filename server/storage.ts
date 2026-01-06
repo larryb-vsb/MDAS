@@ -1204,10 +1204,13 @@ export class DatabaseStorage implements IStorage {
 
   // @ENVIRONMENT-CRITICAL - Connection tracking operations
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  // @PERFORMANCE-OPTIMIZED - Added 7-day filter to prevent full table scans
   async getConnectionHosts(): Promise<any[]> {
     const connectionLogTableName = getTableName('connection_log');
     
     try {
+      // Optimized query: only look at last 7 days to reduce scan time
+      // The date filter significantly reduces the data scanned while maintaining all fields
       const result = await pool.query(`
         SELECT 
           client_ip,
@@ -1217,6 +1220,7 @@ export class DatabaseStorage implements IStorage {
           BOOL_OR(authenticated) as has_authenticated,
           ARRAY_AGG(DISTINCT user_agent) FILTER (WHERE user_agent IS NOT NULL) as user_agents
         FROM ${connectionLogTableName}
+        WHERE timestamp > NOW() - INTERVAL '7 days'
         GROUP BY client_ip
         ORDER BY last_seen DESC
         LIMIT 100

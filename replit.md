@@ -28,8 +28,17 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 - Real-time processing statistics and file management.
 - Comprehensive merchant data querying and transaction reporting.
 - Advanced field-based search for DT records within raw TDDF data using PostgreSQL `SUBSTRING` for precise field extraction.
-- Automated orphan healing service to detect and reset files stuck in intermediate processing states.
+- Automated orphan healing service to detect and reset files stuck in intermediate processing states (validating>10m, encoding>10m, processing>15m, validation-timeout>10m).
 - Robust concurrency support for Step 6 processing with retry logic and pool health monitoring.
+- Step 6 validation phase includes 5-minute query timeout to prevent infinite hangs on duplicate cleanup.
+- Performance-optimized connection monitoring with 7-day rolling window filter.
+
+### Recent Changes (January 2026)
+
+- Fixed Step 6 validation phase hanging on large files by adding 5-minute query timeout
+- Enhanced orphan healing service to recover files stuck in validation timeout (mark as completed since data is already inserted)
+- Reduced encoding stuck threshold from 30 to 10 minutes for faster recovery
+- Optimized /api/tddf-api/monitoring/hosts endpoint with 7-day date filter to prevent full table scans
 
 ## External Dependencies
 
