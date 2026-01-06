@@ -722,30 +722,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allUploads = [];
       }
       
+      // Helper to convert Neon driver string numbers back to actual numbers
+      const toNumber = (val: any): number | null => {
+        if (val === null || val === undefined) return null;
+        const num = typeof val === 'string' ? parseFloat(val) : val;
+        return Number.isFinite(num) ? num : null;
+      };
+      
       // Convert snake_case database fields to camelCase for frontend compatibility
+      // Also convert numeric strings to actual numbers (Neon driver returns integers as strings)
       const uploads = allUploads.map(row => ({
         ...row,
+        file_size: toNumber(row.file_size),
+        data_size: toNumber(row.data_size),
+        line_count: toNumber(row.line_count),
+        upload_progress: toNumber(row.upload_progress),
+        chunk_count: toNumber(row.chunk_count),
+        chunks_uploaded: toNumber(row.chunks_uploaded),
+        bh_record_count: toNumber(row.bh_record_count),
+        dt_record_count: toNumber(row.dt_record_count),
+        other_record_count: toNumber(row.other_record_count),
         currentPhase: row.current_phase,
         lastUpdated: row.last_updated,
         uploadStartedAt: row.upload_started_at,
         uploadStatus: row.upload_status,
-        uploadProgress: row.upload_progress,
+        uploadProgress: toNumber(row.upload_progress),
         chunkedUpload: row.chunked_upload,
-        chunkCount: row.chunk_count,
-        chunksUploaded: row.chunks_uploaded,
+        chunkCount: toNumber(row.chunk_count),
+        chunksUploaded: toNumber(row.chunks_uploaded),
         uploadedAt: row.uploaded_at,
         storagePath: row.storage_path,
         s3Bucket: row.s3_bucket,
         s3Key: row.s3_key,
         s3Url: row.s3_url,
         s3Etag: row.s3_etag,
-        fileSize: row.file_size,
+        fileSize: toNumber(row.file_size),
         identifiedAt: row.identified_at,
         detectedFileType: row.detected_file_type,
         userClassifiedType: row.user_classified_type,
         finalFileType: row.final_file_type,
-        lineCount: row.line_count,
-        dataSize: row.data_size,
+        lineCount: toNumber(row.line_count),
+        dataSize: toNumber(row.data_size),
         keepForReview: row.keep_for_review,
         hasHeaders: row.has_headers,
         fileFormat: row.file_format,
@@ -760,9 +777,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         failedAt: row.failed_at,
         completedAt: row.completed_at,
         startTime: row.start_time,
-        bhRecordCount: row.bh_record_count,
-        dtRecordCount: row.dt_record_count,
-        otherRecordCount: row.other_record_count,
+        bhRecordCount: toNumber(row.bh_record_count),
+        dtRecordCount: toNumber(row.dt_record_count),
+        otherRecordCount: toNumber(row.other_record_count),
         fileSequenceNumber: row.file_sequence_number,
         fileProcessingTime: row.file_processing_time,
         deletedAt: row.deleted_at,

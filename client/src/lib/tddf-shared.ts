@@ -68,12 +68,14 @@ export interface TddfRecordStats {
 
 /**
  * Format file size with proper units and bounds checking
+ * Handles both number and string inputs (Neon driver returns integers as strings)
  */
-export const formatFileSize = (bytes: number | null | undefined): string => {
-  if (!bytes || !Number.isFinite(bytes) || bytes < 0) return 'Unknown';
+export const formatFileSize = (bytes: number | string | null | undefined): string => {
+  const numBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes;
+  if (!numBytes || !Number.isFinite(numBytes) || numBytes < 0) return 'Unknown';
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
-  const size = bytes / Math.pow(1024, i);
+  const i = Math.min(Math.floor(Math.log(numBytes) / Math.log(1024)), sizes.length - 1);
+  const size = numBytes / Math.pow(1024, i);
   return `${size.toFixed(2)} ${sizes[i]}`;
 };
 
