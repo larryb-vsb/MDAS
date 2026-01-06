@@ -227,6 +227,7 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active (Processing)</SelectItem>
                   <SelectItem value="validating">Validating</SelectItem>
                   <SelectItem value="queued">Queued</SelectItem>
                   <SelectItem value="encoded">Encoded</SelectItem>
@@ -335,35 +336,37 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                     const recordsPerSecond = elapsedSeconds > 0 
                       ? Math.round(progress.processedRecords / elapsedSeconds) 
                       : 0;
+                    const isValidating = progress.percentComplete >= 100;
                     
                     return (
-                      <TableRow key={`active-${progress.uploadId}`} className="bg-blue-50 dark:bg-blue-950">
+                      <TableRow key={`active-${progress.uploadId}`} className={isValidating ? "bg-amber-50 dark:bg-amber-950" : "bg-blue-50 dark:bg-blue-950"}>
                         <TableCell>
                           <Checkbox disabled />
                         </TableCell>
                         <TableCell className="font-medium">
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
-                              <span className="text-blue-800 dark:text-blue-200 text-sm font-medium">
+                              <Loader2 className={`h-3 w-3 animate-spin ${isValidating ? 'text-amber-600' : 'text-blue-600'}`} />
+                              <span className={`text-sm font-medium ${isValidating ? 'text-amber-800 dark:text-amber-200' : 'text-blue-800 dark:text-blue-200'}`}>
                                 {progress.filename || 'Processing...'}
                               </span>
                             </div>
                             <div className="w-full bg-white dark:bg-gray-800 rounded-full h-2">
                               <div 
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                className={`h-2 rounded-full transition-all duration-300 ${isValidating ? 'bg-amber-500' : 'bg-blue-600'}`}
                                 style={{ width: `${progress.percentComplete}%` }}
                               />
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {progress.processedRecords.toLocaleString()} / {progress.totalLines.toLocaleString()} records ({progress.percentComplete}%)
                               {recordsPerSecond > 0 && ` • ${recordsPerSecond.toLocaleString()} rec/sec`}
+                              {isValidating && ' • Removing duplicates...'}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="default" className="bg-blue-600">
-                            Active
+                          <Badge variant="default" className={isValidating ? "bg-amber-500" : "bg-blue-600"}>
+                            {isValidating ? 'Validating' : 'Active'}
                           </Badge>
                         </TableCell>
                         <TableCell>
