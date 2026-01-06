@@ -2541,11 +2541,18 @@ class MMSWatcher {
           continue; // Skip to next file
         }
         
-        // Try to acquire slot - if available, process immediately; otherwise queue
+        // Try to acquire slot SYNCHRONOUSLY before starting async processing
+        // This fixes the race condition where multiple files could start before slots were tracked
         if (this.canAcquireSlot()) {
+          // Pre-acquire slot synchronously to prevent race condition
+          this.step6ActiveSlots.add(upload.id);
+          console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔓 Pre-acquired slot for ${upload.filename} (${this.step6ActiveSlots.size}/${this.maxStep6Concurrent} active)`);
+          
           // Slot available - start processing (fire and forget)
-          this.processStep6File(upload).catch(err => {
+          this.processStep6FileWithPreacquiredSlot(upload).catch(err => {
             console.error(`[MMS-WATCHER] [AUTO-STEP6] Unhandled error in processStep6File for ${upload.filename}:`, err);
+            // Release slot on error
+            this.releaseSlot(upload.id);
           });
         } else {
           // No slots available - queue for later
@@ -2568,9 +2575,14 @@ class MMSWatcher {
     while (this.step6QueuedFiles.length > 0 && this.canAcquireSlot()) {
       const upload = this.dequeueFile();
       if (upload) {
+        // Pre-acquire slot synchronously before starting async processing
+        this.step6ActiveSlots.add(upload.id);
+        console.log(`[MMS-WATCHER] [STEP6-SLOT] 🔓 Pre-acquired slot for queued ${upload.filename} (${this.step6ActiveSlots.size}/${this.maxStep6Concurrent} active)`);
+        
         // Start processing (fire and forget)
-        this.processStep6File(upload).catch(err => {
+        this.processStep6FileWithPreacquiredSlot(upload).catch(err => {
           console.error(`[MMS-WATCHER] [AUTO-STEP6] Unhandled error in processStep6File for ${upload.filename}:`, err);
+          this.releaseSlot(upload.id);
         });
       }
     }
@@ -2586,6 +2598,118 @@ class MMSWatcher {
       return;
     }
 
+    try {
+      const currentRetries = upload.retryCount || 0;
+      console.log(`[MMS-WATCHER] [AUTO-STEP6] 🚀 Starting Step 6 processing for: ${upload.filename} (${upload.id}) [Retry ${currentRetries}/${MAX_STEP6_RETRIES}]`);
+      
+      // Initialize progress tracking
+      this.step6Progress.set(upload.id, {
+        filename: upload.filename,
+        totalLines: upload.lineCount || 0,
+        processedRecords: 0,
+        startedAt: Date.now()
+      });
+      
+      // Update to processing phase
+      await this.storage.updateUploaderPhase(upload.id, 'processing', {
+        processingStartedAt: new Date(),
+        processingNotes: `Step 6 processing started by MMS Watcher at ${new Date().toISOString()} (Attempt ${currentRetries + 1}/${MAX_STEP6_RETRIES})`
+      });
+
+      // Get file content from storage
+      const { ReplitStorageService } = await import('./replit-storage-service.js');
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+      
+      // Process with timeout protection and progress callback
+      const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
+      
+      // Create progress callback
+      const onBatchProgress = (processedCount, batchSize) => {
+        const progress = this.step6Progress.get(upload.id);
+        if (progress) {
+          progress.processedRecords = processedCount;
+        }
+      };
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Step 6 processing timeout')), STEP6_TIMEOUT_MS);
+      });
+      
+      const processingPromise = processAllRecordsToMasterTable(fileContent, upload, { onBatchProgress });
+      const step6Results = await Promise.race([processingPromise, timeoutPromise]);
+      
+      if (step6Results.success) {
+        // Success - update to completed
+        await this.storage.updateUploaderPhase(upload.id, 'completed', {
+          processingCompletedAt: new Date(),
+          processingStatus: 'completed',
+          processingNotes: `Step 6 completed by MMS Watcher: ${step6Results.totalRecords} records processed to master table in ${step6Results.processingTimeMs}ms`,
+          totalRecordsProcessed: step6Results.totalRecords,
+          masterRecordsCreated: step6Results.masterRecords,
+          apiRecordsCreated: step6Results.apiRecords,
+          skippedLines: step6Results.skippedLines,
+          step6ProcessingTimeMs: step6Results.processingTimeMs,
+          completedAt: new Date(),
+          retryCount: 0 // Reset retry count on success
+        });
+
+        console.log(`[MMS-WATCHER] [AUTO-STEP6] ✅ Step 6 completed for: ${upload.filename} -> ${step6Results.totalRecords} records in ${step6Results.processingTimeMs}ms`);
+        this.step6ProcessingMetrics.totalProcessed++;
+      } else {
+        throw new Error(step6Results.error || 'Step 6 processing failed');
+      }
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing ${upload.filename}:`, error.message);
+      
+      const newRetryCount = (upload.retryCount || 0) + 1;
+      const isTimeout = error.message === 'Step 6 processing timeout';
+      
+      if (newRetryCount >= MAX_STEP6_RETRIES) {
+        // Max retries - mark as failed
+        console.error(`[MMS-WATCHER] [AUTO-STEP6] ❌ Max retries reached for ${upload.filename}`);
+        await this.storage.updateUploaderPhase(upload.id, 'failed', {
+          failedAt: new Date(),
+          retryCount: newRetryCount,
+          lastRetryAt: new Date(),
+          processingErrors: isTimeout 
+            ? `Step 6 timeout after ${STEP6_TIMEOUT_MS / 1000}s (${MAX_STEP6_RETRIES} attempts)` 
+            : `Step 6 failed: ${error.message} (${MAX_STEP6_RETRIES} attempts)`,
+          processingNotes: JSON.stringify({
+            reason: isTimeout ? 'processing_timeout' : 'processing_error',
+            retryCount: newRetryCount,
+            maxRetries: MAX_STEP6_RETRIES,
+            errorMessage: error.message,
+            failedAt: new Date().toISOString()
+          })
+        });
+      } else {
+        // Retry - move back to encoded
+        console.warn(`[MMS-WATCHER] [AUTO-STEP6] ⚠️  Retry ${newRetryCount}/${MAX_STEP6_RETRIES} for ${upload.filename}`);
+        await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          retryCount: newRetryCount,
+          lastRetryAt: new Date(),
+          processingWarnings: isTimeout 
+            ? `Step 6 timeout (${STEP6_TIMEOUT_MS / 1000}s) - will retry (${newRetryCount}/${MAX_STEP6_RETRIES})`
+            : `Step 6 error: ${error.message} - will retry (${newRetryCount}/${MAX_STEP6_RETRIES})`,
+          lastWarningAt: new Date(),
+          warningCount: (upload.warningCount || 0) + 1
+        });
+      }
+    } finally {
+      // Always release slot and clean up progress tracking
+      this.releaseSlot(upload.id);
+      this.step6Progress.delete(upload.id);
+      
+      // Process queued files if any are waiting
+      if (this.step6QueuedFiles.length > 0) {
+        await this.processQueuedFiles();
+      }
+    }
+  }
+
+  // Process a Step 6 file when slot was pre-acquired (to fix race condition)
+  async processStep6FileWithPreacquiredSlot(upload) {
+    // Slot was already pre-acquired synchronously - skip acquisition step
     try {
       const currentRetries = upload.retryCount || 0;
       console.log(`[MMS-WATCHER] [AUTO-STEP6] 🚀 Starting Step 6 processing for: ${upload.filename} (${upload.id}) [Retry ${currentRetries}/${MAX_STEP6_RETRIES}]`);
