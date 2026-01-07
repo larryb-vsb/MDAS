@@ -35,6 +35,7 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+- **Transaction ID Race Condition Fix**: Implemented date-prefixed transaction IDs (YYYYMMDD_TraceNbr format) to prevent duplicate key conflicts when multiple files with same trace numbers are processed concurrently. Three-tier date priority: (1) Row-level Date column, (2) Filename extraction via sourceFileId lookup, (3) Processing date fallback. Includes file-level business date caching for performance.
 - Fixed Step 6 validation phase hanging on large files by adding 5-minute query timeout
 - Enhanced orphan healing service to recover files stuck in validation timeout (mark as completed since data is already inserted)
 - Reduced encoding stuck threshold from 30 to 10 minutes for faster recovery
