@@ -1210,7 +1210,14 @@ class MMSWatcher {
     
     // Get file content from Replit Object Storage
     const { ReplitStorageService } = await import('./replit-storage-service.js');
-    const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+    
+    // Check for valid storage path - try s3Key first, then storagePath, then storageKey
+    const storagePath = upload.s3Key || upload.storagePath || upload.storageKey;
+    if (!storagePath) {
+      throw new Error(`No storage path found for file ${upload.filename}. File may need to be re-uploaded.`);
+    }
+    
+    const fileContent = await ReplitStorageService.getFileContent(storagePath);
     
     // Analyze file structure and content, considering user's original file type selection
     const identification = await this.analyzeFileContent(fileContent, upload.filename, upload.fileType);
