@@ -1641,8 +1641,15 @@ export class DatabaseStorage implements IStorage {
       
       // Apply status filter
       if (status !== "All") {
-        conditions.push(`status = $${queryParams.length + 1}`);
-        queryParams.push(status);
+        // Handle "Active/Open" as a special case that matches both "Active" and "Open"
+        if (status === "Active/Open") {
+          conditions.push(`(status = $${queryParams.length + 1} OR status = $${queryParams.length + 2})`);
+          queryParams.push("Active");
+          queryParams.push("Open");
+        } else {
+          conditions.push(`status = $${queryParams.length + 1}`);
+          queryParams.push(status);
+        }
       }
       
       // Apply last upload filter
