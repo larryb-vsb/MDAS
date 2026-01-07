@@ -2484,25 +2484,25 @@ export default function MerchantDetail() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">Merchant Activation Date</h3>
+                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Merchant Activation Date</h3>
                       <p className="mt-1 text-base font-semibold">
                         {data?.merchant.merchantActivationDate ? new Date(data.merchant.merchantActivationDate).toLocaleDateString() : 'Not available'}
                       </p>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">Date of First Deposit</h3>
+                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Date of First Deposit</h3>
                       <p className="mt-1 text-base font-semibold">
                         {data?.merchant.dateOfFirstDeposit ? new Date(data.merchant.dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
                       </p>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">Date of Last Deposit</h3>
+                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Date of Last Deposit</h3>
                       <p className="mt-1 text-base font-semibold">
                         {data?.merchant.dateOfLastDeposit ? new Date(data.merchant.dateOfLastDeposit).toLocaleDateString() : 'Not available'}
                       </p>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">Closed Date</h3>
+                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Closed Date</h3>
                       <p className="mt-1 text-base font-semibold">
                         {data?.merchant.closeDate ? new Date(data.merchant.closeDate).toLocaleDateString() : 'Not available'}
                       </p>
