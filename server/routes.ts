@@ -857,6 +857,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Kill actively processing files - stops processing, clears from slots, and deletes
+  app.post("/api/uploader/kill-processing", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      const username = (req.user as any)?.username || 'unknown';
+      const timestamp = new Date().toISOString();
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER-KILL] ============================================`);
+      console.log(`[UPLOADER-KILL] Kill processing request initiated`);
+      console.log(`[UPLOADER-KILL] User: ${username}`);
+      console.log(`[UPLOADER-KILL] Timestamp: ${timestamp}`);
+      console.log(`[UPLOADER-KILL] Upload IDs:`, uploadIds);
+      
+      // Step 1: Clear files from active processing slots
+      const mmsWatcher = (req.app.locals as any).mmsWatcher;
+      let slotsCleared = 0;
+      if (mmsWatcher && typeof mmsWatcher.clearStuckFilesFromSlots === 'function') {
+        const slotResult = mmsWatcher.clearStuckFilesFromSlots(uploadIds);
+        slotsCleared = slotResult.cleared || 0;
+        console.log(`[UPLOADER-KILL] Cleared ${slotsCleared} files from active slots`);
+      } else {
+        console.log(`[UPLOADER-KILL] Warning: MMS Watcher not available, proceeding with delete only`);
+      }
+      
+      // Step 2: Soft-delete the files from the database
+      const result = await storage.deleteUploaderUploads(uploadIds, username);
+      
+      // Step 3: Clean up orphaned objects if needed
+      let cleanedObjects = 0;
+      // Note: Object cleanup is handled by the storage.deleteUploaderUploads method
+      
+      console.log(`[UPLOADER-KILL] ============================================`);
+      console.log(`[UPLOADER-KILL] Kill processing completed`);
+      console.log(`[UPLOADER-KILL] Slots cleared: ${slotsCleared}`);
+      console.log(`[UPLOADER-KILL] Files deleted: ${result.deletedFiles.length}`);
+      console.log(`[UPLOADER-KILL] ============================================`);
+      
+      res.json({ 
+        success: true, 
+        message: `Killed ${slotsCleared} processing file(s), deleted ${result.deletedFiles.length} file(s)`,
+        killedCount: result.deletedFiles.length,
+        slotsCleared,
+        cleanedObjects,
+        deletedFiles: result.deletedFiles.map(f => ({
+          id: f.id,
+          filename: f.filename
+        }))
+      });
+    } catch (error: any) {
+      console.error('[UPLOADER-KILL] ERROR during kill processing:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Reset error files back to encoded phase for retry
   app.post("/api/uploader/reset-errors", isAuthenticated, async (req, res) => {
     const client = await pool.connect();

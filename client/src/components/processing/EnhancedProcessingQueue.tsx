@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, CheckSquare, Square, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Clock } from "lucide-react";
+import { Loader2, Trash2, CheckSquare, Square, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Clock, StopCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface ProcessingQueueProps {
@@ -26,8 +26,9 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
   
-  // Selection state
+  // Selection state - supports both queued and processing files
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [selectedProcessingFiles, setSelectedProcessingFiles] = useState<Set<string>>(new Set());
   
   // Fetch Step 6 queue status using standard apiRequest
   const { data: step6Data, isLoading, refetch } = useQuery<any>({
@@ -66,6 +67,19 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
   
   // Get set of actively processing upload IDs to exclude from queue list (prevents duplicate keys)
   const activeUploadIds = new Set(uniqueProgress.map((p: any) => p.uploadId));
+  
+  // Clean up selected processing files when they are no longer in progress
+  useEffect(() => {
+    if (selectedProcessingFiles.size > 0) {
+      setSelectedProcessingFiles(prev => {
+        const filtered = new Set(Array.from(prev).filter(id => activeUploadIds.has(id)));
+        if (filtered.size !== prev.size) {
+          return filtered;
+        }
+        return prev;
+      });
+    }
+  }, [uniqueProgress.length, activeUploadIds.size]);
   
   // Deduplicate step6Queue and filter by status
   const seenUploadIds = new Set<string>();
@@ -112,6 +126,17 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
     setSelectedFiles(newSelection);
   };
   
+  // Toggle selection for actively processing files
+  const toggleProcessingFileSelection = (uploadId: string) => {
+    const newSelection = new Set(selectedProcessingFiles);
+    if (newSelection.has(uploadId)) {
+      newSelection.delete(uploadId);
+    } else {
+      newSelection.add(uploadId);
+    }
+    setSelectedProcessingFiles(newSelection);
+  };
+  
   // Bulk delete mutation using apiRequest
   const bulkDeleteMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
@@ -128,19 +153,15 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
     },
     onSuccess: (data) => {
       if (data.success === false && data.deletedCount === 0) {
-        // No files were deleted - show warning instead of error
-        const skippedMsg = data.skipped 
-          ? ` (${data.skipped.alreadyDeleted} already deleted, ${data.skipped.notFound} not found)`
-          : '';
+        // Files were already deleted - still clear selection and refresh to remove stale entries
         toast({
-          title: "No Files Deleted",
-          description: `${data.reason || data.message}${skippedMsg}`,
+          title: "Files Already Removed",
+          description: "Selected files were already deleted. Refreshing queue...",
           variant: "default"
         });
       } else {
-        // Some or all files deleted successfully
         const skippedMsg = data.skipped && (data.skipped.alreadyDeleted > 0 || data.skipped.notFound > 0)
-          ? ` (skipped ${data.skipped.alreadyDeleted + data.skipped.notFound} invalid file(s))`
+          ? ` (${data.skipped.alreadyDeleted + data.skipped.notFound} already removed)`
           : '';
         toast({
           title: "Files Deleted Successfully",
@@ -148,7 +169,8 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
         });
       }
       setSelectedFiles(new Set());
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/step6-status"] });
+      // Force immediate refetch to remove stale entries from UI
+      refetch();
     },
     onError: (error: Error) => {
       toast({
@@ -156,8 +178,48 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
         description: error.message,
         variant: "destructive"
       });
-      // Auto-refresh on error to show current queue state
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/step6-status"] });
+      refetch();
+    }
+  });
+  
+  // Kill processing mutation - stops active processing and deletes
+  const killProcessingMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      return apiRequest("/api/uploader/kill-processing", {
+        method: "POST",
+        body: JSON.stringify({ uploadIds, action: 'delete' })
+      }) as Promise<{ 
+        success: boolean; 
+        killedCount: number; 
+        message: string;
+        slotsCleared?: number;
+        cleanedObjects?: number;
+      }>;
+    },
+    onSuccess: (data) => {
+      if (data.killedCount === 0 && data.slotsCleared === 0) {
+        toast({
+          title: "Files Already Removed",
+          description: "Selected files were already stopped or deleted. Refreshing...",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Processing Killed",
+          description: `${data.slotsCleared || 0} process(es) stopped, ${data.killedCount} file(s) deleted`,
+        });
+      }
+      setSelectedProcessingFiles(new Set());
+      // Force immediate refetch to update UI
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Kill Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      refetch();
     }
   });
   
@@ -259,40 +321,79 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
           </div>
           
           {/* Bulk Actions */}
-          {selectedFiles.size > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  data-testid="button-bulk-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete {selectedFiles.size} Selected
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete {selectedFiles.size} Files?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will soft-delete the selected files from the processing queue.
-                    They will be marked as deleted and can be restored later if needed.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleBulkDelete}
-                    disabled={bulkDeleteMutation.isPending}
-                    className="bg-destructive text-destructive-foreground"
+          <div className="flex items-center gap-2">
+            {/* Kill Processing Files Button */}
+            {selectedProcessingFiles.size > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    data-testid="button-kill-processing"
                   >
-                    {bulkDeleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Delete Files
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+                    <StopCircle className="h-4 w-4 mr-2" />
+                    Kill {selectedProcessingFiles.size} Processing
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Kill {selectedProcessingFiles.size} Processing File(s)?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will immediately stop processing and delete the selected files.
+                      Any partial data will be cleaned up and orphaned objects removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => killProcessingMutation.mutate(Array.from(selectedProcessingFiles))}
+                      disabled={killProcessingMutation.isPending}
+                      className="bg-destructive text-destructive-foreground"
+                    >
+                      {killProcessingMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Kill & Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            
+            {/* Delete Queued Files Button */}
+            {selectedFiles.size > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    data-testid="button-bulk-delete"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete {selectedFiles.size} Selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {selectedFiles.size} Files?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will soft-delete the selected files from the processing queue.
+                      They will be marked as deleted and can be restored later if needed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleteMutation.isPending}
+                      className="bg-destructive text-destructive-foreground"
+                    >
+                      {bulkDeleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Delete Files
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
         
         {/* Queue Table */}
@@ -337,11 +438,19 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                       ? Math.round(progress.processedRecords / elapsedSeconds) 
                       : 0;
                     const isValidating = progress.percentComplete >= 100;
+                    const isSelected = selectedProcessingFiles.has(progress.uploadId);
                     
                     return (
-                      <TableRow key={`active-${progress.uploadId}`} className={isValidating ? "bg-amber-50 dark:bg-amber-950" : "bg-blue-50 dark:bg-blue-950"}>
+                      <TableRow 
+                        key={`active-${progress.uploadId}`} 
+                        className={`${isValidating ? "bg-amber-50 dark:bg-amber-950" : "bg-blue-50 dark:bg-blue-950"} ${isSelected ? "ring-2 ring-destructive" : ""}`}
+                      >
                         <TableCell>
-                          <Checkbox disabled />
+                          <Checkbox 
+                            checked={isSelected}
+                            onCheckedChange={() => toggleProcessingFileSelection(progress.uploadId)}
+                            data-testid={`checkbox-processing-${progress.uploadId}`}
+                          />
                         </TableCell>
                         <TableCell className="font-medium">
                           <div className="space-y-2">
