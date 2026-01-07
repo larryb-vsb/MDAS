@@ -41,6 +41,45 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 - Reduced encoding stuck threshold from 30 to 10 minutes for faster recovery
 - Optimized /api/tddf-api/monitoring/hosts endpoint with 7-day date filter to prevent full table scans
 
+## Production Schema Sync Guide
+
+### How to Sync Production Database Schema
+
+1. **Run the sync script**: `bash scripts/run-production-schema.sh`
+2. The script uses `sql/production-schema.sql` wrapped in a transaction (ROLLBACK on any error)
+3. On success, it records the sync event in both dev and production `schema_versions` tables
+
+### Key Scripts
+- `scripts/sync-production-with-dev.ts` - Compares dev vs production columns
+- `scripts/generate-production-schema.ts` - Generates SQL from dev schema (OUTDATED - see below)
+- `scripts/run-production-schema.sh` - Executes SQL against production with transaction safety
+- `sql/production-schema.sql` - The actual SQL to run (manually maintained)
+
+### CRITICAL: Column Name Differences (Dev vs Production)
+
+The schema generator script is outdated. Production tables use different column names than the generator expects. **Always verify these mappings before running:**
+
+| Table | Dev Column | Production Column |
+|-------|-----------|-------------------|
+| `uploader_uploads` | `upload_datetime` | `uploaded_at` |
+| `uploader_uploads` | `pipeline_status` | `status` |
+| `connection_log` | `ip_address` | `client_ip` |
+| `uploaded_files` | `upload_id` | `source_file_id` |
+| `uploaded_files` | `upload_date` | `uploaded_at` |
+| `tddf_records_all_pre_cache` | `year`, `cache_key` | `upload_id`, `record_type`, `line_number` |
+| `tddf_records_dt_pre_cache` | `year`, `cache_key` | `upload_id`, `transaction_amount`, `merchant_account` |
+
+### Troubleshooting Index Errors
+
+If you see `ERROR: column "X" does not exist` during schema sync:
+1. Check which table the index references
+2. Query production for actual columns: `SELECT column_name FROM information_schema.columns WHERE table_name = 'TABLE_NAME';`
+3. Update the index in `sql/production-schema.sql` to use the correct production column name
+
+### Environment Variables
+- `NEON_PROD_DATABASE_URL` - Production database connection string (required for sync)
+- `DATABASE_URL` - Development database connection string
+
 ## External Dependencies
 
 ### Third-Party Services
