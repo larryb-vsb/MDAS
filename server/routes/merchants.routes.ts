@@ -439,6 +439,112 @@ export function registerMerchantRoutes(app: Express) {
       });
     }
   });
+
+  // Get last activity date for a merchant (lazy-loaded for performance)
+  // Queries ACH transactions, MCC/TDDF records, and batch data to find most recent activity
+  app.get("/api/merchants/:id/last-activity", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      
+      const achTableName = getTableName('api_achtransactions');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const terminalsTableName = getTableName('terminals');
+      const merchantsTableName = getTableName('merchants');
+      
+      // Get merchant's client_mid for matching
+      const merchantResult = await pool.query(`
+        SELECT client_mid FROM ${merchantsTableName} WHERE id = $1 LIMIT 1
+      `, [merchantId]);
+      
+      const clientMid = merchantResult.rows[0]?.client_mid;
+      
+      // Query 1: Latest ACH transaction date
+      const achResult = await pool.query(`
+        SELECT transaction_date FROM ${achTableName}
+        WHERE merchant_id = $1
+        ORDER BY transaction_date DESC
+        LIMIT 1
+      `, [merchantId]);
+      
+      const achDate = achResult.rows[0]?.transaction_date ? new Date(achResult.rows[0].transaction_date) : null;
+      
+      // Query 2: Latest batch/uploaded file date for this merchant
+      const batchResult = await pool.query(`
+        SELECT uploaded_at FROM ${uploadedFilesTableName}
+        WHERE merchant_id = $1 OR source_file_id LIKE $2
+        ORDER BY uploaded_at DESC
+        LIMIT 1
+      `, [merchantId, `%${clientMid || merchantId}%`]);
+      
+      const batchDate = batchResult.rows[0]?.uploaded_at ? new Date(batchResult.rows[0].uploaded_at) : null;
+      
+      // Query 3: Latest MCC/TDDF transaction date (via terminals)
+      let mccDate: Date | null = null;
+      if (clientMid) {
+        const terminalsResult = await pool.query(`
+          SELECT v_number FROM ${terminalsTableName}
+          WHERE pos_merchant_number = $1
+        `, [merchantId]);
+        
+        const terminalIds: string[] = [];
+        terminalsResult.rows.forEach((row: any) => {
+          const baseVarNumber = row.v_number?.replace('V', '').trim();
+          if (baseVarNumber) {
+            terminalIds.push('7' + baseVarNumber);
+            terminalIds.push('0' + baseVarNumber);
+          }
+        });
+        
+        if (terminalIds.length > 0) {
+          const mccResult = await pool.query(`
+            SELECT extracted_fields->>'transactionDate' as tx_date
+            FROM ${tddfJsonbTableName}
+            WHERE record_type = 'DT'
+              AND extracted_fields->>'terminalId' = ANY($1::text[])
+            ORDER BY (extracted_fields->>'transactionDate')::date DESC
+            LIMIT 1
+          `, [terminalIds]);
+          
+          if (mccResult.rows[0]?.tx_date) {
+            mccDate = new Date(mccResult.rows[0].tx_date);
+          }
+        }
+      }
+      
+      // Find the most recent date across all sources
+      const dates = [
+        { source: 'ach', date: achDate },
+        { source: 'batch', date: batchDate },
+        { source: 'mcc', date: mccDate }
+      ].filter(d => d.date !== null);
+      
+      let lastActivityDate: Date | null = null;
+      let lastActivitySource: string | null = null;
+      
+      if (dates.length > 0) {
+        dates.sort((a, b) => (b.date as Date).getTime() - (a.date as Date).getTime());
+        lastActivityDate = dates[0].date;
+        lastActivitySource = dates[0].source;
+      }
+      
+      res.json({
+        merchantId,
+        lastActivityDate: lastActivityDate?.toISOString() || null,
+        lastActivitySource,
+        sources: {
+          ach: achDate?.toISOString() || null,
+          batch: batchDate?.toISOString() || null,
+          mcc: mccDate?.toISOString() || null
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching last activity:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch last activity" 
+      });
+    }
+  });
   
   // Create a new merchant
   app.post("/api/merchants", isAuthenticated, async (req, res) => {
