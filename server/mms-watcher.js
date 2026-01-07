@@ -2662,9 +2662,27 @@ class MMSWatcher {
         return;
       }
 
-      // Filter for TDDF files only
+      // RULE: AH0314P1 files skip Step 6 - mark as completed immediately after encoding
+      const ah0314p1Files = encodedFiles.filter(upload => 
+        upload.filename && upload.filename.includes('AH0314P1')
+      );
+      
+      for (const upload of ah0314p1Files) {
+        console.log(`[MMS-WATCHER] [SKIP-STEP6] AH0314P1 file detected: ${upload.filename} - marking as completed (skipping Step 6)`);
+        await this.storage.updateUploaderPhase(upload.id, 'completed', {
+          completedAt: new Date(),
+          processingNotes: JSON.stringify({
+            reason: 'ah0314p1_skip_step6',
+            note: 'AH0314P1 files are marked complete after encoding without Step 6 processing',
+            completedAt: new Date().toISOString()
+          })
+        });
+      }
+
+      // Filter for TDDF files only (excluding AH0314P1 files which were just completed)
       const tddfFiles = encodedFiles.filter(upload => 
-        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf'
+        (upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf') &&
+        !(upload.filename && upload.filename.includes('AH0314P1'))
       );
 
       if (tddfFiles.length === 0) {
