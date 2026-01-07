@@ -1095,6 +1095,24 @@ export default function MerchantDetail() {
     startPosition: 0
   });
 
+  // Year filter for transaction history chart - "all" means show all years
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+
+  // Extract available years from transaction history data
+  const availableYears = useMemo(() => {
+    if (!data?.analytics.transactionHistory) return [];
+    
+    const yearsSet = new Set<number>();
+    data.analytics.transactionHistory.forEach((item: any) => {
+      if (item.year) {
+        yearsSet.add(item.year);
+      }
+    });
+    
+    // Sort years in descending order (most recent first)
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [data?.analytics.transactionHistory]);
+
   // Function to shift the date range window
   const shiftDateRange = useCallback((shift: number) => {
     setDateRange(prev => ({
@@ -1103,15 +1121,24 @@ export default function MerchantDetail() {
     }));
   }, []);
   
-  // Filter transaction history data based on the date range window
+  // Filter transaction history data based on the date range window and year filter
   const getFilteredTransactionHistory = useCallback(() => {
     if (!data?.analytics.transactionHistory) return [];
     
     // Clone the data to avoid mutation
-    const history = [...data.analytics.transactionHistory];
+    let history = [...data.analytics.transactionHistory];
+    
+    // Apply year filter if not "all"
+    if (selectedYear !== "all") {
+      const yearNum = parseInt(selectedYear, 10);
+      history = history.filter((item: any) => item.year === yearNum);
+    }
     
     // Get the total available months
     const totalMonths = history.length;
+    
+    // If no data after filtering, return empty
+    if (totalMonths === 0) return [];
     
     // If startPosition is beyond available data, reset it
     if (dateRange.startPosition >= totalMonths) {
@@ -1125,7 +1152,7 @@ export default function MerchantDetail() {
     
     // Return the window of data
     return history.slice(totalMonths - end, totalMonths - start).reverse();
-  }, [data?.analytics.transactionHistory, dateRange]);
+  }, [data?.analytics.transactionHistory, dateRange, selectedYear]);
   
   // Sort and paginate transactions using useMemo for better performance
   const sortedAndPaginatedData = useMemo(() => {
@@ -2433,10 +2460,31 @@ export default function MerchantDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle>ACH Transaction Trend</CardTitle>
-                <CardDescription>
-                  Monthly transaction volume for the last 12 months.
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>ACH Transaction Trend</CardTitle>
+                    <CardDescription>
+                      Monthly transaction volume{selectedYear !== "all" ? ` for ${selectedYear}` : " for all available data"}.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="year-filter" className="text-sm text-muted-foreground">Year:</Label>
+                    <Select value={selectedYear} onValueChange={(value) => {
+                      setSelectedYear(value);
+                      setDateRange(prev => ({ ...prev, startPosition: 0 }));
+                    }}>
+                      <SelectTrigger id="year-filter" className="w-[120px]" data-testid="select-year-filter">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Years</SelectItem>
+                        {availableYears.map((year) => (
+                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -2492,6 +2540,7 @@ export default function MerchantDetail() {
                           }
                         }}
                         disabled={dateRange.startPosition === 0}
+                        data-testid="button-previous-month"
                       >
                         ← Previous Month
                       </Button>
@@ -2504,8 +2553,13 @@ export default function MerchantDetail() {
                         variant="outline" 
                         size="sm"
                         onClick={() => {
-                          const totalMonths = data?.analytics.transactionHistory?.length || 0;
-                          const maxPosition = Math.max(0, totalMonths - dateRange.monthsToShow);
+                          // Get filtered history length based on year filter
+                          let filteredLength = data?.analytics.transactionHistory?.length || 0;
+                          if (selectedYear !== "all" && data?.analytics.transactionHistory) {
+                            const yearNum = parseInt(selectedYear, 10);
+                            filteredLength = data.analytics.transactionHistory.filter((item: any) => item.year === yearNum).length;
+                          }
+                          const maxPosition = Math.max(0, filteredLength - dateRange.monthsToShow);
                           if (dateRange.startPosition < maxPosition) {
                             setDateRange(prev => ({
                               ...prev,
@@ -2513,8 +2567,16 @@ export default function MerchantDetail() {
                             }));
                           }
                         }}
-                        disabled={!data?.analytics.transactionHistory || 
-                                 dateRange.startPosition >= Math.max(0, (data.analytics.transactionHistory.length - dateRange.monthsToShow))}
+                        disabled={(() => {
+                          if (!data?.analytics.transactionHistory) return true;
+                          let filteredLength = data.analytics.transactionHistory.length;
+                          if (selectedYear !== "all") {
+                            const yearNum = parseInt(selectedYear, 10);
+                            filteredLength = data.analytics.transactionHistory.filter((item: any) => item.year === yearNum).length;
+                          }
+                          return dateRange.startPosition >= Math.max(0, filteredLength - dateRange.monthsToShow);
+                        })()}
+                        data-testid="button-next-month"
                       >
                         Next Month →
                       </Button>
