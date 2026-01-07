@@ -459,23 +459,31 @@ export function registerMerchantRoutes(app: Express) {
       
       const clientMid = merchantResult.rows[0]?.client_mid;
       
-      // Query 1: Latest ACH transaction date
-      const achResult = await pool.query(`
-        SELECT transaction_date FROM ${achTableName}
-        WHERE merchant_id = $1
-        ORDER BY transaction_date DESC
-        LIMIT 1
+      // Query 1: Latest ACH transaction date - use merchant_name to match
+      // First get merchant name for matching
+      const merchantNameResult = await pool.query(`
+        SELECT name FROM ${merchantsTableName} WHERE id = $1 LIMIT 1
       `, [merchantId]);
+      const merchantName = merchantNameResult.rows[0]?.name;
       
-      const achDate = achResult.rows[0]?.transaction_date ? new Date(achResult.rows[0].transaction_date) : null;
+      let achDate: Date | null = null;
+      if (merchantName) {
+        const achResult = await pool.query(`
+          SELECT transaction_date FROM ${achTableName}
+          WHERE UPPER(TRIM(merchant_name)) = UPPER(TRIM($1))
+          ORDER BY transaction_date DESC
+          LIMIT 1
+        `, [merchantName]);
+        achDate = achResult.rows[0]?.transaction_date ? new Date(achResult.rows[0].transaction_date) : null;
+      }
       
-      // Query 2: Latest batch/uploaded file date for this merchant
+      // Query 2: Latest batch/uploaded file date - search by filename pattern
       const batchResult = await pool.query(`
         SELECT uploaded_at FROM ${uploadedFilesTableName}
-        WHERE merchant_id = $1 OR source_file_id LIKE $2
+        WHERE filename LIKE $1 OR original_filename LIKE $1
         ORDER BY uploaded_at DESC
         LIMIT 1
-      `, [merchantId, `%${clientMid || merchantId}%`]);
+      `, [`%${clientMid || merchantId}%`]);
       
       const batchDate = batchResult.rows[0]?.uploaded_at ? new Date(batchResult.rows[0].uploaded_at) : null;
       
