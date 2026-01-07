@@ -3219,7 +3219,7 @@ export class DatabaseStorage implements IStorage {
     lastTransaction: { amount: number | null; date: Date | null };
   }> {
     try {
-      // Query merchant record for pre-cached last batch and transaction data
+      // Query merchant record for pre-cached last batch data
       const merchantsTableName = getTableName('merchants');
       const merchantQuery = await db.execute(sql`
         SELECT 
@@ -3232,24 +3232,46 @@ export class DatabaseStorage implements IStorage {
         LIMIT 1
       `);
       
-      if (merchantQuery.rows.length === 0) {
-        return {
-          lastBatch: { filename: null, date: null },
-          lastTransaction: { amount: null, date: null }
+      // Also query the ACH transactions table directly for the last transaction
+      const achTableName = getTableName('api_achtransactions');
+      const achQuery = await db.execute(sql`
+        SELECT 
+          amount,
+          transaction_date
+        FROM ${sql.identifier(achTableName)} 
+        WHERE merchant_id = ${merchantId}
+        ORDER BY transaction_date DESC
+        LIMIT 1
+      `);
+      
+      let lastBatch = { filename: null as string | null, date: null as Date | null };
+      let lastTransaction = { amount: null as number | null, date: null as Date | null };
+      
+      if (merchantQuery.rows.length > 0) {
+        const row = merchantQuery.rows[0];
+        lastBatch = {
+          filename: row.last_batch_filename || null,
+          date: row.last_batch_date ? new Date(row.last_batch_date) : null
         };
       }
       
-      const row = merchantQuery.rows[0];
-      return {
-        lastBatch: {
-          filename: row.last_batch_filename || null,
-          date: row.last_batch_date ? new Date(row.last_batch_date) : null
-        },
-        lastTransaction: {
+      // Use ACH transaction data if available (dynamic from actual transactions)
+      if (achQuery.rows.length > 0) {
+        const achRow = achQuery.rows[0];
+        lastTransaction = {
+          amount: achRow.amount ? parseFloat(achRow.amount.toString()) : null,
+          date: achRow.transaction_date ? new Date(achRow.transaction_date) : null
+        };
+      } else if (merchantQuery.rows.length > 0) {
+        // Fallback to cached data if no ACH transactions found
+        const row = merchantQuery.rows[0];
+        lastTransaction = {
           amount: row.last_transaction_amount ? parseFloat(row.last_transaction_amount.toString()) : null,
           date: row.last_transaction_date ? new Date(row.last_transaction_date) : null
-        }
-      };
+        };
+      }
+      
+      return { lastBatch, lastTransaction };
     } catch (error) {
       console.error(`Error getting merchant stats for ${merchantId}:`, error);
       return {

@@ -196,7 +196,7 @@ export default function MerchantList({
           <span className="ml-1 text-gray-700">{merchant.clientMID || '-'}</span>
         </div>
         <div className="col-span-2">
-          <span className="text-gray-500">Last Batch:</span>
+          <span className="text-gray-500">Last Activity Date:</span>
           <span className="ml-1 text-gray-700">
             {merchant.lastBatch?.date 
               ? new Date(merchant.lastBatch.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -204,7 +204,7 @@ export default function MerchantList({
           </span>
         </div>
         <div className="col-span-2">
-          <span className="text-gray-500">Last Transaction:</span>
+          <span className="text-gray-500">ACH Transaction:</span>
           <span className="ml-1 text-gray-700">
             {merchant.lastTransaction?.date 
               ? new Date(merchant.lastTransaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -353,7 +353,7 @@ export default function MerchantList({
                     onClick={() => onSort("lastUpload")}
                   >
                     <div className="flex items-center">
-                      Last Upload
+                      Last Activity
                       {renderSortIcon("lastUpload")}
                     </div>
                   </TableHead>
@@ -362,7 +362,7 @@ export default function MerchantList({
                     onClick={() => onSort("lastBatchDate")}
                   >
                     <div className="flex items-center">
-                      Last Batch
+                      Last Activity Date
                       {renderSortIcon("lastBatchDate")}
                     </div>
                   </TableHead>
@@ -371,7 +371,7 @@ export default function MerchantList({
                     onClick={() => onSort("lastTransactionDate")}
                   >
                     <div className="flex items-center">
-                      Last Transaction
+                      ACH Transaction
                       {renderSortIcon("lastTransactionDate")}
                     </div>
                   </TableHead>

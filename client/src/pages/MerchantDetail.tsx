@@ -2338,7 +2338,7 @@ export default function MerchantDetail() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Last Batch</h3>
+                      <h3 className="text-sm font-medium text-gray-500">Last Activity Date</h3>
                       <p className="mt-1 text-sm font-semibold">{data?.analytics.lastBatch?.filename || 'No data'}</p>
                       <p className="text-xs text-gray-500">
                         {data?.analytics.lastBatch?.date 
@@ -2350,7 +2350,7 @@ export default function MerchantDetail() {
                       </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Last Transaction</h3>
+                      <h3 className="text-sm font-medium text-gray-500">ACH Transaction</h3>
                       <p className="mt-1 text-2xl font-semibold text-green-600">
                         {data?.analytics.lastTransaction?.amount 
                           ? formatCurrency(data.analytics.lastTransaction.amount) 
