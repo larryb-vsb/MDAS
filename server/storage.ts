@@ -6549,100 +6549,10 @@ export class DatabaseStorage implements IStorage {
             
             console.log(`Collected ${merchantNameMapping.size} merchant names from transactions`);
             
-            // Pre-check if any merchants with these names already exist
-            if (nameToIdMapping.size > 0) {
-              console.log(`Checking for existing merchants with ${nameToIdMapping.size} unique names...`);
-              
-              // Get all merchants with matching names
-              const merchantNames = Array.from(nameToIdMapping.keys());
-              
-              // @ENVIRONMENT-CRITICAL - Transaction processing merchant matching
-              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-              const merchantsTableName = getTableName('merchants');
-              
-              // First get all existing merchant names for more efficient matching
-              const allExistingMerchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName}`);
-              const allExistingMerchants = allExistingMerchantsResult.rows;
-              console.log(`Loaded ${allExistingMerchants.length} existing merchants for name matching`);
-              
-              // For each name, check if we have a merchant with that name already
-              for (const name of merchantNames) {
-                try {
-                  console.log(`\n[MATCHING PROCESS] Checking for merchant match with name: "${name}"`);
-                  // Try exact match first
-                  const exactMatchMerchants = allExistingMerchants.filter(m => 
-                    m.name.toLowerCase() === name.toLowerCase()
-                  );
-                  
-                  // If exact match found
-                  if (exactMatchMerchants.length > 0) {
-                    console.log(`[EXACT MATCH] Found existing merchant with name "${name}": ${exactMatchMerchants[0].id}`);
-                    
-                    // Get all transaction IDs that had this name
-                    const transactionIds = nameToIdMapping.get(name) || [];
-                    
-                    // For each transaction ID that uses this name, remap it to the existing merchant ID
-                    for (const transId of transactionIds) {
-                      // Update the merchant ID in the transactions
-                      for (const trans of transactions) {
-                        if (trans.merchantId === transId) {
-                          console.log(`Remapping transaction with ID ${trans.id} from merchant ${trans.merchantId} to existing merchant ${exactMatchMerchants[0].id} based on exact name match "${name}"`);
-                          trans.merchantId = exactMatchMerchants[0].id;
-                        }
-                      }
-                    }
-                  }
-                  // Try fuzzy match if no exact match
-                  else {
-                    // Find merchants with similar names using contains match
-                    const fuzzyMatchMerchants = allExistingMerchants.filter(m => {
-                      const merchantName = m.name.toLowerCase();
-                      const transactionName = name.toLowerCase();
-                      
-                      // Remove common business suffixes for better core name matching
-                      const cleanMerchantName = merchantName
-                        .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
-                        .trim();
-                        
-                      const cleanTransactionName = transactionName
-                        .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
-                        .trim();
-                      
-                      // Only match if core names (without business types) match exactly
-                      if (cleanMerchantName === cleanTransactionName && cleanMerchantName.length >= 4) {
-                        console.log(`[NAME MATCH] Core names match exactly: "${cleanMerchantName}" = "${cleanTransactionName}"`);
-                        return true;
-                      }
-                      
-                      // DISABLED: No fuzzy matching - only exact core name matches allowed
-                      // This prevents false matches between unrelated businesses
-                      
-                      return false;
-                    });
-                    
-                    if (fuzzyMatchMerchants.length > 0) {
-                      console.log(`[FUZZY MATCH] Found similar merchant for "${name}": ${fuzzyMatchMerchants[0].id} (${fuzzyMatchMerchants[0].name})`);
-                      
-                      // Get all transaction IDs that had this name
-                      const transactionIds = nameToIdMapping.get(name) || [];
-                      
-                      // For each transaction ID that uses this name, remap it to the existing merchant ID
-                      for (const transId of transactionIds) {
-                        // Update the merchant ID in the transactions
-                        for (const trans of transactions) {
-                          if (trans.merchantId === transId) {
-                            console.log(`Remapping transaction with ID ${trans.id} from merchant ${trans.merchantId} to similar merchant ${fuzzyMatchMerchants[0].id} based on fuzzy name match "${name}" ~ "${fuzzyMatchMerchants[0].name}"`);
-                            trans.merchantId = fuzzyMatchMerchants[0].id;
-                          }
-                        }
-                      }
-                    }
-                  }
-                } catch (error) {
-                  console.error(`Error checking for existing merchant with name "${name}":`, error);
-                }
-              }
-            }
+            // DISABLED: For type 3 ACH transaction files, we always create new merchants
+            // Do NOT match to existing merchants by name - each file creates its own merchant records
+            console.log(`[TYPE 3 ACH] Merchant name matching DISABLED - all merchants from transaction files will be created as new type 3 merchants`);
+            console.log(`Found ${nameToIdMapping.size} unique merchant names to create`);
           }
           
           for (const transaction of transactions) {
@@ -6694,15 +6604,15 @@ export class DatabaseStorage implements IStorage {
                 const insertQuery = `
                   INSERT INTO ${merchantsTableName} (
                     id, name, client_mid, status, address, city, state, zip_code, 
-                    country, category, created_at, last_upload_date, edit_date
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    country, category, created_at, last_upload_date, edit_date, merchant_type
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `;
                 
                 await pool.query(insertQuery, [
                   newMerchant.id, newMerchant.name, newMerchant.clientMID, newMerchant.status,
                   newMerchant.address, newMerchant.city, newMerchant.state, newMerchant.zipCode,
                   newMerchant.country, newMerchant.category, newMerchant.createdAt, 
-                  newMerchant.lastUploadDate, newMerchant.editDate
+                  newMerchant.lastUploadDate, newMerchant.editDate, '3' // Type 3 = ACH Merchant
                 ]);
                 createdMerchants++;
                 createdMerchantsList.push({
@@ -6743,15 +6653,15 @@ export class DatabaseStorage implements IStorage {
                 const insertQuery2 = `
                   INSERT INTO ${merchantsTableName} (
                     id, name, client_mid, status, address, city, state, zip_code, 
-                    country, category, created_at, last_upload_date, edit_date
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    country, category, created_at, last_upload_date, edit_date, merchant_type
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `;
                 
                 await pool.query(insertQuery2, [
                   newMerchant.id, newMerchant.name, newMerchant.clientMID, newMerchant.status,
                   newMerchant.address, newMerchant.city, newMerchant.state, newMerchant.zipCode,
                   newMerchant.country, newMerchant.category, newMerchant.createdAt, 
-                  newMerchant.lastUploadDate, newMerchant.editDate
+                  newMerchant.lastUploadDate, newMerchant.editDate, '3' // Type 3 = ACH Merchant
                 ]);
                 createdMerchants++;
                 createdMerchantsList.push({
@@ -6784,15 +6694,15 @@ export class DatabaseStorage implements IStorage {
                 const insertQuery3 = `
                   INSERT INTO ${merchantsTableName} (
                     id, name, client_mid, status, address, city, state, zip_code, 
-                    country, category, created_at, last_upload_date, edit_date
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    country, category, created_at, last_upload_date, edit_date, merchant_type
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `;
                 
                 await pool.query(insertQuery3, [
                   newMerchant.id, newMerchant.name, newMerchant.clientMID, newMerchant.status,
                   newMerchant.address, newMerchant.city, newMerchant.state, newMerchant.zipCode,
                   newMerchant.country, newMerchant.category, newMerchant.createdAt, 
-                  newMerchant.lastUploadDate, newMerchant.editDate
+                  newMerchant.lastUploadDate, newMerchant.editDate, '3' // Type 3 = ACH Merchant
                 ]);
                 createdMerchants++;
                 createdMerchantsList.push({
@@ -6855,19 +6765,12 @@ export class DatabaseStorage implements IStorage {
             }
             
             if (existingDuplicateResult.rows.length > 0) {
-              // Duplicate found - skip insertion
+              // Duplicate found by merchant_id + date + amount - but proceed with upsert to update the record
               const existingTrans = existingDuplicateResult.rows[0];
-              console.log(`[DUPLICATE SKIP] Transaction already exists: merchant=${transaction.merchantId}, date=${transactionDateStr}, amount=${transaction.amount} (existing ID: ${existingTrans.id}). Skipping...`);
+              console.log(`[DUPLICATE FOUND] Transaction exists: merchant=${transaction.merchantId}, date=${transactionDateStr}, amount=${transaction.amount} (existing ID: ${existingTrans.id}). Proceeding with upsert...`);
               
-              // Increment skipped duplicates counter
-              skippedDuplicates++;
-              
-              // Track skipped duplicate in statistics
-              const duplicateInfo = { increments: 0, wasSkipped: true };
-              const { fileProcessorService } = await import("./services/file-processor");
-              fileProcessorService.updateProcessingStats(transaction.id, duplicateInfo);
-              
-              continue; // Skip to next transaction
+              // Note: We no longer skip - we proceed to upsert which will update the existing record
+              // The skippedDuplicates counter is NOT incremented since we're updating
             }
             
             // No duplicate found - proceed with insertion
