@@ -43,21 +43,39 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ## Production Schema Sync Guide
 
-### How to Sync Production Database Schema
+### Recommended Workflow for Schema Changes
 
-1. **Run the sync script**: `bash scripts/run-production-schema.sh`
-2. The script uses `sql/production-schema.sql` wrapped in a transaction (ROLLBACK on any error)
-3. On success, it records the sync event in both dev and production `schema_versions` tables
+1. **Run sanity check first**: `npx tsx scripts/analysis/schema-sanity-check.ts`
+   - Generates comprehensive dev vs prod comparison
+   - Creates reports in `scripts/analysis/schema-sanity-report.{json,md}`
+   - Updates `scripts/schema-compat-map.ts` with detected mappings
+
+2. **Review differences**: Check `scripts/analysis/schema-sanity-report.md`
+   - Shows column differences, type mismatches, missing columns
+   - Identifies dev-only and prod-only tables/columns
+
+3. **Update production schema**: Edit `sql/production-schema.sql`
+   - Use production column names (see compatibility map below)
+   - Add new tables/columns using production naming conventions
+
+4. **Deploy to production**: `bash scripts/run-production-schema.sh`
+   - Runs in transaction (ROLLBACK on any error)
+   - Records sync event in `schema_versions` table
 
 ### Key Scripts
-- `scripts/sync-production-with-dev.ts` - Compares dev vs production columns
-- `scripts/generate-production-schema.ts` - Generates SQL from dev schema (OUTDATED - see below)
-- `scripts/run-production-schema.sh` - Executes SQL against production with transaction safety
-- `sql/production-schema.sql` - The actual SQL to run (manually maintained)
 
-### CRITICAL: Column Name Differences (Dev vs Production)
+| Script | Purpose |
+|--------|---------|
+| `scripts/analysis/schema-sanity-check.ts` | **Primary tool** - Full dev vs prod comparison |
+| `scripts/schema-compat-map.ts` | Column name mappings (dev → prod) |
+| `scripts/run-production-schema.sh` | Execute SQL against production |
+| `sql/production-schema.sql` | Production schema SQL (manually maintained) |
+| `scripts/sync-production-with-dev.ts` | Legacy - finds missing columns only |
+| `scripts/generate-production-schema.ts` | **OUTDATED** - uses dev column names |
 
-The schema generator script is outdated. Production tables use different column names than the generator expects. **Always verify these mappings before running:**
+### Column Name Compatibility Map
+
+Production tables evolved with different column names. The canonical mapping is in `scripts/schema-compat-map.ts`:
 
 | Table | Dev Column | Production Column |
 |-------|-----------|-------------------|
@@ -66,15 +84,16 @@ The schema generator script is outdated. Production tables use different column 
 | `connection_log` | `ip_address` | `client_ip` |
 | `uploaded_files` | `upload_id` | `source_file_id` |
 | `uploaded_files` | `upload_date` | `uploaded_at` |
-| `tddf_records_all_pre_cache` | `year`, `cache_key` | `upload_id`, `record_type`, `line_number` |
-| `tddf_records_dt_pre_cache` | `year`, `cache_key` | `upload_id`, `transaction_amount`, `merchant_account` |
+| `tddf_records_all_pre_cache` | `year`, `cache_key` | `upload_id`, `record_type` |
+| `tddf_records_dt_pre_cache` | `year`, `cache_key` | `upload_id`, `merchant_account` |
 
 ### Troubleshooting Index Errors
 
 If you see `ERROR: column "X" does not exist` during schema sync:
 1. Check which table the index references
-2. Query production for actual columns: `SELECT column_name FROM information_schema.columns WHERE table_name = 'TABLE_NAME';`
+2. Query production: `SELECT column_name FROM information_schema.columns WHERE table_name = 'TABLE_NAME';`
 3. Update the index in `sql/production-schema.sql` to use the correct production column name
+4. Add the mapping to `scripts/schema-compat-map.ts` for future reference
 
 ### Environment Variables
 - `NEON_PROD_DATABASE_URL` - Production database connection string (required for sync)

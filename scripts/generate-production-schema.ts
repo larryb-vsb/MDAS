@@ -5,10 +5,19 @@
  * Run this whenever you make database schema changes
  * 
  * Usage: npx tsx scripts/generate-production-schema.ts
+ * 
+ * IMPORTANT: This script is OUTDATED. Production tables use different column names.
+ * See scripts/schema-compat-map.ts for known column mappings.
+ * 
+ * For schema updates, prefer:
+ * 1. Run: npx tsx scripts/analysis/schema-sanity-check.ts (to see differences)
+ * 2. Edit sql/production-schema.sql directly using production column names
+ * 3. Run: bash scripts/run-production-schema.sh
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { schemaCompatMap, mapColumnName, getKnownDifferences } from './schema-compat-map';
 
 const SCHEMA_VERSION = '2.8.0';
 const LAST_UPDATED = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
