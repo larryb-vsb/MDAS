@@ -100,7 +100,7 @@ export default function MerchantList({
     fetchingRef.current.add(merchantId);
     setLastActivityDates(prev => ({
       ...prev,
-      [merchantId]: { ...prev[merchantId], loading: true }
+      [merchantId]: { ...(prev[merchantId] ?? { date: null, source: null }), loading: true }
     }));
     
     try {
@@ -118,9 +118,20 @@ export default function MerchantList({
           ...prev,
           [merchantId]: { date: data.lastActivityDate, source: data.lastActivitySource, loading: false }
         }));
+      } else {
+        // Reset loading state on non-200 response
+        setLastActivityDates(prev => ({
+          ...prev,
+          [merchantId]: { ...(prev[merchantId] ?? { date: null, source: null }), loading: false }
+        }));
       }
     } catch (error) {
       console.error(`Error fetching last activity for ${merchantId}:`, error);
+      // Reset loading state on error
+      setLastActivityDates(prev => ({
+        ...prev,
+        [merchantId]: { ...(prev[merchantId] ?? { date: null, source: null }), loading: false }
+      }));
     } finally {
       fetchingRef.current.delete(merchantId);
     }
@@ -154,26 +165,29 @@ export default function MerchantList({
     const lazyData = lastActivityDates[merchantId];
     
     if (lazyData?.loading) {
-      return { display: 'Loading...', source: null };
+      return { display: 'Loading...', source: null, rawDate: null };
     }
     
     if (lazyData?.date) {
       const date = new Date(lazyData.date);
       return {
         display: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        source: lazyData.source
+        source: lazyData.source,
+        rawDate: date
       };
     }
     
     // Fallback to original data
     if (fallbackDate) {
+      const date = new Date(fallbackDate);
       return {
-        display: new Date(fallbackDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        source: null
+        display: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        source: null,
+        rawDate: date
       };
     }
     
-    return { display: '-', source: null };
+    return { display: '-', source: null, rawDate: null };
   };
   
   // Render sort icon based on column state
@@ -317,7 +331,7 @@ export default function MerchantList({
                 activityData.source === 'batch' ? 'bg-purple-500' : 'bg-gray-400'
               }`}></span>
             )}
-            {activityData.display !== '-' ? new Date(activityData.display).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No data'}
+            {activityData.rawDate ? activityData.rawDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : (activityData.display === 'Loading...' ? 'Loading...' : 'No data')}
           </span>
         </div>
         <div className="col-span-2">
