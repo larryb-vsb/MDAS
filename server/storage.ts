@@ -5270,8 +5270,53 @@ export class DatabaseStorage implements IStorage {
         return 'default';
       };
       
-      // Enhanced unified Transaction ID extraction function with trace number mapping
-      const extractTransactionId = (row: any): string => {
+      // Cache for file-level business date (extracted from filename via sourceFileId lookup)
+      let cachedFileBusinessDate: string | null = null;
+      let fileBusinessDateResolved: boolean = false;
+      
+      // Helper to resolve business date from filename lookup (cached per file)
+      const resolveFileBusinessDate = async (): Promise<string | null> => {
+        if (fileBusinessDateResolved) return cachedFileBusinessDate;
+        fileBusinessDateResolved = true;
+        
+        if (!sourceFileId) return null;
+        
+        try {
+          // Lookup the filename from the uploader_uploads table
+          const uploaderTable = getTableName('uploader_uploads');
+          const result = await pool.query(
+            `SELECT filename FROM ${uploaderTable} WHERE id = $1`,
+            [sourceFileId]
+          );
+          
+          if (result.rows.length > 0 && result.rows[0].filename) {
+            const filename = result.rows[0].filename;
+            // Extract date from filename pattern: 801203_AH0314P1_20250825_002.csv
+            // The date is typically the 3rd segment (YYYYMMDD format)
+            const dateMatch = filename.match(/_(\d{8})_/);
+            if (dateMatch && dateMatch[1]) {
+              const dateStr = dateMatch[1];
+              // Validate it's a real date
+              const year = parseInt(dateStr.substring(0, 4));
+              const month = parseInt(dateStr.substring(4, 6));
+              const day = parseInt(dateStr.substring(6, 8));
+              if (year >= 2020 && year <= 2030 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                cachedFileBusinessDate = `${dateStr}_`;
+                console.log(`[TRANSACTION ID] 📁 Resolved business date from filename '${filename}': ${cachedFileBusinessDate}`);
+                return cachedFileBusinessDate;
+              }
+            }
+          }
+        } catch (e) {
+          console.log(`[TRANSACTION ID] ⚠️ Could not lookup filename for sourceFileId: ${sourceFileId}`);
+        }
+        
+        return null;
+      };
+      
+      // Enhanced unified Transaction ID extraction function with DATE PREFIX for uniqueness
+      // This prevents race conditions when multiple files have the same trace numbers
+      const extractTransactionId = async (row: any): Promise<string> => {
         // Priority-based Transaction ID extraction across all possible column names
         // **TRACE NUMBER PRIORITY** - TraceNbr gets highest priority for mapping
         const transactionIdColumns = [
@@ -5281,12 +5326,44 @@ export class DatabaseStorage implements IStorage {
           'BatchID', 'SequenceNumber', 'ConfirmationNumber'
         ];
         
+        // Date column names for prefix extraction
+        const dateColumns = ['Date', 'date', 'TXN_DATE', 'TransactionDate', 'Transaction_Date', 'TranDate'];
+        
         // Get available column names for case-insensitive matching
         const availableColumns = Object.keys(row);
         let extractedValue: string | null = null;
         let sourceColumn: string | null = null;
+        let datePrefix: string = '';
         
-        // First, try exact matches
+        // PRIORITY 1: Try to extract date from row's Date column (most accurate)
+        for (const dateCol of dateColumns) {
+          if (row[dateCol] && row[dateCol].toString().trim()) {
+            try {
+              const dateValue = new Date(row[dateCol]);
+              if (!isNaN(dateValue.getTime())) {
+                const year = dateValue.getFullYear();
+                const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+                const day = String(dateValue.getDate()).padStart(2, '0');
+                datePrefix = `${year}${month}${day}_`;
+                console.log(`[TRANSACTION ID] 📅 Extracted date prefix from '${dateCol}': ${datePrefix}`);
+                break;
+              }
+            } catch (e) {
+              console.log(`[TRANSACTION ID] ⚠️ Could not parse date from '${dateCol}': ${row[dateCol]}`);
+            }
+          }
+        }
+        
+        // PRIORITY 2: Fall back to file-level business date from filename (deterministic)
+        if (!datePrefix) {
+          const fileDate = await resolveFileBusinessDate();
+          if (fileDate) {
+            datePrefix = fileDate;
+            console.log(`[TRANSACTION ID] 📁 Using file business date: ${datePrefix}`);
+          }
+        }
+        
+        // First, try exact matches for trace/transaction ID
         for (const column of transactionIdColumns) {
           if (row[column] && row[column].toString().trim()) {
             extractedValue = row[column].toString().trim();
@@ -5328,29 +5405,43 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        // If we found a value, use TraceNumberMapper to ensure uniqueness
+        // GUARANTEED PREFIX: If no date was found, use processing timestamp as fallback
+        if (!datePrefix) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          datePrefix = `${year}${month}${day}_`;
+          console.log(`[TRANSACTION ID] ⚠️ No date column found - using processing date as fallback: ${datePrefix}`);
+        }
+        
+        // If we found a value, prepend date prefix AND use TraceNumberMapper for additional uniqueness
         if (extractedValue) {
-          const uniqueTransactionId = TraceNumberMapper.generateTransactionId(extractedValue);
+          // First create date-prefixed ID
+          const datePrefixedId = `${datePrefix}${extractedValue}`;
+          
+          // Then use TraceNumberMapper for additional collision protection within same batch
+          const uniqueTransactionId = TraceNumberMapper.generateTransactionId(datePrefixedId);
           
           // Log mapping details
           if (sourceColumn && (sourceColumn.toLowerCase().includes('trace') || sourceColumn.toLowerCase().includes('nbr'))) {
-            console.log(`[TRACE-MAPPER] Mapped trace number from column '${sourceColumn}': ${extractedValue} -> ${uniqueTransactionId}`);
+            console.log(`[DATE-TRACE-ID] Mapped trace number with date prefix from column '${sourceColumn}': ${extractedValue} -> ${uniqueTransactionId}`);
           } else {
-            console.log(`[TRACE-MAPPER] Mapped transaction ID from column '${sourceColumn}': ${extractedValue} -> ${uniqueTransactionId}`);
+            console.log(`[DATE-TRACE-ID] Mapped transaction ID with date prefix from column '${sourceColumn}': ${extractedValue} -> ${uniqueTransactionId}`);
           }
           
           return uniqueTransactionId;
         }
         
-        // No valid ID found - generate fallback using TraceNumberMapper
+        // No valid ID found - generate fallback with guaranteed date prefix + timestamp
         console.error(`[TRANSACTION ID ERROR] ❌ No valid Transaction ID found in row ${rowCount}!`);
         console.error(`[TRANSACTION ID ERROR] Expected columns: [${transactionIdColumns.join(', ')}]`);
         console.error(`[TRANSACTION ID ERROR] Available columns: [${Object.keys(row).join(', ')}]`);
         console.error(`[TRANSACTION ID ERROR] Row data sample: ${JSON.stringify(row).substring(0, 200)}...`);
         
-        // Generate fallback ID using TraceNumberMapper
-        const fallbackId = TraceNumberMapper.generateTransactionId(null);
-        console.log(`[TRACE-MAPPER] Generated fallback ID: ${fallbackId}`);
+        // Generate fallback ID with guaranteed date prefix + randomness for uniqueness
+        const fallbackId = `${datePrefix}FALLBACK_${rowCount}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`[DATE-TRACE-ID] Generated fallback ID: ${fallbackId}`);
         return fallbackId;
       };
 
@@ -5416,6 +5507,9 @@ export class DatabaseStorage implements IStorage {
         return null;
       };
 
+      // Collect raw rows for async processing
+      const rawRows: any[] = [];
+      
       parser.on("data", (row) => {
         rowCount++;
         
@@ -5431,26 +5525,32 @@ export class DatabaseStorage implements IStorage {
           console.log(`=====================================================\n`);
         }
         
+        // Store row for async processing in end handler
+        rawRows.push({ row, rowNum: rowCount });
+      });
+      
+      // Helper function to process a single row asynchronously
+      const processRow = async (row: any, rowNum: number): Promise<InsertTransaction | null> => {
         try {
           // UNIFIED PROCESSING: Extract core data regardless of format
-          const transactionId = extractTransactionId(row);
+          const transactionId = await extractTransactionId(row);
           const merchantId = extractMerchantId(row);
           
           // Skip row if no Transaction ID found (critical data missing)
           if (!transactionId) {
-            console.error(`[SKIP ROW ${rowCount}] ❌ TRANSACTION ID MISSING - Cannot process row without transaction identifier`);
+            console.error(`[SKIP ROW ${rowNum}] ❌ TRANSACTION ID MISSING - Cannot process row without transaction identifier`);
             errorCount++;
-            return;
+            return null;
           }
           
           // Skip row if no Merchant ID found (avoid bad merchant ID generation)
           if (!merchantId) {
-            console.error(`[SKIP ROW ${rowCount}] ❌ MERCHANT ID MISSING - Cannot process row without merchant identifier`);
+            console.error(`[SKIP ROW ${rowNum}] ❌ MERCHANT ID MISSING - Cannot process row without merchant identifier`);
             errorCount++;
-            return;
+            return null;
           }
           
-          console.log(`[PROCESS ROW ${rowCount}] ✅ Found TransactionID: "${transactionId}", MerchantID: "${merchantId}"`);
+          console.log(`[PROCESS ROW ${rowNum}] ✅ Found TransactionID: "${transactionId}", MerchantID: "${merchantId}"`);
           
           // Store original merchant name for advanced matching
           let originalMerchantName = null;
@@ -5467,7 +5567,7 @@ export class DatabaseStorage implements IStorage {
             // RAW DATA PRESERVATION - always preserve complete CSV row
             rawData: row,
             sourceFileId: sourceFileId || null,
-            sourceRowNumber: rowCount,
+            sourceRowNumber: rowNum,
             recordedAt: new Date()
           };
           
@@ -5515,16 +5615,17 @@ export class DatabaseStorage implements IStorage {
             (transactionData as any).originalMerchantName = originalMerchantName;
           }
           
-          console.log(`Transaction ${rowCount}: ${JSON.stringify(transactionData)}`);
-          transactions.push(transactionData as InsertTransaction);
+          console.log(`Transaction ${rowNum}: ${JSON.stringify(transactionData)}`);
+          return transactionData as InsertTransaction;
           
         } catch (error) {
           errorCount++;
-          console.error(`[ROW ERROR ${rowCount}] ❌ Processing failed:`, error);
-          console.error(`[ROW ERROR ${rowCount}] Row data: ${JSON.stringify(row)}`);
-          console.error(`[ROW ERROR ${rowCount}] Available columns: [${Object.keys(row).join(', ')}]`);
+          console.error(`[ROW ERROR ${rowNum}] ❌ Processing failed:`, error);
+          console.error(`[ROW ERROR ${rowNum}] Row data: ${JSON.stringify(row)}`);
+          console.error(`[ROW ERROR ${rowNum}] Available columns: [${Object.keys(row).join(', ')}]`);
+          return null;
         }
-      });
+      };
       
       parser.on("error", (error) => {
         console.error("Transaction CSV parsing error:", error);
@@ -5533,7 +5634,17 @@ export class DatabaseStorage implements IStorage {
       
       parser.on("end", async () => {
         console.log(`\n=================== TRANSACTION CSV PARSING COMPLETE ===================`);
-        console.log(`Total rows processed: ${rowCount}`);
+        console.log(`Total rows collected: ${rawRows.length}`);
+        
+        // Process all collected rows asynchronously
+        console.log(`Processing ${rawRows.length} rows for transaction ID generation...`);
+        for (const { row, rowNum } of rawRows) {
+          const transaction = await processRow(row, rowNum);
+          if (transaction) {
+            transactions.push(transaction);
+          }
+        }
+        
         console.log(`Transaction objects created: ${transactions.length}`);
         console.log(`Parsing errors: ${errorCount}`);
         
@@ -6118,9 +6229,53 @@ export class DatabaseStorage implements IStorage {
           // Normalize merchant ID (add prefix if needed)
           merchantId = merchantId.trim(); // Use authentic merchant ID without M-prefix generation
           
+          // Extract date for ID prefix (YYYYMMDD format) - prevents race conditions
+          let datePrefix = '';
+          const dateColumns = ['Date', 'date', 'TXN_DATE', 'TransactionDate', 'Transaction_Date', 'TranDate'];
+          for (const dateCol of dateColumns) {
+            if (row[dateCol] && row[dateCol].toString().trim()) {
+              try {
+                const dateValue = new Date(row[dateCol]);
+                if (!isNaN(dateValue.getTime())) {
+                  const year = dateValue.getFullYear();
+                  const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+                  const day = String(dateValue.getDate()).padStart(2, '0');
+                  datePrefix = `${year}${month}${day}_`;
+                  break;
+                }
+              } catch (e) { /* ignore parse errors */ }
+            }
+          }
+          
+          // GUARANTEED PREFIX: If no date found, use processing timestamp
+          if (!datePrefix) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            datePrefix = `${year}${month}${day}_`;
+            console.log(`[TRANSACTION ID] ⚠️ No date column - using processing date: ${datePrefix}`);
+          }
+          
+          // Extract trace number for ID
+          let traceNumber = '';
+          const traceColumns = ['TraceNbr', 'TraceNumber', 'Trace_Number', 'TRACE_NBR', 'trace_number'];
+          for (const traceCol of traceColumns) {
+            if (row[traceCol] && row[traceCol].toString().trim()) {
+              traceNumber = row[traceCol].toString().trim();
+              break;
+            }
+          }
+          
+          // Create transaction ID with date prefix + TraceNumberMapper for uniqueness
+          const baseId = traceNumber 
+            ? `${datePrefix}${traceNumber}` 
+            : `${datePrefix}T${Math.floor(Math.random() * 1000000)}`;
+          const transactionId = TraceNumberMapper.generateTransactionId(baseId);
+          
           // Create transaction object with defaults
           const transaction: Partial<InsertTransaction> = {
-            id: `T${Math.floor(Math.random() * 1000000)}`,
+            id: transactionId,
             merchantId,
             amount: "0",
             date: new Date(),
