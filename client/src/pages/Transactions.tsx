@@ -1,11 +1,24 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, addDays, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
   RefreshCw,
   ArrowUpDown,
@@ -19,6 +32,7 @@ import {
   Eye,
   Check,
   ChevronsUpDown,
+  Trash2,
 } from "lucide-react";
 import {
   Card,
@@ -364,8 +378,13 @@ function AchTransactionsTab() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState<string>("");
   const [searchInput, setSearchInput] = useState<string>("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { toast } = useToast();
 
   // Fetch ACH transactions
+  const queryParams = { page, limit, sortBy, sortOrder, search };
+  
   const buildQueryUrl = () => {
     const params = new URLSearchParams();
     params.append("page", page.toString());
@@ -377,7 +396,36 @@ function AchTransactionsTab() {
   };
 
   const { data, isLoading, error } = useQuery<TransactionsResponse>({
-    queryKey: [buildQueryUrl()],
+    queryKey: ['/api/transactions', queryParams],
+    queryFn: async () => {
+      const response = await fetch(buildQueryUrl());
+      if (!response.ok) throw new Error('Failed to fetch transactions');
+      return response.json();
+    },
+  });
+
+  // Bulk delete mutation
+  const deleteTransactionsMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await apiRequest("DELETE", "/api/transactions/bulk", { ids });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Transactions Deleted",
+        description: `Successfully deleted ${data.deletedCount || selectedIds.size} transactions.`,
+      });
+      setSelectedIds(new Set());
+      // Invalidate all transaction queries to refresh the table
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete transactions.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Handle sorting
@@ -411,7 +459,7 @@ function AchTransactionsTab() {
 
   // Handle refresh
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+    queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
   };
 
   // Handle limit change
@@ -419,6 +467,35 @@ function AchTransactionsTab() {
     setLimit(parseInt(newLimit));
     setPage(1);
   };
+
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && data?.data) {
+      setSelectedIds(new Set(data.data.map(t => t.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size > 0) {
+      deleteTransactionsMutation.mutate(Array.from(selectedIds));
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const allOnPageSelected = data?.data && data.data.length > 0 && 
+    data.data.every(t => selectedIds.has(t.id));
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -457,16 +534,52 @@ function AchTransactionsTab() {
           </Select>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={handleRefresh}
-          disabled={isLoading}
-          className="flex items-center gap-2 w-full sm:w-auto"
-          data-testid="button-refresh"
-        >
-          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {selectedIds.size > 0 && (
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  data-testid="button-delete-selected"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Transactions</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete {selectedIds.size} transaction{selectedIds.size > 1 ? 's' : ''}? 
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteSelected}
+                    className="bg-red-600 hover:bg-red-700"
+                    data-testid="button-confirm-delete"
+                  >
+                    {deleteTransactionsMutation.isPending ? "Deleting..." : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="flex items-center gap-2"
+            data-testid="button-refresh"
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -488,6 +601,13 @@ function AchTransactionsTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox
+                          checked={allOnPageSelected}
+                          onCheckedChange={handleSelectAll}
+                          data-testid="checkbox-select-all"
+                        />
+                      </TableHead>
                       <TableHead
                         className="cursor-pointer hover:bg-gray-50 min-w-[120px] md:min-w-[180px]"
                         onClick={() => handleSort("trace_number")}
@@ -557,7 +677,15 @@ function AchTransactionsTab() {
                         <TableRow
                           key={transaction.id}
                           data-testid={`row-transaction-${transaction.id}`}
+                          className={selectedIds.has(transaction.id) ? "bg-blue-50" : ""}
                         >
+                          <TableCell className="w-[50px]">
+                            <Checkbox
+                              checked={selectedIds.has(transaction.id)}
+                              onCheckedChange={(checked) => handleSelectOne(transaction.id, checked as boolean)}
+                              data-testid={`checkbox-transaction-${transaction.id}`}
+                            />
+                          </TableCell>
                           <TableCell
                             className="font-mono text-xs sm:text-sm"
                             data-testid={`cell-trace-${transaction.id}`}
@@ -615,7 +743,7 @@ function AchTransactionsTab() {
                     ) : (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="text-center py-8 text-gray-500"
                         >
                           No transactions found

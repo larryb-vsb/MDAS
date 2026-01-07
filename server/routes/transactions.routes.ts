@@ -105,4 +105,42 @@ export function registerTransactionRoutes(app: Express) {
       res.status(500).json({ error: "Failed to fetch transaction" });
     }
   });
+
+  // Bulk delete ACH transactions
+  app.delete("/api/transactions/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "No transaction IDs provided" });
+      }
+
+      // Limit bulk delete to prevent accidental mass deletion
+      if (ids.length > 500) {
+        return res.status(400).json({ error: "Cannot delete more than 500 transactions at once" });
+      }
+
+      const achTableName = getTableName('api_achtransactions');
+      
+      // Create parameterized placeholders for the IDs
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+      
+      const result = await pool.query(`
+        DELETE FROM ${achTableName}
+        WHERE id IN (${placeholders})
+        RETURNING id
+      `, ids);
+      
+      console.log(`[TRANSACTIONS] Bulk deleted ${result.rowCount} transactions`);
+      
+      res.json({
+        success: true,
+        deletedCount: result.rowCount,
+        deletedIds: result.rows.map(r => r.id)
+      });
+    } catch (error) {
+      console.error("Error bulk deleting transactions:", error);
+      res.status(500).json({ error: "Failed to delete transactions" });
+    }
+  });
 }

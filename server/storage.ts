@@ -5995,19 +5995,27 @@ export class DatabaseStorage implements IStorage {
                 // @DEPLOYMENT-CHECK - Uses environment-aware table naming
                 const transactionsTableName = getTableName('transactions');
                 
-                // First attempt - try to insert normally using raw SQL
-                const insertTransactionQuery = `
+                // Use UPSERT - insert or update on conflict
+                const upsertTransactionQuery = `
                   INSERT INTO ${transactionsTableName} (
                     id, date, amount, type, description, merchant_id, created_at
                   ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                  ON CONFLICT (id) DO UPDATE SET
+                    date = EXCLUDED.date,
+                    amount = EXCLUDED.amount,
+                    type = EXCLUDED.type,
+                    description = EXCLUDED.description,
+                    merchant_id = EXCLUDED.merchant_id
+                  RETURNING (xmax = 0) AS was_inserted
                 `;
                 
-                await pool.query(insertTransactionQuery, [
+                const result = await pool.query(upsertTransactionQuery, [
                   updatedTransaction.id, updatedTransaction.date, updatedTransaction.amount,
                   updatedTransaction.type, updatedTransaction.description, updatedTransaction.merchantId,
                   updatedTransaction.createdAt || new Date()
                 ]);
-                console.log(`Successfully inserted transaction ${updatedTransaction.id} with merchant ${merchantId}`);
+                const wasInserted = result.rows[0]?.was_inserted;
+                console.log(`Successfully ${wasInserted ? 'inserted' : 'updated'} transaction ${updatedTransaction.id} with merchant ${merchantId}`);
                 
               } catch (insertError: any) {
                 if (insertError.code === '23505' && insertError.constraint && insertError.constraint.endsWith('_transactions_pkey')) {
@@ -6844,12 +6852,22 @@ export class DatabaseStorage implements IStorage {
                 const values = Object.values(dbTransaction);
                 const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
                 
-                const insertQuery = `
+                // Build update clause for upsert (exclude id from updates)
+                const updateColumns = columns
+                  .filter(col => col !== 'id')
+                  .map(col => `${col} = EXCLUDED.${col}`)
+                  .join(', ');
+                
+                // Use UPSERT - insert new records or update existing ones
+                const upsertQuery = `
                   INSERT INTO ${transactionsTableName} (${columns.join(', ')})
                   VALUES (${placeholders})
+                  ON CONFLICT (id) DO UPDATE SET ${updateColumns}
+                  RETURNING (xmax = 0) AS was_inserted
                 `;
                 
-                await pool.query(insertQuery, values);
+                const queryResult = await pool.query(upsertQuery, values);
+                const wasInserted = queryResult.rows[0]?.was_inserted;
                 
                 // Update file processor statistics
                 const { fileProcessorService } = await import("./services/file-processor");
@@ -6859,15 +6877,20 @@ export class DatabaseStorage implements IStorage {
                   fileProcessorService.updateProcessingStats(finalTransaction.id);
                 }
                 
-                if (insertAttempts > 0) {
-                  console.log(`[DUPLICATE RESOLVED] Original ID ${originalId} incremented to ${finalTransaction.id} after ${insertAttempts} attempts`);
+                // Log upsert result
+                if (wasInserted) {
+                  console.log(`[INSERTED] New transaction ${finalTransaction.id}`);
+                  insertedCount++;
+                } else {
+                  console.log(`[UPDATED] Existing transaction ${finalTransaction.id}`);
+                  insertedCount++; // Count updates as successful too
                 }
                 
-                insertedCount++;
                 insertedTransactionsList.push({
                   id: finalTransaction.id,
                   merchantId: finalTransaction.merchantId,
-                  amount: finalTransaction.amount
+                  amount: finalTransaction.amount,
+                  action: wasInserted ? 'inserted' : 'updated'
                 });
                 break; // Success, exit the retry loop
                 
