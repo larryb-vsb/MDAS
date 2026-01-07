@@ -1851,21 +1851,21 @@ export default function MerchantDetail() {
                       <div>
                         <FormLabel>Merchant Activation Date (Opened Date)</FormLabel>
                         <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
-                          {data?.merchant.merchantActivationDate ? new Date(data.merchant.merchantActivationDate).toLocaleDateString() : 'Not available'}
+                          {(data?.merchant as any)?.merchantActivationDate ? new Date((data?.merchant as any).merchantActivationDate).toLocaleDateString() : 'Not available'}
                         </div>
                       </div>
 
                       <div>
                         <FormLabel>Date of First Deposit</FormLabel>
                         <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
-                          {data?.merchant.dateOfFirstDeposit ? new Date(data.merchant.dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
+                          {(data?.merchant as any)?.dateOfFirstDeposit ? new Date((data?.merchant as any).dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
                         </div>
                       </div>
 
                       <div>
                         <FormLabel>Date of Last Deposit</FormLabel>
                         <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
-                          {data?.merchant.dateOfLastDeposit ? new Date(data.merchant.dateOfLastDeposit).toLocaleDateString() : 'Not available'}
+                          {(data?.merchant as any)?.dateOfLastDeposit ? new Date((data?.merchant as any).dateOfLastDeposit).toLocaleDateString() : 'Not available'}
                         </div>
                       </div>
 
@@ -2432,13 +2432,13 @@ export default function MerchantDetail() {
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">ACH Transaction</h3>
                       <p className="mt-1 text-2xl font-semibold text-green-600">
-                        {data?.analytics.lastTransaction?.amount 
-                          ? formatCurrency(data.analytics.lastTransaction.amount) 
+                        {(data?.analytics as any)?.lastTransaction?.amount 
+                          ? formatCurrency((data?.analytics as any).lastTransaction.amount) 
                           : 'No data'}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {data?.analytics.lastTransaction?.date 
-                          ? new Date(data.analytics.lastTransaction.date).toLocaleString('en-US', { 
+                        {(data?.analytics as any)?.lastTransaction?.date 
+                          ? new Date((data?.analytics as any).lastTransaction.date).toLocaleString('en-US', { 
                               month: 'short', day: 'numeric', year: 'numeric', 
                               hour: '2-digit', minute: '2-digit' 
                             })
@@ -2601,19 +2601,19 @@ export default function MerchantDetail() {
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Merchant Activation Date</h3>
                       <p className="mt-1 text-base font-semibold">
-                        {data?.merchant.merchantActivationDate ? new Date(data.merchant.merchantActivationDate).toLocaleDateString() : 'Not available'}
+                        {(data?.merchant as any)?.merchantActivationDate ? new Date((data?.merchant as any).merchantActivationDate).toLocaleDateString() : 'Not available'}
                       </p>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Date of First Deposit</h3>
                       <p className="mt-1 text-base font-semibold">
-                        {data?.merchant.dateOfFirstDeposit ? new Date(data.merchant.dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
+                        {(data?.merchant as any)?.dateOfFirstDeposit ? new Date((data?.merchant as any).dateOfFirstDeposit).toLocaleDateString() : 'Not available'}
                       </p>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Date of Last Deposit</h3>
                       <p className="mt-1 text-base font-semibold">
-                        {data?.merchant.dateOfLastDeposit ? new Date(data.merchant.dateOfLastDeposit).toLocaleDateString() : 'Not available'}
+                        {(data?.merchant as any)?.dateOfLastDeposit ? new Date((data?.merchant as any).dateOfLastDeposit).toLocaleDateString() : 'Not available'}
                       </p>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
