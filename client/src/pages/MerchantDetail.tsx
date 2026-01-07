@@ -1003,6 +1003,37 @@ export default function MerchantDetail() {
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
   
+  // State for dynamic last activity data
+  const [lastActivityData, setLastActivityData] = useState<{
+    date: string | null;
+    source: 'ach' | 'mcc' | 'batch' | null;
+    loading: boolean;
+  }>({ date: null, source: null, loading: true });
+  
+  // Fetch dynamic last activity data when merchant id is available
+  useEffect(() => {
+    if (!id) return;
+    
+    setLastActivityData(prev => ({ ...prev, loading: true }));
+    
+    fetch(`/api/merchants/${id}/last-activity`)
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Failed to fetch');
+      })
+      .then(data => {
+        setLastActivityData({
+          date: data.lastActivityDate,
+          source: data.lastActivitySource,
+          loading: false
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching last activity:', error);
+        setLastActivityData({ date: null, source: null, loading: false });
+      });
+  }, [id]);
+  
   // Pagination and sorting state for ACH Transactions
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -2339,10 +2370,32 @@ export default function MerchantDetail() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">Last Activity Date</h3>
-                      <p className="mt-1 text-sm font-semibold">{data?.analytics.lastBatch?.filename || 'No data'}</p>
+                      <div className="mt-1 flex items-center">
+                        {lastActivityData.loading ? (
+                          <div className="flex items-center text-gray-400">
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <span className="text-sm">Loading...</span>
+                          </div>
+                        ) : lastActivityData.source ? (
+                          <>
+                            <span className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                              lastActivityData.source === 'ach' ? 'bg-green-500' :
+                              lastActivityData.source === 'mcc' ? 'bg-blue-500' :
+                              lastActivityData.source === 'batch' ? 'bg-purple-500' : 'bg-gray-400'
+                            }`}></span>
+                            <span className="text-sm font-semibold">
+                              {lastActivityData.source === 'ach' ? 'ACH' :
+                               lastActivityData.source === 'mcc' ? 'MCC' :
+                               lastActivityData.source === 'batch' ? 'Batch' : 'Unknown'}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-semibold">No data</span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500">
-                        {data?.analytics.lastBatch?.date 
-                          ? new Date(data.analytics.lastBatch.date).toLocaleString('en-US', { 
+                        {lastActivityData.date 
+                          ? new Date(lastActivityData.date).toLocaleString('en-US', { 
                               month: 'short', day: 'numeric', year: 'numeric', 
                               hour: '2-digit', minute: '2-digit' 
                             })
