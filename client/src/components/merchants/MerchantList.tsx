@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   Table,
@@ -33,6 +33,10 @@ import MergeModal from "./MergeModal";
 import { Merchant, Pagination } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Cache for last activity dates to avoid re-fetching
+const lastActivityCache = new Map<string, { date: string | null; source: string | null; fetchedAt: number }>();
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes cache
 
 interface MerchantListProps {
   isLoading: boolean;
@@ -72,6 +76,105 @@ export default function MerchantList({
   const [showMergeModal, setShowMergeModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // State for lazy-loaded last activity dates
+  const [lastActivityDates, setLastActivityDates] = useState<Record<string, { date: string | null; source: string | null; loading: boolean }>>({});
+  const fetchingRef = useRef<Set<string>>(new Set());
+  
+  // Fetch last activity date for a merchant (with caching)
+  const fetchLastActivity = useCallback(async (merchantId: string) => {
+    // Check if already fetching
+    if (fetchingRef.current.has(merchantId)) return;
+    
+    // Check cache first
+    const cached = lastActivityCache.get(merchantId);
+    if (cached && Date.now() - cached.fetchedAt < CACHE_DURATION_MS) {
+      setLastActivityDates(prev => ({
+        ...prev,
+        [merchantId]: { date: cached.date, source: cached.source, loading: false }
+      }));
+      return;
+    }
+    
+    // Mark as fetching
+    fetchingRef.current.add(merchantId);
+    setLastActivityDates(prev => ({
+      ...prev,
+      [merchantId]: { ...prev[merchantId], loading: true }
+    }));
+    
+    try {
+      const response = await fetch(`/api/merchants/${merchantId}/last-activity`);
+      if (response.ok) {
+        const data = await response.json();
+        // Update cache
+        lastActivityCache.set(merchantId, {
+          date: data.lastActivityDate,
+          source: data.lastActivitySource,
+          fetchedAt: Date.now()
+        });
+        // Update state
+        setLastActivityDates(prev => ({
+          ...prev,
+          [merchantId]: { date: data.lastActivityDate, source: data.lastActivitySource, loading: false }
+        }));
+      }
+    } catch (error) {
+      console.error(`Error fetching last activity for ${merchantId}:`, error);
+    } finally {
+      fetchingRef.current.delete(merchantId);
+    }
+  }, []);
+  
+  // Intersection Observer for lazy loading
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const merchantId = entry.target.getAttribute('data-merchant-id');
+            if (merchantId) {
+              fetchLastActivity(merchantId);
+            }
+          }
+        });
+      },
+      { rootMargin: '100px', threshold: 0.1 }
+    );
+    
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [fetchLastActivity]);
+  
+  // Format last activity date for display
+  const formatLastActivityDate = (merchantId: string, fallbackDate: Date | null) => {
+    const lazyData = lastActivityDates[merchantId];
+    
+    if (lazyData?.loading) {
+      return { display: 'Loading...', source: null };
+    }
+    
+    if (lazyData?.date) {
+      const date = new Date(lazyData.date);
+      return {
+        display: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        source: lazyData.source
+      };
+    }
+    
+    // Fallback to original data
+    if (fallbackDate) {
+      return {
+        display: new Date(fallbackDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        source: null
+      };
+    }
+    
+    return { display: '-', source: null };
+  };
   
   // Render sort icon based on column state
   const renderSortIcon = (column: string) => {
@@ -146,10 +249,19 @@ export default function MerchantList({
 
 
   // Mobile card component for each merchant
-  const MobileCard = ({ merchant }: { merchant: Merchant }) => (
+  const MobileCard = ({ merchant }: { merchant: Merchant }) => {
+    const activityData = formatLastActivityDate(merchant.id, merchant.lastBatch?.date ? new Date(merchant.lastBatch.date) : null);
+    
+    return (
     <div 
       className={`bg-white border rounded-lg p-4 mb-3 ${(selectedMerchants || []).includes(merchant.id) ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
       data-testid={`mobile-merchant-card-${merchant.id}`}
+      data-merchant-id={merchant.id}
+      ref={(el) => {
+        if (el && observerRef.current) {
+          observerRef.current.observe(el);
+        }
+      }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -197,10 +309,15 @@ export default function MerchantList({
         </div>
         <div className="col-span-2">
           <span className="text-gray-500">Last Activity Date:</span>
-          <span className="ml-1 text-gray-700">
-            {merchant.lastBatch?.date 
-              ? new Date(merchant.lastBatch.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              : 'No data'}
+          <span className="ml-1 text-gray-700 inline-flex items-center">
+            {activityData.source && (
+              <span className={`w-2 h-2 rounded-full mr-1 ${
+                activityData.source === 'ach' ? 'bg-green-500' :
+                activityData.source === 'mcc' ? 'bg-blue-500' :
+                activityData.source === 'batch' ? 'bg-purple-500' : 'bg-gray-400'
+              }`}></span>
+            )}
+            {activityData.display !== '-' ? new Date(activityData.display).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No data'}
           </span>
         </div>
         <div className="col-span-2">
@@ -213,7 +330,8 @@ export default function MerchantList({
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col mt-4">
@@ -428,9 +546,17 @@ export default function MerchantList({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  merchants.map((merchant) => (
+                  merchants.map((merchant) => {
+                    const activityData = formatLastActivityDate(merchant.id, merchant.lastBatch?.date ? new Date(merchant.lastBatch.date) : null);
+                    return (
                     <TableRow 
                       key={merchant.id} 
+                      data-merchant-id={merchant.id}
+                      ref={(el) => {
+                        if (el && observerRef.current) {
+                          observerRef.current.observe(el);
+                        }
+                      }}
                       className={`hover:bg-gray-50 ${(selectedMerchants || []).includes(merchant.id) ? 'bg-blue-50' : ''}`}
                     >
                       <TableCell className="w-8 px-6 py-4">
@@ -473,12 +599,22 @@ export default function MerchantList({
                         {merchant.lastUpload}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{merchant.lastBatch?.filename || 'No data'}</div>
+                        <div className="text-sm text-gray-900">
+                          {activityData.source ? (
+                            <span className="inline-flex items-center">
+                              <span className={`w-2 h-2 rounded-full mr-1.5 ${
+                                activityData.source === 'ach' ? 'bg-green-500' :
+                                activityData.source === 'mcc' ? 'bg-blue-500' :
+                                activityData.source === 'batch' ? 'bg-purple-500' : 'bg-gray-400'
+                              }`}></span>
+                              {activityData.source === 'ach' ? 'ACH' :
+                               activityData.source === 'mcc' ? 'MCC' :
+                               activityData.source === 'batch' ? 'Batch' : 'Unknown'}
+                            </span>
+                          ) : (merchant.lastBatch?.filename || 'No data')}
+                        </div>
                         <div className="text-sm text-gray-500">
-                          {merchant.lastBatch?.date 
-                            ? new Date(merchant.lastBatch.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                            : '-'
-                          }
+                          {activityData.display}
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -517,7 +653,8 @@ export default function MerchantList({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
