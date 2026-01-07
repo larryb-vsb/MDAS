@@ -5574,11 +5574,34 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`[PROCESS ROW ${rowNum}] ✅ Found TransactionID: "${transactionId}", MerchantID: "${merchantId}"`);
           
-          // Store original merchant name for advanced matching
+          // Store original merchant name for advanced matching - try multiple column variations
           let originalMerchantName = null;
-          if (row.Name) {
-            originalMerchantName = row.Name.trim();
-            console.log(`[PARSING DEBUG] Found merchant name: ${originalMerchantName}`);
+          const merchantNameColumns = [
+            'Name', 'name', 'NAME', 
+            'MerchantName', 'Merchant_Name', 'MERCHANT_NAME', 'merchant_name',
+            'Merchant Name', 'MERCHANT NAME',
+            'BusinessName', 'Business_Name', 'BUSINESS_NAME', 'business_name',
+            'Company', 'company', 'COMPANY', 'CompanyName', 'Company_Name'
+          ];
+          
+          for (const col of merchantNameColumns) {
+            if (row[col] && row[col].toString().trim()) {
+              originalMerchantName = row[col].toString().trim();
+              console.log(`[PARSING DEBUG] Found merchant name in column "${col}": ${originalMerchantName}`);
+              break;
+            }
+          }
+          
+          // Also try case-insensitive search through all columns
+          if (!originalMerchantName) {
+            for (const key of Object.keys(row)) {
+              if (key.toLowerCase().includes('name') && !key.toLowerCase().includes('account') && 
+                  row[key] && row[key].toString().trim()) {
+                originalMerchantName = row[key].toString().trim();
+                console.log(`[PARSING DEBUG] Found merchant name via partial match in column "${key}": ${originalMerchantName}`);
+                break;
+              }
+            }
           }
           
           // Unified transaction data extraction
@@ -5809,6 +5832,9 @@ export class DatabaseStorage implements IStorage {
                         }
                       }
                     }
+                  } else {
+                    // NO MATCH FOUND - This merchant needs to be created
+                    console.log(`[NO MATCH] No existing merchant found for "${name}" - will be created as new merchant in next step`);
                   }
                 }
               } catch (error) {
