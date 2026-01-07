@@ -1,8 +1,8 @@
 -- =====================================================================
 -- PRODUCTION DATABASE SCHEMA
 -- =====================================================================
--- Version: 2.9.0 (v1014)
--- Last Updated: 2025-12-02
+-- Version: 2.8.0
+-- Last Updated: 2026-01-07
 -- 
 -- This file creates a complete production database schema from scratch.
 -- Safe to run multiple times (uses IF NOT EXISTS).
@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
   metadata jsonb
 );
 
-CREATE INDEX IF NOT EXISTS uploaded_files_uploaded_at_idx ON uploaded_files(uploaded_at);
+CREATE INDEX IF NOT EXISTS uploaded_files_upload_date_idx ON uploaded_files(upload_date);
 CREATE INDEX IF NOT EXISTS uploaded_files_status_idx ON uploaded_files(processing_status);
 
 
@@ -268,8 +268,8 @@ CREATE TABLE IF NOT EXISTS tddf_batch_headers (
   raw_data jsonb
 );
 
--- Indexes skipped - production table has different column names (source_file_id instead of upload_id)
-CREATE INDEX IF NOT EXISTS tddf_batch_headers_source_file_id_idx ON tddf_batch_headers(source_file_id);
+CREATE INDEX IF NOT EXISTS tddf_batch_headers_upload_id_idx ON tddf_batch_headers(upload_id);
+CREATE INDEX IF NOT EXISTS tddf_batch_headers_filename_idx ON tddf_batch_headers(filename);
 CREATE INDEX IF NOT EXISTS tddf_batch_headers_batch_date_idx ON tddf_batch_headers(batch_date);
 
 
@@ -316,9 +316,8 @@ CREATE TABLE IF NOT EXISTS tddf_purchasing_extensions (
   raw_data jsonb
 );
 
--- Indexes adjusted - production table uses source_file_id instead of upload_id
-CREATE INDEX IF NOT EXISTS tddf_purchasing_extensions_source_file_id_idx ON tddf_purchasing_extensions(source_file_id);
--- transaction_id column doesn't exist in production, skipping that index
+CREATE INDEX IF NOT EXISTS tddf_purchasing_extensions_upload_id_idx ON tddf_purchasing_extensions(upload_id);
+CREATE INDEX IF NOT EXISTS tddf_purchasing_extensions_transaction_id_idx ON tddf_purchasing_extensions(transaction_id);
 
 
 -- =====================================================================
@@ -342,10 +341,11 @@ CREATE TABLE IF NOT EXISTS tddf_records (
   raw_line text
 );
 
--- Indexes commented out - production tddf_records has different schema
--- The production table has: sequence_number, reference_number, merchant_name, etc.
+CREATE INDEX IF NOT EXISTS tddf_records_upload_id_idx ON tddf_records(upload_id);
+CREATE INDEX IF NOT EXISTS tddf_records_record_type_idx ON tddf_records(record_type);
+CREATE INDEX IF NOT EXISTS tddf_records_merchant_id_idx ON tddf_records(merchant_id);
 CREATE INDEX IF NOT EXISTS tddf_records_transaction_date_idx ON tddf_records(transaction_date);
-CREATE INDEX IF NOT EXISTS tddf_records_merchant_account_number_idx ON tddf_records(merchant_account_number);
+CREATE INDEX IF NOT EXISTS tddf_records_status_idx ON tddf_records(processing_status);
 
 
 -- =====================================================================
@@ -360,60 +360,11 @@ CREATE TABLE IF NOT EXISTS users (
   role text DEFAULT 'user',
   is_active boolean DEFAULT true,
   created_at timestamp DEFAULT NOW() NOT NULL,
-  last_login timestamp,
-  
-  -- Profile columns (v1014)
-  first_name varchar(255),
-  last_name varchar(255),
-  
-  -- User preference columns (v1014)
-  developer_flag boolean DEFAULT false,
-  dark_mode boolean DEFAULT false,
-  can_create_users boolean DEFAULT false,
-  default_dashboard varchar(255) DEFAULT 'merchants',
-  theme_preference varchar(255) DEFAULT 'system',
-  
-  -- Authentication tracking columns (v1014)
-  auth_type text DEFAULT 'local',
-  last_login_type text,
-  last_failed_login timestamp,
-  last_failed_login_type text,
-  last_failed_login_reason text
+  last_login timestamp
 );
 
 CREATE INDEX IF NOT EXISTS users_username_idx ON users(username);
 CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
-
-
--- =====================================================================
--- SECURITY LOGS TABLE (v1014)
--- =====================================================================
-
-CREATE TABLE IF NOT EXISTS security_logs (
-  id serial PRIMARY KEY,
-  event_type text NOT NULL,
-  user_id integer,
-  username text,
-  timestamp timestamptz DEFAULT NOW() NOT NULL,
-  ip_address text,
-  user_agent text,
-  resource_type text,
-  resource_id text,
-  action text,
-  result text NOT NULL,
-  details jsonb,
-  session_id text,
-  reason text,
-  severity text DEFAULT 'info',
-  message text,
-  source text DEFAULT 'authentication'
-);
-
-CREATE INDEX IF NOT EXISTS security_logs_timestamp_idx ON security_logs(timestamp);
-CREATE INDEX IF NOT EXISTS security_logs_event_type_idx ON security_logs(event_type);
-CREATE INDEX IF NOT EXISTS security_logs_user_id_idx ON security_logs(user_id);
-CREATE INDEX IF NOT EXISTS security_logs_user_action_idx ON security_logs(user_id, action);
-CREATE INDEX IF NOT EXISTS security_logs_result_idx ON security_logs(result);
 
 
 -- =====================================================================
@@ -452,9 +403,8 @@ CREATE TABLE IF NOT EXISTS connection_log (
 );
 
 CREATE INDEX IF NOT EXISTS connection_log_timestamp_idx ON connection_log(timestamp);
--- Production uses client_ip instead of ip_address, and api_key_used instead of api_key
-CREATE INDEX IF NOT EXISTS connection_log_client_ip_idx ON connection_log(client_ip);
-CREATE INDEX IF NOT EXISTS connection_log_api_key_used_idx ON connection_log(api_key_used);
+CREATE INDEX IF NOT EXISTS connection_log_ip_address_idx ON connection_log(ip_address);
+CREATE INDEX IF NOT EXISTS connection_log_api_key_idx ON connection_log(api_key);
 
 
 -- =====================================================================
@@ -492,9 +442,8 @@ CREATE TABLE IF NOT EXISTS host_approvals (
 );
 
 CREATE INDEX IF NOT EXISTS host_approvals_hostname_idx ON host_approvals(hostname);
--- Production uses api_key_prefix instead of api_key, and status instead of approval_status
-CREATE INDEX IF NOT EXISTS host_approvals_api_key_prefix_idx ON host_approvals(api_key_prefix);
-CREATE INDEX IF NOT EXISTS host_approvals_status_idx ON host_approvals(status);
+CREATE INDEX IF NOT EXISTS host_approvals_api_key_idx ON host_approvals(api_key);
+CREATE INDEX IF NOT EXISTS host_approvals_status_idx ON host_approvals(approval_status);
 
 
 -- =====================================================================
@@ -540,9 +489,8 @@ CREATE TABLE IF NOT EXISTS uploader_uploads (
   is_duplicate boolean DEFAULT false
 );
 
--- Production uses uploaded_at instead of upload_datetime, status instead of pipeline_status
-CREATE INDEX IF NOT EXISTS uploader_uploads_uploaded_at_idx ON uploader_uploads(uploaded_at);
-CREATE INDEX IF NOT EXISTS uploader_uploads_status_idx ON uploader_uploads(status);
+CREATE INDEX IF NOT EXISTS uploader_uploads_upload_datetime_idx ON uploader_uploads(upload_datetime);
+CREATE INDEX IF NOT EXISTS uploader_uploads_pipeline_status_idx ON uploader_uploads(pipeline_status);
 CREATE INDEX IF NOT EXISTS uploader_uploads_file_type_idx ON uploader_uploads(file_type);
 
 
@@ -610,9 +558,8 @@ CREATE TABLE IF NOT EXISTS tddf_records_all_pre_cache (
   updated_at timestamp DEFAULT NOW() NOT NULL
 );
 
--- Production table has different columns (upload_id, record_type, line_number, etc.)
-CREATE INDEX IF NOT EXISTS tddf_all_cache_upload_id_idx ON tddf_records_all_pre_cache(upload_id);
-CREATE INDEX IF NOT EXISTS tddf_all_cache_record_type_idx ON tddf_records_all_pre_cache(record_type);
+CREATE INDEX IF NOT EXISTS tddf_all_cache_year_idx ON tddf_records_all_pre_cache(year);
+CREATE INDEX IF NOT EXISTS tddf_all_cache_key_idx ON tddf_records_all_pre_cache(cache_key);
 
 -- TDDF Records DT Pre-Cache
 CREATE TABLE IF NOT EXISTS tddf_records_dt_pre_cache (
@@ -638,9 +585,8 @@ CREATE TABLE IF NOT EXISTS tddf_records_dt_pre_cache (
   updated_at timestamp DEFAULT NOW() NOT NULL
 );
 
--- Production table has different columns (upload_id, transaction_amount, merchant_account, etc.)
-CREATE INDEX IF NOT EXISTS tddf_dt_cache_upload_id_idx ON tddf_records_dt_pre_cache(upload_id);
-CREATE INDEX IF NOT EXISTS tddf_dt_cache_merchant_account_idx ON tddf_records_dt_pre_cache(merchant_account);
+CREATE INDEX IF NOT EXISTS tddf_dt_cache_year_idx ON tddf_records_dt_pre_cache(year);
+CREATE INDEX IF NOT EXISTS tddf_dt_cache_key_idx ON tddf_records_dt_pre_cache(cache_key);
 
 
 -- =====================================================================
