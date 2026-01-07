@@ -690,8 +690,8 @@ export class DatabaseStorage implements IStorage {
           console.log(`[STORAGE] getUserByUsername: Found user '${username}' in PRIMARY table '${usersTableName}' with role '${user.role}'`);
           return user;
         }
-      } catch (primaryError) {
-        console.log(`[STORAGE] getUserByUsername: Primary table '${usersTableName}' query failed:`, primaryError.message);
+      } catch (primaryError: unknown) {
+        console.log(`[STORAGE] getUserByUsername: Primary table '${usersTableName}' query failed:`, primaryError instanceof Error ? primaryError.message : String(primaryError));
       }
       
       // FALLBACK: Try the alternate table namespace (users ↔ dev_users)
@@ -727,8 +727,8 @@ export class DatabaseStorage implements IStorage {
           console.log(`[STORAGE] ⚠️  getUserByUsername: Found user '${username}' in FALLBACK table '${fallbackTable}' with role '${user.role}' - ENVIRONMENT MISMATCH DETECTED`);
           return user;
         }
-      } catch (fallbackError) {
-        console.log(`[STORAGE] getUserByUsername: Fallback table '${fallbackTable}' query failed:`, fallbackError.message);
+      } catch (fallbackError: unknown) {
+        console.log(`[STORAGE] getUserByUsername: Fallback table '${fallbackTable}' query failed:`, fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
       }
       
       console.log(`[STORAGE] getUserByUsername: User '${username}' not found in either '${usersTableName}' or '${fallbackTable}'`);
@@ -777,8 +777,8 @@ export class DatabaseStorage implements IStorage {
           console.log(`[STORAGE] getUserByEmail: Found user with email '${email}' in PRIMARY table '${usersTableName}' (username: ${user.username}, role: ${user.role})`);
           return user;
         }
-      } catch (primaryError) {
-        console.log(`[STORAGE] getUserByEmail: Primary table '${usersTableName}' query failed:`, primaryError.message);
+      } catch (primaryError: unknown) {
+        console.log(`[STORAGE] getUserByEmail: Primary table '${usersTableName}' query failed:`, primaryError instanceof Error ? primaryError.message : String(primaryError));
       }
       
       // FALLBACK: Try the alternate table namespace (users ↔ dev_users)
@@ -814,8 +814,8 @@ export class DatabaseStorage implements IStorage {
           console.log(`[STORAGE] ⚠️  getUserByEmail: Found user with email '${email}' in FALLBACK table '${fallbackTable}' (username: ${user.username}, role: ${user.role}) - ENVIRONMENT MISMATCH DETECTED`);
           return user;
         }
-      } catch (fallbackError) {
-        console.log(`[STORAGE] getUserByEmail: Fallback table '${fallbackTable}' query failed:`, fallbackError.message);
+      } catch (fallbackError: unknown) {
+        console.log(`[STORAGE] getUserByEmail: Fallback table '${fallbackTable}' query failed:`, fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
       }
       
       console.log(`[STORAGE] getUserByEmail: User with email '${email}' not found in either '${usersTableName}' or '${fallbackTable}'`);
@@ -832,7 +832,7 @@ export class DatabaseStorage implements IStorage {
     const usersTableName = getTableName('users');
     
     // Filter out any fields that don't exist in the database and map to proper column names
-    const fieldMapping = {
+    const fieldMapping: Record<string, string> = {
       username: 'username',
       password: 'password',
       email: 'email',
@@ -845,8 +845,8 @@ export class DatabaseStorage implements IStorage {
       createdAt: 'created_at'
     };
     
-    const dbFields = {};
-    const values = [];
+    const dbFields: Record<string, string> = {};
+    const values: unknown[] = [];
     let paramIndex = 1;
     
     // Only include fields that exist in our mapping
@@ -1624,8 +1624,8 @@ export class DatabaseStorage implements IStorage {
               queryTime
             };
           }
-        } catch (cacheError) {
-          console.log(`[MERCHANTS-CACHE] Cache miss or error, falling back to direct query:`, cacheError.message);
+        } catch (cacheError: unknown) {
+          console.log(`[MERCHANTS-CACHE] Cache miss or error, falling back to direct query:`, cacheError instanceof Error ? cacheError.message : String(cacheError));
         }
       }
 
@@ -9677,8 +9677,8 @@ export class DatabaseStorage implements IStorage {
               queryTime
             };
           }
-        } catch (cacheError) {
-          console.log(`[TDDF-MERCHANTS-CACHE] Cache miss or error, falling back to JSONB aggregation:`, cacheError.message);
+        } catch (cacheError: unknown) {
+          console.log(`[TDDF-MERCHANTS-CACHE] Cache miss or error, falling back to JSONB aggregation:`, cacheError instanceof Error ? cacheError.message : String(cacheError));
         }
       }
 
