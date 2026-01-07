@@ -2380,7 +2380,7 @@ export default function MerchantDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Transaction Trend</CardTitle>
+                <CardTitle>ACH Transaction Trend</CardTitle>
                 <CardDescription>
                   Monthly transaction volume for the last 12 months.
                 </CardDescription>
