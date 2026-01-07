@@ -2514,14 +2514,14 @@ export default function MerchantDetail() {
                             tick={{ fontSize: 12 }}
                           />
                           <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
                           <RechartsTooltip formatter={(value, name) => {
-                            if (name === "revenue") return [formatCurrency(value as number), "Revenue"];
-                            return [value, "Transactions"];
+                            if (name === "Volume") return [formatCurrency(value as number), "Volume"];
+                            return [value, "Count"];
                           }} />
                           <Legend />
-                          <Bar yAxisId="left" dataKey="transactions" fill="#8884d8" name="Transactions" />
-                          <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue" />
+                          <Bar yAxisId="left" dataKey="transactions" fill="#8884d8" name="Count" />
+                          <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Volume" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
