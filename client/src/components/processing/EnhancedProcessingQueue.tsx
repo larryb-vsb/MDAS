@@ -210,12 +210,42 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
         });
       }
       setSelectedProcessingFiles(new Set());
-      // Force immediate refetch to update UI
       refetch();
     },
     onError: (error: Error) => {
       toast({
         title: "Kill Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      refetch();
+    }
+  });
+
+  // Hold processing mutation - stops processing and resets to uploaded stage
+  const holdProcessingMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      return apiRequest("/api/uploader/kill-processing", {
+        method: "POST",
+        body: JSON.stringify({ uploadIds, action: 'hold' })
+      }) as Promise<{ 
+        success: boolean; 
+        heldCount: number; 
+        message: string;
+        slotsCleared?: number;
+      }>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Processing Held",
+        description: `${data.slotsCleared || 0} process(es) stopped, ${data.heldCount || 0} file(s) reset to uploaded stage`,
+      });
+      setSelectedProcessingFiles(new Set());
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Hold Failed",
         description: error.message,
         variant: "destructive"
       });
@@ -339,19 +369,26 @@ export function EnhancedProcessingQueue({ refetchInterval = 5000 }: ProcessingQu
                   <AlertDialogHeader>
                     <AlertDialogTitle>Kill {selectedProcessingFiles.size} Processing File(s)?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will immediately stop processing and delete the selected files.
-                      Any partial data will be cleaned up and orphaned objects removed.
+                      Choose how to handle the selected file(s) after stopping processing.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
+                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction 
+                      onClick={() => holdProcessingMutation.mutate(Array.from(selectedProcessingFiles))}
+                      disabled={holdProcessingMutation.isPending || killProcessingMutation.isPending}
+                      className="bg-amber-500 hover:bg-amber-600 text-white"
+                    >
+                      {holdProcessingMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Hold
+                    </AlertDialogAction>
+                    <AlertDialogAction 
                       onClick={() => killProcessingMutation.mutate(Array.from(selectedProcessingFiles))}
-                      disabled={killProcessingMutation.isPending}
+                      disabled={killProcessingMutation.isPending || holdProcessingMutation.isPending}
                       className="bg-destructive text-destructive-foreground"
                     >
                       {killProcessingMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Kill & Delete
+                      Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

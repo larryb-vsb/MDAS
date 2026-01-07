@@ -857,10 +857,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Kill actively processing files - stops processing, clears from slots, and deletes
+  // Kill actively processing files - stops processing, clears from slots, and deletes or holds
   app.post("/api/uploader/kill-processing", isAuthenticated, async (req, res) => {
     try {
-      const { uploadIds } = req.body;
+      const { uploadIds, action = 'delete' } = req.body;
       const username = (req.user as any)?.username || 'unknown';
       const timestamp = new Date().toISOString();
       
@@ -870,6 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[UPLOADER-KILL] ============================================`);
       console.log(`[UPLOADER-KILL] Kill processing request initiated`);
+      console.log(`[UPLOADER-KILL] Action: ${action}`);
       console.log(`[UPLOADER-KILL] User: ${username}`);
       console.log(`[UPLOADER-KILL] Timestamp: ${timestamp}`);
       console.log(`[UPLOADER-KILL] Upload IDs:`, uploadIds);
@@ -882,33 +883,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         slotsCleared = slotResult.cleared || 0;
         console.log(`[UPLOADER-KILL] Cleared ${slotsCleared} files from active slots`);
       } else {
-        console.log(`[UPLOADER-KILL] Warning: MMS Watcher not available, proceeding with delete only`);
+        console.log(`[UPLOADER-KILL] Warning: MMS Watcher not available, proceeding with ${action} only`);
       }
       
-      // Step 2: Soft-delete the files from the database
-      const result = await storage.deleteUploaderUploads(uploadIds, username);
-      
-      // Step 3: Clean up orphaned objects if needed
-      let cleanedObjects = 0;
-      // Note: Object cleanup is handled by the storage.deleteUploaderUploads method
-      
-      console.log(`[UPLOADER-KILL] ============================================`);
-      console.log(`[UPLOADER-KILL] Kill processing completed`);
-      console.log(`[UPLOADER-KILL] Slots cleared: ${slotsCleared}`);
-      console.log(`[UPLOADER-KILL] Files deleted: ${result.deletedFiles.length}`);
-      console.log(`[UPLOADER-KILL] ============================================`);
-      
-      res.json({ 
-        success: true, 
-        message: `Killed ${slotsCleared} processing file(s), deleted ${result.deletedFiles.length} file(s)`,
-        killedCount: result.deletedFiles.length,
-        slotsCleared,
-        cleanedObjects,
-        deletedFiles: result.deletedFiles.map(f => ({
-          id: f.id,
-          filename: f.filename
-        }))
-      });
+      if (action === 'hold') {
+        // Hold action: Set files to 'hold' status (released will go back to 'uploaded')
+        const uploadsTableName = getTableName('uploader_uploads');
+        const holdQuery = `
+          UPDATE ${uploadsTableName}
+          SET current_phase = 'hold',
+              phase_updated_at = NOW(),
+              updated_at = NOW()
+          WHERE id = ANY($1::text[])
+            AND current_phase NOT IN ('deleted', 'completed', 'archived')
+          RETURNING id, filename
+        `;
+        const holdResult = await pool.query(holdQuery, [uploadIds]);
+        const heldCount = holdResult.rows.length;
+        
+        console.log(`[UPLOADER-KILL] ============================================`);
+        console.log(`[UPLOADER-KILL] Hold processing completed`);
+        console.log(`[UPLOADER-KILL] Slots cleared: ${slotsCleared}`);
+        console.log(`[UPLOADER-KILL] Files held: ${heldCount}`);
+        console.log(`[UPLOADER-KILL] ============================================`);
+        
+        res.json({ 
+          success: true, 
+          message: `Stopped ${slotsCleared} processing file(s), held ${heldCount} file(s)`,
+          heldCount,
+          slotsCleared,
+          heldFiles: holdResult.rows.map(f => ({
+            id: f.id,
+            filename: f.filename
+          }))
+        });
+      } else {
+        // Delete action: Soft-delete the files from the database
+        const result = await storage.deleteUploaderUploads(uploadIds, username);
+        
+        console.log(`[UPLOADER-KILL] ============================================`);
+        console.log(`[UPLOADER-KILL] Kill processing completed`);
+        console.log(`[UPLOADER-KILL] Slots cleared: ${slotsCleared}`);
+        console.log(`[UPLOADER-KILL] Files deleted: ${result.deletedFiles.length}`);
+        console.log(`[UPLOADER-KILL] ============================================`);
+        
+        res.json({ 
+          success: true, 
+          message: `Killed ${slotsCleared} processing file(s), deleted ${result.deletedFiles.length} file(s)`,
+          killedCount: result.deletedFiles.length,
+          slotsCleared,
+          cleanedObjects: 0,
+          deletedFiles: result.deletedFiles.map(f => ({
+            id: f.id,
+            filename: f.filename
+          }))
+        });
+      }
     } catch (error: any) {
       console.error('[UPLOADER-KILL] ERROR during kill processing:', error);
       res.status(500).json({ error: error.message });
