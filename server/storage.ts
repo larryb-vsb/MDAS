@@ -2335,6 +2335,7 @@ export class DatabaseStorage implements IStorage {
   async deleteMerchants(merchantIds: string[], username: string = 'System'): Promise<void> {
     const merchantsTableName = getTableName('merchants');
     const transactionsTableName = getTableName('transactions');
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
     const auditLogsTableName = getTableName('audit_logs');
     
     // Use database transaction to ensure all operations are committed together
@@ -2360,6 +2361,10 @@ export class DatabaseStorage implements IStorage {
           const transactionCount = parseInt(countResult.rows[0].count, 10);
           
           console.log(`[DELETE MERCHANTS] Found ${transactionCount} transactions for merchant ${merchantId}`);
+          
+          // Delete sub_merchant_terminals associated with this merchant (environment-aware)
+          const subTerminalsResult = await pool.query(`DELETE FROM ${subMerchantTerminalsTableName} WHERE merchant_id = $1`, [merchantId]);
+          console.log(`[DELETE MERCHANTS] Deleted ${subTerminalsResult.rowCount || 0} sub-merchant terminals for ${merchantId}`);
           
           // Delete transactions associated with this merchant (environment-aware)
           await pool.query(`DELETE FROM ${transactionsTableName} WHERE merchant_id = $1`, [merchantId]);
