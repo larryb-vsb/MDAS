@@ -5873,7 +5873,7 @@ export class DatabaseStorage implements IStorage {
                   id: merchantId,
                   name: nameToUse,
                   clientMID: `CM-${merchantId}`,
-                  status: "Pending",
+                  status: "Active/Open",
                   address: "123 Business St",
                   city: "Chicago",
                   state: "IL",
@@ -5899,7 +5899,23 @@ export class DatabaseStorage implements IStorage {
                 console.log(`Filtered out transactions for merchant ${merchantId} due to missing name`);
               }
             } else {
-              console.log(`Merchant ${merchantId} already exists, transactions will be added to existing merchant`);
+              // Merchant exists - update status to Active/Open and lastUploadDate
+              const existingMerchant = existingMerchantResult.rows[0];
+              if (existingMerchant.status !== 'Active/Open') {
+                await pool.query(`
+                  UPDATE ${merchantsTableName} 
+                  SET status = 'Active/Open', "lastUploadDate" = NOW(), "editDate" = NOW()
+                  WHERE id = $1
+                `, [merchantId]);
+                console.log(`[UPDATE] Updating lastUploadDate and status to Active/Open for existing merchant: ${merchantId} (${existingMerchant.name})`);
+              } else {
+                await pool.query(`
+                  UPDATE ${merchantsTableName} 
+                  SET "lastUploadDate" = NOW()
+                  WHERE id = $1
+                `, [merchantId]);
+                console.log(`[UPDATE] Updating lastUploadDate for existing merchant: ${merchantId} (${existingMerchant.name})`);
+              }
             }
           }
           
