@@ -2525,8 +2525,8 @@ export default function MerchantDetail() {
                             interval={0}
                             tick={{ fontSize: 12 }}
                           />
-                          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
+                          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]} />
+                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
                           <RechartsTooltip formatter={(value, name) => {
                             if (name === "Volume") return [formatCurrency(value as number), "Volume"];
                             return [value, "Count"];
