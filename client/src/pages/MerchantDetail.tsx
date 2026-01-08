@@ -1122,8 +1122,11 @@ export default function MerchantDetail() {
   }, []);
   
   // Filter transaction history data based on the date range window and year filter
+  // Always shows 12 months when a specific year is selected
   const getFilteredTransactionHistory = useCallback(() => {
     if (!data?.analytics.transactionHistory) return [];
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
     // Clone the data to avoid mutation
     let history = [...data.analytics.transactionHistory];
@@ -1131,10 +1134,36 @@ export default function MerchantDetail() {
     // Apply year filter if not "all"
     if (selectedYear !== "all") {
       const yearNum = parseInt(selectedYear, 10);
-      history = history.filter((item: any) => item.year === yearNum);
+      
+      // Create a map of existing data for quick lookup
+      const dataMap = new Map();
+      history.forEach((item: any) => {
+        if (item.year === yearNum) {
+          dataMap.set(item.month, item);
+        }
+      });
+      
+      // Always generate all 12 months for the selected year
+      history = monthNames.map((monthName, index) => {
+        const existingData = dataMap.get(index + 1);
+        if (existingData) {
+          return existingData;
+        }
+        // Return empty month data
+        return {
+          name: monthName,
+          month: index + 1,
+          year: yearNum,
+          transactions: 0,
+          revenue: 0
+        };
+      });
+      
+      // Return all 12 months (no sliding window needed for single year)
+      return history;
     }
     
-    // Get the total available months
+    // For "all years" mode, use the original sliding window behavior
     const totalMonths = history.length;
     
     // If no data after filtering, return empty
