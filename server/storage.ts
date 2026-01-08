@@ -1641,11 +1641,12 @@ export class DatabaseStorage implements IStorage {
       
       // Apply status filter
       if (status !== "All") {
-        // Handle "Active/Open" as a special case that matches both "Active" and "Open"
+        // Handle "Active/Open" as a special case that matches "Active", "Open", or literal "Active/Open"
         if (status === "Active/Open") {
-          conditions.push(`(status = $${queryParams.length + 1} OR status = $${queryParams.length + 2})`);
+          conditions.push(`(status = $${queryParams.length + 1} OR status = $${queryParams.length + 2} OR status = $${queryParams.length + 3})`);
           queryParams.push("Active");
           queryParams.push("Open");
+          queryParams.push("Active/Open");
         } else {
           conditions.push(`status = $${queryParams.length + 1}`);
           queryParams.push(status);
