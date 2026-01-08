@@ -1193,8 +1193,12 @@ export default function MerchantDetail() {
     const start = Math.max(0, totalMonths - dateRange.monthsToShow - dateRange.startPosition);
     const end = Math.max(0, totalMonths - dateRange.startPosition);
     
-    // Return the window of data in chronological order (oldest to newest)
-    return history.slice(start, end);
+    // For "all years" mode, add year to label for clarity (e.g., "Jul '24")
+    const windowData = history.slice(start, end);
+    return windowData.map((item: any) => ({
+      ...item,
+      name: `${item.name} '${String(item.year).slice(-2)}`
+    }));
   }, [data?.analytics.transactionHistory, dateRange, selectedYear]);
   
   // Sort and paginate transactions using useMemo for better performance
