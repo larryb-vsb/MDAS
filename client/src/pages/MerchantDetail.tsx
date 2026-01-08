@@ -1135,24 +1135,24 @@ export default function MerchantDetail() {
     if (selectedYear !== "all") {
       const yearNum = parseInt(selectedYear, 10);
       
-      // Create a map of existing data for quick lookup
-      const dataMap = new Map();
+      // Create a map of existing data for quick lookup using month NAME (e.g., "Aug")
+      // Backend returns { name: "Aug", year: 2024, transactions: 5, revenue: 1234 }
+      const dataMap = new Map<string, any>();
       history.forEach((item: any) => {
-        if (item.year === yearNum) {
-          dataMap.set(item.month, item);
+        if (item.year === yearNum && item.name) {
+          dataMap.set(item.name, item);
         }
       });
       
       // Always generate all 12 months for the selected year
-      history = monthNames.map((monthName, index) => {
-        const existingData = dataMap.get(index + 1);
+      history = monthNames.map((monthName) => {
+        const existingData = dataMap.get(monthName);
         if (existingData) {
           return existingData;
         }
         // Return empty month data
         return {
           name: monthName,
-          month: index + 1,
           year: yearNum,
           transactions: 0,
           revenue: 0
