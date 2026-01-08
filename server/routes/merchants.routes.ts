@@ -459,23 +459,16 @@ export function registerMerchantRoutes(app: Express) {
       
       const clientMid = merchantResult.rows[0]?.client_mid;
       
-      // Query 1: Latest ACH transaction date - use merchant_name to match
-      // First get merchant name for matching
-      const merchantNameResult = await pool.query(`
-        SELECT name FROM ${merchantsTableName} WHERE id = $1 LIMIT 1
-      `, [merchantId]);
-      const merchantName = merchantNameResult.rows[0]?.name;
-      
+      // Query 1: Latest ACH transaction date - match by merchant_id (not name)
+      // ACH transactions store merchant_id which matches the dev_merchants.id
       let achDate: Date | null = null;
-      if (merchantName) {
-        const achResult = await pool.query(`
-          SELECT transaction_date FROM ${achTableName}
-          WHERE UPPER(TRIM(merchant_name)) = UPPER(TRIM($1))
-          ORDER BY transaction_date DESC
-          LIMIT 1
-        `, [merchantName]);
-        achDate = achResult.rows[0]?.transaction_date ? new Date(achResult.rows[0].transaction_date) : null;
-      }
+      const achResult = await pool.query(`
+        SELECT transaction_date FROM ${achTableName}
+        WHERE merchant_id = $1
+        ORDER BY transaction_date DESC
+        LIMIT 1
+      `, [merchantId]);
+      achDate = achResult.rows[0]?.transaction_date ? new Date(achResult.rows[0].transaction_date) : null;
       
       // Query 2: Latest batch/uploaded file date - search by filename pattern
       const batchResult = await pool.query(`
