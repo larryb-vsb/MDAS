@@ -1163,7 +1163,21 @@ export default function MerchantDetail() {
       return history;
     }
     
-    // For "all years" mode, use the original sliding window behavior
+    // For "all years" mode, sort chronologically and use sliding window
+    // First, sort by year and month to ensure consistent chronological order
+    const monthOrder: Record<string, number> = {
+      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
+    
+    history.sort((a: any, b: any) => {
+      // Sort by year first, then by month
+      if (a.year !== b.year) {
+        return a.year - b.year;
+      }
+      return (monthOrder[a.name] || 0) - (monthOrder[b.name] || 0);
+    });
+    
     const totalMonths = history.length;
     
     // If no data after filtering, return empty
@@ -1175,12 +1189,12 @@ export default function MerchantDetail() {
       return history.slice(0, dateRange.monthsToShow);
     }
     
-    // Calculate end based on available data
-    const start = dateRange.startPosition;
-    const end = Math.min(totalMonths, start + dateRange.monthsToShow);
+    // Calculate window from the end (most recent data)
+    const start = Math.max(0, totalMonths - dateRange.monthsToShow - dateRange.startPosition);
+    const end = Math.max(0, totalMonths - dateRange.startPosition);
     
-    // Return the window of data
-    return history.slice(totalMonths - end, totalMonths - start).reverse();
+    // Return the window of data in chronological order (oldest to newest)
+    return history.slice(start, end);
   }, [data?.analytics.transactionHistory, dateRange, selectedYear]);
   
   // Sort and paginate transactions using useMemo for better performance
