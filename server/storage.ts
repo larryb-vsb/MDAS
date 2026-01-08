@@ -6594,7 +6594,7 @@ export class DatabaseStorage implements IStorage {
                   id: transaction.merchantId,
                   name: merchantNameFromTransaction,
                   clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
-                  status: "Active",
+                  status: "Active/Open",
                   address: templateMerchant?.address || "123 Business St",
                   city: templateMerchant?.city || "Chicago",
                   state: templateMerchant?.state || "IL",
@@ -6643,7 +6643,7 @@ export class DatabaseStorage implements IStorage {
                   id: transaction.merchantId,
                   name: merchantName,
                   clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
-                  status: "Active",
+                  status: "Active/Open",
                   address: templateMerchant.address || "123 Business St",
                   city: templateMerchant.city,
                   state: templateMerchant.state,
@@ -6684,7 +6684,7 @@ export class DatabaseStorage implements IStorage {
                   id: transaction.merchantId,
                   name: `Merchant ${transaction.merchantId}`,
                   clientMID: `CM-${transaction.merchantId}`,
-                  status: "Active", 
+                  status: "Active/Open", 
                   address: "100 Main Street",
                   city: "Chicago",
                   state: "IL",
@@ -6720,7 +6720,7 @@ export class DatabaseStorage implements IStorage {
               }
             } else {
               // Update lastUploadDate, status, and merchant_type for existing merchant from ACH file
-              console.log(`[UPDATE] Updating lastUploadDate, status=Active, merchant_type=3 for existing merchant: ${transaction.merchantId} (${existingMerchant[0].name})`);
+              console.log(`[UPDATE] Updating lastUploadDate, status=Active/Open, merchant_type=3 for existing merchant: ${transaction.merchantId} (${existingMerchant[0].name})`);
               updatedMerchants++;
               updatedMerchantsList.push({
                 id: transaction.merchantId,
@@ -6731,10 +6731,10 @@ export class DatabaseStorage implements IStorage {
               // @DEPLOYMENT-CHECK - Uses environment-aware table naming
               const merchantsTableName = getTableName('merchants');
               
-              // TYPE 3 ACH: Always set merchant_type='3' and status='Active' when processing ACH transaction files
+              // TYPE 3 ACH: Always set merchant_type='3' and status='Active/Open' when processing ACH transaction files
               const updateMerchantQuery = `
                 UPDATE ${merchantsTableName}
-                SET last_upload_date = $1, merchant_type = '3', status = 'Active'
+                SET last_upload_date = $1, merchant_type = '3', status = 'Active/Open'
                 WHERE id = $2
               `;
               
