@@ -4725,7 +4725,6 @@ export class DatabaseStorage implements IStorage {
       
       // Get merchants table for updates
       const merchantsTableName = getTableName('merchants');
-      const apiMerchantsTableName = getTableName('api_merchants');
       let merchantsUpdated = 0;
       let merchantsCreated = 0;
       let skipped = 0;
@@ -4795,41 +4794,23 @@ export class DatabaseStorage implements IStorage {
             }
             console.log(`[MERCHANT-DETAIL] Updated ${existingMerchants.rows.length} merchant(s) for bank ${bankNum}`);
           } else {
-            // Check if merchant exists in api_merchants table and create if not
-            const apiMerchant = await db.execute(sql`
-              SELECT merchant_id, dba_name FROM ${sql.identifier(apiMerchantsTableName)} 
-              WHERE merchant_id = ${bankNum}
-            `);
-            
-            if (apiMerchant.rows.length > 0) {
-              // Merchant exists in API table but not in main table - update API table
-              await pool.query(`
-                UPDATE ${apiMerchantsTableName}
-                SET 
-                  dba_name = COALESCE($1, dba_name),
-                  updated_at = NOW()
-                WHERE merchant_id = $2
-              `, [
-                merchantData.dbaName || null,
-                bankNum
-              ]);
-              merchantsUpdated++;
-              logLines.push(`UPDATED: ${bankNum} - ${apiMerchant.rows[0].dba_name || merchantData.dbaName} (API table)`);
-            } else {
-              // New merchant - create in API table
-              await pool.query(`
-                INSERT INTO ${apiMerchantsTableName} (
-                  merchant_id, dba_name, bank_number, created_at, updated_at
-                )
-                VALUES ($1, $2, $3, NOW(), NOW())
-              `, [
-                bankNum,
-                merchantData.dbaName || null,
-                bankNum
-              ]);
-              merchantsCreated++;
-              logLines.push(`NEW: ${bankNum} - ${merchantData.dbaName || 'Unknown'}`);
-            }
+            // New merchant - create in main merchants table
+            await pool.query(`
+              INSERT INTO ${merchantsTableName} (
+                id, name, dba_name, bank_number, status, merchant_type, created_at, updated_at
+              )
+              VALUES ($1, $2, $3, $4, 'Active/Open', 'MCC', NOW(), NOW())
+              ON CONFLICT (id) DO UPDATE SET
+                dba_name = COALESCE(EXCLUDED.dba_name, ${merchantsTableName}.dba_name),
+                updated_at = NOW()
+            `, [
+              bankNum,
+              merchantData.dbaName || `Merchant ${bankNum}`,
+              merchantData.dbaName || null,
+              bankNum
+            ]);
+            merchantsCreated++;
+            logLines.push(`NEW: ${bankNum} - ${merchantData.dbaName || 'Unknown'}`);
           }
         } catch (recordError) {
           console.error('[MERCHANT-DETAIL] Error processing record:', recordError);
