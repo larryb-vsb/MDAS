@@ -6719,8 +6719,8 @@ export class DatabaseStorage implements IStorage {
                 });
               }
             } else {
-              // Update lastUploadDate for merchant
-              console.log(`[UPDATE] Updating lastUploadDate for existing merchant: ${transaction.merchantId} (${existingMerchant[0].name})`);
+              // Update lastUploadDate, status, and merchant_type for existing merchant from ACH file
+              console.log(`[UPDATE] Updating lastUploadDate, status=Active, merchant_type=3 for existing merchant: ${transaction.merchantId} (${existingMerchant[0].name})`);
               updatedMerchants++;
               updatedMerchantsList.push({
                 id: transaction.merchantId,
@@ -6731,9 +6731,10 @@ export class DatabaseStorage implements IStorage {
               // @DEPLOYMENT-CHECK - Uses environment-aware table naming
               const merchantsTableName = getTableName('merchants');
               
+              // TYPE 3 ACH: Always set merchant_type='3' and status='Active' when processing ACH transaction files
               const updateMerchantQuery = `
                 UPDATE ${merchantsTableName}
-                SET last_upload_date = $1
+                SET last_upload_date = $1, merchant_type = '3', status = 'Active'
                 WHERE id = $2
               `;
               
