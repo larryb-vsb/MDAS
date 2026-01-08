@@ -1186,6 +1186,12 @@ class MMSWatcher {
       console.log(`[MMS-WATCHER] Stage 4: Processing ${uploadedFiles.length} uploaded files for identification...`);
 
       for (const upload of uploadedFiles) {
+        // Check if Auto 4-5 was disabled mid-processing - stop immediately
+        if (!this.auto45Enabled) {
+          console.log(`[MMS-WATCHER] [AUTO-45] Switch turned OFF - stopping Stage 4 processing`);
+          break;
+        }
+        
         // Skip files in review mode unless specifically marked for processing
         if (upload.keepForReview && !upload.processingNotes?.includes('FORCE_IDENTIFICATION')) {
           console.log(`[MMS-WATCHER] Skipping file in review mode: ${upload.filename}`);
@@ -1734,6 +1740,12 @@ class MMSWatcher {
       console.log(`[MMS-WATCHER] Stage 5: Processing ${encodableFiles.length} identified files for encoding...`);
 
       for (const upload of encodableFiles) {
+        // Check if Auto 4-5 was disabled mid-processing - stop immediately
+        if (!this.auto45Enabled) {
+          console.log(`[MMS-WATCHER] [AUTO-45] Switch turned OFF - stopping Stage 5 encoding`);
+          break;
+        }
+        
         // Skip files in review mode unless specifically marked for processing
         if (upload.keepForReview && !upload.processingNotes?.includes('FORCE_ENCODING')) {
           console.log(`[MMS-WATCHER] Skipping file in review mode: ${upload.filename}`);
