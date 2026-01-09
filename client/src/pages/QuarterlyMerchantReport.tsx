@@ -464,18 +464,22 @@ export default function QuarterlyMerchantReport() {
                       </ResponsiveContainer>
                     </div>
 
-                    {/* New vs Closed Bar Chart */}
+                    {/* Stacked Bar Chart - End Count with Open/Closed */}
                     <div>
-                      <h4 className="text-sm font-medium mb-4 text-center">New vs Closed Merchants</h4>
+                      <h4 className="text-sm font-medium mb-4 text-center">End of Quarter Total (Open/Closed Activity)</h4>
                       <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={trendData.trend}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="label" fontSize={12} />
                           <YAxis fontSize={12} />
-                          <Tooltip />
+                          <Tooltip 
+                            formatter={(value: number, name: string) => [value, name]}
+                            labelFormatter={(label) => `${label}`}
+                          />
                           <Legend />
-                          <Bar dataKey="newMerchants" name="New" fill="#16a34a" />
-                          <Bar dataKey="closedMerchants" name="Closed" fill="#dc2626" />
+                          <Bar dataKey="endCount" name="End Total" fill="#2563eb" stackId="a" />
+                          <Bar dataKey="newMerchants" name="New" fill="#16a34a" stackId="b" />
+                          <Bar dataKey="closedMerchants" name="Closed" fill="#dc2626" stackId="b" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
