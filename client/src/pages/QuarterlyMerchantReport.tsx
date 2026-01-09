@@ -476,13 +476,23 @@ export default function QuarterlyMerchantReport() {
                           <XAxis dataKey="label" fontSize={12} />
                           <YAxis fontSize={12} />
                           <Tooltip 
-                            formatter={(value: number, name: string, props: any) => {
-                              if (name === 'Existing') return [value, 'Existing Merchants'];
-                              if (name === 'New') return [value, 'New This Quarter'];
-                              if (name === 'Closed') return [value, 'Closed This Quarter'];
-                              return [value, name];
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0]?.payload;
+                                const total = (data?.existing || 0) + (data?.newMerchants || 0);
+                                return (
+                                  <div className="bg-white border rounded-lg shadow-lg p-3 text-sm">
+                                    <p className="font-medium mb-2">{label}</p>
+                                    <p className="text-blue-600">Existing Merchants: {data?.existing || 0}</p>
+                                    <p className="text-green-600">New This Quarter: {data?.newMerchants || 0}</p>
+                                    <p className="text-red-600">Closed This Quarter: {data?.closedMerchants || 0}</p>
+                                    <hr className="my-2" />
+                                    <p className="font-bold">End Total: {total}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
                             }}
-                            labelFormatter={(label) => `${label}`}
                           />
                           <Legend />
                           <Bar dataKey="existing" name="Existing" fill="#2563eb" stackId="total" />
