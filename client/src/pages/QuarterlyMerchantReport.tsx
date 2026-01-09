@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText, Users } from "lucide-react";
+import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText, Users, BarChart3 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
 import {
   Table,
   TableBody,
@@ -47,6 +48,21 @@ interface QuarterlyReportData {
   };
   newMerchants: MerchantData[];
   closedMerchants: MerchantData[];
+}
+
+interface TrendDataPoint {
+  label: string;
+  year: number;
+  quarter: number;
+  newMerchants: number;
+  closedMerchants: number;
+  beginningCount: number;
+  endCount: number;
+  netChange: number;
+}
+
+interface TrendResponse {
+  trend: TrendDataPoint[];
 }
 
 const currentYear = new Date().getFullYear();
@@ -198,6 +214,11 @@ export default function QuarterlyMerchantReport() {
     refetch
   } = useQuery<QuarterlyReportData>({
     queryKey: [`/api/reports/quarterly-merchants?year=${selectedYear}&quarter=${selectedQuarter}`],
+    staleTime: 1000 * 60 * 5
+  });
+
+  const { data: trendData, isLoading: trendLoading } = useQuery<TrendResponse>({
+    queryKey: [`/api/reports/quarterly-merchants/trend?year=${selectedYear}&quarter=${selectedQuarter}`],
     staleTime: 1000 * 60 * 5
   });
 
@@ -401,6 +422,101 @@ export default function QuarterlyMerchantReport() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Four Quarter Trend Section */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                  Four Quarter Trend
+                </CardTitle>
+                <CardDescription>
+                  Merchant activity over the past 4 quarters
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {trendLoading ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Loading trend data...</span>
+                  </div>
+                ) : trendData?.trend ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Total Merchants Trend Line Chart */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-4 text-center">Total MCC Merchants</h4>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart data={trendData.trend}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" fontSize={12} />
+                          <YAxis fontSize={12} />
+                          <Tooltip />
+                          <Legend />
+                          <Line 
+                            type="monotone" 
+                            dataKey="endCount" 
+                            name="End of Quarter" 
+                            stroke="#2563eb" 
+                            strokeWidth={2}
+                            dot={{ fill: '#2563eb', strokeWidth: 2 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* New vs Closed Bar Chart */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-4 text-center">New vs Closed Merchants</h4>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={trendData.trend}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" fontSize={12} />
+                          <YAxis fontSize={12} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="newMerchants" name="New" fill="#16a34a" />
+                          <Bar dataKey="closedMerchants" name="Closed" fill="#dc2626" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Trend Data Table */}
+                    <div className="lg:col-span-2">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Quarter</TableHead>
+                            <TableHead className="text-right">Beginning</TableHead>
+                            <TableHead className="text-right text-green-600">New</TableHead>
+                            <TableHead className="text-right text-red-600">Closed</TableHead>
+                            <TableHead className="text-right">Net Change</TableHead>
+                            <TableHead className="text-right">End</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {trendData.trend.map((row) => (
+                            <TableRow key={row.label}>
+                              <TableCell className="font-medium">{row.label}</TableCell>
+                              <TableCell className="text-right text-blue-600">{row.beginningCount}</TableCell>
+                              <TableCell className="text-right text-green-600">+{row.newMerchants}</TableCell>
+                              <TableCell className="text-right text-red-600">{row.closedMerchants}</TableCell>
+                              <TableCell className={`text-right ${row.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {row.netChange >= 0 ? '+' : ''}{row.netChange}
+                              </TableCell>
+                              <TableCell className="text-right text-blue-600">{row.endCount}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No trend data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>

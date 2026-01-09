@@ -14,7 +14,95 @@ function formatDateRange(start: Date, end: Date): { start: string; end: string }
   return { start: format(start), end: format(end) };
 }
 
+function getPreviousQuarters(year: number, quarter: number, count: number): Array<{year: number, quarter: number}> {
+  const quarters = [];
+  let y = year;
+  let q = quarter;
+  
+  for (let i = 0; i < count; i++) {
+    quarters.push({ year: y, quarter: q });
+    q--;
+    if (q < 1) {
+      q = 4;
+      y--;
+    }
+  }
+  return quarters.reverse();
+}
+
 export function registerReportsRoutes(app: Express) {
+  // Trend data for 4 quarters
+  app.get("/api/reports/quarterly-merchants/trend", async (req, res) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const quarter = parseInt(req.query.quarter as string) || 1;
+      
+      if (quarter < 1 || quarter > 4) {
+        return res.status(400).json({ error: "Quarter must be between 1 and 4" });
+      }
+
+      const merchantsTableName = getTableName('merchants');
+      const quartersToFetch = getPreviousQuarters(year, quarter, 4);
+      const quarterLabels = ['Q1', 'Q2', 'Q3', 'Q4'];
+      
+      const trendData = await Promise.all(quartersToFetch.map(async ({ year: y, quarter: q }) => {
+        const { start, end } = getQuarterDateRange(y, q);
+        
+        const [newResult, closedResult, beginningResult, endResult] = await Promise.all([
+          pool.query(`
+            SELECT COUNT(*) as count FROM ${merchantsTableName}
+            WHERE merchant_type != '3'
+              AND merchant_activation_date IS NOT NULL
+              AND merchant_activation_date >= $1
+              AND merchant_activation_date <= $2
+          `, [start.toISOString(), end.toISOString()]),
+          
+          pool.query(`
+            SELECT COUNT(*) as count FROM ${merchantsTableName}
+            WHERE merchant_type != '3'
+              AND close_date IS NOT NULL
+              AND close_date >= $1
+              AND close_date <= $2
+          `, [start.toISOString(), end.toISOString()]),
+          
+          pool.query(`
+            SELECT COUNT(*) as count FROM ${merchantsTableName}
+            WHERE merchant_type != '3'
+              AND merchant_activation_date IS NOT NULL
+              AND merchant_activation_date < $1
+              AND (close_date IS NULL OR close_date >= $1)
+          `, [start.toISOString()]),
+          
+          pool.query(`
+            SELECT COUNT(*) as count FROM ${merchantsTableName}
+            WHERE merchant_type != '3'
+              AND merchant_activation_date IS NOT NULL
+              AND merchant_activation_date <= $1
+              AND (close_date IS NULL OR close_date > $1)
+          `, [end.toISOString()])
+        ]);
+        
+        return {
+          label: `${quarterLabels[q - 1]} ${y}`,
+          year: y,
+          quarter: q,
+          newMerchants: parseInt(newResult.rows[0]?.count || '0', 10),
+          closedMerchants: parseInt(closedResult.rows[0]?.count || '0', 10),
+          beginningCount: parseInt(beginningResult.rows[0]?.count || '0', 10),
+          endCount: parseInt(endResult.rows[0]?.count || '0', 10),
+          netChange: parseInt(newResult.rows[0]?.count || '0', 10) - parseInt(closedResult.rows[0]?.count || '0', 10)
+        };
+      }));
+      
+      res.json({ trend: trendData });
+    } catch (error) {
+      console.error("[REPORTS] Error fetching quarterly trend:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch trend data" 
+      });
+    }
+  });
+
   app.get("/api/reports/quarterly-merchants", async (req, res) => {
     try {
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
