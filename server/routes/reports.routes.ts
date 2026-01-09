@@ -66,6 +66,29 @@ export function registerReportsRoutes(app: Express) {
       const newMerchants = newMerchantsQuery.rows;
       const closedMerchants = closedMerchantsQuery.rows;
 
+      // Count total MCC merchants at beginning of quarter
+      const beginningCountQuery = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM ${merchantsTableName}
+        WHERE merchant_type != '3'
+          AND merchant_activation_date IS NOT NULL
+          AND merchant_activation_date < $1
+          AND (close_date IS NULL OR close_date >= $1)
+      `, [start.toISOString()]);
+
+      // Count total MCC merchants at end of quarter
+      const endCountQuery = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM ${merchantsTableName}
+        WHERE merchant_type != '3'
+          AND merchant_activation_date IS NOT NULL
+          AND merchant_activation_date <= $1
+          AND (close_date IS NULL OR close_date > $1)
+      `, [end.toISOString()]);
+
+      const beginningCount = parseInt(beginningCountQuery.rows[0]?.count || '0', 10);
+      const endCount = parseInt(endCountQuery.rows[0]?.count || '0', 10);
+
       const quarterLabels = ['Q1', 'Q2', 'Q3', 'Q4'];
 
       res.json({
@@ -76,7 +99,9 @@ export function registerReportsRoutes(app: Express) {
         summary: {
           newMerchants: newMerchants.length,
           closedMerchants: closedMerchants.length,
-          netChange: newMerchants.length - closedMerchants.length
+          netChange: newMerchants.length - closedMerchants.length,
+          beginningCount,
+          endCount
         },
         newMerchants,
         closedMerchants

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText } from "lucide-react";
+import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
@@ -42,6 +42,8 @@ interface QuarterlyReportData {
     newMerchants: number;
     closedMerchants: number;
     netChange: number;
+    beginningCount: number;
+    endCount: number;
   };
   newMerchants: MerchantData[];
   closedMerchants: MerchantData[];
@@ -75,9 +77,10 @@ const pdfStyles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', marginBottom: 20, gap: 15 },
   summaryCard: { flex: 1, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 4 },
   summaryLabel: { fontSize: 9, color: '#666', marginBottom: 3 },
-  summaryValue: { fontSize: 16, fontWeight: 'bold' },
-  summaryValueGreen: { fontSize: 16, fontWeight: 'bold', color: '#16a34a' },
-  summaryValueRed: { fontSize: 16, fontWeight: 'bold', color: '#dc2626' },
+  summaryValue: { fontSize: 14, fontWeight: 'bold' },
+  summaryValueBlue: { fontSize: 14, fontWeight: 'bold', color: '#2563eb' },
+  summaryValueGreen: { fontSize: 14, fontWeight: 'bold', color: '#16a34a' },
+  summaryValueRed: { fontSize: 14, fontWeight: 'bold', color: '#dc2626' },
   sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 8, marginTop: 15 },
   sectionSubtitle: { fontSize: 8, color: '#666', marginBottom: 8 },
   table: { width: '100%' },
@@ -109,6 +112,10 @@ const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
 
       <View style={pdfStyles.summaryRow}>
         <View style={pdfStyles.summaryCard}>
+          <Text style={pdfStyles.summaryLabel}>Beginning Count</Text>
+          <Text style={pdfStyles.summaryValueBlue}>{data.summary.beginningCount}</Text>
+        </View>
+        <View style={pdfStyles.summaryCard}>
           <Text style={pdfStyles.summaryLabel}>New Merchants</Text>
           <Text style={pdfStyles.summaryValueGreen}>+{data.summary.newMerchants}</Text>
         </View>
@@ -121,6 +128,10 @@ const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
           <Text style={data.summary.netChange >= 0 ? pdfStyles.summaryValueGreen : pdfStyles.summaryValueRed}>
             {data.summary.netChange >= 0 ? '+' : ''}{data.summary.netChange}
           </Text>
+        </View>
+        <View style={pdfStyles.summaryCard}>
+          <Text style={pdfStyles.summaryLabel}>End Count</Text>
+          <Text style={pdfStyles.summaryValueBlue}>{data.summary.endCount}</Text>
         </View>
       </View>
 
@@ -318,7 +329,20 @@ export default function QuarterlyMerchantReport() {
               Reporting period: {reportData.dateRange.start} to {reportData.dateRange.end}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Beginning of Quarter</CardTitle>
+                  <Users className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{reportData.summary.beginningCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    MCC merchants on {reportData.dateRange.start}
+                  </p>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">New Merchants</CardTitle>
@@ -360,6 +384,19 @@ export default function QuarterlyMerchantReport() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {reportData.summary.netChange >= 0 ? 'Growth' : 'Decline'} this quarter
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">End of Quarter</CardTitle>
+                  <Users className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{reportData.summary.endCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    MCC merchants on {reportData.dateRange.end}
                   </p>
                 </CardContent>
               </Card>
