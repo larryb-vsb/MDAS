@@ -33,15 +33,36 @@ export class MemStorageFallback implements IStorage {
     try {
       // Only create if no users exist
       if (this.users.length === 0) {
-        // For fallback mode, use a simplified password hash that will work with our verification logic
-        const password = 'admin123';
+        // Get credentials from Test_Creds secret
+        const testCredsSecret = process.env.Test_Creds;
+        if (!testCredsSecret) {
+          console.warn('[MEM-FALLBACK] No Test_Creds secret configured, admin user not created');
+          console.warn('[MEM-FALLBACK] Set Test_Creds secret as JSON: {"username":"x","password":"y"}');
+          return;
+        }
+        
+        let username: string, password: string;
+        try {
+          const testCreds = JSON.parse(testCredsSecret);
+          if (!testCreds.username || !testCreds.password) {
+            console.warn('[MEM-FALLBACK] Test_Creds missing username or password');
+            return;
+          }
+          username = testCreds.username;
+          password = testCreds.password;
+        } catch {
+          console.warn('[MEM-FALLBACK] Failed to parse Test_Creds secret');
+          return;
+        }
+        
+        // For fallback mode, use a simplified password hash
         const hash = Buffer.from(password).toString('base64');
         const hashedPassword = `${hash}.salt`;
         
-        // Create admin user directly to ensure it works
+        // Create admin user directly
         const adminUser: User = {
           id: 1,
-          username: 'admin',
+          username: username,
           password: hashedPassword,
           email: 'admin@example.com',
           firstName: 'Admin',
@@ -52,10 +73,10 @@ export class MemStorageFallback implements IStorage {
         };
         
         this.users.push(adminUser);
-        console.log('Created default admin user in memory fallback storage: admin/admin123');
+        console.log(`[MEM-FALLBACK] Created admin user from Test_Creds: ${username}`);
       }
     } catch (error) {
-      console.error('Error creating default admin user:', error);
+      console.error('[MEM-FALLBACK] Error creating default admin user:', error);
     }
   }
 

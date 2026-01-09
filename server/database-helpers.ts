@@ -124,29 +124,36 @@ export async function ensureAdminUser() {
       return false;
     }
     
-    // Get admin credentials from Test_Creds secret
-    let adminUsername = 'admin';
-    let adminPassword = 'admin123';
+    // Get admin credentials from Test_Creds secret (REQUIRED)
+    let adminUsername: string;
+    let adminPassword: string;
     let passwordHash: string;
     
     try {
       const testCredsSecret = process.env.Test_Creds;
-      if (testCredsSecret) {
-        const testCreds = JSON.parse(testCredsSecret);
-        if (testCreds.username) adminUsername = testCreds.username;
-        if (testCreds.password) adminPassword = testCreds.password;
-        console.log(`[ADMIN INIT] Using credentials from Test_Creds secret: username=${adminUsername}`);
-      } else {
-        console.log('[ADMIN INIT] ⚠️  Test_Creds secret not found, using default credentials');
+      if (!testCredsSecret) {
+        console.error('[ADMIN INIT] ❌ Test_Creds secret not configured');
+        console.error('[ADMIN INIT] Set Test_Creds secret as JSON: {"username":"x","password":"y"}');
+        return false;
       }
+      
+      const testCreds = JSON.parse(testCredsSecret);
+      if (!testCreds.username || !testCreds.password) {
+        console.error('[ADMIN INIT] ❌ Test_Creds secret missing username or password');
+        return false;
+      }
+      
+      adminUsername = testCreds.username;
+      adminPassword = testCreds.password;
+      console.log(`[ADMIN INIT] Using credentials from Test_Creds secret: username=${adminUsername}`);
       
       // Hash the password from secret
       passwordHash = await bcrypt.hash(adminPassword, 10);
       console.log(`[ADMIN INIT] Password hashed successfully`);
     } catch (secretError) {
       console.error('[ADMIN INIT] ❌ Error reading Test_Creds secret:', secretError);
-      console.log('[ADMIN INIT] Falling back to default credentials');
-      passwordHash = await bcrypt.hash('admin123', 10);
+      console.error('[ADMIN INIT] Set Test_Creds secret as JSON: {"username":"x","password":"y"}');
+      return false;
     }
     
     // Check if the admin user exists

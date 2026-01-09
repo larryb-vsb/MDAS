@@ -1372,19 +1372,35 @@ export class DatabaseStorage implements IStorage {
       
       // Create default admin user if no users exist
       if (userCount === 0) {
-        console.log("No users found, creating default admin user...");
+        console.log("No users found, checking Test_Creds secret for admin creation...");
         
-        // Create a hashed password for the admin user (password: "admin123")
-        // Using a pre-generated bcrypt hash for "admin123" to avoid ESM/require issues
-        const hashedPassword = "$2b$10$i2crE7gf8xhy0CDddFI6Y.U608XawvKYQ7FyDuGFJR/pM/lDNTTJe";
-        
-        await pool.query(
-          `INSERT INTO ${usersTableName} (username, password, first_name, last_name, email, role, created_at) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          ["admin", hashedPassword, "System", "Administrator", "admin@example.com", "admin", new Date()]
-        );
-        
-        console.log("Default admin user created");
+        // Get credentials from Test_Creds secret (REQUIRED)
+        const testCredsSecret = process.env.Test_Creds;
+        if (!testCredsSecret) {
+          console.warn("[STORAGE] No Test_Creds secret configured, skipping admin user creation");
+          console.warn("[STORAGE] Set Test_Creds secret as JSON: {\"username\":\"x\",\"password\":\"y\"}");
+          // Don't return - allow other initialization to continue
+        } else {
+          try {
+            const testCreds = JSON.parse(testCredsSecret);
+            if (!testCreds.username || !testCreds.password) {
+              console.warn("[STORAGE] Test_Creds missing username or password, skipping admin creation");
+            } else {
+              const bcrypt = await import('bcrypt');
+              const hashedPassword = await bcrypt.hash(testCreds.password, 10);
+              
+              await pool.query(
+                `INSERT INTO ${usersTableName} (username, password, first_name, last_name, email, role, created_at) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [testCreds.username, hashedPassword, "System", "Administrator", "admin@example.com", "admin", new Date()]
+              );
+              
+              console.log(`[STORAGE] Admin user '${testCreds.username}' created from Test_Creds secret`);
+            }
+          } catch (error) {
+            console.error("[STORAGE] Error parsing Test_Creds or creating admin:", error);
+          }
+        }
       }
     } catch (error) {
       console.error("Error checking database:", error);

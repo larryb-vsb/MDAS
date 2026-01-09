@@ -4,20 +4,24 @@ import { sql } from "drizzle-orm";
 import { storage } from "../storage";
 
 // Helper function to get test credentials from Test_Creds secret
-function getTestCredentials(): { username: string; password: string } {
+function getTestCredentials(): { username: string; password: string } | null {
   try {
     const testCredsSecret = process.env.Test_Creds;
     if (testCredsSecret) {
       const testCreds = JSON.parse(testCredsSecret);
-      return {
-        username: testCreds.username || 'admin',
-        password: testCreds.password || 'admin123'
-      };
+      if (testCreds.username && testCreds.password) {
+        return {
+          username: testCreds.username,
+          password: testCreds.password
+        };
+      }
+      console.warn('[TEST-CREDS] Test_Creds secret missing username or password fields');
     }
   } catch (error) {
-    console.log('[TEST-CREDS] Error reading Test_Creds secret, using defaults');
+    console.error('[TEST-CREDS] Error parsing Test_Creds secret:', error);
   }
-  return { username: 'admin', password: 'admin123' };
+  console.warn('[TEST-CREDS] No valid Test_Creds secret configured. Set Test_Creds as JSON: {"username":"x","password":"y"}');
+  return null;
 }
 
 export function registerAuthRoutes(app: Express) {
@@ -26,13 +30,32 @@ export function registerAuthRoutes(app: Express) {
     try {
       console.log("[LOGIN-TEST] Starting comprehensive login test...");
       const defaultCreds = getTestCredentials();
-      const { username = defaultCreds.username, password = defaultCreds.password } = req.body;
+      const { username, password } = req.body;
       
-      console.log(`[LOGIN-TEST] Testing credentials: ${username} / ${password.length}-char password`);
+      if (!username || !password) {
+        if (!defaultCreds) {
+          return res.status(400).json({
+            success: false,
+            error: "Credentials required. Set Test_Creds secret as JSON: {\"username\":\"x\",\"password\":\"y\"}"
+          });
+        }
+      }
+      
+      const testUsername = username || defaultCreds?.username;
+      const testPassword = password || defaultCreds?.password;
+      
+      if (!testUsername || !testPassword) {
+        return res.status(400).json({
+          success: false,
+          error: "Username and password are required"
+        });
+      }
+      
+      console.log(`[LOGIN-TEST] Testing credentials: ${testUsername} / ${testPassword.length}-char password`);
       
       // Test getUserByUsername directly
       console.log("[LOGIN-TEST] Testing getUserByUsername directly...");
-      const user = await storage.getUserByUsername(username);
+      const user = await storage.getUserByUsername(testUsername);
       
       if (!user) {
         console.log("[LOGIN-TEST] ❌ getUserByUsername returned null/undefined");
@@ -48,7 +71,7 @@ export function registerAuthRoutes(app: Express) {
       
       // Test password comparison
       const bcrypt = await import('bcrypt');
-      const passwordMatch = await bcrypt.compare(password, user.password);
+      const passwordMatch = await bcrypt.compare(testPassword, user.password);
       console.log(`[LOGIN-TEST] Password match result: ${passwordMatch}`);
       
       res.json({
