@@ -7,6 +7,7 @@ import {
   ProfileEditDialog,
   ProfileEditDialogRef,
 } from "@/components/ProfileEditDialog";
+import mdasLogo from "@/assets/mdas-logo.png";
 
 /*
  * =====================================================================
@@ -436,8 +437,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white flex flex-col" accessibleTitle="Navigation Menu">
         {/* Header section */}
-        <div className="flex h-12 items-center gap-2 px-6 py-6 flex-shrink-0">
-          <h2 className="text-lg font-bold text-white">MDAS Dashboard</h2>
+        <div className="flex h-14 items-center gap-3 px-4 py-4 flex-shrink-0">
+          <img src={mdasLogo} alt="MDAS Logo" className="h-10 w-auto" />
         </div>
 
         {/* Scrollable navigation section */}
@@ -547,8 +548,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-col md:flex border-r bg-gray-800 relative z-50">
         {/* Header section */}
-        <div className="flex h-12 items-center px-6 py-6 mb-4">
-          <h2 className="text-lg font-bold text-white">MDAS Dashboard</h2>
+        <div className="flex h-14 items-center px-4 py-4 mb-4">
+          <img src={mdasLogo} alt="MDAS Logo" className="h-10 w-auto" />
         </div>
 
         {/* Scrollable navigation section */}
@@ -661,7 +662,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile header */}
         <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-gray-800 text-white px-4 md:hidden shadow-sm">
           <MobileNav />
-          <h1 className="text-lg font-bold truncate">MDAS Dashboard</h1>
+          <img src={mdasLogo} alt="MDAS Logo" className="h-8 w-auto" />
         </header>
 
         {/* Main content */}

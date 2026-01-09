@@ -16,7 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import MainLayout from "@/components/layout/MainLayout";
-import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, pdf, Image } from "@react-pdf/renderer";
+import mdasLogo from "@/assets/mdas-logo.png";
 
 interface MerchantData {
   id: string;
@@ -65,7 +66,9 @@ function getCurrentQuarter(): string {
 
 const pdfStyles = StyleSheet.create({
   page: { padding: 30, fontSize: 10, fontFamily: 'Helvetica' },
-  header: { marginBottom: 20 },
+  header: { marginBottom: 20, flexDirection: 'row', alignItems: 'flex-start', gap: 15 },
+  logo: { width: 60, height: 60 },
+  headerText: { flex: 1 },
   title: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
   subtitle: { fontSize: 10, color: '#666', marginBottom: 10 },
   dateRange: { fontSize: 9, color: '#888', marginBottom: 15 },
@@ -96,9 +99,12 @@ const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
   <Document>
     <Page size="A4" style={pdfStyles.page}>
       <View style={pdfStyles.header}>
-        <Text style={pdfStyles.title}>Quarterly Merchant Report</Text>
-        <Text style={pdfStyles.subtitle}>New and Closed MCC Merchants - {data.quarterLabel}</Text>
-        <Text style={pdfStyles.dateRange}>Reporting period: {data.dateRange.start} to {data.dateRange.end}</Text>
+        <Image src={mdasLogo} style={pdfStyles.logo} />
+        <View style={pdfStyles.headerText}>
+          <Text style={pdfStyles.title}>Quarterly Merchant Report</Text>
+          <Text style={pdfStyles.subtitle}>New and Closed MCC Merchants - {data.quarterLabel}</Text>
+          <Text style={pdfStyles.dateRange}>Reporting period: {data.dateRange.start} to {data.dateRange.end}</Text>
+        </View>
       </View>
 
       <View style={pdfStyles.summaryRow}>
