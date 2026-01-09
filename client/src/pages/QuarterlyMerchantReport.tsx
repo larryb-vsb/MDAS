@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, Users, UserMinus, UserPlus } from "lucide-react";
+import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import MainLayout from "@/components/layout/MainLayout";
+import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
 
 interface MerchantData {
   id: string;
@@ -61,6 +62,112 @@ function getCurrentQuarter(): string {
   if (month < 9) return "3";
   return "4";
 }
+
+const pdfStyles = StyleSheet.create({
+  page: { padding: 30, fontSize: 10, fontFamily: 'Helvetica' },
+  header: { marginBottom: 20 },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
+  subtitle: { fontSize: 10, color: '#666', marginBottom: 10 },
+  dateRange: { fontSize: 9, color: '#888', marginBottom: 15 },
+  summaryRow: { flexDirection: 'row', marginBottom: 20, gap: 15 },
+  summaryCard: { flex: 1, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 4 },
+  summaryLabel: { fontSize: 9, color: '#666', marginBottom: 3 },
+  summaryValue: { fontSize: 16, fontWeight: 'bold' },
+  summaryValueGreen: { fontSize: 16, fontWeight: 'bold', color: '#16a34a' },
+  summaryValueRed: { fontSize: 16, fontWeight: 'bold', color: '#dc2626' },
+  sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 8, marginTop: 15 },
+  sectionSubtitle: { fontSize: 8, color: '#666', marginBottom: 8 },
+  table: { width: '100%' },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#f0f0f0', padding: 6, borderBottomWidth: 1, borderBottomColor: '#ddd' },
+  tableRow: { flexDirection: 'row', padding: 5, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  tableCell: { flex: 1, fontSize: 8 },
+  tableCellWide: { flex: 2, fontSize: 8 },
+  tableCellHeader: { flex: 1, fontSize: 8, fontWeight: 'bold' },
+  tableCellHeaderWide: { flex: 2, fontSize: 8, fontWeight: 'bold' },
+  footer: { position: 'absolute', bottom: 20, left: 30, right: 30, fontSize: 8, color: '#999', textAlign: 'center' },
+});
+
+interface PDFReportProps {
+  data: QuarterlyReportData;
+  formatDate: (date: string) => string;
+}
+
+const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
+  <Document>
+    <Page size="A4" style={pdfStyles.page}>
+      <View style={pdfStyles.header}>
+        <Text style={pdfStyles.title}>Quarterly Merchant Report</Text>
+        <Text style={pdfStyles.subtitle}>New and Closed MCC Merchants - {data.quarterLabel}</Text>
+        <Text style={pdfStyles.dateRange}>Reporting period: {data.dateRange.start} to {data.dateRange.end}</Text>
+      </View>
+
+      <View style={pdfStyles.summaryRow}>
+        <View style={pdfStyles.summaryCard}>
+          <Text style={pdfStyles.summaryLabel}>New Merchants</Text>
+          <Text style={pdfStyles.summaryValueGreen}>+{data.summary.newMerchants}</Text>
+        </View>
+        <View style={pdfStyles.summaryCard}>
+          <Text style={pdfStyles.summaryLabel}>Closed Merchants</Text>
+          <Text style={pdfStyles.summaryValueRed}>{data.summary.closedMerchants}</Text>
+        </View>
+        <View style={pdfStyles.summaryCard}>
+          <Text style={pdfStyles.summaryLabel}>Net Change</Text>
+          <Text style={data.summary.netChange >= 0 ? pdfStyles.summaryValueGreen : pdfStyles.summaryValueRed}>
+            {data.summary.netChange >= 0 ? '+' : ''}{data.summary.netChange}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={pdfStyles.sectionTitle}>New Merchants Added</Text>
+      <Text style={pdfStyles.sectionSubtitle}>MCC merchants activated in {data.quarterLabel}</Text>
+      <View style={pdfStyles.table}>
+        <View style={pdfStyles.tableHeader}>
+          <Text style={pdfStyles.tableCellHeaderWide}>Merchant</Text>
+          <Text style={pdfStyles.tableCellHeader}>Date</Text>
+          <Text style={pdfStyles.tableCellHeader}>Location</Text>
+        </View>
+        {data.newMerchants.slice(0, 25).map((m, i) => (
+          <View key={i} style={pdfStyles.tableRow}>
+            <Text style={pdfStyles.tableCellWide}>{m.name}{'\n'}ID: {m.id}</Text>
+            <Text style={pdfStyles.tableCell}>{formatDate(m.date)}</Text>
+            <Text style={pdfStyles.tableCell}>{m.city}, {m.state}</Text>
+          </View>
+        ))}
+        {data.newMerchants.length > 25 && (
+          <View style={pdfStyles.tableRow}>
+            <Text style={pdfStyles.tableCell}>... and {data.newMerchants.length - 25} more</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={pdfStyles.sectionTitle}>Closed Merchants</Text>
+      <Text style={pdfStyles.sectionSubtitle}>MCC merchants closed in {data.quarterLabel}</Text>
+      <View style={pdfStyles.table}>
+        <View style={pdfStyles.tableHeader}>
+          <Text style={pdfStyles.tableCellHeaderWide}>Merchant</Text>
+          <Text style={pdfStyles.tableCellHeader}>Close Date</Text>
+          <Text style={pdfStyles.tableCellHeader}>Location</Text>
+        </View>
+        {data.closedMerchants.slice(0, 25).map((m, i) => (
+          <View key={i} style={pdfStyles.tableRow}>
+            <Text style={pdfStyles.tableCellWide}>{m.name}{'\n'}ID: {m.id}</Text>
+            <Text style={pdfStyles.tableCell}>{formatDate(m.date)}</Text>
+            <Text style={pdfStyles.tableCell}>{m.city}, {m.state}</Text>
+          </View>
+        ))}
+        {data.closedMerchants.length > 25 && (
+          <View style={pdfStyles.tableRow}>
+            <Text style={pdfStyles.tableCell}>... and {data.closedMerchants.length - 25} more</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={pdfStyles.footer}>
+        Generated on {new Date().toLocaleDateString()} | Vermont State Bank - MDAS
+      </Text>
+    </Page>
+  </Document>
+);
 
 export default function QuarterlyMerchantReport() {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
@@ -128,6 +235,16 @@ export default function QuarterlyMerchantReport() {
     link.click();
   };
 
+  const exportToPDF = async () => {
+    if (!reportData) return;
+    
+    const blob = await pdf(<QuarterlyReportPDF data={reportData} formatDate={formatDate} />).toBlob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `quarterly-merchant-report-${selectedYear}-Q${selectedQuarter}.pdf`;
+    link.click();
+  };
+
   return (
     <MainLayout>
       <div className="flex-1 p-6 space-y-6">
@@ -165,7 +282,11 @@ export default function QuarterlyMerchantReport() {
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToCSV('all')} disabled={!reportData}>
               <Download className="mr-2 h-4 w-4" />
-              Export All
+              CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!reportData}>
+              <FileText className="mr-2 h-4 w-4" />
+              PDF
             </Button>
           </div>
         </div>
