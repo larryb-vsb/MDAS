@@ -42,6 +42,7 @@ import TddfApiDataPage from "@/pages/TddfApiDataPage";
 import TddfJsonViewerPage from "@/pages/TddfJsonViewerPage";
 import About from "@/pages/About";
 import Uploads from "@/pages/Uploads";
+import QuarterlyMerchantReport from "@/pages/QuarterlyMerchantReport";
 function Router() {
   return (
     <Switch>
@@ -90,6 +91,7 @@ function Router() {
       <ProtectedRoute path="/tddf-api-data" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-viewer" component={TddfApiDataPage} />
       <ProtectedRoute path="/tddf-viewer/:uploadId/:filename" component={TddfJsonViewerPage} />
+      <ProtectedRoute path="/reports/quarterly-merchants" component={QuarterlyMerchantReport} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/login" component={AuthPage} />

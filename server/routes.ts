@@ -37,6 +37,7 @@ import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { registerMicrosoftAuthRoutes } from "./routes/microsoft-auth.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerPreCacheRoutes } from "./routes/pre-cache.routes";
+import { registerReportsRoutes } from "./routes/reports.routes";
 import { getTableName, getEnvironmentPrefix } from "./table-config";
 import { NODE_ENV, BASE_UPLOAD_PATH } from "./env-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
@@ -402,6 +403,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register pre-cache management routes
   registerPreCacheRoutes(app);
+  
+  // Register reports routes
+  registerReportsRoutes(app);
   
   // Phase A: Core Business Routes  
   registerMerchantRoutes(app);
