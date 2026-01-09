@@ -73,7 +73,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
     },
     {
       name: "Reports",
-      href: "/reports/quarterly-merchants",
+      href: "/reports",
       icon: <FileBarChart className="w-5 h-5 mr-3" />,
     },
     {
