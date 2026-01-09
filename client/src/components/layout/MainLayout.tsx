@@ -96,6 +96,7 @@ import {
   History,
   UserCircle,
   Edit,
+  FileBarChart,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -215,6 +216,11 @@ const navItems = [
     icon: <FileText className="h-5 w-5 text-gray-300" />,
     label: "Exports",
     href: "/exports",
+  },
+  {
+    icon: <FileBarChart className="h-5 w-5 text-blue-400" />,
+    label: "Reports",
+    href: "/reports",
   },
   {
     icon: <ScrollText className="h-5 w-5 text-gray-300" />,
