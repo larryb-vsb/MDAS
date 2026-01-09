@@ -464,22 +464,30 @@ export default function QuarterlyMerchantReport() {
                       </ResponsiveContainer>
                     </div>
 
-                    {/* Stacked Bar Chart - End Count with Open/Closed */}
+                    {/* Single Stacked Bar - End Total Breakdown */}
                     <div>
-                      <h4 className="text-sm font-medium mb-4 text-center">End of Quarter Total (Open/Closed Activity)</h4>
+                      <h4 className="text-sm font-medium mb-4 text-center">End of Quarter Breakdown</h4>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={trendData.trend}>
+                        <BarChart data={trendData.trend.map(d => ({
+                          ...d,
+                          existing: d.endCount - d.newMerchants
+                        }))}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="label" fontSize={12} />
                           <YAxis fontSize={12} />
                           <Tooltip 
-                            formatter={(value: number, name: string) => [value, name]}
+                            formatter={(value: number, name: string, props: any) => {
+                              if (name === 'Existing') return [value, 'Existing Merchants'];
+                              if (name === 'New') return [value, 'New This Quarter'];
+                              if (name === 'Closed') return [value, 'Closed This Quarter'];
+                              return [value, name];
+                            }}
                             labelFormatter={(label) => `${label}`}
                           />
                           <Legend />
-                          <Bar dataKey="endCount" name="End Total" fill="#2563eb" stackId="a" />
-                          <Bar dataKey="newMerchants" name="New" fill="#16a34a" stackId="b" />
-                          <Bar dataKey="closedMerchants" name="Closed" fill="#dc2626" stackId="b" />
+                          <Bar dataKey="existing" name="Existing" fill="#2563eb" stackId="total" />
+                          <Bar dataKey="newMerchants" name="New" fill="#16a34a" stackId="total" />
+                          <Bar dataKey="closedMerchants" name="Closed" fill="#dc2626" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
