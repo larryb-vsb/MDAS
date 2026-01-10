@@ -222,6 +222,22 @@ export const SCHEMA_VERSION_HISTORY = [
       ]
     },
     appliedBy: 'Alex-ReplitAgent',
+  },
+  {
+    version: '2.0.2',
+    description: 'PATCH VERSION - Bug fixes for browser console warnings and code cleanup',
+    changes: {
+      tables: [],
+      added: [
+        'Buffer polyfill in index.html for @react-pdf/renderer compatibility',
+        'CHANGELOG.md file for version tracking'
+      ],
+      modified: [
+        'Silenced non-critical fallback status errors in FallbackStorageAlert',
+        'Removed unused MMSMerchants.tsx.broken file'
+      ]
+    },
+    appliedBy: 'Alex-ReplitAgent',
   }
 ];
 

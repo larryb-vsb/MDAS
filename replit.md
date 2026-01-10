@@ -35,6 +35,17 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.2 (2026-01-10)**
+- Fixed "Buffer is not defined" browser console warnings by adding early Buffer polyfill for PDF export compatibility
+- Silenced non-critical fallback status console errors
+- Removed unused backup files from codebase
+- Added CHANGELOG.md for version tracking
+
+**Version 2.0.1 (2026-01-09)**
+- Fixed schema content API to serve correct version
+- Established automatic schema content synchronization
+
+**Earlier Changes:**
 - **Transaction ID Race Condition Fix**: Implemented date-prefixed transaction IDs (YYYYMMDD_TraceNbr format) to prevent duplicate key conflicts when multiple files with same trace numbers are processed concurrently. Three-tier date priority: (1) Row-level Date column, (2) Filename extraction via sourceFileId lookup, (3) Processing date fallback. Includes file-level business date caching for performance.
 - Fixed Step 6 validation phase hanging on large files by adding 5-minute query timeout
 - Enhanced orphan healing service to recover files stuck in validation timeout (mark as completed since data is already inserted)
