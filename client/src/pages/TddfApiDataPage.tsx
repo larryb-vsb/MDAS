@@ -4786,7 +4786,7 @@ export default function TddfApiDataPage() {
                             variant="outline" 
                             className={cn(
                               upload.currentPhase === 'encoded' && 'bg-green-100 text-green-800 border-green-300',
-                              upload.currentPhase === 'completed' && 'bg-green-100 text-green-800 border-green-300',
+                              upload.currentPhase === 'completed' && 'bg-green-700 text-white border-green-800',
                               upload.currentPhase === 'processing' && 'bg-blue-100 text-blue-800 border-blue-300'
                             )}
                           >
