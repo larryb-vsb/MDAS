@@ -1609,12 +1609,195 @@ function RawDataTab({
   );
 }
 
+// Enhanced Pagination Component
+function EnhancedPagination({ 
+  currentPage, 
+  totalItems, 
+  itemsPerPage, 
+  onPageChange, 
+  onPageSizeChange,
+  pageSizeOptions = [25, 50, 100, 250, 500, 1000]
+}: {
+  currentPage: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  pageSizeOptions?: number[];
+}) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const [jumpToPage, setJumpToPage] = useState('');
+
+  const handleJumpToPage = () => {
+    const pageNum = parseInt(jumpToPage);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      onPageChange(pageNum - 1);
+      setJumpToPage('');
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Show:</span>
+        <Select 
+          value={itemsPerPage.toString()} 
+          onValueChange={(value) => {
+            onPageSizeChange(Number(value));
+            onPageChange(0);
+          }}
+        >
+          <SelectTrigger className="w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {pageSizeOptions.map(size => (
+              <SelectItem key={size} value={size.toString()}>
+                {size >= 1000 ? `${size/1000}K` : size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground ml-2">
+          {totalItems > 0 ? `${currentPage * itemsPerPage + 1}-${Math.min((currentPage + 1) * itemsPerPage, totalItems)} of ${totalItems.toLocaleString()}` : '0 items'}
+        </span>
+      </div>
+      
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(0)}
+          disabled={currentPage === 0}
+          title="First page"
+        >
+          <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(Math.max(0, currentPage - 1))}
+          disabled={currentPage === 0}
+          title="Previous page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        
+        <span className="text-sm px-2 min-w-[80px] text-center">
+          Page {currentPage + 1} of {totalPages}
+        </span>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
+          disabled={currentPage >= totalPages - 1}
+          title="Next page"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(totalPages - 1)}
+          disabled={currentPage >= totalPages - 1}
+          title="Last page"
+        >
+          <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
+        </Button>
+        
+        <div className="flex items-center gap-1 ml-2">
+          <Input
+            type="number"
+            min={1}
+            max={totalPages}
+            placeholder="Go to"
+            className="w-16 h-8 text-sm"
+            value={jumpToPage}
+            onChange={(e) => setJumpToPage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleJumpToPage()}
+          />
+          <Button variant="outline" size="sm" onClick={handleJumpToPage}>
+            Go
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bulk Action Toolbar Component
+function BulkActionToolbar({
+  selectedCount,
+  totalCount,
+  onSelectAll,
+  onClearSelection,
+  actions,
+  isAllSelected
+}: {
+  selectedCount: number;
+  totalCount: number;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  actions: Array<{
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    variant?: 'default' | 'destructive' | 'outline';
+    className?: string;
+  }>;
+  isAllSelected: boolean;
+}) {
+  if (selectedCount === 0 && totalCount === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg mb-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={isAllSelected ? onClearSelection : onSelectAll}
+      >
+        {isAllSelected ? (
+          <><Square className="h-4 w-4 mr-1" /> Deselect All</>
+        ) : (
+          <><CheckSquare className="h-4 w-4 mr-1" /> Select All</>
+        )}
+      </Button>
+      
+      {selectedCount > 0 && (
+        <>
+          <span className="text-sm text-muted-foreground px-2 border-l">
+            {selectedCount} selected
+          </span>
+          
+          {actions.map((action, index) => (
+            <Button
+              key={index}
+              variant={action.variant || 'default'}
+              size="sm"
+              onClick={action.onClick}
+              disabled={action.disabled}
+              className={action.className}
+            >
+              {action.icon}
+              {action.label}
+            </Button>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function TddfApiDataPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  const [filesInnerTab, setFilesInnerTab] = useState("uploaded");
   const [selectedSchema, setSelectedSchema] = useState<number | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
   
   // Read URL parameters on mount to handle deep linking from other pages
   useEffect(() => {
@@ -3946,15 +4129,23 @@ export default function TddfApiDataPage() {
         </TabsContent>
 
         <TabsContent value="files" className="space-y-4">
-          {/* Combined Upload & Files Tab */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          {/* Files Management with Inner Tabs */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
             <h2 className="text-lg sm:text-2xl font-bold">TDDF Upload & Files</h2>
-            <Badge variant="outline" className="text-xs">
-              {uploads.length} Uploads | {files.length} Files
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs bg-blue-50">
+                {uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length} Uploading
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-green-50">
+                {uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length} Processed
+              </Badge>
+              <Badge variant="outline" className="text-xs bg-gray-50">
+                {isLoadingArchive ? '...' : archivedFiles.length} Archived
+              </Badge>
+            </div>
           </div>
 
-          {/* Upload Section */}
+          {/* Upload Section - Shared across all tabs */}
           <Card>
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -4017,25 +4208,40 @@ export default function TddfApiDataPage() {
                 {/* Queue Monitoring Section - NEW */}
                 <QueueStatusMonitor />
 
-                {/* File Upload Zone */}
+                {/* File Upload Zone - Enhanced with larger target and stronger contrast */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Files</label>
                   
                   <div className="relative">
                     <div 
-                      className="border-2 border-dashed border-blue-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors duration-300 bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer group"
+                      className={cn(
+                        "border-3 border-dashed rounded-xl py-8 px-6 text-center cursor-pointer transition-all duration-300 min-h-[120px] flex items-center justify-center",
+                        isDragActive 
+                          ? "border-blue-600 bg-blue-100 shadow-lg shadow-blue-200/50 scale-[1.02]" 
+                          : "border-blue-300 bg-gradient-to-b from-blue-50/50 to-blue-100/30 hover:border-blue-500 hover:bg-blue-100/60 hover:shadow-md"
+                      )}
                       onClick={() => document.getElementById('tddf-file-input')?.click()}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragActive(true);
+                      }}
                       onDragOver={(e) => {
                         e.preventDefault();
-                        e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+                        e.stopPropagation();
+                        setIsDragActive(true);
                       }}
                       onDragLeave={(e) => {
                         e.preventDefault();
-                        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                        e.stopPropagation();
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                          setIsDragActive(false);
+                        }
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
-                        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                        e.stopPropagation();
+                        setIsDragActive(false);
                         const files = e.dataTransfer?.files;
                         if (files && files.length > 0) {
                           console.log('[AUTO-UPLOAD-DEBUG] Files dropped:', files.length, 'File type:', selectedFileType);
@@ -4047,15 +4253,35 @@ export default function TddfApiDataPage() {
                         }
                       }}
                     >
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:space-x-3">
-                        <Upload className="h-6 w-6 text-blue-400" />
-                        <div className="text-center sm:text-left">
-                          <p className="font-medium text-blue-600 text-sm">File Upload Zone</p>
-                          <p className="text-xs text-blue-500/80">Drag & drop TDDF files here, or click to browse</p>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <div className={cn(
+                          "p-3 rounded-full transition-all duration-300",
+                          isDragActive ? "bg-blue-200" : "bg-blue-100"
+                        )}>
+                          <Upload className={cn(
+                            "h-8 w-8 transition-all duration-300",
+                            isDragActive ? "text-blue-700 scale-110" : "text-blue-500"
+                          )} />
                         </div>
-                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600 mt-2 sm:mt-0">
-                          <Upload className="h-3 w-3 mr-1" />
-                          Browse
+                        <div className="text-center sm:text-left">
+                          <p className={cn(
+                            "font-semibold text-base transition-colors duration-300",
+                            isDragActive ? "text-blue-800" : "text-blue-600"
+                          )}>
+                            {isDragActive ? "Drop files here!" : "File Upload Zone"}
+                          </p>
+                          <p className="text-sm text-blue-500/80 mt-1">
+                            Drag & drop TDDF files here, or click to browse
+                          </p>
+                        </div>
+                        <Button size="default" className={cn(
+                          "transition-all duration-300",
+                          isDragActive 
+                            ? "bg-blue-700 hover:bg-blue-800 scale-105" 
+                            : "bg-blue-500 hover:bg-blue-600"
+                        )}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Browse Files
                         </Button>
                       </div>
                     </div>
@@ -4154,1222 +4380,744 @@ export default function TddfApiDataPage() {
             </CardContent>
           </Card>
 
-          {/* Files Management Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Uploaded Files ({uploads.length})</CardTitle>
-                  <CardDescription>
-                    Files in the upload pipeline system - phases 1-5 processing
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Group Select Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (selectedUploads.length === uploads.length) {
-                        setSelectedUploads([]);
-                      } else {
-                        setSelectedUploads(uploads.map((u: UploaderUpload) => u.id));
-                      }
+          {/* Inner Tabs for File Categories */}
+          <Tabs value={filesInnerTab} onValueChange={setFilesInnerTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="uploaded" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Uploaded
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="processed" className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Processed
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="archive" className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Archive
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {isLoadingArchive ? '...' : archivedFiles.length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* UPLOADED TAB - Files in early processing phases */}
+            <TabsContent value="uploaded" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Uploading & Processing Files</CardTitle>
+                      <CardDescription>
+                        Files in phases: started, uploading, uploaded, identified, validating, encoding
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Bulk Action Toolbar */}
+                  <BulkActionToolbar
+                    selectedCount={selectedUploads.length}
+                    totalCount={uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length}
+                    onSelectAll={() => {
+                      const uploadingFiles = uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase));
+                      setSelectedUploads(uploadingFiles.map((u: UploaderUpload) => u.id));
                     }}
-                  >
-                    {selectedUploads.length === uploads.length ? (
-                      <Square className="h-4 w-4 mr-1" />
-                    ) : (
-                      <CheckSquare className="h-4 w-4 mr-1" />
-                    )}
-                    {selectedUploads.length === uploads.length ? 'Deselect All' : 'Select All'}
-                  </Button>
-
-                  {selectedUploads.length > 0 && (
-                    <>
-                      <span className="text-sm text-muted-foreground">
-                        {selectedUploads.length} selected
-                      </span>
-                      
-                      {/* Manual Process Step 6 Button */}
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          const encodedFiles = selectedUploads.filter(id => {
-                            const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
-                          });
-                          
-                          if (encodedFiles.length === 0) {
-                            toast({ 
-                              title: "No eligible files selected", 
-                              description: "Please select files that are 'encoded' or 'completed' for Step 6 processing",
-                              variant: "destructive" 
-                            });
-                            return;
-                          }
-                          
-                          // Trigger Step 6 processing API call
-                          step6ProcessingMutation.mutate(encodedFiles);
-                        }}
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
-                        disabled={step6ProcessingMutation.isPending || !selectedUploads.some(id => {
-                          const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                          return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
-                        })}
-                      >
-                        <Zap className="h-4 w-4 mr-1" />
-                        Manual Process Step 6
-                      </Button>
-
-                      {/* Reset Status Button - Resets any stuck file back to uploaded */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          // Allow resetting files in any status except 'uploaded' and 'completed'
+                    onClearSelection={() => setSelectedUploads([])}
+                    isAllSelected={selectedUploads.length === uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length && selectedUploads.length > 0}
+                    actions={[
+                      {
+                        label: 'Reset Status',
+                        icon: <RefreshCw className="h-4 w-4 mr-1" />,
+                        onClick: () => {
                           const resettableFiles = selectedUploads.filter(id => {
                             const upload = uploads.find((u: UploaderUpload) => u.id === id);
                             return upload && !['uploaded', 'completed'].includes(upload.currentPhase);
                           });
-                          
-                          if (resettableFiles.length === 0) {
-                            toast({ 
-                              title: "No files to reset", 
-                              description: "Please select files that are stuck (encoding, error, failed, etc.) to reset back to uploaded status",
-                              variant: "destructive" 
-                            });
-                            return;
+                          if (resettableFiles.length > 0) {
+                            resetStatusMutation.mutate(resettableFiles);
                           }
-                          
-                          // Trigger reset status API call
-                          resetStatusMutation.mutate(resettableFiles);
-                        }}
-                        className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-                        disabled={resetStatusMutation.isPending || !selectedUploads.some(id => {
-                          const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                          return upload && !['uploaded', 'completed'].includes(upload.currentPhase);
-                        })}
-                        data-testid="button-reset-status"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Reset Status
-                      </Button>
+                        },
+                        disabled: resetStatusMutation.isPending,
+                        variant: 'outline' as const,
+                        className: 'border-orange-600 text-orange-600 hover:bg-orange-50'
+                      },
+                      {
+                        label: 'Delete Selected',
+                        icon: <Trash2 className="h-4 w-4 mr-1" />,
+                        onClick: handleBulkDelete,
+                        disabled: bulkDeleteMutation.isPending,
+                        variant: 'destructive' as const
+                      }
+                    ]}
+                  />
 
-                      {/* Manual Step 7 (Archive) Button */}
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
+                  {/* Filters */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <Label>Status Filter</Label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Files</SelectItem>
+                          <SelectItem value="started">Started</SelectItem>
+                          <SelectItem value="uploading">Uploading</SelectItem>
+                          <SelectItem value="uploaded">Uploaded</SelectItem>
+                          <SelectItem value="identified">Identified</SelectItem>
+                          <SelectItem value="validating">Validating</SelectItem>
+                          <SelectItem value="encoding">Encoding</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>File Type</Label>
+                      <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="tddf">TDDF</SelectItem>
+                          <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
+                          <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
+                          <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Search Filename</Label>
+                      <Input
+                        placeholder="Filter by filename..."
+                        value={filenameFilter}
+                        onChange={(e) => setFilenameFilter(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Sort</Label>
+                      <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+                        const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+                        setSortBy(field);
+                        setSortOrder(order);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="date-desc">Date (Newest)</SelectItem>
+                          <SelectItem value="date-asc">Date (Oldest)</SelectItem>
+                          <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                          <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                          <SelectItem value="size-desc">Size (Largest)</SelectItem>
+                          <SelectItem value="size-asc">Size (Smallest)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Uploaded Files List - filtered to early phases */}
+                  <div className="space-y-2">
+                    {uploads
+                      .filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase))
+                      .filter((u: UploaderUpload) => statusFilter === 'all' || u.currentPhase === statusFilter)
+                      .filter((u: UploaderUpload) => fileTypeFilter === 'all' || u.finalFileType === fileTypeFilter)
+                      .filter((u: UploaderUpload) => !filenameFilter || u.filename.toLowerCase().includes(filenameFilter.toLowerCase()))
+                      .slice(uploadsCurrentPage * uploadsItemsPerPage, (uploadsCurrentPage + 1) * uploadsItemsPerPage)
+                      .map((upload: UploaderUpload) => (
+                        <div 
+                          key={upload.id} 
+                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <Checkbox
+                            checked={selectedUploads.includes(upload.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedUploads([...selectedUploads, upload.id]);
+                              } else {
+                                setSelectedUploads(selectedUploads.filter(id => id !== upload.id));
+                              }
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate text-sm">{upload.filename}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <span>{formatFileSize(upload.fileSize || 0)}</span>
+                              <span>•</span>
+                              <span>{upload.finalFileType || 'unknown'}</span>
+                              <span>•</span>
+                              <span>Started {upload.startTime ? formatDistanceToNow(new Date(upload.startTime), { addSuffix: true }) : 'recently'}</span>
+                              <span>•</span>
+                              <span>Encoding: <TimingDisplay uploadId={upload.id} /></span>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              upload.currentPhase === 'encoding' && 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                              upload.currentPhase === 'uploaded' && 'bg-blue-100 text-blue-800 border-blue-300',
+                              upload.currentPhase === 'identified' && 'bg-purple-100 text-purple-800 border-purple-300',
+                              upload.currentPhase === 'validating' && 'bg-orange-100 text-orange-800 border-orange-300'
+                            )}
+                          >
+                            {upload.currentPhase}
+                          </Badge>
+                          <Button variant="ghost" size="sm" onClick={() => {
+                            setUploaderFileForView(upload);
+                          }}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    {uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        No files currently uploading or processing
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Enhanced Pagination */}
+                  <EnhancedPagination
+                    currentPage={uploadsCurrentPage}
+                    totalItems={uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length}
+                    itemsPerPage={uploadsItemsPerPage}
+                    onPageChange={setUploadsCurrentPage}
+                    onPageSizeChange={setUploadsItemsPerPage}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* PROCESSED TAB - Completed/Encoded files ready for archiving */}
+            <TabsContent value="processed" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Processed Files</CardTitle>
+                      <CardDescription>
+                        Files in phases: encoded, processing, completed - ready for Step 6/7
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Bulk Action Toolbar for Processed */}
+                  <BulkActionToolbar
+                    selectedCount={selectedUploads.filter(id => {
+                      const u = uploads.find((upload: UploaderUpload) => upload.id === id);
+                      return u && ['encoded', 'completed', 'processing'].includes(u.currentPhase);
+                    }).length}
+                    totalCount={uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length}
+                    onSelectAll={() => {
+                      const processedFiles = uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase));
+                      setSelectedUploads(processedFiles.map((u: UploaderUpload) => u.id));
+                    }}
+                    onClearSelection={() => setSelectedUploads([])}
+                    isAllSelected={
+                      selectedUploads.length > 0 &&
+                      selectedUploads.every(id => {
+                        const u = uploads.find((upload: UploaderUpload) => upload.id === id);
+                        return u && ['encoded', 'completed', 'processing'].includes(u.currentPhase);
+                      }) &&
+                      selectedUploads.length === uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length
+                    }
+                    actions={[
+                      {
+                        label: 'Process Step 6',
+                        icon: <Zap className="h-4 w-4 mr-1" />,
+                        onClick: () => {
+                          const encodedFiles = selectedUploads.filter(id => {
+                            const upload = uploads.find((u: UploaderUpload) => u.id === id);
+                            return upload && (upload.currentPhase === 'encoded' || upload.currentPhase === 'completed');
+                          });
+                          if (encodedFiles.length > 0) {
+                            step6ProcessingMutation.mutate(encodedFiles);
+                          }
+                        },
+                        disabled: step6ProcessingMutation.isPending,
+                        className: 'bg-purple-600 hover:bg-purple-700 text-white'
+                      },
+                      {
+                        label: 'Archive (Step 7)',
+                        icon: <Database className="h-4 w-4 mr-1" />,
+                        onClick: () => {
                           const completedFiles = selectedUploads.filter(id => {
                             const upload = uploads.find((u: UploaderUpload) => u.id === id);
                             return upload && (upload.currentPhase === 'completed' || upload.currentPhase === 'encoded');
                           });
-                          
-                          if (completedFiles.length === 0) {
-                            toast({ 
-                              title: "No eligible files selected", 
-                              description: "Please select files that have been processed ('encoded' or 'completed') for Step 7 archiving",
-                              variant: "destructive" 
-                            });
-                            return;
+                          if (completedFiles.length > 0) {
+                            archiveMutation.mutate(completedFiles);
                           }
-                          
-                          // Trigger Manual Step 7 archive
-                          archiveMutation.mutate(completedFiles);
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        disabled={archiveMutation.isPending || !selectedUploads.some(id => {
-                          const upload = uploads.find((u: UploaderUpload) => u.id === id);
-                          return upload && (upload.currentPhase === 'completed' || upload.currentPhase === 'encoded');
-                        })}
-                        data-testid="button-manual-step7-archive"
-                      >
-                        <Database className="h-4 w-4 mr-1" />
-                        Manual Step 7 (Archive)
-                      </Button>
-                      
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={handleBulkDelete}
-                        disabled={bulkDeleteMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete Selected
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <Label>Status Filter</Label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Files</SelectItem>
-                      <SelectItem value="started">Started</SelectItem>
-                      <SelectItem value="uploading">Uploading</SelectItem>
-                      <SelectItem value="uploaded">Uploaded</SelectItem>
-                      <SelectItem value="identified">Identified</SelectItem>
-                      <SelectItem value="validating">Validating</SelectItem>
-                      <SelectItem value="encoding">Encoding</SelectItem>
-                      <SelectItem value="encoded">Encoded</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="error">Error</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>File Type</Label>
-                  <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="tddf">TDDF</SelectItem>
-                      <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
-                      <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
-                      <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Search Filename</Label>
-                  <Input
-                    placeholder="Filter by filename..."
-                    value={filenameFilter}
-                    onChange={(e) => setFilenameFilter(e.target.value)}
+                        },
+                        disabled: archiveMutation.isPending,
+                        className: 'bg-blue-600 hover:bg-blue-700 text-white'
+                      },
+                      {
+                        label: 'Reset Status',
+                        icon: <RefreshCw className="h-4 w-4 mr-1" />,
+                        onClick: () => {
+                          const resettableFiles = selectedUploads.filter(id => {
+                            const upload = uploads.find((u: UploaderUpload) => u.id === id);
+                            return upload && ['encoded', 'processing', 'completed'].includes(upload.currentPhase);
+                          });
+                          if (resettableFiles.length > 0) {
+                            resetStatusMutation.mutate(resettableFiles);
+                          }
+                        },
+                        disabled: resetStatusMutation.isPending,
+                        variant: 'outline' as const,
+                        className: 'border-orange-600 text-orange-600 hover:bg-orange-50'
+                      },
+                      {
+                        label: 'Delete',
+                        icon: <Trash2 className="h-4 w-4 mr-1" />,
+                        onClick: handleBulkDelete,
+                        disabled: bulkDeleteMutation.isPending,
+                        variant: 'destructive' as const
+                      }
+                    ]}
                   />
-                </div>
-                <div>
-                  <Label>Sort</Label>
-                  <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
-                    const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
-                    setSortBy(field);
-                    setSortOrder(order);
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date-desc">Date (Newest)</SelectItem>
-                      <SelectItem value="date-asc">Date (Oldest)</SelectItem>
-                      <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                      <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                      <SelectItem value="size-desc">Size (Largest)</SelectItem>
-                      <SelectItem value="size-asc">Size (Smallest)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              {uploadsLoading ? (
-                <div className="text-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                  <p className="text-muted-foreground mt-2">Loading uploads...</p>
-                </div>
-              ) : uploads.length === 0 ? (
-                <div className="text-center py-8">
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <p className="text-muted-foreground mt-2">No files uploaded yet</p>
-                  <p className="text-sm text-muted-foreground">Upload TDDF files to see them here</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {uploadedFiles.slice(uploadsCurrentPage * uploadsItemsPerPage, (uploadsCurrentPage + 1) * uploadsItemsPerPage).map((upload: any) => (
-                    <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={selectedUploads.includes(upload.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedUploads(prev => [...prev, upload.id]);
-                            } else {
-                              setSelectedUploads(prev => prev.filter(id => id !== upload.id));
-                            }
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{upload.filename}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {upload.fileSize ? `${formatFileSize(upload.fileSize)} • ` : ''}{upload.finalFileType || 'tddf'} • Started {upload.uploadedAt ? new Date(upload.uploadedAt).toLocaleString('en-US', { 
-                              month: 'numeric', 
-                              day: 'numeric', 
-                              year: 'numeric', 
-                              hour: 'numeric', 
-                              minute: '2-digit', 
-                              hour12: true,
-                              timeZone: 'America/Chicago'
-                            }) : 'Unknown'} • Encoding: <TimingDisplay uploadId={upload.id} /> • {upload.lineCount ? upload.lineCount.toLocaleString() : 'calculating'} lines
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {upload.currentPhase === 'error' ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge 
-                                  variant="destructive"
-                                  className="cursor-pointer hover:bg-red-700"
-                                  onClick={() => handleShowErrorDetails(upload)}
-                                >
-                                  {upload.currentPhase || 'started'}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">
-                                  <strong>Error:</strong> {getErrorSummary(upload.processingErrors)}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">Click for full details</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : upload.currentPhase === 'warning' ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge 
-                                  variant="outline"
-                                  className="cursor-pointer border-yellow-500 text-yellow-700 bg-yellow-50 hover:bg-yellow-100"
-                                  onClick={() => handleShowWarningDetails(upload)}
-                                  data-testid="badge-warning"
-                                >
-                                  <AlertTriangle className="h-3 w-3 mr-1" />
-                                  warning
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">
-                                  <strong>Warning:</strong> {upload.processingNotes || 'File has processing warnings'}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">Click to view details and reset</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <Badge 
-                            variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}
-                            className={upload.currentPhase === 'completed' ? 'bg-green-800 text-white hover:bg-green-900' : ''}
-                          >
-                            {upload.currentPhase || 'started'}
-                          </Badge>
-                        )}
-                        
-                        {/* Add View Warning button for warning status */}
-                        {upload.currentPhase === 'warning' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleShowWarningDetails(upload)}
-                            data-testid="button-view-warning"
-                            className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100"
-                          >
-                            <AlertTriangle className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {upload.uploadProgress !== undefined && upload.uploadProgress < 100 && (
-                          <div className="w-16">
-                            <Progress value={upload.uploadProgress} className="h-2" />
-                          </div>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            handleViewUploaderFile(upload);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  {/* Filters for Processed */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <Label>Status Filter</Label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Files</SelectItem>
+                          <SelectItem value="encoded">Encoded</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Pagination */}
-              {uploads.length > 0 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Show:</span>
-                    <Select value={uploadsItemsPerPage.toString()} onValueChange={(value) => {
-                      setUploadsItemsPerPage(Number(value));
-                      setUploadsCurrentPage(0);
-                    }}>
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="5">5</SelectItem>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                        <SelectItem value="250">250</SelectItem>
-                        <SelectItem value="500">500</SelectItem>
-                        <SelectItem value="1000">1K</SelectItem>
-                        <SelectItem value="1500">1.5K</SelectItem>
-                        <SelectItem value="2000">2K</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Showing {uploadsCurrentPage * uploadsItemsPerPage + 1} to {Math.min((uploadsCurrentPage + 1) * uploadsItemsPerPage, totalUploads)} of {totalUploads} uploads
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setUploadsCurrentPage(Math.max(0, uploadsCurrentPage - 1))}
-                      disabled={uploadsCurrentPage === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm">{uploadsCurrentPage + 1} of {Math.ceil(totalUploads / uploadsItemsPerPage)}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setUploadsCurrentPage(Math.min(Math.ceil(totalUploads / uploadsItemsPerPage) - 1, uploadsCurrentPage + 1))}
-                      disabled={uploadsCurrentPage >= Math.ceil(totalUploads / uploadsItemsPerPage) - 1}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Processed Files Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Processed TDDF Files ({totalProcessedFiles})</CardTitle>
-                  <CardDescription>
-                    Files that have completed processing and are available in the daily view
-                  </CardDescription>
-                </div>
-                {selectedFiles.size > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {selectedFiles.size} selected
-                    </span>
-                    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Delete Selected
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Selected Files</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete {selectedFiles.size} selected file(s)? 
-                            This action cannot be undone and will remove all associated processing data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleDeleteSelected}
-                            disabled={deleteFilesMutation.isPending}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            {deleteFilesMutation.isPending ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                Deleting...
-                              </>
-                            ) : (
-                              'Delete Files'
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Date Filtering Controls */}
-              <div className="mb-4 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  <div>
-                    <Label htmlFor="date-from">Upload Date From</Label>
-                    <Input
-                      id="date-from"
-                      type="date"
-                      value={dateFilters.dateFrom}
-                      onChange={(e) => setDateFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="date-to">Upload Date To</Label>
-                    <Input
-                      id="date-to"
-                      type="date"
-                      value={dateFilters.dateTo}
-                      onChange={(e) => setDateFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="business-day-from">Business Day From</Label>
-                    <Input
-                      id="business-day-from"
-                      type="date"
-                      value={dateFilters.businessDayFrom}
-                      onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="business-day-to">Business Day To</Label>
-                    <Input
-                      id="business-day-to"
-                      type="date"
-                      value={dateFilters.businessDayTo}
-                      onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="status-filter">Status</Label>
-                    <Select value={dateFilters.status} onValueChange={(value) => setDateFilters(prev => ({ ...prev, status: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        <SelectItem value="uploaded">Uploaded</SelectItem>
-                        <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="failed">Failed</SelectItem>
-                        <SelectItem value="error">Error</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setDateFilters({
-                      dateFrom: "",
-                      dateTo: "",
-                      businessDayFrom: "",
-                      businessDayTo: "",
-                      status: ""
-                    })}
-                  >
-                    Clear Filters
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"], exact: false });
-                      queryClient.invalidateQueries({ queryKey: ["/api/uploader"] });
-                    }}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Refresh
-                  </Button>
-                </div>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={files.length > 0 && selectedFiles.size === files.length}
-                        onCheckedChange={() => {
-                          if (selectedFiles.size === files.length) {
-                            setSelectedFiles(new Set());
-                          } else {
-                            setSelectedFiles(new Set(files.map((f: TddfApiFile) => f.id)));
-                          }
-                        }}
-                        aria-label="Select all files"
+                    <div>
+                      <Label>File Type</Label>
+                      <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="tddf">TDDF</SelectItem>
+                          <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
+                          <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
+                          <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Search Filename</Label>
+                      <Input
+                        placeholder="Filter by filename..."
+                        value={filenameFilter}
+                        onChange={(e) => setFilenameFilter(e.target.value)}
                       />
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center">
-                        File Name
-                        {getSortIndicator('name')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('businessDay')}
-                    >
-                      <div className="flex items-center">
-                        Business Day
-                        {getSortIndicator('businessDay')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('size')}
-                    >
-                      <div className="flex items-center">
-                        Size
-                        {getSortIndicator('size')}
-                      </div>
-                    </TableHead>
-                    <TableHead>Sequence</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Schema</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('records')}
-                    >
-                      <div className="flex items-center">
-                        Records
-                        {getSortIndicator('records')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('progress')}
-                    >
-                      <div className="flex items-center">
-                        Progress
-                        {getSortIndicator('progress')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('date')}
-                    >
-                      <div className="flex items-center">
-                        Uploaded
-                        {getSortIndicator('date')}
-                      </div>
-                    </TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filesLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={12} className="text-center">
-                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sortedFiles.map((file) => (
-                      <TableRow key={file.id} className={selectedFiles.has(file.id) ? "bg-muted/50" : ""}>
-                        <TableCell>
+                    </div>
+                    <div>
+                      <Label>Sort</Label>
+                      <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+                        const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+                        setSortBy(field);
+                        setSortOrder(order);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="date-desc">Date (Newest)</SelectItem>
+                          <SelectItem value="date-asc">Date (Oldest)</SelectItem>
+                          <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                          <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Processed Files List */}
+                  <div className="space-y-2">
+                    {uploads
+                      .filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase))
+                      .filter((u: UploaderUpload) => statusFilter === 'all' || u.currentPhase === statusFilter)
+                      .filter((u: UploaderUpload) => fileTypeFilter === 'all' || u.finalFileType === fileTypeFilter)
+                      .filter((u: UploaderUpload) => !filenameFilter || u.filename.toLowerCase().includes(filenameFilter.toLowerCase()))
+                      .slice(processedFilesCurrentPage * processedFilesItemsPerPage, (processedFilesCurrentPage + 1) * processedFilesItemsPerPage)
+                      .map((upload: UploaderUpload) => (
+                        <div 
+                          key={upload.id} 
+                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
                           <Checkbox
-                            checked={selectedFiles.has(file.id)}
+                            checked={selectedUploads.includes(upload.id)}
                             onCheckedChange={(checked) => {
-                              const newSelection = new Set(selectedFiles);
                               if (checked) {
-                                newSelection.add(file.id);
+                                setSelectedUploads([...selectedUploads, upload.id]);
                               } else {
-                                newSelection.delete(file.id);
+                                setSelectedUploads(selectedUploads.filter(id => id !== upload.id));
                               }
-                              setSelectedFiles(newSelection);
                             }}
-                            aria-label={`Select ${file.filename}`}
                           />
-                        </TableCell>
-                        <TableCell className="font-medium max-w-xs truncate">
-                          {file.filename}
-                        </TableCell>
-                        <TableCell>
-                          {file.business_day ? format(new Date(file.business_day), "MMM d, yyyy") : (
-                            file.file_date ? (
-                              <span className="text-muted-foreground">{file.file_date}</span>
-                            ) : (
-                              (file.current_phase === 'uploaded' || file.current_phase === 'identified' || file.current_phase === 'encoded' || file.current_phase === 'processing') ? (
-                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )
-                            )
-                          )}
-                        </TableCell>
-                        <TableCell>{formatFileSize(file.file_size)}</TableCell>
-                        <TableCell>
-                          {file.fileSequenceNumber || <span className="text-muted-foreground">-</span>}
-                        </TableCell>
-                        <TableCell>
-                          {file.fileProcessingTime ? (
-                            <span className="font-mono text-sm">
-                              {file.fileProcessingTime.substring(0, 2)}:{file.fileProcessingTime.substring(2, 4)}:{file.fileProcessingTime.substring(4, 6)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {file.schema_name ? `${file.schema_name} v${file.schema_version}` : "None"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(file.current_phase || file.status)}>
-                            {file.current_phase || file.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const totalRecords = (file.bhRecordCount || 0) + (file.dtRecordCount || 0) + (file.otherRecordCount || 0);
-                            return totalRecords > 0 ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="font-medium cursor-help underline decoration-dotted">
-                                      {totalRecords.toLocaleString()}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <div className="text-sm">
-                                      <div><strong>BH:</strong> {file.bhRecordCount?.toLocaleString() || 0}</div>
-                                      <div><strong>DT:</strong> {file.dtRecordCount?.toLocaleString() || 0}</div>
-                                      <div><strong>Others:</strong> {file.otherRecordCount?.toLocaleString() || 0}</div>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              (file.current_phase === 'uploaded' || file.current_phase === 'identified' || file.current_phase === 'encoded' || file.current_phase === 'processing') ? (
-                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Processing</span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          {file.record_count > 0 && (
-                            <div className="w-20">
-                              <Progress 
-                                value={(file.processed_records / file.record_count) * 100} 
-                                className="h-2"
-                              />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate text-sm">{upload.filename}</span>
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, yyyy") : "Unknown"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.filename)}`)}
-                              title="View TDDF records from this file"
-                              className="text-green-600 hover:text-green-700"
-                              data-testid={`button-view-tddf-${file.id}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleViewUploaderFile(file)}
-                              title="View raw file contents"
-                              data-testid={`button-view-file-${file.id}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" title="Download file">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete File</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{file.filename}"? 
-                                    This action cannot be undone and will remove all associated processing data.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteFilesMutation.mutate([file.id])}
-                                    disabled={deleteFilesMutation.isPending}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    {deleteFilesMutation.isPending ? (
-                                      <>
-                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                        Deleting...
-                                      </>
-                                    ) : (
-                                      'Delete File'
-                                    )}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <span>{formatFileSize(upload.fileSize || 0)}</span>
+                              <span>•</span>
+                              <span>{upload.finalFileType || 'unknown'}</span>
+                              <span>•</span>
+                              <span>{upload.lineCount?.toLocaleString() || 0} lines</span>
+                              <span>•</span>
+                              <span>Encoding: <TimingDisplay uploadId={upload.id} /></span>
+                            </div>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-              
-              {/* Pagination Controls for Processed Files */}
-              {totalProcessedFiles > 0 && (
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Show:</span>
-                    <Select 
-                      value={processedFilesItemsPerPage.toString()} 
-                      onValueChange={(value) => {
-                        setProcessedFilesItemsPerPage(Number(value));
-                        setProcessedFilesCurrentPage(0); // Reset to first page when changing page size
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              upload.currentPhase === 'encoded' && 'bg-green-100 text-green-800 border-green-300',
+                              upload.currentPhase === 'completed' && 'bg-green-100 text-green-800 border-green-300',
+                              upload.currentPhase === 'processing' && 'bg-blue-100 text-blue-800 border-blue-300'
+                            )}
+                          >
+                            {upload.currentPhase}
+                          </Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setLocation(`/tddf-viewer/${upload.id}/${encodeURIComponent(upload.filename)}?unlimited=true`)}
+                            title="View JSONB data"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    {uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        No processed files available
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Enhanced Pagination for Processed */}
+                  <EnhancedPagination
+                    currentPage={processedFilesCurrentPage}
+                    totalItems={uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length}
+                    itemsPerPage={processedFilesItemsPerPage}
+                    onPageChange={setProcessedFilesCurrentPage}
+                    onPageSizeChange={setProcessedFilesItemsPerPage}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ARCHIVE TAB - Archived files with restore functionality */}
+            <TabsContent value="archive" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>
+                        Archived Files ({isLoadingArchive ? '...' : archivedFiles.length})
+                      </CardTitle>
+                      <CardDescription>
+                        Archived completed files - data remains in master table. Use Restore to return files to active processing.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        refetchArchive();
+                        toast({ title: "Archive data refreshed" });
+                      }}
+                      disabled={isLoadingArchive}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Bulk Action Toolbar for Archive */}
+                  <BulkActionToolbar
+                    selectedCount={selectedArchiveFiles.length}
+                    totalCount={archivedFiles.length}
+                    onSelectAll={() => setSelectedArchiveFiles(archivedFiles.map((f: any) => f.id))}
+                    onClearSelection={() => setSelectedArchiveFiles([])}
+                    isAllSelected={selectedArchiveFiles.length === archivedFiles.length && archivedFiles.length > 0}
+                    actions={[
+                      {
+                        label: 'Restore Selected',
+                        icon: <RotateCcw className="h-4 w-4 mr-1" />,
+                        onClick: () => restoreArchivedMutation.mutate(selectedArchiveFiles.map(String)),
+                        disabled: restoreArchivedMutation.isPending,
+                        className: 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }
+                    ]}
+                  />
+
+                  {/* Archive Filters */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <Label>Archive Status</Label>
+                      <Select 
+                        value={archiveFilters.archiveStatus} 
+                        onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, archiveStatus: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Files</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                          <SelectItem value="processed">Processed</SelectItem>
+                          <SelectItem value="failed">Failed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Step 6 Status</Label>
+                      <Select 
+                        value={archiveFilters.step6Status}
+                        onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, step6Status: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Files</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="failed">Failed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Business Day From</Label>
+                      <input
+                        type="date"
+                        value={archiveFilters.businessDayFrom}
+                        onChange={(e) => setArchiveFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                    <div>
+                      <Label>Business Day To</Label>
+                      <input
+                        type="date"
+                        value={archiveFilters.businessDayTo}
+                        onChange={(e) => setArchiveFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setArchiveFilters({
+                          archiveStatus: 'all',
+                          step6Status: 'all',
+                          businessDayFrom: '',
+                          businessDayTo: ''
+                        });
+                        toast({ title: "Archive filters cleared" });
                       }}
                     >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="5">5</SelectItem>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                        <SelectItem value="250">250</SelectItem>
-                        <SelectItem value="500">500</SelectItem>
-                        <SelectItem value="1000">1K</SelectItem>
-                        <SelectItem value="1500">1.5K</SelectItem>
-                        <SelectItem value="2000">2K</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Showing {processedFilesCurrentPage * processedFilesItemsPerPage + 1} to {Math.min((processedFilesCurrentPage + 1) * processedFilesItemsPerPage, totalProcessedFiles)} of {totalProcessedFiles} processed files
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setProcessedFilesCurrentPage(Math.max(0, processedFilesCurrentPage - 1))}
-                      disabled={processedFilesCurrentPage === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm">{processedFilesCurrentPage + 1} of {Math.ceil(totalProcessedFiles / processedFilesItemsPerPage)}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setProcessedFilesCurrentPage(Math.min(Math.ceil(totalProcessedFiles / processedFilesItemsPerPage) - 1, processedFilesCurrentPage + 1))}
-                      disabled={processedFilesCurrentPage >= Math.ceil(totalProcessedFiles / processedFilesItemsPerPage) - 1}
-                    >
-                      <ChevronRight className="h-4 w-4" />
+                      Clear Filters
                     </Button>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Archive Management Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>
-                    TDDF Archive Management ({isLoadingArchive ? '...' : archivedFiles.length})
-                  </CardTitle>
-                  <CardDescription>
-                    Archived completed files - data remains in master table, use Restore to return files to active processing
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      refetchArchive();
-                      toast({ title: "Archive data refreshed" });
-                    }}
-                    disabled={isLoadingArchive}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Refresh Archive
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Archive Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <Label>Archive Status</Label>
-                  <Select 
-                    value={archiveFilters.archiveStatus} 
-                    onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, archiveStatus: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Files</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                      <SelectItem value="processed">Processed</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Step 6 Status</Label>
-                  <Select 
-                    value={archiveFilters.step6Status}
-                    onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, step6Status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Files</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Business Day From</Label>
-                  <input
-                    type="date"
-                    value={archiveFilters.businessDayFrom}
-                    onChange={(e) => setArchiveFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <Label>Business Day To</Label>
-                  <input
-                    type="date"
-                    value={archiveFilters.businessDayTo}
-                    onChange={(e) => setArchiveFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
-              </div>
-
-              {/* Archive Actions */}
-              <div className="flex items-center gap-2 mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setArchiveFilters({
-                      archiveStatus: 'all',
-                      step6Status: 'all',
-                      businessDayFrom: '',
-                      businessDayTo: ''
-                    });
-                    toast({ title: "Archive filters cleared" });
-                  }}
-                >
-                  Clear Filters
-                </Button>
-                <div className="flex-1" />
-                
-                {/* Selected Archive Actions */}
-                {selectedArchiveFiles.length > 0 && (
-                  <>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                      onClick={() => restoreArchivedMutation.mutate(selectedArchiveFiles.map(String))}
-                      disabled={restoreArchivedMutation.isPending}
-                      data-testid="button-restore-selected"
-                    >
-                      <RotateCcw className="h-4 w-4 mr-1" />
-                      Restore Selected ({selectedArchiveFiles.length})
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              {/* Archive Table */}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedArchiveFiles.length === archivedFiles.length && archivedFiles.length > 0}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedArchiveFiles(archivedFiles.map((f: any) => f.id));
-                          } else {
-                            setSelectedArchiveFiles([]);
-                          }
-                        }}
-                        aria-label="Select all archive files"
-                        data-testid="checkbox-select-all-archive"
-                      />
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('original_filename')}
-                    >
-                      <div className="flex items-center">
-                        Original Filename
-                        {getArchiveSortIndicator('original_filename')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('business_day')}
-                    >
-                      <div className="flex items-center">
-                        Business Day
-                        {getArchiveSortIndicator('business_day')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('sequence')}
-                    >
-                      <div className="flex items-center">
-                        Sequence
-                        {getArchiveSortIndicator('sequence')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('time')}
-                    >
-                      <div className="flex items-center">
-                        Time
-                        {getArchiveSortIndicator('time')}
-                      </div>
-                    </TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('records')}
-                    >
-                      <div className="flex items-center">
-                        Records
-                        {getArchiveSortIndicator('records')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('uploaded_at')}
-                    >
-                      <div className="flex items-center">
-                        Uploaded
-                        {getArchiveSortIndicator('uploaded_at')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleArchiveSort('archived_at')}
-                    >
-                      <div className="flex items-center">
-                        Archived Date
-                        {getArchiveSortIndicator('archived_at')}
-                      </div>
-                    </TableHead>
-                    <TableHead>Archived By</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoadingArchive ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8">
-                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                        <span className="ml-2">Loading archive data...</span>
-                      </TableCell>
-                    </TableRow>
-                  ) : archivedFiles.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
-                        No archived files found. Use Manual Step 7 to archive completed files.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    archivedFiles.map((file: any) => (
-                      <TableRow key={file.id}>
-                        <TableCell>
-                          <Checkbox 
-                            checked={selectedArchiveFiles.includes(file.id)}
+                  {/* Archive Table */}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectedArchiveFiles.length === archivedFiles.length && archivedFiles.length > 0}
                             onCheckedChange={(checked) => {
                               if (checked) {
-                                setSelectedArchiveFiles([...selectedArchiveFiles, file.id]);
+                                setSelectedArchiveFiles(archivedFiles.map((f: any) => f.id));
                               } else {
-                                setSelectedArchiveFiles(selectedArchiveFiles.filter(id => id !== file.id));
+                                setSelectedArchiveFiles([]);
                               }
                             }}
-                            data-testid={`checkbox-archive-${file.id}`}
+                            aria-label="Select all archive files"
                           />
-                        </TableCell>
-                        <TableCell className="font-medium max-w-[300px]" title={file.original_filename}>
-                          <div className="truncate">{file.original_filename}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {file.file_size_mb ? `${file.file_size_mb} MB` : 'Size unknown'}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 select-none"
+                          onClick={() => handleArchiveSort('original_filename')}
+                        >
+                          <div className="flex items-center">
+                            Original Filename
+                            {getArchiveSortIndicator('original_filename')}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {file.file_sequence_number || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {file.file_processing_time ? 
-                            `${file.file_processing_time.substring(0,2)}:${file.file_processing_time.substring(2,4)}:${file.file_processing_time.substring(4,6)}` : 
-                            '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
-                            Archived
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const totalRecords = (file.bh_record_count || 0) + (file.dt_record_count || 0) + (file.other_record_count || 0);
-                            return totalRecords > 0 ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="font-medium cursor-help underline decoration-dotted">
-                                      {totalRecords.toLocaleString()}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <div className="text-sm">
-                                      <div><strong>BH:</strong> {file.bh_record_count?.toLocaleString() || 0}</div>
-                                      <div><strong>DT:</strong> {file.dt_record_count?.toLocaleString() || 0}</div>
-                                      <div><strong>Others:</strong> {file.other_record_count?.toLocaleString() || 0}</div>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          {file.uploaded_at ? format(new Date(file.uploaded_at), 'MMM d, yyyy HH:mm') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{file.archived_by || file.created_by || '-'}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
-                              data-testid={`button-view-jsonb-${file.id}`}
-                              title="View JSONB data"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => restoreArchivedMutation.mutate([String(file.id)])}
-                              data-testid={`button-restore-${file.id}`}
-                              title="Restore to active processing"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              disabled={restoreArchivedMutation.isPending}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 select-none"
+                          onClick={() => handleArchiveSort('business_day')}
+                        >
+                          <div className="flex items-center">
+                            Business Day
+                            {getArchiveSortIndicator('business_day')}
                           </div>
-                        </TableCell>
+                        </TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 select-none"
+                          onClick={() => handleArchiveSort('records')}
+                        >
+                          <div className="flex items-center">
+                            Records
+                            {getArchiveSortIndicator('records')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50 select-none"
+                          onClick={() => handleArchiveSort('archived_at')}
+                        >
+                          <div className="flex items-center">
+                            Archived Date
+                            {getArchiveSortIndicator('archived_at')}
+                          </div>
+                        </TableHead>
+                        <TableHead>Archived By</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingArchive ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                            <span className="ml-2">Loading archive data...</span>
+                          </TableCell>
+                        </TableRow>
+                      ) : archivedFiles.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                            No archived files found. Use Step 7 Archive to archive completed files.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        archivedFiles
+                          .slice(archivePage * archiveItemsPerPage, (archivePage + 1) * archiveItemsPerPage)
+                          .map((file: any) => (
+                          <TableRow key={file.id}>
+                            <TableCell>
+                              <Checkbox 
+                                checked={selectedArchiveFiles.includes(file.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedArchiveFiles([...selectedArchiveFiles, file.id]);
+                                  } else {
+                                    setSelectedArchiveFiles(selectedArchiveFiles.filter(id => id !== file.id));
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium max-w-[300px]" title={file.original_filename}>
+                              <div className="truncate">{file.original_filename}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {file.file_size_mb ? `${file.file_size_mb} MB` : 'Size unknown'}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
+                                Archived
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const totalRecords = (file.bh_record_count || 0) + (file.dt_record_count || 0) + (file.other_record_count || 0);
+                                return totalRecords > 0 ? (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="font-medium cursor-help underline decoration-dotted">
+                                          {totalRecords.toLocaleString()}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <div className="text-sm">
+                                          <div><strong>BH:</strong> {file.bh_record_count?.toLocaleString() || 0}</div>
+                                          <div><strong>DT:</strong> {file.dt_record_count?.toLocaleString() || 0}</div>
+                                          <div><strong>Others:</strong> {file.other_record_count?.toLocaleString() || 0}</div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                );
+                              })()}
+                            </TableCell>
+                            <TableCell>
+                              {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm">{file.archived_by || file.created_by || '-'}</span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
+                                  title="View JSONB data"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => restoreArchivedMutation.mutate([String(file.id)])}
+                                  title="Restore to active processing"
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  disabled={restoreArchivedMutation.isPending}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
 
-              {/* Archive Pagination Controls */}
-              {!isLoadingArchive && archivedFiles.length > 0 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Items per page:</span>
-                    <Select
-                      value={archiveItemsPerPage.toString()}
-                      onValueChange={(value) => {
-                        setArchiveItemsPerPage(parseInt(value));
-                        setArchivePage(0); // Reset to first page when changing page size
-                      }}
-                    >
-                      <SelectTrigger className="w-[80px]" data-testid="select-archive-items-per-page">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="text-sm text-muted-foreground ml-4">
-                      Showing {archivePage * archiveItemsPerPage + 1}-{Math.min((archivePage + 1) * archiveItemsPerPage, archiveData?.total || 0)} of {archiveData?.total || 0}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setArchivePage(Math.max(0, archivePage - 1))}
-                      disabled={archivePage === 0}
-                      data-testid="button-archive-prev-page"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm">
-                      {archivePage + 1} of {Math.max(1, Math.ceil((archiveData?.total || 0) / archiveItemsPerPage))}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setArchivePage(archivePage + 1)}
-                      disabled={archivePage >= Math.ceil((archiveData?.total || 0) / archiveItemsPerPage) - 1}
-                      data-testid="button-archive-next-page"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  {/* Enhanced Pagination for Archive */}
+                  <EnhancedPagination
+                    currentPage={archivePage}
+                    totalItems={archivedFiles.length}
+                    itemsPerPage={archiveItemsPerPage}
+                    onPageChange={setArchivePage}
+                    onPageSizeChange={setArchiveItemsPerPage}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
