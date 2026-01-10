@@ -16,7 +16,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
   }
 };
 
-function isRetryableError(error: unknown): boolean {
+export function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   
   const message = error.message.toLowerCase();
@@ -26,6 +26,8 @@ function isRetryableError(error: unknown): boolean {
   const isConnectionError = (
     message.includes('connection terminated unexpectedly') ||
     message.includes('connection timeout') ||
+    message.includes('timeout exceeded when trying to connect') ||
+    message.includes('timeout exceeded') ||
     message.includes('econnreset') ||
     message.includes('epipe') ||
     message.includes('network error') ||
@@ -34,7 +36,9 @@ function isRetryableError(error: unknown): boolean {
     message.includes('connection closed') ||
     message.includes('timeout acquiring connection') ||
     message.includes('pool is full') ||
-    message.includes('cannot acquire connection')
+    message.includes('cannot acquire connection') ||
+    message.includes('too many clients') ||
+    message.includes('terminating connection')
   );
   
   // Retryable PostgreSQL errors (deadlocks, serialization failures)

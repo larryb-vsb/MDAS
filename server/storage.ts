@@ -60,6 +60,7 @@ import {
 import { db, batchDb, sessionPool, pool } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, asc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
 import { getTableName } from "./table-config";
+import { withRetry, isRetryableError } from "./db-retry-util";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { TraceNumberMapper } from './services/trace-number-mapper';
@@ -1926,9 +1927,16 @@ export class DatabaseStorage implements IStorage {
       // Use unified merchants table directly
       const merchantsTableName = getTableName('merchants');
       console.log(`[GET MERCHANT] Using unified merchants table: ${merchantsTableName} for merchant ID: ${merchantId}`);
-      const merchantQuery = await db.execute(sql`
-        SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
-      `);
+      
+      // Wrap database query with retry logic for Neon connection resilience
+      const merchantQuery = await withRetry(
+        async () => db.execute(sql`
+          SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
+        `),
+        { maxRetries: 3, baseDelay: 1000, onRetry: (attempt, error) => {
+          console.log(`[GET MERCHANT] Retry ${attempt} for ${merchantId}: ${error.message}`);
+        }}
+      );
       const merchant = merchantQuery.rows[0];
       
       if (!merchant) {
@@ -1942,15 +1950,18 @@ export class DatabaseStorage implements IStorage {
       // Use the correct API ACH transactions table
       let transactionsQuery;
       try {
-        // Use api_achtransactions table (VSB API)
+        // Use api_achtransactions table (VSB API) with retry logic
         const apiTransactionsTableName = getTableName('api_achtransactions');
-        transactionsQuery = await db.execute(sql`
-          SELECT id, merchant_id, amount, transaction_date as date, description as type, created_at as recorded_at
-          FROM ${sql.identifier(apiTransactionsTableName)}
-          WHERE merchant_id = ${merchantId} 
-          ORDER BY transaction_date DESC 
-          LIMIT 100
-        `);
+        transactionsQuery = await withRetry(
+          async () => db.execute(sql`
+            SELECT id, merchant_id, amount, transaction_date as date, description as type, created_at as recorded_at
+            FROM ${sql.identifier(apiTransactionsTableName)}
+            WHERE merchant_id = ${merchantId} 
+            ORDER BY transaction_date DESC 
+            LIMIT 100
+          `),
+          { maxRetries: 2, baseDelay: 500 }
+        );
       } catch (error) {
         console.log(`No transactions found for merchant ${merchantId} in API transactions table`);
         transactionsQuery = { rows: [] };
@@ -2139,8 +2150,9 @@ export class DatabaseStorage implements IStorage {
       const merchantsTableName = getTableName('merchants');
       console.log(`[CREATE MERCHANT] Using table: ${merchantsTableName} for merchant: ${merchantData.name}`);
       
-      // Insert the merchant into the database using raw SQL for environment separation
-      const insertResult = await db.execute(sql`
+      // Insert the merchant into the database using raw SQL for environment separation with retry logic
+      const insertResult = await withRetry(
+        async () => db.execute(sql`
         INSERT INTO ${sql.identifier(merchantsTableName)} (
           id, name, client_mid, other_client_number1, other_client_number2, 
           client_since_date, status, merchant_type, sales_channel, address, 
@@ -2158,7 +2170,11 @@ export class DatabaseStorage implements IStorage {
           ${merchantData.editDate || merchantData.createdAt}, ${merchantData.updatedBy || 'system'}
         )
         RETURNING *
-      `);
+      `),
+        { maxRetries: 3, baseDelay: 1000, onRetry: (attempt, error) => {
+          console.log(`[CREATE MERCHANT] Retry ${attempt} for ${merchantData.id}: ${error.message}`);
+        }}
+      );
       
       const newMerchant = insertResult.rows[0] as Merchant;
       
@@ -2268,8 +2284,13 @@ export class DatabaseStorage implements IStorage {
   async updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any> {
     try {
       const merchantsTableName = getTableName('merchants');
-      // Check if merchant exists and get original values
-      const existingResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+      // Check if merchant exists and get original values with retry logic
+      const existingResult = await withRetry(
+        async () => pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]),
+        { maxRetries: 3, baseDelay: 1000, onRetry: (attempt, error) => {
+          console.log(`[UPDATE MERCHANT] Retry ${attempt} checking ${merchantId}: ${error.message}`);
+        }}
+      );
       const existingMerchant = existingResult.rows[0];
       
       if (!existingMerchant) {
@@ -2293,13 +2314,22 @@ export class DatabaseStorage implements IStorage {
         ).join(', ');
         const updateValues = [merchantId, ...Object.values(merchantData)];
         
-        await pool.query(
-          `UPDATE ${merchantsTableName} SET ${updateFields} WHERE id = $1`,
-          updateValues
+        // Wrap UPDATE query with retry logic
+        await withRetry(
+          async () => pool.query(
+            `UPDATE ${merchantsTableName} SET ${updateFields} WHERE id = $1`,
+            updateValues
+          ),
+          { maxRetries: 3, baseDelay: 1000, onRetry: (attempt, error) => {
+            console.log(`[UPDATE MERCHANT] Retry ${attempt} updating ${merchantId}: ${error.message}`);
+          }}
         );
         
-        // Get updated merchant
-        const updatedResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+        // Get updated merchant with retry logic
+        const updatedResult = await withRetry(
+          async () => pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]),
+          { maxRetries: 2, baseDelay: 500 }
+        );
         const updatedMerchant = updatedResult.rows[0];
         
         // Create audit log entry

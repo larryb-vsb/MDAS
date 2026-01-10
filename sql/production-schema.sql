@@ -503,19 +503,76 @@ CREATE INDEX IF NOT EXISTS host_approvals_status_idx ON host_approvals(status);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id serial PRIMARY KEY,
+  entity_type text DEFAULT 'unknown',
+  entity_id text DEFAULT '',
+  action text DEFAULT 'unknown',
+  user_id integer,
+  username text DEFAULT 'system',
   timestamp timestamp DEFAULT NOW() NOT NULL,
-  user_id text,
-  action text NOT NULL,
+  old_values jsonb,
+  new_values jsonb,
+  changed_fields text[],
+  ip_address text,
+  user_agent text,
+  notes text,
+  -- Legacy columns for backward compatibility
   resource_type text,
   resource_id text,
-  details jsonb,
-  ip_address text,
-  user_agent text
+  details jsonb
 );
 
 CREATE INDEX IF NOT EXISTS audit_logs_timestamp_idx ON audit_logs(timestamp);
 CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS audit_logs_entity_type_idx ON audit_logs(entity_type);
+CREATE INDEX IF NOT EXISTS audit_logs_entity_id_idx ON audit_logs(entity_id);
+
+-- Add missing columns to existing audit_logs table (safe to run on existing tables)
+DO $$
+BEGIN
+  -- Add entity_type column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'entity_type') THEN
+    ALTER TABLE audit_logs ADD COLUMN entity_type text DEFAULT 'unknown';
+    RAISE NOTICE 'Added entity_type column to audit_logs';
+  END IF;
+  
+  -- Add entity_id column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'entity_id') THEN
+    ALTER TABLE audit_logs ADD COLUMN entity_id text DEFAULT '';
+    RAISE NOTICE 'Added entity_id column to audit_logs';
+  END IF;
+  
+  -- Add username column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'username') THEN
+    ALTER TABLE audit_logs ADD COLUMN username text DEFAULT 'system';
+    RAISE NOTICE 'Added username column to audit_logs';
+  END IF;
+  
+  -- Add old_values column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'old_values') THEN
+    ALTER TABLE audit_logs ADD COLUMN old_values jsonb;
+    RAISE NOTICE 'Added old_values column to audit_logs';
+  END IF;
+  
+  -- Add new_values column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'new_values') THEN
+    ALTER TABLE audit_logs ADD COLUMN new_values jsonb;
+    RAISE NOTICE 'Added new_values column to audit_logs';
+  END IF;
+  
+  -- Add changed_fields column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'changed_fields') THEN
+    ALTER TABLE audit_logs ADD COLUMN changed_fields text[];
+    RAISE NOTICE 'Added changed_fields column to audit_logs';
+  END IF;
+  
+  -- Add notes column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'notes') THEN
+    ALTER TABLE audit_logs ADD COLUMN notes text;
+    RAISE NOTICE 'Added notes column to audit_logs';
+  END IF;
+END
+$$;
 
 
 -- =====================================================================
