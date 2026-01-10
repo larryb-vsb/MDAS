@@ -5,6 +5,18 @@ All notable changes to MDAS (Merchant Datawarehouse and Automation System) will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-01-10
+
+### Fixed
+- Fixed Hold feature failing in production due to missing `phase_updated_at` column
+- Fixed orphan object cleanup showing "Files Already Removed" for objects already deleted from storage
+- Fixed Neon database error handling causing "Cannot set property message" errors
+- Orphan scan now verifies object existence in Replit Object Storage before marking as orphan
+
+### Added
+- "Copy Path" button in Log Dump UI for easier sharing of log paths with AI
+- Auto-cleanup of stale database entries when objects no longer exist in storage
+
 ## [2.0.2] - 2026-01-10
 
 ### Fixed

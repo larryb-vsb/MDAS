@@ -262,7 +262,7 @@ export function registerStorageManagementRoutes(app: Express) {
     try {
       logger.info('[STORAGE-MGMT] Scanning for orphaned objects');
 
-      // Mark objects as orphaned if their upload_id doesn't exist or upload is deleted
+      // Step 1: Mark objects as orphaned if their upload_id doesn't exist or upload is deleted
       const scanResult = await db.execute(sql`
         UPDATE ${sql.raw(tableName)}
         SET 
@@ -280,12 +280,47 @@ export function registerStorageManagementRoutes(app: Express) {
       `);
 
       const orphanedCount = scanResult.rows.length;
-      logger.info(`[STORAGE-MGMT] Scan complete: ${orphanedCount} orphaned objects found`);
+      logger.info(`[STORAGE-MGMT] DB scan complete: ${orphanedCount} orphaned objects marked`);
+
+      // Step 2: Verify object existence in Replit Object Storage and clean up stale entries
+      // Get all orphaned objects that are marked for purge
+      const orphanedObjects = await db.execute(sql`
+        SELECT id, object_key FROM ${sql.raw(tableName)}
+        WHERE mark_for_purge = true AND status = 'orphaned'
+      `);
+
+      let staleRemoved = 0;
+      let verified = 0;
+
+      // Check each orphaned object exists in storage
+      for (const obj of orphanedObjects.rows as { id: number; object_key: string }[]) {
+        try {
+          const exists = await ReplitStorageService.fileExists(obj.object_key);
+          if (!exists) {
+            // Object doesn't exist in storage - remove stale DB entry
+            await db.execute(sql`
+              DELETE FROM ${sql.raw(tableName)} WHERE id = ${obj.id}
+            `);
+            staleRemoved++;
+            logger.info(`[STORAGE-MGMT] Removed stale entry: ${obj.object_key} (object not in storage)`);
+          } else {
+            verified++;
+          }
+        } catch (checkError) {
+          // If we can't verify, assume it exists to be safe
+          verified++;
+          logger.warn(`[STORAGE-MGMT] Could not verify object existence: ${obj.object_key}`);
+        }
+      }
+
+      logger.info(`[STORAGE-MGMT] Scan complete: ${orphanedCount} newly orphaned, ${staleRemoved} stale removed, ${verified} verified for purge`);
 
       res.json({ 
         success: true, 
         orphanedCount,
-        message: `Scan complete: Found ${orphanedCount} orphaned objects`
+        staleRemoved,
+        verified,
+        message: `Scan complete: ${orphanedCount} newly orphaned, ${staleRemoved} stale entries removed, ${verified} ready for purge`
       });
     } catch (error: any) {
       logger.error('[STORAGE-MGMT] Scan failed:', error);

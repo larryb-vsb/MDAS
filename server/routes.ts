@@ -893,10 +893,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (action === 'hold') {
         // Hold action: Set files to 'hold' status (released will go back to 'uploaded')
         const uploadsTableName = getTableName('uploader_uploads');
+        // Note: Only use columns that exist in both dev and production schemas
         const holdQuery = `
           UPDATE ${uploadsTableName}
           SET current_phase = 'hold',
-              phase_updated_at = NOW(),
               updated_at = NOW()
           WHERE id = ANY($1::text[])
             AND current_phase NOT IN ('deleted', 'completed', 'archived')

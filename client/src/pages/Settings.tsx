@@ -149,8 +149,25 @@ function LogDumpSection() {
                 <div>System Logs: {lastDumpResult.systemLogCount}</div>
                 <div>Security Logs: {lastDumpResult.securityLogCount}</div>
                 <div>Total Size: {formatBytes(lastDumpResult.totalSize || 0)}</div>
-                <div className="text-xs font-mono bg-green-100 p-2 rounded mt-2 break-all">
-                  {lastDumpResult.storageKey}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="text-xs font-mono bg-green-100 p-2 rounded break-all flex-1">
+                    {lastDumpResult.storageKey}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastDumpResult.storageKey || '');
+                      toast({
+                        title: "Path Copied",
+                        description: "Log path copied to clipboard. You can paste this to AI for analysis.",
+                      });
+                    }}
+                    title="Copy path to clipboard for AI analysis"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy Path
+                  </Button>
                 </div>
               </div>
             </div>

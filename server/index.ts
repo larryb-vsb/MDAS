@@ -51,17 +51,30 @@ function setupProcessMonitoring() {
   
   // Monitor uncaught exceptions and promise rejections (system errors)
   process.on('uncaughtException', (error) => {
+    // Safely extract error properties to avoid "Cannot set property message" errors
+    // Some Error objects (especially from Neon) have read-only properties
+    let errorMessage = '';
+    let errorStack = '';
+    try {
+      errorMessage = error?.message || String(error);
+      errorStack = error?.stack || '';
+    } catch {
+      errorMessage = String(error);
+    }
+    
     // Enhanced Neon connection error detection
-    const isNeonError = error.stack?.includes('@neondatabase/serverless') || 
-                        error.message?.includes('WebSocket') ||
-                        error.message?.includes('ErrorEvent');
+    const isNeonError = errorStack.includes('@neondatabase/serverless') || 
+                        errorMessage.includes('WebSocket') ||
+                        errorMessage.includes('ErrorEvent') ||
+                        errorMessage.includes('Cannot set property message');
     
     const errorCategory = isNeonError ? 'Neon Connection Error' : 'System Error';
+    const timestamp = new Date().toISOString();
     const errorDetails: Record<string, any> = {
-      error: error.message,
-      stack: error.stack,
+      error: errorMessage,
+      stack: errorStack,
       serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`,
-      timestamp: new Date().toISOString()
+      timestamp
     };
     
     // Add Neon-specific diagnostics
@@ -71,23 +84,32 @@ function setupProcessMonitoring() {
         possibleCause: 'WebSocket connection to Neon failed - check Neon status page',
         recommendation: 'Retry logic should handle this automatically'
       };
-      console.error(`[NEON-ERROR] ⚠️  Neon connection error detected at ${errorDetails.timestamp}`);
-      console.error(`[NEON-ERROR] Error: ${error.message}`);
+      console.error(`[NEON-ERROR] ⚠️  Neon connection error detected at ${timestamp}`);
+      console.error(`[NEON-ERROR] Error: ${errorMessage}`);
     }
     
     systemLogger.error(errorCategory, 'Uncaught exception detected', errorDetails).catch(console.error);
   });
   
   process.on('unhandledRejection', (reason, promise) => {
-    const reasonStr = String(reason);
+    // Safely convert reason to string to avoid property access issues
+    let reasonStr = '';
+    try {
+      reasonStr = String(reason);
+    } catch {
+      reasonStr = 'Unknown rejection reason';
+    }
+    
     const isNeonError = reasonStr.includes('@neondatabase/serverless') || 
                         reasonStr.includes('WebSocket') ||
-                        reasonStr.includes('timeout exceeded');
+                        reasonStr.includes('timeout exceeded') ||
+                        reasonStr.includes('Cannot set property message');
     
+    const timestamp = new Date().toISOString();
     const errorDetails: Record<string, any> = {
       reason: reasonStr,
-      promiseString: promise.toString(),
-      timestamp: new Date().toISOString()
+      promiseString: '[Promise]', // Avoid calling toString on promise which might fail
+      timestamp
     };
     
     if (isNeonError) {
@@ -95,7 +117,7 @@ function setupProcessMonitoring() {
         errorType: 'connection_rejection',
         possibleCause: 'Neon connection pool exhausted or WebSocket failure'
       };
-      console.error(`[NEON-ERROR] ⚠️  Neon promise rejection at ${errorDetails.timestamp}`);
+      console.error(`[NEON-ERROR] ⚠️  Neon promise rejection at ${timestamp}`);
       console.error(`[NEON-ERROR] Reason: ${reasonStr}`);
     }
     

@@ -238,6 +238,24 @@ export const SCHEMA_VERSION_HISTORY = [
       ]
     },
     appliedBy: 'Alex-ReplitAgent',
+  },
+  {
+    version: '2.0.3',
+    description: 'PATCH VERSION - Production fixes for Hold feature, orphan cleanup, and Neon error handling',
+    changes: {
+      tables: ['uploader_uploads', 'master_object_keys'],
+      added: [
+        'Copy Path button in Log Dump UI for AI analysis',
+        'Object existence verification during orphan scan',
+        'Auto-cleanup of stale DB entries when objects missing from storage'
+      ],
+      modified: [
+        'Hold feature query now uses production-compatible columns only',
+        'Orphan scan verifies objects exist in Replit Object Storage',
+        'Neon error handling safely extracts error properties to avoid read-only issues'
+      ]
+    },
+    appliedBy: 'Alex-ReplitAgent',
   }
 ];
 

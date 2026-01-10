@@ -35,6 +35,12 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.3 (2026-01-10)**
+- Fixed Hold feature failing in production (missing phase_updated_at column)
+- Fixed orphan cleanup showing "Files Already Removed" by verifying object existence in storage
+- Fixed Neon error handling causing "Cannot set property message" errors
+- Added "Copy Path" button in Log Dump UI for AI analysis
+
 **Version 2.0.2 (2026-01-10)**
 - Fixed "Buffer is not defined" browser console warnings by adding early Buffer polyfill for PDF export compatibility
 - Silenced non-critical fallback status console errors
