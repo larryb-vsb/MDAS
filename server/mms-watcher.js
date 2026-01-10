@@ -1850,8 +1850,8 @@ class MMSWatcher {
           // Process merchant CSV file using existing storage method
           const processingResults = await this.storage.processMerchantFile(tempFilePath);
           
-          // Update to encoded phase with merchant results
-          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          // Update to completed phase with merchant results (CSV files are terminal after encoding)
+          await this.storage.updateUploaderPhase(upload.id, 'completed', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
             encodingNotes: `Successfully processed ${processingResults.merchantsCreated || 0} merchant records from CSV`,
@@ -1895,8 +1895,8 @@ class MMSWatcher {
           await this.storage.processTransactionFile(tempFilePath);
           console.log(`[MMS-WATCHER] [TRANSACTION-CSV] processTransactionFile completed for ${upload.filename}`);
           
-          // Update to encoded phase with transaction results
-          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          // Update to completed phase with transaction results (CSV files are terminal after encoding)
+          await this.storage.updateUploaderPhase(upload.id, 'completed', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
             encodingNotes: `Successfully processed ACH transaction CSV file`,
@@ -1937,7 +1937,7 @@ class MMSWatcher {
             upload.filename
           );
           
-          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          await this.storage.updateUploaderPhase(upload.id, 'completed', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
             encodingNotes: `Successfully processed terminal CSV file: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,
@@ -1976,7 +1976,7 @@ class MMSWatcher {
             upload.filename
           );
           
-          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          await this.storage.updateUploaderPhase(upload.id, 'completed', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
             encodingNotes: `Successfully processed terminal CSV file: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,

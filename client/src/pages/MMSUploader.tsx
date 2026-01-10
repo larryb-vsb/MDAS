@@ -2756,8 +2756,8 @@ export default function MMSUploader() {
                             </div>
                           )}
 
-                          <Badge className={`${upload.currentPhase === 'encoded' ? 'bg-green-100 text-green-800' : `bg-${phaseColor}-100 text-${phaseColor}-800`}`}>
-                            {upload.currentPhase === 'encoded' ? 'Encoded' : upload.currentPhase || 'started'}
+                          <Badge className={`${upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'bg-green-100 text-green-800' : `bg-${phaseColor}-100 text-${phaseColor}-800`}`}>
+                            {upload.currentPhase === 'completed' ? 'completed' : upload.currentPhase === 'encoded' ? 'encoded' : upload.currentPhase || 'started'}
                           </Badge>
                           
                           {/* Stage 5: Encoding Button (for identified TDDF files) */}

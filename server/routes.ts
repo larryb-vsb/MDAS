@@ -4673,8 +4673,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TERMINAL-REPROCESS] ✅ Processing completed:`, processingResult);
       
-      // Update file status to reflect re-processing
-      await storage.updateUploaderPhase(fileId, 'encoded', {
+      // Update file status to reflect re-processing (terminal CSV is terminal after encoding)
+      await storage.updateUploaderPhase(fileId, 'completed', {
         encodingCompletedAt: new Date(),
         encodingStatus: 'completed',
         encodingNotes: `Manual re-processing successful: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,
