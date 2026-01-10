@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText, Users, BarChart3 } from "lucide-react";
+import { AlertCircle, RefreshCw, Download, TrendingUp, TrendingDown, UserMinus, UserPlus, FileText, Users, BarChart3, Calendar } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
 import {
@@ -291,6 +291,7 @@ const QuarterlyReportPDF = ({ data, formatDate, trendData }: PDFReportProps) => 
 export default function QuarterlyMerchantReport() {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter());
+  const [isAnnualView, setIsAnnualView] = useState(false);
 
   const {
     data: reportData,
@@ -300,12 +301,19 @@ export default function QuarterlyMerchantReport() {
     refetch
   } = useQuery<QuarterlyReportData>({
     queryKey: [`/api/reports/quarterly-merchants?year=${selectedYear}&quarter=${selectedQuarter}`],
-    staleTime: 1000 * 60 * 5
+    staleTime: 1000 * 60 * 5,
+    enabled: !isAnnualView
   });
 
   const { data: trendData, isLoading: trendLoading } = useQuery<TrendResponse>({
     queryKey: [`/api/reports/quarterly-merchants/trend?year=${selectedYear}&quarter=${selectedQuarter}`],
     staleTime: 1000 * 60 * 5
+  });
+
+  const { data: annualData, isLoading: annualLoading } = useQuery<TrendResponse>({
+    queryKey: [`/api/reports/quarterly-merchants/annual?year=${selectedYear}`],
+    staleTime: 1000 * 60 * 5,
+    enabled: isAnnualView
   });
 
   const formatDate = (dateString: string) => {
@@ -390,34 +398,259 @@ export default function QuarterlyMerchantReport() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Quarter" />
-              </SelectTrigger>
-              <SelectContent>
-                {quarters.map(q => (
-                  <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!isAnnualView && (
+              <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Quarter" />
+                </SelectTrigger>
+                <SelectContent>
+                  {quarters.map(q => (
+                    <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button 
+              variant={isAnnualView ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setIsAnnualView(!isAnnualView)}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              {isAnnualView ? "Quarterly" : "Annual"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToCSV('all')} disabled={!reportData}>
-              <Download className="mr-2 h-4 w-4" />
-              CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!reportData}>
-              <FileText className="mr-2 h-4 w-4" />
-              PDF
-            </Button>
+            {!isAnnualView && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => exportToCSV('all')} disabled={!reportData}>
+                  <Download className="mr-2 h-4 w-4" />
+                  CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!reportData}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  PDF
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
         <Separator />
 
-        {isLoading ? (
+        {isAnnualView ? (
+          annualLoading ? (
+            <div className="flex h-40 items-center justify-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading annual report data...</span>
+            </div>
+          ) : annualData && annualData.trend.length > 0 ? (
+            <>
+              <div className="text-sm text-muted-foreground mb-4">
+                Annual Report: Jan 1, {selectedYear} to Dec 31, {selectedYear}
+              </div>
+
+              {/* Annual Summary Cards */}
+              {(() => {
+                const yearData = annualData.trend.filter(d => d.year === parseInt(selectedYear));
+                const totalNew = yearData.reduce((sum, d) => sum + d.newMerchants, 0);
+                const totalClosed = yearData.reduce((sum, d) => sum + d.closedMerchants, 0);
+                const beginningCount = yearData.length > 0 ? yearData[0].beginningCount : 0;
+                const endCount = yearData.length > 0 ? yearData[yearData.length - 1].endCount : 0;
+                const netChange = totalNew - totalClosed;
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Beginning of Year</CardTitle>
+                        <Users className="h-4 w-4 text-blue-600" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-blue-600">{beginningCount}</div>
+                        <p className="text-xs text-muted-foreground">MCC merchants on Jan 1, {selectedYear}</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">New Merchants</CardTitle>
+                        <UserPlus className="h-4 w-4 text-green-600" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-green-600">+{totalNew}</div>
+                        <p className="text-xs text-muted-foreground">Activated in {selectedYear}</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Closed Merchants</CardTitle>
+                        <UserMinus className="h-4 w-4 text-red-600" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-red-600">{totalClosed}</div>
+                        <p className="text-xs text-muted-foreground">Closed in {selectedYear}</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Net Change</CardTitle>
+                        {netChange >= 0 ? (
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-red-600" />
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-2xl font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {netChange >= 0 ? '+' : ''}{netChange}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {netChange >= 0 ? 'Growth' : 'Decline'} this year
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">End of Year</CardTitle>
+                        <Users className="h-4 w-4 text-blue-600" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-blue-600">{endCount}</div>
+                        <p className="text-xs text-muted-foreground">MCC merchants on Dec 31, {selectedYear}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
+
+              {/* Annual Charts */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    <CardTitle>Annual Trend - {selectedYear}</CardTitle>
+                  </div>
+                  <CardDescription>Merchant activity across all 4 quarters</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Line Chart */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 text-center">Total MCC Merchants</h4>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart data={annualData.trend.filter(d => d.year === parseInt(selectedYear))}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                          <Tooltip
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload as TrendDataPoint;
+                                return (
+                                  <div className="bg-white p-3 border rounded shadow-lg text-sm">
+                                    <p className="font-semibold">{label}</p>
+                                    <p className="text-blue-600">End of Quarter: {data.endCount}</p>
+                                    <p className="text-green-600">New: +{data.newMerchants}</p>
+                                    <p className="text-red-600">Closed: {data.closedMerchants}</p>
+                                    <p className={data.netChange >= 0 ? "text-green-600" : "text-red-600"}>
+                                      Net: {data.netChange >= 0 ? '+' : ''}{data.netChange}
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Legend />
+                          <Line type="monotone" dataKey="endCount" name="End of Quarter" stroke="#2563eb" strokeWidth={2} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Stacked Bar Chart */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 text-center">End of Quarter Breakdown</h4>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={annualData.trend.filter(d => d.year === parseInt(selectedYear)).map(d => ({
+                          ...d,
+                          existing: d.endCount - d.newMerchants
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="existing" name="Existing" stackId="a" fill="#2563eb" />
+                          <Bar dataKey="newMerchants" name="New" stackId="a" fill="#16a34a" />
+                          <Bar dataKey="closedMerchants" name="Closed" fill="#dc2626" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Quarterly Breakdown Table */}
+                  <div className="mt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Quarter</TableHead>
+                          <TableHead className="text-center">Beginning</TableHead>
+                          <TableHead className="text-center">New</TableHead>
+                          <TableHead className="text-center">Closed</TableHead>
+                          <TableHead className="text-center">Net Change</TableHead>
+                          <TableHead className="text-center">End</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {annualData.trend.filter(d => d.year === parseInt(selectedYear)).map((row, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{row.label}</TableCell>
+                            <TableCell className="text-center text-blue-600">{row.beginningCount}</TableCell>
+                            <TableCell className="text-center text-green-600">+{row.newMerchants}</TableCell>
+                            <TableCell className="text-center text-red-600">{row.closedMerchants}</TableCell>
+                            <TableCell className={`text-center ${row.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {row.netChange >= 0 ? '+' : ''}{row.netChange}
+                            </TableCell>
+                            <TableCell className="text-center text-blue-600">{row.endCount}</TableCell>
+                          </TableRow>
+                        ))}
+                        {/* Totals Row */}
+                        {(() => {
+                          const yearData = annualData.trend.filter(d => d.year === parseInt(selectedYear));
+                          const totalNew = yearData.reduce((sum, d) => sum + d.newMerchants, 0);
+                          const totalClosed = yearData.reduce((sum, d) => sum + d.closedMerchants, 0);
+                          return (
+                            <TableRow className="bg-muted/50 font-semibold">
+                              <TableCell>Annual Total</TableCell>
+                              <TableCell className="text-center text-blue-600">{yearData[0]?.beginningCount || 0}</TableCell>
+                              <TableCell className="text-center text-green-600">+{totalNew}</TableCell>
+                              <TableCell className="text-center text-red-600">{totalClosed}</TableCell>
+                              <TableCell className={`text-center ${totalNew - totalClosed >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {totalNew - totalClosed >= 0 ? '+' : ''}{totalNew - totalClosed}
+                              </TableCell>
+                              <TableCell className="text-center text-blue-600">{yearData[yearData.length - 1]?.endCount || 0}</TableCell>
+                            </TableRow>
+                          );
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No Data</AlertTitle>
+              <AlertDescription>No annual data available for {selectedYear}.</AlertDescription>
+            </Alert>
+          )
+        ) : isLoading ? (
           <div className="flex h-40 items-center justify-center">
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
             <span className="ml-2 text-muted-foreground">Loading report data...</span>
