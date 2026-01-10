@@ -5240,7 +5240,7 @@ export default function TddfApiDataPage() {
                           </TableHeader>
                           <TableBody>
                             {step45Files.map((file: TddfApiFile) => {
-                              const uploadTime = file.upload_datetime ? new Date(file.upload_datetime) : null;
+                              const uploadTime = file.uploaded_at ? new Date(file.uploaded_at) : null;
                               const duration = uploadTime ? formatDistanceToNow(uploadTime, { addSuffix: false }) : '-';
                               
                               return (
@@ -5267,7 +5267,7 @@ export default function TddfApiDataPage() {
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="outline">
-                                      {file.finalFileType || file.file_type || 'unknown'}
+                                      {(file as any).finalFileType || (file as any).file_type || file.fileType || 'unknown'}
                                     </Badge>
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
