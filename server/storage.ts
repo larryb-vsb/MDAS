@@ -2401,30 +2401,28 @@ export class DatabaseStorage implements IStorage {
           deletedCount++;
           totalTransactionsDeleted += Number(transactionCount);
           
-          // Create audit log entry within the transaction
+          // Create audit log entry within the transaction using correct snake_case column names
           try {
-            const auditLogData: InsertAuditLog = {
-              entityType: 'merchant',
-              entityId: merchantId,
-              action: 'delete',
-              userId: null, // Can be set if user ID is available
-              username: username,
-              oldValues: this.filterSensitiveData(existingMerchant),
-              newValues: null, // No new values for deletion
-              changedFields: [],
-              notes: `Deleted merchant: ${existingMerchant.name} with ${transactionCount} associated transactions`
-            };
-            
             console.log(`[DELETE MERCHANTS] Creating audit log for ${merchantId}`);
-            const auditColumns = Object.keys(auditLogData).join(', ');
-            const auditPlaceholders = Object.keys(auditLogData).map((_, i) => `$${i + 1}`).join(', ');
-            const auditValues = Object.values(auditLogData).map(val => 
-              typeof val === 'object' ? JSON.stringify(val) : val
-            );
             
             await pool.query(
-              `INSERT INTO ${auditLogsTableName} (${auditColumns}) VALUES (${auditPlaceholders})`,
-              auditValues
+              `INSERT INTO ${auditLogsTableName} (
+                entity_type, entity_id, action, user_id, username, 
+                timestamp, old_values, new_values, changed_fields, notes
+              ) VALUES (
+                $1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9
+              )`,
+              [
+                'merchant',
+                merchantId,
+                'delete',
+                null,
+                username,
+                JSON.stringify(this.filterSensitiveData(existingMerchant) || {}),
+                JSON.stringify({}),
+                [],
+                `Deleted merchant: ${existingMerchant.name} with ${transactionCount} associated transactions`
+              ]
             );
             console.log(`[DELETE MERCHANTS] Audit log created for ${merchantId}`);
           } catch (auditError) {
@@ -2515,18 +2513,28 @@ export class DatabaseStorage implements IStorage {
             notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${targetMerchant.name}" (${targetMerchantId}). Transferred ${transactionCount} transactions.`
           };
 
-          // Create audit log entry directly within the transaction (environment-aware)
+          // Create audit log entry directly within the transaction using correct snake_case column names
           try {
-            console.log('[MERGE LOGGING] Creating audit log entry:', auditLogData);
-            const auditColumns = Object.keys(auditLogData).join(', ');
-            const auditPlaceholders = Object.keys(auditLogData).map((_, i) => `$${i + 1}`).join(', ');
-            const auditValues = Object.values(auditLogData).map(val => 
-              typeof val === 'object' ? JSON.stringify(val) : val
-            );
+            console.log('[MERGE LOGGING] Creating audit log entry for merge');
             
             const auditResult = await pool.query(
-              `INSERT INTO ${auditLogsTableName} (${auditColumns}) VALUES (${auditPlaceholders}) RETURNING id`,
-              auditValues
+              `INSERT INTO ${auditLogsTableName} (
+                entity_type, entity_id, action, user_id, username, 
+                timestamp, old_values, new_values, changed_fields, notes
+              ) VALUES (
+                $1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9
+              ) RETURNING id`,
+              [
+                'merchant',
+                targetMerchantId,
+                'merge',
+                null,
+                username,
+                JSON.stringify(this.filterSensitiveData(sourceMerchant) || {}),
+                JSON.stringify(this.filterSensitiveData(targetMerchant) || {}),
+                ['transactions'],
+                `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${targetMerchant.name}" (${targetMerchantId}). Transferred ${transactionCount} transactions.`
+              ]
             );
             console.log('[MERGE LOGGING] Audit log created successfully with ID:', auditResult.rows[0].id);
           } catch (error) {

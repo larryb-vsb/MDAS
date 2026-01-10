@@ -29,6 +29,9 @@ export async function migrateDatabase() {
       // Even if all tables exist, we still need to check for new columns
       await checkAndAddMerchantColumns();
       
+      // Ensure audit_logs table has all required columns
+      await checkAndAddAuditLogColumns();
+      
       // Fix production uploader_uploads table missing upload_status column
       await fixProductionUploaderUploadsTable(db);
       
@@ -39,6 +42,9 @@ export async function migrateDatabase() {
       await ensureProductionDatabaseHealth();
     } else {
       console.log('Schema update completed. Missing tables have been created.');
+      
+      // Ensure audit_logs table has all required columns
+      await checkAndAddAuditLogColumns();
       
       // Fix production uploader_uploads table missing upload_status column
       await fixProductionUploaderUploadsTable(db);
@@ -332,6 +338,63 @@ async function createSecurityLogsTable() {
   await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_username_idx ON ${securityLogsTable} (username)`));
   await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_timestamp_idx ON ${securityLogsTable} (timestamp)`));
   await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_result_idx ON ${securityLogsTable} (result)`));
+}
+
+/**
+ * Check for required audit_logs columns and add them if they don't exist
+ * This fixes production errors where the audit_logs table was created with missing columns
+ */
+async function checkAndAddAuditLogColumns() {
+  console.log('Checking for required audit_logs columns...');
+  
+  const auditLogsTable = getTableName('audit_logs');
+  
+  try {
+    // List of required columns for audit_logs table
+    const requiredColumns = [
+      { name: 'entity_type', type: 'TEXT', default: "'unknown'" },
+      { name: 'entity_id', type: 'TEXT', default: "''" },
+      { name: 'action', type: 'TEXT', default: "'unknown'" },
+      { name: 'user_id', type: 'INTEGER', default: null },
+      { name: 'username', type: 'TEXT', default: "'system'" },
+      { name: 'timestamp', type: 'TIMESTAMP WITH TIME ZONE', default: 'CURRENT_TIMESTAMP' },
+      { name: 'old_values', type: 'JSONB', default: null },
+      { name: 'new_values', type: 'JSONB', default: null },
+      { name: 'changed_fields', type: 'TEXT[]', default: null },
+      { name: 'ip_address', type: 'TEXT', default: null },
+      { name: 'user_agent', type: 'TEXT', default: null },
+      { name: 'notes', type: 'TEXT', default: null }
+    ];
+    
+    // Check each column and add if missing
+    for (const col of requiredColumns) {
+      const columnExists = await db.execute(sql.raw(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = '${auditLogsTable}' 
+        AND column_name = '${col.name}'
+      `));
+      
+      if (columnExists.rows.length === 0) {
+        console.log(`[AUDIT LOG FIX] Adding missing column ${col.name} to ${auditLogsTable}`);
+        const defaultClause = col.default ? ` DEFAULT ${col.default}` : '';
+        await db.execute(sql.raw(`
+          ALTER TABLE ${auditLogsTable} 
+          ADD COLUMN ${col.name} ${col.type}${defaultClause}
+        `));
+        console.log(`[AUDIT LOG FIX] Successfully added column ${col.name}`);
+      }
+    }
+    
+    // Create missing indexes
+    await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${auditLogsTable}_entity_type_idx ON ${auditLogsTable} (entity_type)`));
+    await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${auditLogsTable}_entity_id_idx ON ${auditLogsTable} (entity_id)`));
+    await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${auditLogsTable}_timestamp_idx ON ${auditLogsTable} (timestamp)`));
+    
+    console.log('Audit logs columns check complete');
+  } catch (error) {
+    console.error('Error checking/adding audit_logs columns:', error);
+  }
 }
 
 /**

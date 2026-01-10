@@ -812,18 +812,27 @@ export function registerMerchantRoutes(app: Express) {
           // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
           const auditLogsTableName = getTableName('audit_logs');
           
-          console.log('[POST-MERGE LOGGING] Creating audit log entry:', auditLogData);
+          console.log('[POST-MERGE LOGGING] Creating audit log entry for merge');
           
-          // Create audit log using raw SQL with environment-aware table name
-          const auditLogColumns = Object.keys(auditLogData).join(', ');
-          const auditLogPlaceholders = Object.keys(auditLogData).map((_, i) => `$${i + 1}`).join(', ');
-          const auditLogValues = Object.values(auditLogData).map(val => 
-            typeof val === 'object' ? JSON.stringify(val) : val
-          );
-          
+          // Create audit log using raw SQL with correct snake_case column names
           const auditLogResult = await pool.query(`
-            INSERT INTO ${auditLogsTableName} (${auditLogColumns}) VALUES (${auditLogPlaceholders}) RETURNING id
-          `, auditLogValues);
+            INSERT INTO ${auditLogsTableName} (
+              entity_type, entity_id, action, user_id, username, 
+              timestamp, old_values, new_values, changed_fields, notes
+            ) VALUES (
+              $1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9
+            ) RETURNING id
+          `, [
+            'merchant',
+            targetMerchantId,
+            'merge',
+            null,
+            username,
+            JSON.stringify(sourceMerchant || {}),
+            JSON.stringify(result.targetMerchant || {}),
+            ['transactions'],
+            `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${result.targetMerchant.name}" (${targetMerchantId}). Transferred ${result.transactionsTransferred} transactions.`
+          ]);
           console.log('[POST-MERGE LOGGING] Audit log created successfully with ID:', auditLogResult.rows[0]?.id);
           
           // Verify the audit log was actually inserted using environment-aware table name
