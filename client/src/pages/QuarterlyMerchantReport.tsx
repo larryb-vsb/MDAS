@@ -107,15 +107,40 @@ const pdfStyles = StyleSheet.create({
   tableCellHeader: { flex: 1, fontSize: 8, fontWeight: 'bold' },
   tableCellHeaderWide: { flex: 2, fontSize: 8, fontWeight: 'bold' },
   footer: { position: 'absolute', bottom: 20, left: 30, right: 30, fontSize: 8, color: '#999', textAlign: 'center' },
+  chartSection: { marginTop: 15, marginBottom: 15 },
+  chartTitle: { fontSize: 10, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingHorizontal: 10 },
+  chartBar: { alignItems: 'center', width: 60 },
+  chartBarStack: { width: 40, flexDirection: 'column-reverse' },
+  chartBarBlue: { backgroundColor: '#2563eb' },
+  chartBarGreen: { backgroundColor: '#16a34a' },
+  chartBarRed: { backgroundColor: '#dc2626' },
+  chartLabel: { fontSize: 7, marginTop: 4, textAlign: 'center' },
+  chartValue: { fontSize: 6, color: '#fff', textAlign: 'center' },
+  trendTable: { marginTop: 10 },
+  trendTableHeader: { flexDirection: 'row', backgroundColor: '#f0f0f0', padding: 4, borderBottomWidth: 1, borderBottomColor: '#ddd' },
+  trendTableRow: { flexDirection: 'row', padding: 4, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  trendTableCell: { flex: 1, fontSize: 7, textAlign: 'center' },
+  trendTableCellLabel: { flex: 1, fontSize: 7, textAlign: 'left' },
+  trendTableCellHeader: { flex: 1, fontSize: 7, fontWeight: 'bold', textAlign: 'center' },
+  legendRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, gap: 15 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 2 },
+  legendText: { fontSize: 7 },
 });
 
 interface PDFReportProps {
   data: QuarterlyReportData;
   formatDate: (date: string) => string;
+  trendData?: TrendDataPoint[];
 }
 
-const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
-  <Document>
+const QuarterlyReportPDF = ({ data, formatDate, trendData }: PDFReportProps) => {
+  const maxEndCount = trendData ? Math.max(...trendData.map(d => d.endCount)) : 0;
+  const getBarHeight = (value: number) => Math.max(4, (value / maxEndCount) * 80);
+  
+  return (
+    <Document>
     <Page size="A4" style={pdfStyles.page}>
       <View style={pdfStyles.header}>
         <Image src={mdasLogo} style={pdfStyles.logo} />
@@ -150,6 +175,66 @@ const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
           <Text style={pdfStyles.summaryValueBlue}>{data.summary.endCount}</Text>
         </View>
       </View>
+
+      {/* Four Quarter Trend Chart */}
+      {trendData && trendData.length > 0 && (
+        <View style={pdfStyles.chartSection}>
+          <Text style={pdfStyles.chartTitle}>Four Quarter Trend</Text>
+          <View style={pdfStyles.chartContainer}>
+            {trendData.map((d, i) => {
+              const existing = d.endCount - d.newMerchants;
+              return (
+                <View key={i} style={pdfStyles.chartBar}>
+                  <View style={pdfStyles.chartBarStack}>
+                    <View style={[pdfStyles.chartBarBlue, { height: getBarHeight(existing) }]} />
+                    <View style={[pdfStyles.chartBarGreen, { height: getBarHeight(d.newMerchants) }]} />
+                  </View>
+                  <Text style={pdfStyles.chartLabel}>{d.label}</Text>
+                  <Text style={{ fontSize: 6, color: '#666' }}>Total: {d.endCount}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={pdfStyles.legendRow}>
+            <View style={pdfStyles.legendItem}>
+              <View style={[pdfStyles.legendDot, { backgroundColor: '#2563eb' }]} />
+              <Text style={pdfStyles.legendText}>Existing</Text>
+            </View>
+            <View style={pdfStyles.legendItem}>
+              <View style={[pdfStyles.legendDot, { backgroundColor: '#16a34a' }]} />
+              <Text style={pdfStyles.legendText}>New</Text>
+            </View>
+            <View style={pdfStyles.legendItem}>
+              <View style={[pdfStyles.legendDot, { backgroundColor: '#dc2626' }]} />
+              <Text style={pdfStyles.legendText}>Closed</Text>
+            </View>
+          </View>
+          
+          {/* Trend Data Table */}
+          <View style={pdfStyles.trendTable}>
+            <View style={pdfStyles.trendTableHeader}>
+              <Text style={pdfStyles.trendTableCellHeader}>Quarter</Text>
+              <Text style={pdfStyles.trendTableCellHeader}>Beginning</Text>
+              <Text style={pdfStyles.trendTableCellHeader}>New</Text>
+              <Text style={pdfStyles.trendTableCellHeader}>Closed</Text>
+              <Text style={pdfStyles.trendTableCellHeader}>Net</Text>
+              <Text style={pdfStyles.trendTableCellHeader}>End</Text>
+            </View>
+            {trendData.map((row, i) => (
+              <View key={i} style={pdfStyles.trendTableRow}>
+                <Text style={pdfStyles.trendTableCellLabel}>{row.label}</Text>
+                <Text style={[pdfStyles.trendTableCell, { color: '#2563eb' }]}>{row.beginningCount}</Text>
+                <Text style={[pdfStyles.trendTableCell, { color: '#16a34a' }]}>+{row.newMerchants}</Text>
+                <Text style={[pdfStyles.trendTableCell, { color: '#dc2626' }]}>{row.closedMerchants}</Text>
+                <Text style={[pdfStyles.trendTableCell, { color: row.netChange >= 0 ? '#16a34a' : '#dc2626' }]}>
+                  {row.netChange >= 0 ? '+' : ''}{row.netChange}
+                </Text>
+                <Text style={[pdfStyles.trendTableCell, { color: '#2563eb' }]}>{row.endCount}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
 
       <Text style={pdfStyles.sectionTitle}>New Merchants Added</Text>
       <Text style={pdfStyles.sectionSubtitle}>MCC merchants activated in {data.quarterLabel}</Text>
@@ -200,7 +285,8 @@ const QuarterlyReportPDF = ({ data, formatDate }: PDFReportProps) => (
       </Text>
     </Page>
   </Document>
-);
+  );
+};
 
 export default function QuarterlyMerchantReport() {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
@@ -276,7 +362,7 @@ export default function QuarterlyMerchantReport() {
   const exportToPDF = async () => {
     if (!reportData) return;
     
-    const blob = await pdf(<QuarterlyReportPDF data={reportData} formatDate={formatDate} />).toBlob();
+    const blob = await pdf(<QuarterlyReportPDF data={reportData} formatDate={formatDate} trendData={trendData?.trend} />).toBlob();
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `quarterly-merchant-report-${selectedYear}-Q${selectedQuarter}.pdf`;
