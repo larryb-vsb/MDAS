@@ -27,8 +27,7 @@ export const FallbackStorageAlert: React.FC = () => {
           setIsInFallbackMode(false);
         }
       } catch (error) {
-        console.error('Error checking fallback status:', error);
-        // If we can't connect to the API, assume we're not in fallback mode
+        // Silently handle API errors - fallback mode check is non-critical
         setIsInFallbackMode(false);
       } finally {
         setIsLoading(false);
