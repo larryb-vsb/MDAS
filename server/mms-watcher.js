@@ -1183,7 +1183,26 @@ class MMSWatcher {
         return; // No files to process
       }
 
+      // ENHANCED LOGGING: Log files being picked up with duplicate detection
       console.log(`[MMS-WATCHER] Stage 4: Processing ${uploadedFiles.length} uploaded files for identification...`);
+      
+      // Group by filename to detect duplicates in this batch
+      const filesByName = {};
+      uploadedFiles.forEach(f => {
+        if (!filesByName[f.filename]) filesByName[f.filename] = [];
+        filesByName[f.filename].push(f);
+      });
+      
+      const duplicateFilenames = Object.entries(filesByName).filter(([_, files]) => files.length > 1);
+      if (duplicateFilenames.length > 0) {
+        console.warn(`[MMS-WATCHER-DUPLICATE-ALERT] ⚠️  Found ${duplicateFilenames.length} filenames with multiple entries in 'uploaded' phase:`);
+        duplicateFilenames.forEach(([filename, files]) => {
+          console.warn(`[MMS-WATCHER-DUPLICATE-ALERT]   ${filename}: ${files.length} entries`);
+          files.forEach(f => {
+            console.warn(`[MMS-WATCHER-DUPLICATE-ALERT]     - id=${f.id}, created=${f.createdAt || f.created_at}, sessionId=${f.sessionId || f.session_id || 'none'}`);
+          });
+        });
+      }
 
       for (const upload of uploadedFiles) {
         // Check if Auto 4-5 was disabled mid-processing - stop immediately

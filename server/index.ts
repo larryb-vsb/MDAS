@@ -51,18 +51,55 @@ function setupProcessMonitoring() {
   
   // Monitor uncaught exceptions and promise rejections (system errors)
   process.on('uncaughtException', (error) => {
-    systemLogger.error('System Error', 'Uncaught exception detected', {
+    // Enhanced Neon connection error detection
+    const isNeonError = error.stack?.includes('@neondatabase/serverless') || 
+                        error.message?.includes('WebSocket') ||
+                        error.message?.includes('ErrorEvent');
+    
+    const errorCategory = isNeonError ? 'Neon Connection Error' : 'System Error';
+    const errorDetails: Record<string, any> = {
       error: error.message,
       stack: error.stack,
-      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
-    }).catch(console.error);
+      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Add Neon-specific diagnostics
+    if (isNeonError) {
+      errorDetails.neonDiagnostics = {
+        errorType: 'connection_failure',
+        possibleCause: 'WebSocket connection to Neon failed - check Neon status page',
+        recommendation: 'Retry logic should handle this automatically'
+      };
+      console.error(`[NEON-ERROR] ⚠️  Neon connection error detected at ${errorDetails.timestamp}`);
+      console.error(`[NEON-ERROR] Error: ${error.message}`);
+    }
+    
+    systemLogger.error(errorCategory, 'Uncaught exception detected', errorDetails).catch(console.error);
   });
   
   process.on('unhandledRejection', (reason, promise) => {
-    systemLogger.error('System Error', 'Unhandled promise rejection detected', {
-      reason: String(reason),
-      promiseString: promise.toString()
-    }).catch(console.error);
+    const reasonStr = String(reason);
+    const isNeonError = reasonStr.includes('@neondatabase/serverless') || 
+                        reasonStr.includes('WebSocket') ||
+                        reasonStr.includes('timeout exceeded');
+    
+    const errorDetails: Record<string, any> = {
+      reason: reasonStr,
+      promiseString: promise.toString(),
+      timestamp: new Date().toISOString()
+    };
+    
+    if (isNeonError) {
+      errorDetails.neonDiagnostics = {
+        errorType: 'connection_rejection',
+        possibleCause: 'Neon connection pool exhausted or WebSocket failure'
+      };
+      console.error(`[NEON-ERROR] ⚠️  Neon promise rejection at ${errorDetails.timestamp}`);
+      console.error(`[NEON-ERROR] Reason: ${reasonStr}`);
+    }
+    
+    systemLogger.error('System Error', 'Unhandled promise rejection detected', errorDetails).catch(console.error);
   });
   
   // Monitor filesystem events (file processing activities) - Use dynamic import for production compatibility

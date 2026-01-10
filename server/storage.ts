@@ -15772,12 +15772,31 @@ export class DatabaseStorage implements IStorage {
   // MMS Uploader storage operations
   async createUploaderUpload(insertUploaderUpload: Partial<InsertUploaderUpload>): Promise<UploaderUpload> {
     try {
-      console.log(`[UPLOADER] Creating new upload: ${insertUploaderUpload.filename}`);
-      
+      const filename = insertUploaderUpload.filename;
       const uploaderTableName = getTableName('uploader_uploads');
       
       // Generate unique ID if not provided
       const id = insertUploaderUpload.id || `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // DUPLICATE DETECTION LOGGING - Check for existing entries with same filename
+      const duplicateCheck = await pool.query(`
+        SELECT id, current_phase, upload_status, created_at 
+        FROM ${uploaderTableName} 
+        WHERE filename = $1 
+          AND current_phase IN ('started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding', 'encoded', 'processing', 'queued')
+        ORDER BY created_at DESC
+        LIMIT 10
+      `, [filename]);
+      
+      if (duplicateCheck.rows.length > 0) {
+        console.warn(`[UPLOADER-DUPLICATE-ALERT] ⚠️  Found ${duplicateCheck.rows.length} existing entries for filename: ${filename}`);
+        duplicateCheck.rows.forEach((row, idx) => {
+          console.warn(`[UPLOADER-DUPLICATE-ALERT]   ${idx + 1}. id=${row.id}, phase=${row.current_phase}, status=${row.upload_status}, created=${row.created_at}`);
+        });
+        console.warn(`[UPLOADER-DUPLICATE-ALERT] New entry will be created with id=${id} - potential duplicate!`);
+      }
+      
+      console.log(`[UPLOADER] Creating new upload: filename=${filename}, id=${id}, createdBy=${insertUploaderUpload.created_by || 'system'}, sessionId=${insertUploaderUpload.session_id || 'none'}`);
       
       const result = await pool.query(`
         INSERT INTO ${uploaderTableName} (
@@ -15787,7 +15806,7 @@ export class DatabaseStorage implements IStorage {
         RETURNING *
       `, [
         id,
-        insertUploaderUpload.filename,
+        filename,
         insertUploaderUpload.file_type || 'tddf', // Default to 'tddf' if not specified
         insertUploaderUpload.file_size || null,
         insertUploaderUpload.start_time || new Date(),
@@ -15804,6 +15823,45 @@ export class DatabaseStorage implements IStorage {
       
     } catch (error) {
       console.error('[UPLOADER] Error creating uploader upload:', error);
+      throw error;
+    }
+  }
+
+  // Production duplicate audit - call this to identify duplicate filename entries
+  async auditDuplicateUploads(): Promise<{ duplicates: any[], summary: string }> {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Find all filenames with multiple entries in active/queued states
+      const result = await pool.query(`
+        SELECT filename, 
+               COUNT(*) as entry_count,
+               array_agg(id) as upload_ids,
+               array_agg(current_phase) as phases,
+               array_agg(created_at ORDER BY created_at) as created_times
+        FROM ${uploaderTableName}
+        WHERE current_phase NOT IN ('completed', 'error', 'archived', 'deleted')
+        GROUP BY filename
+        HAVING COUNT(*) > 1
+        ORDER BY COUNT(*) DESC
+        LIMIT 50
+      `);
+      
+      const duplicates = result.rows;
+      const summary = duplicates.length > 0
+        ? `Found ${duplicates.length} filenames with duplicate entries. Total duplicate entries: ${duplicates.reduce((sum, d) => sum + parseInt(d.entry_count), 0)}`
+        : 'No duplicate entries found in active uploads.';
+      
+      console.log(`[DUPLICATE-AUDIT] ${summary}`);
+      duplicates.forEach(dup => {
+        console.log(`[DUPLICATE-AUDIT]   ${dup.filename}: ${dup.entry_count} entries`);
+        console.log(`[DUPLICATE-AUDIT]     IDs: ${dup.upload_ids.join(', ')}`);
+        console.log(`[DUPLICATE-AUDIT]     Phases: ${dup.phases.join(', ')}`);
+      });
+      
+      return { duplicates, summary };
+    } catch (error) {
+      console.error('[DUPLICATE-AUDIT] Error auditing duplicates:', error);
       throw error;
     }
   }

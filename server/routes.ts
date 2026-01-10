@@ -2042,6 +2042,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Duplicate upload audit endpoint - for production monitoring
+  app.get("/api/mms-watcher/audit-duplicates", isAuthenticated, async (req, res) => {
+    try {
+      console.log("[DUPLICATE-AUDIT-API] Running duplicate upload audit...");
+      
+      const result = await storage.auditDuplicateUploads();
+      
+      res.json({
+        success: true,
+        summary: result.summary,
+        duplicateCount: result.duplicates.length,
+        duplicates: result.duplicates,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[DUPLICATE-AUDIT-API] Error running audit:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to run duplicate audit" 
+      });
+    }
+  });
+
   // Auto Step 6 Setting endpoints
   app.get("/api/uploader/auto-step6-setting", isAuthenticated, async (req, res) => {
     try {
