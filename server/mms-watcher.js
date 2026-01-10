@@ -3132,22 +3132,24 @@ class MMSWatcher {
         return; // No files to archive
       }
 
-      // Filter for TDDF files only (matching Step 6 pattern)
+      // Filter for archivable file types: TDDF and CSV files
       // Note: Database returns snake_case column names
-      const tddfFiles = completedFiles.filter(upload => 
-        upload.final_file_type === 'tddf' || upload.detected_file_type === 'tddf' || upload.file_type === 'tddf'
-      );
+      const archivableFileTypes = ['tddf', 'merchant_csv', 'transaction_csv', 'terminal', 'sub_merchant_terminals'];
+      const archivableFiles = completedFiles.filter(upload => {
+        const fileType = upload.final_file_type || upload.detected_file_type || upload.file_type;
+        return archivableFileTypes.includes(fileType);
+      });
 
-      if (tddfFiles.length === 0) {
-        console.log(`[MMS-WATCHER] [AUTO-STEP7] No TDDF files found to archive (${completedFiles.length} total completed files)`);
-        return; // No TDDF files to archive
+      if (archivableFiles.length === 0) {
+        console.log(`[MMS-WATCHER] [AUTO-STEP7] No archivable files found (${completedFiles.length} total completed files)`);
+        return; // No files to archive
       }
 
       // Batch limit: Process only 5 files per run for safety
       const BATCH_LIMIT = 5;
-      const filesToArchive = tddfFiles.slice(0, BATCH_LIMIT);
+      const filesToArchive = archivableFiles.slice(0, BATCH_LIMIT);
       
-      console.log(`[MMS-WATCHER] [AUTO-STEP7] Found ${tddfFiles.length} completed TDDF files, archiving ${filesToArchive.length} (batch limit: ${BATCH_LIMIT})...`);
+      console.log(`[MMS-WATCHER] [AUTO-STEP7] Found ${archivableFiles.length} completed archivable files, archiving ${filesToArchive.length} (batch limit: ${BATCH_LIMIT})...`);
 
       // Archive files using database update
       const pool = this.storage.pool;
