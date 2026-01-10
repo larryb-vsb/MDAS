@@ -3462,9 +3462,9 @@ export default function TddfApiDataPage() {
           <TabsList className="inline-flex w-max sm:grid sm:w-full sm:grid-cols-8 gap-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap">Overview</TabsTrigger>
             <TabsTrigger value="files" className="text-xs sm:text-sm whitespace-nowrap">Files</TabsTrigger>
+            <TabsTrigger value="processing" className="text-xs sm:text-sm whitespace-nowrap">Processing</TabsTrigger>
             <TabsTrigger value="data" className="text-xs sm:text-sm whitespace-nowrap">Data</TabsTrigger>
             <TabsTrigger value="raw-data" className="text-xs sm:text-sm whitespace-nowrap">Raw Data</TabsTrigger>
-            <TabsTrigger value="processing" className="text-xs sm:text-sm whitespace-nowrap">Processing</TabsTrigger>
             <TabsTrigger value="api-keys" className="text-xs sm:text-sm whitespace-nowrap">API Keys</TabsTrigger>
             <TabsTrigger value="monitoring" className="text-xs sm:text-sm whitespace-nowrap">Monitoring</TabsTrigger>
             <TabsTrigger value="schemas" className="text-xs sm:text-sm whitespace-nowrap">Schemas</TabsTrigger>
@@ -5170,7 +5170,128 @@ export default function TddfApiDataPage() {
         <TabsContent value="processing" className="space-y-4">
           <h2 className="text-2xl font-bold">Processing Queue</h2>
           
-          <EnhancedProcessingQueue refetchInterval={5000} />
+          <Tabs defaultValue="step45" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="step45" className="text-sm">4-5 Processing</TabsTrigger>
+              <TabsTrigger value="step6" className="text-sm">Step 6 Processing</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="step45" className="space-y-4 mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-purple-600" />
+                        Steps 4-5: Identification & Encoding
+                      </CardTitle>
+                      <CardDescription>
+                        Files being identified and encoded before Step 6 processing
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+                        toast({ title: "Processing status refreshed" });
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {filesLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      Loading files...
+                    </div>
+                  ) : (() => {
+                    const step45Files = allFiles.filter((f: TddfApiFile) => 
+                      ['uploaded', 'identified', 'validating', 'encoding'].includes(f.current_phase || '')
+                    );
+                    
+                    if (step45Files.length === 0) {
+                      return (
+                        <div className="text-center p-8 text-muted-foreground">
+                          <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                          <p className="text-lg font-medium">No files in Steps 4-5</p>
+                          <p className="text-sm">All files have been identified and encoded</p>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="space-y-3">
+                        <div className="text-sm text-muted-foreground mb-4">
+                          {step45Files.length} file{step45Files.length !== 1 ? 's' : ''} in identification/encoding pipeline
+                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>File</TableHead>
+                              <TableHead>Phase</TableHead>
+                              <TableHead>File Type</TableHead>
+                              <TableHead>Upload Time</TableHead>
+                              <TableHead>Duration</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {step45Files.map((file: TddfApiFile) => {
+                              const uploadTime = file.upload_datetime ? new Date(file.upload_datetime) : null;
+                              const duration = uploadTime ? formatDistanceToNow(uploadTime, { addSuffix: false }) : '-';
+                              
+                              return (
+                                <TableRow key={file.id}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {file.current_phase === 'encoding' && (
+                                        <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                                      )}
+                                      <span className="font-mono text-sm truncate max-w-[300px]" title={file.filename}>
+                                        {file.filename}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={cn(
+                                      file.current_phase === 'uploaded' && 'bg-gray-100 text-gray-700',
+                                      file.current_phase === 'identified' && 'bg-blue-100 text-blue-700',
+                                      file.current_phase === 'validating' && 'bg-yellow-100 text-yellow-700',
+                                      file.current_phase === 'encoding' && 'bg-purple-100 text-purple-700'
+                                    )}>
+                                      {file.current_phase}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">
+                                      {file.finalFileType || file.file_type || 'unknown'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {uploadTime ? format(uploadTime, "MMM d, HH:mm:ss") : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-sm">
+                                    <span className="text-orange-600">{duration}</span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="step6" className="space-y-4 mt-4">
+              <EnhancedProcessingQueue refetchInterval={5000} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="api-keys" className="space-y-4">
