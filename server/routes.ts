@@ -1079,12 +1079,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await client.query('BEGIN');
       
-      // Find files to reset (any status except already uploaded or completed)
+      // Find files to reset (any status except already uploaded)
+      // Note: completed files CAN be reset for reprocessing
       const filesToResetQuery = `
         SELECT id, filename, current_phase, retry_count
         FROM ${uploadsTableName}
         WHERE id = ANY($1::text[])
-          AND current_phase NOT IN ('uploaded', 'completed')
+          AND current_phase != 'uploaded'
         FOR UPDATE
       `;
       
@@ -1098,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "No files need resetting",
           filesReset: 0,
           skipped: fileIds.length,
-          warnings: [`${fileIds.length} file(s) requested but none needed reset (already uploaded or completed)`]
+          warnings: [`${fileIds.length} file(s) requested but none needed reset (already in uploaded phase)`]
         });
       }
       
@@ -1121,7 +1122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             retry_count = 0,
             last_updated = NOW()
           WHERE id = $1
-            AND current_phase NOT IN ('uploaded', 'completed')
+            AND current_phase != 'uploaded'
         `, [file.id]);
         
         if (updateResult.rowCount === 0) {
