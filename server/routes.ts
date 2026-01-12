@@ -4834,7 +4834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         agent: headers.findIndex(h => h === 'Agent'),
         chain: headers.findIndex(h => h === 'Chain'),
         store: headers.findIndex(h => h === 'Store'),
-        terminal: headers.findIndex(h => h === 'Terminal'),
+        terminal: headers.findIndex(h => h === 'Terminal' || h === 'Terminal#' || h === 'Term#'),
         merchantType: headers.findIndex(h => h === 'Merchant Type' || h === 'Merchant'),
         recordStatus: headers.findIndex(h => h === 'Record Status' || h === 'Status'),
         boardDate: headers.findIndex(h => h === 'Board Date'),
