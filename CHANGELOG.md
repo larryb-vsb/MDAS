@@ -5,6 +5,17 @@ All notable changes to MDAS (Merchant Datawarehouse and Automation System) will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2026-01-12
+
+### Fixed
+- Fixed inconsistent terminal VAR number formats across all creation paths
+- Terminal IDs are now normalized to canonical VXXXXXXX format (e.g., 78912073 → V8912073)
+
+### Added
+- `normalizeVarNumber()` utility function for consistent VAR number formatting
+- Backfill script (`scripts/backfill-terminal-var-numbers.ts`) to fix existing terminals
+- VAR number normalization in TDDF Step 6 processing, manual API, and CSV import
+
 ## [2.0.3] - 2026-01-10
 
 ### Fixed

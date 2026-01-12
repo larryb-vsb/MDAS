@@ -35,6 +35,12 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.4 (2026-01-12)**
+- Fixed inconsistent terminal VAR number formats across all creation paths
+- Terminal IDs now normalized to canonical VXXXXXXX format (e.g., 78912073 → V8912073)
+- Added `normalizeVarNumber()` utility for consistent VAR number formatting
+- Added backfill script to fix 401 existing terminals with non-standard formats
+
 **Version 2.0.3 (2026-01-10)**
 - Fixed Hold feature failing in production (missing phase_updated_at column)
 - Fixed orphan cleanup showing "Files Already Removed" by verifying object existence in storage

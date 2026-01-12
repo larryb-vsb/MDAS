@@ -9,7 +9,8 @@
  * 2.0.1 - Schema sync fixes
  * 2.0.2 - Buffer polyfill for PDF exports
  * 2.0.3 - Production fixes (Hold, orphan cleanup, Neon errors)
+ * 2.0.4 - Terminal VAR number normalization (consistent VXXXXXXX format)
  */
 
-export const APP_VERSION = '2.0.3';
+export const APP_VERSION = '2.0.4';
 export const BUILD_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
