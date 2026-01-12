@@ -4815,23 +4815,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'CSV must have headers and data rows' });
       }
       
-      // Parse headers
+      // Parse headers - clean whitespace and quotes
       const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
       console.log(`📋 [SIMPLE-TERMINAL-IMPORT] Headers: ${headers.join(', ')}`);
       
-      // Find required columns with flexible matching
-      const vNumberCol = headers.findIndex(h => h === 'V Number' || h === 'Terminal #' || h === 'VAR Number');
-      const posCol = headers.findIndex(h => h === 'POS Merchant #' || h === 'POS Merchant' || h === 'Merchant #');
-      const dbaCol = headers.findIndex(h => h === 'DBA Name' || h === 'DBA' || h === 'Merchant Name');
-      const mccCol = headers.findIndex(h => h === 'PRR MCC' || h === 'Terminal Visa MCC' || h === 'MCC');
+      // Find all columns with flexible matching - support both old and new terminal report formats
+      const colMap = {
+        vNumber: headers.findIndex(h => h === 'V Number' || h === 'Terminal #' || h === 'VAR Number'),
+        posMerchant: headers.findIndex(h => h === 'POS Merchant' || h === 'POS Merchant #' || h === 'Merchant #'),
+        dbaName: headers.findIndex(h => h === 'DBA Name' || h === 'DBA' || h === 'Merchant Name'),
+        bin: headers.findIndex(h => h === 'BIN'),
+        dailyAuth: headers.findIndex(h => h === 'Daily Auth Count' || h === 'Daily Auth'),
+        dialPay: headers.findIndex(h => h === 'Dial Pay Passcode' || h === 'Dial Pay'),
+        encryption: headers.findIndex(h => h === 'Encryption'),
+        prrMcc: headers.findIndex(h => h === 'PRR MCC' || h === 'MCC'),
+        ssl: headers.findIndex(h => h === 'SSL'),
+        tokenization: headers.findIndex(h => h === 'Tokenization'),
+        agent: headers.findIndex(h => h === 'Agent'),
+        chain: headers.findIndex(h => h === 'Chain'),
+        store: headers.findIndex(h => h === 'Store'),
+        terminal: headers.findIndex(h => h === 'Terminal'),
+        merchantType: headers.findIndex(h => h === 'Merchant Type' || h === 'Merchant'),
+        recordStatus: headers.findIndex(h => h === 'Record Status' || h === 'Status'),
+        boardDate: headers.findIndex(h => h === 'Board Date'),
+        terminalVisaMcc: headers.findIndex(h => h === 'Terminal Visa MCC')
+      };
       
-      if (vNumberCol === -1 || posCol === -1) {
+      if (colMap.vNumber === -1) {
         return res.status(400).json({ 
-          error: `Missing required columns. Found: ${headers.join(', ')}. Need: 'V Number' and 'POS Merchant #'` 
+          error: `Missing required column 'V Number'. Found: ${headers.join(', ')}` 
         });
       }
       
-      console.log(`✅ [SIMPLE-TERMINAL-IMPORT] V Number: col ${vNumberCol}, POS Merchant #: col ${posCol}`);
+      console.log(`✅ [SIMPLE-TERMINAL-IMPORT] Column mapping:`, colMap);
       
       // Import normalizeVarNumber helper for consistent VAR number format
       const { normalizeVarNumber } = await import('./utils/terminal-utils');
@@ -4840,22 +4856,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const beforeTerminals = await storage.getTerminals();
       console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Current terminals: ${beforeTerminals.length}`);
       
+      // Helper to get trimmed value from column
+      const getVal = (values: string[], col: number): string => {
+        if (col < 0 || col >= values.length) return '';
+        return values[col].trim().replace(/['"]/g, '');
+      };
+      
+      // Helper to convert Record Status to terminal status
+      const mapRecordStatus = (recordStatus: string): string => {
+        const status = recordStatus.toLowerCase().trim();
+        // Match "open" or starts with "open" (handles "Open Record", "Open  ", etc.)
+        if (status === 'open' || status.startsWith('open')) return 'Active';
+        // Match "closed" or starts with "close" (handles "Closed", "Close", etc.)
+        if (status === 'closed' || status.startsWith('close')) return 'Inactive';
+        return 'Active'; // Default to Active
+      };
+      
       // Process data rows
       let imported = 0;
       let updated = 0;
       let errors = 0;
       let skippedInvalidVNumber = 0;
+      const updateSource = `CSV Import: ${terminalFile.filename}`;
       
       for (let i = 1; i < lines.length; i++) {
         try {
           const values = lines[i].split(',').map(v => v.trim().replace(/['"]/g, ''));
           
-          if (values.length < Math.max(vNumberCol, posCol) + 1) continue; // Skip incomplete rows
+          if (values.length < colMap.vNumber + 1) continue; // Skip incomplete rows
           
-          const rawVNumber = values[vNumberCol];
-          const posMerchant = values[posCol];
+          const rawVNumber = getVal(values, colMap.vNumber);
           
-          if (!rawVNumber || !posMerchant) continue; // Skip rows without required fields
+          if (!rawVNumber) continue; // Skip rows without V Number
           
           // Normalize vNumber to canonical V-format (VXXXXXXX)
           const vNumber = normalizeVarNumber(rawVNumber);
@@ -4865,25 +4897,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Create terminal object with normalized vNumber
-          const terminal = {
-            vNumber, // Normalized V-format
-            posMerchantNumber: posMerchant,
-            dbaName: dbaCol >= 0 ? values[dbaCol] || '' : '',
-            status: 'Active',
-            mcc: mccCol >= 0 ? values[mccCol] || '' : '',
-            terminalType: 'POS'
+          // Get record status and map to terminal status
+          const recordStatus = getVal(values, colMap.recordStatus);
+          const status = mapRecordStatus(recordStatus);
+          
+          // Create terminal object with all mapped fields
+          const prrMcc = getVal(values, colMap.prrMcc);
+          const terminal: any = {
+            vNumber,
+            posMerchantNumber: getVal(values, colMap.posMerchant),
+            dbaName: getVal(values, colMap.dbaName),
+            bin: getVal(values, colMap.bin),
+            dailyAuth: getVal(values, colMap.dailyAuth),
+            dialPay: getVal(values, colMap.dialPay),
+            encryption: getVal(values, colMap.encryption),
+            mcc: prrMcc,
+            prr: prrMcc,
+            ssl: getVal(values, colMap.ssl),
+            tokenization: getVal(values, colMap.tokenization),
+            agent: getVal(values, colMap.agent),
+            chain: getVal(values, colMap.chain),
+            store: getVal(values, colMap.store),
+            termNumber: getVal(values, colMap.terminal),
+            mType: getVal(values, colMap.merchantType),
+            recordStatus: recordStatus,
+            status: status,
+            boardDate: getVal(values, colMap.boardDate),
+            terminalVisa: getVal(values, colMap.terminalVisaMcc),
+            terminalType: 'POS',
+            updateSource: updateSource,
+            lastUpdate: new Date().toISOString()
           };
           
           // Check if terminal exists (using normalized vNumber)
           const existing = beforeTerminals.find(t => t.vNumber === vNumber);
           
           if (existing) {
-            // Update existing
+            // Update existing terminal
             await storage.updateTerminal(existing.id, terminal);
             updated++;
           } else {
-            // Create new
+            // Create new terminal
             await storage.createTerminal(terminal);
             imported++;
           }

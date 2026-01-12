@@ -8847,7 +8847,19 @@ export class DatabaseStorage implements IStorage {
       'syncStatus': 'sync_status',
       // Additional form field mappings
       'mType': 'm_type',
-      'mLocation': 'm_location'
+      'mLocation': 'm_location',
+      // Terminal CSV report field mappings
+      'termNumber': 'term_number',
+      'ssl': 'ssl',
+      'tokenization': 'tokenization',
+      'encryption': 'encryption',
+      'agent': 'agent',
+      'chain': 'chain',
+      'store': 'store',
+      'bin': 'bin',
+      'mcc': 'mcc',
+      'prr': 'prr',
+      'status': 'status'
     };
     
     // Map field names and prepare values
@@ -8926,7 +8938,19 @@ export class DatabaseStorage implements IStorage {
       'syncStatus': 'sync_status',
       // Additional form field mappings
       'mType': 'm_type',
-      'mLocation': 'm_location'
+      'mLocation': 'm_location',
+      // Terminal CSV report field mappings
+      'termNumber': 'term_number',
+      'ssl': 'ssl',
+      'tokenization': 'tokenization',
+      'encryption': 'encryption',
+      'agent': 'agent',
+      'chain': 'chain',
+      'store': 'store',
+      'bin': 'bin',
+      'mcc': 'mcc',
+      'prr': 'prr',
+      'status': 'status'
     };
     
     // Map field names from camelCase to snake_case
