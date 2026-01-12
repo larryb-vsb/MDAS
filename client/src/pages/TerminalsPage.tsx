@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Activity, Building, Edit, Users, X } from "lucide-react";
 import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
-import { formatTableDate } from "@/lib/date-utils";
+import { formatTableDate, formatTddfDate } from "@/lib/date-utils";
 import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -732,7 +732,7 @@ export default function TerminalsPage() {
                         {getStatusBadge(terminal.status || "Unknown")}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastActivity?.toString() || null)}
+                        {formatTddfDate(terminal.lastActivity?.toString() || null)}
                       </TableCell>
                       <TableCell>
                         {formatTableDate(terminal.lastUpdate?.toString() || null)}
