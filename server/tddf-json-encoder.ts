@@ -10,6 +10,7 @@ import { batchPool } from './db';
 import { withRetry } from './db-retry-util';
 import crypto from 'crypto';
 import { FileTaggedLogger } from '../shared/file-tagged-logger.js';
+import { normalizeVarNumber } from './utils/terminal-utils';
 
 /**
  * Execute a database operation with retry logic using the shared withRetry helper
@@ -1031,11 +1032,15 @@ async function updateMerchantsAndTerminalsFromDT(
       // Process terminals for this merchant
       for (const terminalId of Array.from(data.terminals)) {
         try {
-          // TDDF terminals start with '7' or '0' - convert to V-number format for storage
-          // Format: 7XXXXXXX -> VXXXXXXX or 0XXXXXXX -> VXXXXXXX (matching existing terminal pattern)
-          const vNumber = (terminalId.startsWith('7') || terminalId.startsWith('0')) 
-            ? 'V' + terminalId.substring(1) 
-            : terminalId;
+          // Normalize terminal ID to canonical V-format (VXXXXXXX)
+          // Uses shared normalizeVarNumber() to ensure consistent format across all paths
+          const vNumber = normalizeVarNumber(terminalId);
+          
+          // Skip if normalization failed (invalid terminal ID)
+          if (!vNumber) {
+            console.warn(`[STEP-6-MERCHANTS] Invalid terminal ID "${terminalId}", skipping`);
+            continue;
+          }
           
           // Check if terminal exists
           const checkTerminalQuery = `SELECT id FROM ${terminalsTableName} WHERE v_number = $1`;

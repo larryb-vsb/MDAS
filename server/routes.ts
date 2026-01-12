@@ -4416,9 +4416,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const terminalData = insertTerminalSchema.parse(req.body);
       
+      // Import normalizeVarNumber helper for consistent VAR number format
+      const { normalizeVarNumber } = await import('./utils/terminal-utils');
+      
+      // Normalize vNumber to canonical V-format (VXXXXXXX)
+      const normalizedVNumber = normalizeVarNumber(terminalData.vNumber);
+      if (!normalizedVNumber) {
+        return res.status(400).json({ 
+          error: 'Invalid VAR Number format. Please provide a valid terminal ID.' 
+        });
+      }
+      
       // Set created timestamp and user
       const newTerminalData = {
         ...terminalData,
+        vNumber: normalizedVNumber, // Use normalized V-format
         createdAt: new Date(),
         updatedAt: new Date(),
         lastUpdate: new Date(),
@@ -4820,6 +4832,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`✅ [SIMPLE-TERMINAL-IMPORT] V Number: col ${vNumberCol}, POS Merchant #: col ${posCol}`);
       
+      // Import normalizeVarNumber helper for consistent VAR number format
+      const { normalizeVarNumber } = await import('./utils/terminal-utils');
+      
       // Count current terminals
       const beforeTerminals = await storage.getTerminals();
       console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Current terminals: ${beforeTerminals.length}`);
@@ -4828,6 +4843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let imported = 0;
       let updated = 0;
       let errors = 0;
+      let skippedInvalidVNumber = 0;
       
       for (let i = 1; i < lines.length; i++) {
         try {
@@ -4835,14 +4851,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (values.length < Math.max(vNumberCol, posCol) + 1) continue; // Skip incomplete rows
           
-          const vNumber = values[vNumberCol];
+          const rawVNumber = values[vNumberCol];
           const posMerchant = values[posCol];
           
-          if (!vNumber || !posMerchant) continue; // Skip rows without required fields
+          if (!rawVNumber || !posMerchant) continue; // Skip rows without required fields
           
-          // Create terminal object
+          // Normalize vNumber to canonical V-format (VXXXXXXX)
+          const vNumber = normalizeVarNumber(rawVNumber);
+          if (!vNumber) {
+            console.warn(`⚠️ [SIMPLE-TERMINAL-IMPORT] Invalid V Number "${rawVNumber}" on row ${i}, skipping`);
+            skippedInvalidVNumber++;
+            continue;
+          }
+          
+          // Create terminal object with normalized vNumber
           const terminal = {
-            vNumber,
+            vNumber, // Normalized V-format
             posMerchantNumber: posMerchant,
             dbaName: dbaCol >= 0 ? values[dbaCol] || '' : '',
             status: 'Active',
@@ -4850,7 +4874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             terminalType: 'POS'
           };
           
-          // Check if terminal exists
+          // Check if terminal exists (using normalized vNumber)
           const existing = beforeTerminals.find(t => t.vNumber === vNumber);
           
           if (existing) {
@@ -4877,7 +4901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const afterTerminals = await storage.getTerminals();
       
       console.log(`✅ [SIMPLE-TERMINAL-IMPORT] Import complete!`);
-      console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Results: ${imported} new, ${updated} updated, ${errors} errors`);
+      console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Results: ${imported} new, ${updated} updated, ${errors} errors, ${skippedInvalidVNumber} skipped (invalid VAR)`);
       console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Total terminals: ${beforeTerminals.length} → ${afterTerminals.length}`);
       
       res.json({
@@ -4886,6 +4910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imported,
         updated,
         errors,
+        skippedInvalidVNumber,
         totalRows: lines.length - 1,
         beforeCount: beforeTerminals.length,
         afterCount: afterTerminals.length
