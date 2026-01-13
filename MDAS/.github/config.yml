@@ -1,0 +1,37 @@
+# Configuration for GitHub
+
+# Set to true to require labels on PRs
+requirePrLabels: true
+
+# Configuration for first-time contributors
+firstPRWelcomeComment: >
+  Thanks for opening your first pull request in the Merchant Management System! We'll review your contribution shortly.
+
+# Configuration for first-time issue creators
+firstIssueWelcomeComment: >
+  Thanks for opening your first issue in the Merchant Management System! We appreciate your feedback.
+
+# Probot settings
+todo:
+  keyword: "TODO:"
+
+# Label settings
+labelGroups:
+  - title: Type
+    labels:
+      - "bug"
+      - "enhancement"
+      - "documentation"
+      - "question"
+      - "refactor"
+      - "performance"
+  - title: Priority
+    labels:
+      - "priority: high"
+      - "priority: medium"
+      - "priority: low"
+  - title: Status
+    labels:
+      - "status: in progress"
+      - "status: needs review"
+      - "status: blocked"

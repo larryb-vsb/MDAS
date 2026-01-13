@@ -1,0 +1,137 @@
+2025-10-31 01:21:02.65
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:21:02.70
+8c86c858
+User
+6:21:02 AM [express] GET /api/uploader/storage-config 200 in 218ms :: {"available":true,"service":"R…
+2025-10-31 01:21:03.58
+8c86c858
+User
+6:21:03 AM [express] GET /api/uploader 200 in 323ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:05.01
+8c86c858
+User
+6:21:05 AM [express] GET /api/uploader 200 in 320ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:05.58
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:21:05.64
+8c86c858
+User
+6:21:05 AM [express] GET /api/mms-watcher/auto45-status 200 in 163ms :: {"success":true,"enabled":fa…
+2025-10-31 01:21:06.44
+8c86c858
+User
+6:21:06 AM [express] GET /api/uploader 200 in 322ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:07.87
+8c86c858
+User
+6:21:07 AM [express] GET /api/uploader 200 in 318ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:07.90
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 01:21:07.90
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 01:21:07.90
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 01:21:07.90
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 01:21:07.96
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/
+2025-10-31 01:21:07.96
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:21:08.01
+8c86c858
+User
+6:21:08 AM [express] GET /api/uploader/storage-config 200 in 216ms :: {"available":true,"service":"R…
+2025-10-31 01:21:09.28
+8c86c858
+User
+6:21:09 AM [express] GET /api/uploader 200 in 317ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:10.71
+8c86c858
+User
+6:21:10 AM [express] GET /api/uploader 200 in 317ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:10.84
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:21:10.89
+8c86c858
+User
+6:21:10 AM [express] GET /api/mms-watcher/auto45-status 200 in 162ms :: {"success":true,"enabled":fa…
+2025-10-31 01:21:12.15
+8c86c858
+User
+6:21:12 AM [express] GET /api/uploader 200 in 320ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:13.25
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 01:21:13.25
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 01:21:13.25
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 01:21:13.25
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 01:21:13.31
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/
+2025-10-31 01:21:13.31
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:21:13.36
+8c86c858
+User
+6:21:13 AM [express] GET /api/uploader/storage-config 200 in 219ms :: {"available":true,"service":"R…
+2025-10-31 01:21:13.58
+8c86c858
+User
+6:21:13 AM [express] GET /api/uploader 200 in 323ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:13.99
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:21:15.01
+8c86c858
+User
+6:21:15 AM [express] GET /api/uploader 200 in 321ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:16.09
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+
+2025-10-31 01:21:16.14
+8c86c858
+User
+6:21:16 AM [express] GET /api/mms-watcher/auto45-status 200 in 163ms :: {"success":true,"enabled":fa…
+2025-10-31 01:21:16.42
+8c86c858
+User
+6:21:16 AM [express] GET /api/uploader 200 in 317ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:21:17.85
+8c86c858
+User
+6:21:17 AM [express] GET /api/uploader 200 in 318ms :: {"uploads":[{"id":"uploader_1761890540202_097…

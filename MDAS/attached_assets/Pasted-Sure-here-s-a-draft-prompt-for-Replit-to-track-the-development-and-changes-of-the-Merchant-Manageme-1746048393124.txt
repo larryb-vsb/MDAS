@@ -1,0 +1,146 @@
+Sure, here's a draft prompt for Replit to track the development and changes of the Merchant Management System project:
+
+---
+
+## Merchant Management System Project Documentation
+
+### Table of Contents
+1. Project Overview
+2. Development Phases
+   - Phase 1: Initial Setup and Core Feature Development
+   - Phase 2: UI/UX Design and Frontend Development
+   - Phase 3: Integration and Testing
+   - Phase 4: Deployment and User Feedback Collection
+3. Feature Implementation
+   - Merchant List
+   - Upload Menu Button
+   - Stats Display
+   - File Handling
+4. Technical Requirements
+5. Design
+6. Testing
+7. Deployment
+8. Change Log
+9. Appendices
+
+### Project Overview
+- **Objective**: Develop a dashboard for merchants that includes an upload menu button, lists all merchants with their last upload date, and displays daily and monthly stats.
+- **Core Features**:
+  - Merchant List
+  - Upload Menu Button
+  - Stats Display
+  - File Handling
+
+### Development Phases
+
+#### Phase 1: Initial Setup and Core Feature Development
+- **Tasks**:
+  - Set up the project repository.
+  - Configure the development environment.
+  - Implement the backend with Node.js and Express.
+  - Design the database schema in MongoDB or PostgreSQL.
+  - Develop the API endpoints for merchant data and stats.
+
+#### Phase 2: UI/UX Design and Frontend Development
+- **Tasks**:
+  - Create wireframes for the dashboard.
+  - Develop the frontend using React.js.
+  - Implement the merchant list and upload menu button.
+  - Design the stats display components.
+
+#### Phase 3: Integration and Testing
+- **Tasks**:
+  - Integrate frontend with backend APIs.
+  - Implement unit tests for individual components.
+  - Conduct integration tests.
+  - Perform end-to-end tests to simulate user interactions.
+
+#### Phase 4: Deployment and User Feedback Collection
+- **Tasks**:
+  - Set up CI/CD pipelines.
+  - Deploy the application on AWS and other cloud platforms.
+  - Monitor application performance.
+  - Collect user feedback and make necessary improvements.
+
+### Feature Implementation
+
+#### Merchant List
+- **Description**: Display all merchants with their last upload date and daily/monthly stats.
+- **Development Notes**:
+  - API endpoint: `/api/merchants`
+  - Frontend component: `MerchantList`
+
+#### Upload Menu Button
+- **Description**: Allow merchants to upload CSV files and update the database.
+- **Development Notes**:
+  - API endpoint: `/api/upload`
+  - Frontend component: `UploadButton`
+  - CSV handling libraries: `csv-parser`, `fast-csv`
+
+#### Stats Display
+- **Description**: Calculate and display daily and monthly stats for each merchant.
+- **Development Notes**:
+  - API endpoint: `/api/stats`
+  - Frontend component: `StatsDisplay`
+
+#### File Handling
+- **Description**: Handle two input file types: Merchant Demographic file and Transaction file. Output combined transaction CSV and merchant demographics exports.
+- **Development Notes**:
+  - Input files: `merchant_demographics.csv`, `transactions.csv`
+  - Output files: `combined_transactions.csv`, `merchant_demographics_export.csv`
+  - CSV handling libraries: `csv-parser`, `fast-csv`
+
+### Technical Requirements
+- **Frontend**: React.js
+- **Backend**: Node.js with Express
+- **Database**: MongoDB or PostgreSQL (deployable to AWS and other cloud platforms)
+- **CSV Handling**: `csv-parser`, `fast-csv`
+- **Hosting**: AWS and other cloud platforms
+
+### Design
+- **Wireframes**: [Link to wireframes]
+- **UI/UX**: Focus on clean, intuitive interface
+
+### Testing
+- **Unit Tests**: [Link to unit tests]
+- **Integration Tests**: [Link to integration tests]
+- **End-to-End Tests**: [Link to end-to-end tests]
+- **CSV Handling Tests**: [Link to CSV handling tests]
+
+### Deployment
+- **CI/CD Pipelines**: [Link to CI/CD setup]
+- **Cloud Deployment**: [Link to deployment guide for AWS and other cloud platforms]
+- **Monitoring Tools**: [Link to monitoring setup]
+
+### Change Log
+- **Date**: YYYY-MM-DD
+  - **Change**: Description of change
+  - **Author**: Name
+
+### Appendices
+- **Appendix A**: API Documentation
+- **Appendix B**: Database Schema
+- **Appendix C**: User Feedback Summary
+
+---
+
+### Example Change Log Entry
+
+#### Change Log
+- **Date**: 2025-04-30
+  - **Change**: Initial setup of project repository and configuration of development environment.
+  - **Author**: John Doe
+
+- **Date**: 2025-05-05
+  - **Change**: Implemented backend with Node.js and Express; designed MongoDB schema.
+  - **Author**: Jane Smith
+
+- **Date**: 2025-05-10
+  - **Change**: Created wireframes for the dashboard; started frontend development with React.js.
+  - **Author**: John Doe
+
+---
+
+This Markdown file can be added to your GitHub repository to keep track of development and changes. It will be easy to update and maintain, ensuring that all team members are informed about the project's progress.
+
+Would you like me to create this Markdown file for you, or do you need any modifications or additional sections?

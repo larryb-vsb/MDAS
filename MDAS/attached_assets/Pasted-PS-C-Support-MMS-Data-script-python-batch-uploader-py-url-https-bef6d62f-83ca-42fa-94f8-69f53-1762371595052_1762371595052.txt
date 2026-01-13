@@ -1,0 +1,183 @@
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --key "mms_1762369377412_2tp0tim1qvz" --folder "/Support/MMS-Data/upload-folder" --upload
+
+=== MMS Batch Uploader v1.1.5 - Batch Upload ===
+
+═════════════════════════════════════════════════════════════
+  BATCH UPLOAD
+═════════════════════════════════════════════════════════════
+
+Configuration:
+  Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+  Folder: /Support/MMS-Data/upload-folder
+  Batch Size: 5
+  Polling Interval: 10s
+
+Testing connection...
+
+======================================================================
+  MMS Batch Uploader v1.1.5
+  Server Ping - 2025-11-05 13:37:53
+======================================================================
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Client Information:
+  Hostname: VSB-L-LARRY
+  User-Agent: MMS-BatchUploader/1.1.5 (Python; VSB-L-LARRY)
+  API Key: mms_1762369377412_2t...
+
+Server Response:
+  Service Status: running
+  Environment: development
+  Version: 1.0.0
+  Server IP: 75.236.21.33
+
+API Key Validation:
+  Status: ✓ VALID
+  Key User: key5
+
+Host Approval Status:
+  Hostname: VSB-L-LARRY
+  Status: ✓ APPROVED
+  Access: Ready to upload files
+
+  Response Time: 1.14s
+  Message: MMS Batch Uploader API is operational
+
+✓ Connection successful! API key is valid and active.
+
+✓ Host approval verified: Upload authorized
+
+Found 12 file(s) to upload
+
+═════════════════════════════════════════════════════════════
+  BATCH 1/3
+═════════════════════════════════════════════════════════════
+
+Uploading: 801203_AH0314P1_20240118_003-20250912082849.csv - 185.00 B
+  Creating upload session...
+  Upload ID: uploader_1762371474726_f1bsogypz
+  Uploading file content...
+  ✓ 801203_AH0314P1_20240118_003-20250912082849.csv uploaded successfully
+
+Uploading: 801203_AH0314P1_20240122_001-20250912082849.csv - 300.00 B
+  Creating upload session...
+  Upload ID: uploader_1762371477302_qlhojp8uw
+  Uploading file content...
+  ✓ 801203_AH0314P1_20240122_001-20250912082849.csv uploaded successfully
+
+Uploading: TSYS-Terminal-Risk-Report-Oct29-2025.csv - 332.44 KB
+  Creating upload session...
+  Upload ID: uploader_1762371479930_qt0ngnb23
+  Uploading file content...
+  ✓ TSYS-Terminal-Risk-Report-Oct29-2025.csv uploaded successfully
+
+Uploading: upload-report_1762370826.json - 1.39 KB
+  Creating upload session...
+  Upload ID: uploader_1762371482815_q4fx0llh4
+  Uploading file content...
+  ✓ upload-report_1762370826.json uploaded successfully
+
+Uploading: upload-report_1762370988.json - 1.38 KB
+  Creating upload session...
+  Upload ID: uploader_1762371485515_hqgqygybr
+  Uploading file content...
+  ✓ upload-report_1762370988.json uploaded successfully
+
+═════════════════════════════════════════════════════════════
+  BATCH 2/3
+═════════════════════════════════════════════════════════════
+
+Waiting for system to be ready...
+
+=== MMS Batch Uploader v1.1.5 - Queue Status ===
+
+=== Upload Queue Status ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Queue Metrics:
+  Active: 0
+  Waiting: 0
+  Completed: 0
+  Failed: 0
+
+Capacity:
+  Max Concurrent: Unknown
+  Is Busy: False
+System ready, proceeding...
+
+Uploading: VERMNTSB.6759_DACQ_MER_DTL_10042025_000559.TSYSO - 694.13 KB
+  Creating upload session...
+  Upload ID: uploader_1762371489214_bmd21s138
+  Uploading file content...
+  ✓ VERMNTSB.6759_DACQ_MER_DTL_10042025_000559.TSYSO uploaded successfully
+
+Uploading: VERMNTSB.6759_DACQ_MER_DTL_10152025_001053.TSYSO - 696.09 KB
+  Creating upload session...
+  Upload ID: uploader_1762371492415_xtoboldxx
+  Uploading file content...
+  ✓ VERMNTSB.6759_DACQ_MER_DTL_10152025_001053.TSYSO uploaded successfully
+
+Uploading: VERMNTSB.6759_TDDF_2400_10062025_001346.TSYSO - 49.07 MB
+  Creating upload session...
+  Upload ID: uploader_1762371495695_iguini7sq
+  Using chunked upload - 2 chunks
+    Uploading chunk 1/2...
+    Uploading chunk 2/2...
+  ✓ VERMNTSB.6759_TDDF_2400_10062025_001346.TSYSO uploaded successfully
+
+Uploading: VERMNTSB.6759_TDDF_2400_10272022_001824.TSYSO - 4.79 KB
+  Creating upload session...
+  Upload ID: uploader_1762371541317_wy0mdc1kf
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_10272022_001824.TSYSO uploaded successfully
+
+Uploading: VERMNTSB.6759_TDDF_2400_10282022_002134.TSYSO - 5.48 KB
+  Creating upload session...
+  Upload ID: uploader_1762371543926_kylacqs69
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_2400_10282022_002134.TSYSO uploaded successfully
+
+═════════════════════════════════════════════════════════════
+  BATCH 3/3
+═════════════════════════════════════════════════════════════
+
+Waiting for system to be ready...
+
+=== MMS Batch Uploader v1.1.5 - Queue Status ===
+
+=== Upload Queue Status ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Queue Metrics:
+  Active: 0
+  Waiting: 0
+  Completed: 0
+  Failed: 0
+
+Capacity:
+  Max Concurrent: Unknown
+  Is Busy: False
+System ready, proceeding...
+
+Uploading: VERMNTSB.6759_TDDF_830_10272022_083244.TSYSO - 7.53 KB
+  Creating upload session...
+  Upload ID: uploader_1762371548034_dfalo4y6k
+  Uploading file content...
+  ✓ VERMNTSB.6759_TDDF_830_10272022_083244.TSYSO uploaded successfully
+
+Uploading: VSB_MerchantDem_20250729-MID2 Parent Mid.csv - 14.74 KB
+  Creating upload session...
+  Upload ID: uploader_1762371550778_nu6pb9z4y
+  Uploading file content...
+  ✓ VSB_MerchantDem_20250729-MID2 Parent Mid.csv uploaded successfully
+
+═════════════════════════════════════════════════════════════
+  UPLOAD SUMMARY
+═════════════════════════════════════════════════════════════
+
+Total Files: 12
+Successful: 12
+Failed: 0
+
+Report saved to: \Support\MMS-Data\upload-folder\upload-report_1762371553.json
+PS C:\Support\MMS-Data\script>

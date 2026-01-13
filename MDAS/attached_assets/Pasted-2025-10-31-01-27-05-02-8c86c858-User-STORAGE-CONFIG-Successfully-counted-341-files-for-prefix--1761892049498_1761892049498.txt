@@ -1,0 +1,136 @@
+2025-10-31 01:27:05.02
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:27:05.08
+8c86c858
+User
+6:27:05 AM [express] GET /api/uploader/storage-config 200 in 210ms :: {"available":true,"service":"R…
+2025-10-31 01:27:05.35
+8c86c858
+User
+6:27:05 AM [express] GET /api/uploader 200 in 318ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:06.80
+8c86c858
+User
+6:27:06 AM [express] GET /api/uploader 200 in 337ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:08.23
+8c86c858
+User
+6:27:08 AM [express] GET /api/uploader 200 in 322ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:09.19
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:27:09.25
+8c86c858
+User
+6:27:09 AM [express] GET /api/mms-watcher/auto45-status 200 in 169ms :: {"success":true,"enabled":fa…
+2025-10-31 01:27:09.64
+8c86c858
+User
+6:27:09 AM [express] GET /api/uploader 200 in 325ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:10.28
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 01:27:10.28
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 01:27:10.28
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 01:27:10.28
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 01:27:10.35
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/
+2025-10-31 01:27:10.35
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:27:10.41
+8c86c858
+User
+6:27:10 AM [express] GET /api/uploader/storage-config 200 in 235ms :: {"available":true,"service":"R…
+2025-10-31 01:27:11.09
+8c86c858
+User
+6:27:11 AM [express] GET /api/uploader 200 in 321ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:12.51
+8c86c858
+User
+6:27:12 AM [express] GET /api/uploader 200 in 321ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:13.95
+8c86c858
+User
+6:27:13 AM [express] GET /api/uploader 200 in 324ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:14.10
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:27:14.51
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:27:14.56
+8c86c858
+User
+6:27:14 AM [express] GET /api/mms-watcher/auto45-status 200 in 168ms :: {"success":true,"enabled":fa…
+2025-10-31 01:27:15.37
+8c86c858
+User
+6:27:15 AM [express] GET /api/uploader 200 in 321ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:15.60
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 01:27:15.60
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 01:27:15.60
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 01:27:15.60
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 01:27:15.67
+8c86c858
+User
+[REPLIT-STORAGE] Found 341 files in prod-uploader/
+2025-10-31 01:27:15.67
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 341 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 01:27:15.73
+8c86c858
+User
+6:27:15 AM [express] GET /api/uploader/storage-config 200 in 235ms :: {"available":true,"service":"R…
+2025-10-31 01:27:16.85
+8c86c858
+User
+6:27:16 AM [express] GET /api/uploader 200 in 328ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:18.28
+8c86c858
+User
+6:27:18 AM [express] GET /api/uploader 200 in 319ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:19.76
+8c86c858
+User
+6:27:19 AM [express] GET /api/uploader 200 in 331ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:27:19.81
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 01:27:19.82
+8c86c858
+User
+[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...

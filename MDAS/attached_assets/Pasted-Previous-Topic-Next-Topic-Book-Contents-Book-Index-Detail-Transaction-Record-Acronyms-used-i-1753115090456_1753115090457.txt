@@ -1,0 +1,1509 @@
+Previous Topic	
+Next Topic	
+Book Contents	
+Book Index
+Detail Transaction Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+The value that identifies the type of record.
+
+Constant value is "DT"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+Global Payments Transaction code.
+
+ 
+
+56-61
+
+Association Number
+
+6
+
+N
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+62-84
+
+Reference Number
+
+23
+
+N
+
+The 11 digits from the beginning reference number on the Merchant Header of the Draft 256 file. The acquirer reference number is built in the FCS process.
+
+ 
+
+85-92
+
+Transaction Date
+
+8
+
+N
+
+The date on which the transaction is performed.
+
+Allowed format is MMDDCCYY
+
+93-103
+
+Transaction Amount
+
+11
+
+N
+
+The amount for which the transaction was performed.
+
+Format:
+99999999999
+
+104-108
+
+Batch Julian Date
+
+5
+
+N
+
+Batch Julian Date.
+
+Allowed format is DDDYY
+
+109-123
+
+Net Deposit
+
+15
+
+N
+
+The deposited amount.
+
+Format:
+999999999999999
+
+124-142
+
+Cardholder Account Number
+
+19
+
+N
+
+The account number of the card used in transaction.
+
+ 
+
+143-144
+
+Best Interchange Eligible
+
+2
+
+N
+
+ 
+
+ 
+
+145-146
+
+Transaction Data Condition Code
+
+2
+
+N
+
+The condition of the card track information in the authorization request. The field has two parts.
+
+The first part of the field indicates the condition of the track 1 information. The second part of the field indicates the condition of the track 2 information.
+
+ 
+
+147-150
+
+Downgrade Reason 1
+
+4
+
+N
+
+ 
+
+ 
+
+151-154
+
+Downgrade Reason 2
+
+4
+
+N
+
+ 
+
+ 
+
+155-164
+
+Downgrade Reason 3
+
+10
+
+N
+
+ 
+
+ 
+
+165
+
+Online Entry
+
+1
+
+AN
+
+ 
+
+ 
+
+166
+
+ACH Flag
+
+1
+
+AN
+
+The daily ACH flag determines if the merchant will be funded on a daily basis.
+
+Allowed values are:
+
+Y
+N
+167-167
+
+Auth Source
+
+1
+
+AN
+
+The source code of authorization for the transaction.
+
+ 
+
+168-168
+
+Cardholder I/D Method
+
+1
+
+AN
+
+A code for the type of identification the customer used at the time of the transaction.
+
+ 
+
+169-169
+
+CAT Indicator
+
+1
+
+AN
+
+A code that indicates if the terminal can be activated by the cardholder.
+
+ 
+
+170-170
+
+Reimbursement Attribute
+
+1
+
+AN
+
+The code that identifies the interchange program for which the transaction is being submitted.
+
+ 
+
+171-171
+
+Mail Order/Telephone Order Indicator
+
+1
+
+AN
+
+The value in the field should apply to all items included in the batch else the field should be blank.
+
+Allowed values are:
+
+1 = SINGLE TRANSACTION
+2 = RECURRING TRANSACTION
+3 = INSTALLMENT BILLING
+4 = UNKNOWN CLASSIFICATION
+172-172
+
+Auth Char Ind (ACI)
+
+1
+
+AN
+
+ 
+
+ 
+
+173-187
+
+Banknet Reference Number and Banknet Auth (MC)
+
+Transaction Identifier (VS, AM)
+
+Discover Network Reference ID (DS) Date(MC)
+
+Transaction Identifier (VS, AM)
+
+Discover Network Reference ID (DS)
+
+15
+
+N/AN
+
+MC: Ref Num 9N and Auth Date 6CH
+
+VS/AM/DS: 15CH
+
+ 
+
+188-188
+
+Draft A Flag
+
+1
+
+AN
+
+ 
+
+Allowed values are:
+
+Y-Yes
+N-No
+189-191
+
+Auth Currency Code
+
+3
+
+N
+
+The code that identifies the currency used in the original authorized transaction.
+
+ 
+
+192-203
+
+Auth Amount
+
+12
+
+N
+
+The amount authorized for the original transaction.
+
+Format:
+999999999999
+
+204-207
+
+Validation Code
+
+4
+
+N
+
+ 
+
+ 
+
+208-209
+
+Auth Response Code
+
+2
+
+N
+
+The response code of Visa authorization.
+
+Allowed values are:
+
+88 = Can provide approval code
+99 = Cannot provide approval code
+00 = Credit transaction – approval not needed
+210-212
+
+Network Identifier - Debit
+
+3
+
+N
+
+The code used to identify the network used to process a transaction made with a debit card.
+
+ 
+
+213-213
+
+Switch Settled Indicator
+
+1
+
+AN
+
+The code used to indicate that the transaction was settled by the Mastercard Debit Switch.
+
+ 
+
+214-215
+
+POS Entry Mode
+
+2
+
+AN
+
+A code that identifies the method used to enter the transaction in the terminal.
+
+ 
+
+216-216
+
+Debit/Credit Indicator
+
+1
+
+AN
+
+Indicates if the transaction is a debit or credit.
+
+Allowed values are:
+
+D - Debit
+C - Credit
+217-217
+
+Reversal Flag
+
+1
+
+AN
+
+ 
+
+ 
+
+218-242
+
+Merchant Name
+
+25
+
+AN
+
+The DBA name.
+
+ 
+
+243-248
+
+Authorization Number
+
+6
+
+AN
+
+The source code of authorization for transaction.
+
+ 
+
+249-252
+
+Reject Reason
+
+4
+
+AN
+
+ 
+
+ 
+
+253-254
+
+Card Type
+
+2
+
+AN
+
+The type of card used in transaction.
+
+ 
+
+255-257
+
+Currency Code
+
+3
+
+AN
+
+The code that identifies the currency used in the original authorized transaction.
+
+ 
+
+258-268
+
+Original Transaction Amount
+
+11
+
+N
+
+The amount for which the transaction was performed.
+
+Format:
+99999999999
+
+269-269
+
+Foreign Card Indicator
+
+1
+
+AN
+
+ 
+
+ 
+
+270-270
+
+Carryover Indicator
+
+1
+
+AN
+
+ 
+
+ 
+
+271-272
+
+Extension Record Indicator
+
+2
+
+AN
+
+Indicates if an extension record follows the Financial Record and its extension.
+
+ 
+
+273-276
+
+MCC Code
+
+4
+
+AN
+
+The merchant category code (MCC) identifies the business of the merchant by the type of goods or services it provides.
+
+ 
+
+277-284
+
+Terminal ID
+
+8
+
+AN
+
+ 
+
+ 
+
+285-287
+
+Discover POS Entry Mode
+
+3
+
+AN
+
+ 
+
+ 
+
+288-312
+
+Purchase ID
+
+25
+
+AN
+
+ 
+
+ 
+
+313-321
+
+Cash Back Amount (MC)
+
+9
+
+N
+
+The amount of cash returned to the cardholder.
+
+Format:
+999999999
+
+322-322
+
+Cash Back Amount Sign +/- (MC)
+
+1
+
+AN
+
+The cash back amount sign
+
++/- (MC)
+
+Allowed values are:
+
++
+-
+323-335
+
+POS Data Code
+
+13
+
+AN
+
+A 12 part code that indicates specific conditions that exist at the time of the transaction.
+
+ 
+
+336-338
+
+Transaction Type Identifier
+
+3
+
+AN
+
+A code used to monitor and track the participant's activity in special promotion programs, such as Quick Payment Services (QPS), supermarket, service industries, payment transactions, and Warehouse Club programs.
+
+ 
+
+339-341
+
+Card Type
+
+3
+
+AN
+
+The type of card used in the transaction.
+
+ 
+
+342-343
+
+Product ID
+
+2
+
+AN
+
+The identification number of a product.
+
+ 
+
+344-348
+
+Submitted Interchange
+
+5
+
+AN
+
+ 
+
+ 
+
+349-354
+
+System Trace Audit Number
+
+6
+
+AN
+
+A number assigned by the acquiring member or the merchant to help identify the transaction.
+
+The field must be right justified and can have leading zeroes.
+
+ 
+
+355-356
+
+Discover Transaction Type
+
+2
+
+AN
+
+ 
+
+Allowed values are:
+
+SA - Card Sale
+RT - Credit
+CA - Cash Advance
+RS - Card Sale Reversal
+RC - Cash Advance Reversal
+RR - Credit Reversal
+357-362
+
+Local Transaction Time
+
+6
+
+AN
+
+The time the first presentment was initiated.
+
+Allowed format is HHMMSS
+
+363-368
+
+Discover Processing Code
+
+6
+
+AN
+
+The code used to indicate the effect of a transaction on the account or on the receiving institution.
+
+ 
+
+369-369
+
+Commercial Card Service Indicator
+
+1
+
+AN
+
+ 
+
+Allowed values are:
+
+A - GSA IGOTS
+B - GSA Large-Ticket
+C - Both GSA Large-Ticket and GSA
+IGOTS
+D - Fleet
+E - Fleet and GSA IGOTS
+F - Fleet and GSA Large-Ticket
+G - Fleet, GSA IGOTS, and GSA
+Large-Ticket
+H - Large Ticket
+I - Fleet and Large-Ticket
+J - Visa Distribution
+370-378
+
+Mastercard Cross Border
+
+Visa ISA ASSM Fee Amount
+
+AMEX Inbound Fee
+
+9
+
+N
+
+ 
+
+Format:
+999999999
+
+379-379
+
+Card Brand Fee Code
+
+1
+
+AN
+
+ 
+
+Allowed values are:
+
+Space - no fee applied
+1 - Mastercard Cross Border Domestic Currency
+2 - Mastercard Cross Border Foreign Currency
+3 - Visa ISA Purchase
+4 - Visa ISA Cash
+5 - AMEX Inbound Fee
+380-380
+
+DCC Indicator
+
+1
+
+AN
+
+Indicates if the Dynamic Currency Conversion was used for the transaction.
+
+Allowed values are:
+
+U = DCC was used
+E = DCC was enabled but not used
+381
+
+Regulated Indicator
+
+1
+
+AN
+
+ 
+
+Allowed values for Visa:
+
+Y - Visa Regulated Debit Fee Transaction with Fraud Prevention Adjustment
+Blank or N - Visa Non -Regulated Transaction
+Allowed values for Mastercard
+
+B - Mastercard Regulated Debit Fee Transaction
+1 - Mastercard Regulated Debit Fee Transaction & eligible for Fraud Prevention Adjustment
+Blank or N - Mastercard Non-Regulated Transaction
+Allowed values for Discover:
+
+1 - Discover Non-Exempt Transaction with Fraud Prevention Adjustment
+2 - Discover Non-Exempt Transaction
+Blank or Zero - Discover Exempt Transaction (Non-Regulated)
+382-390
+
+Visa Integrity Fee
+
+9
+
+N
+
+ 
+
+ 
+
+391-391
+
+Foreign Exchange Flag (Re-define:ACH Indicator)
+
+1
+
+AN
+
+Indicates if a foreign exchange rate was applied to the transaction.
+
+Note: The field is reused for Global Payments as the ACH Indicator.
+
+Allowed values:
+
+Yes
+No
+392-394
+
+Visa Fee Program Indicator
+
+3
+
+AN
+
+ 
+
+ 
+
+395-396
+
+Transaction Fee Debit/Credit Indicator
+
+2
+
+AN
+
+Indicates if the transaction fee amount is a debit or credit.
+
+Note: If the transaction fee amount is zero, then the Transaction Fee DC Indicator will be space filled
+
+ 
+
+397-413
+
+Transaction Fee Amount
+
+17
+
+N
+
+Includes leading sign and decimal with 2 places after.
+
+Format:
+-9999999999999.99
+
+414-424
+
+Transaction Fee Amount in Cardholder Billing Currency
+
+11
+
+N
+
+Includes leading sign and decimal with 2 places after.
+
+Format:
+-9999999.99
+
+425-426
+
+IASF Fee Type
+
+2
+
+AN
+
+Visa International Acquirer service fee.
+
+The Fee types are:
+
+01 - Canada IASF Multi Currency Purchase
+02 - Canada IASF Single Currency Purchase
+03 - Canada IASF Multi Currency Cash
+04 - Canada IASF Single Currency Cash
+space - No fee
+427-437
+
+IASF Fee Amount
+
+11
+
+N
+
+Includes leading sign and decimal with 2 places after.
+
+Format:
+-9999999.99
+
+438-438
+
+IASF Fee Debit/ Credit Indicator
+
+1
+
+AN
+
+Indicates if the IASF Fee Amount is a debit or credit.
+
+Allowed values are:
+
+D – Debit
+C - Credit
+439-450
+
+Merchant Assigned Reference Number
+
+12
+
+AN
+
+The merchant assigned reference number passed through from the incoming 150 byte capture file.
+
+ 
+
+451-465
+
+Net Deposit Adjustment Amount
+
+15
+
+N
+
+ 
+
+Format:
+Blank or
+999999999999999
+
+466
+
+Net Deposit Adjustment DC
+
+1
+
+AN
+
+ 
+
+D' Debit 'C' Credit
+
+467-481
+
+MC Cash Back Fee
+
+15
+
+AN
+
+ 
+
+ 
+
+482
+
+MC Cash Back Fee Sign
+
+1
+
+AN
+
+ 
+
++' Positive '-' Negative
+
+483-492
+
+Amex Industry SE Number
+
+10
+
+AN
+
+This field contains the American Express assigned Service Establishment (SE) Number that is used to identify merchants. 
+
+ 
+
+493-512
+
+Amex Merchant Seller ID
+
+20
+
+AN
+
+A unique code defined by the aggregator or OptBlue participant to identify a seller/vendor.
+
+ 
+
+513-537
+
+Amex Merchant Seller Name
+
+25
+
+AN
+
+This field contains the Merchant/Seller name that appears on the storefront and/or customer receipts, commonly referred to as the D.B.A. (Doing Business As) name.
+
+ 
+
+538-562
+
+Amex Merchant Seller Address
+
+25
+
+AN
+
+This field contains the Merchant's/Seller’s street address where the transaction took place.
+
+ 
+
+563-578
+
+Amex Merchant Seller Phone
+
+16
+
+AN
+
+This field contains the Merchant's telephone number.
+
+ 
+
+579-588
+
+Amex Merchant Seller Postal Code
+
+10
+
+AN
+
+This field contains the postal code of the merchant.
+
+ 
+
+589-628
+
+Amex Merchant Seller Email
+
+40
+
+AN
+
+This field contains the Merchant's email address.
+
+ 
+
+629-630
+
+Mastercard Transaction Integrity Class
+
+2
+
+AN
+
+This value is assigned by Mastercard and shows the safety and security of the transaction and includes the final assessment of the validity of the card and the cardholder.
+
+Card and Cardholder Present:
+
+A1 - EMV/Token in a Secure, Trusted Environment
+
+B1 - EMV/Chip Equivalent
+
+C1 - Mag Stripe
+
+E1 - Key Entered
+
+U0 - Unclassified
+
+Card and/or Cardholder Not Present:
+
+A2 - Digital Transactions
+
+B2 - Authenticated Checkout
+
+C2 - Transaction Validation
+
+D2 - Enhanced Data
+
+E2 - Generic Messaging
+
+U0 - Unclassified 
+
+631-633
+
+Equipment Source Identification (ESID)
+
+3
+
+AN
+
+Identifies the source of the transmission of the transaction.
+
+ 
+
+634-636
+
+Operator ID
+
+3
+
+AN
+
+Batch Operator Initials from the Draft 256 Data Capture Format Batch Header record.
+
+ 
+
+637
+
+Requested Payment Service (RPS)
+
+1
+
+AN
+
+Visa Requested Payment Service
+
+Space Not a payment service transaction.
+
+1 - CPS/Passenger Transport – Card Not Present
+
+2 - CPS/Passenger Transport – Card Present
+
+3 - CPS/Hotel (Card Not Present)
+
+4 - CPS/Hotel (Card Present)
+
+5 - CPS/Auto Rental (Card Not Present)
+
+6 - CPS/Auto Rental (Card Present)
+
+7 - CPS/Direct Marketing and CPS/Card Not Present
+
+8 CPS/Automated Fuel Dispenser
+
+9 - CPS/ATM
+
+A - CPS/Retail (Debit or Credit) – U.S. National or
+
+CPS/Supermarket (Debit or Credit) – U.S. National
+
+B - CPS/Restaurant - Brazil and U.S. National
+
+C - CPS/Retail Credit Card—U.S. National (no longer valid as of April 2005)
+
+E - CPS/Retail Key Entry (Debit or Credit) – U.S. National
+
+F CPS/Small- Ticket—U.S. National
+
+G - CPS/Electronic Commerce—Basic (U.S. National)
+
+H - CPS/Account Funding
+
+I - CPS/Retail - Incremental Authorizations
+
+J - CPS/Electronic Commerce - Preferred
+
+K - CPS/Electronic Commerce Preferred - Passenger Transport
+
+L - CPS/Electronic Commerce Preferred - Hotel
+
+M - CPS/Electronic Commerce Preferred - Car Rental
+
+N - CPS/Retail Service Station
+
+P - CPS/Recurring Bill Payment
+
+638-649
+
+Total Authorized Amount
+
+12
+
+AN
+
+Authorization amount including incremental and reversal amounts.
+
+Format:
+999999999999
+
+650-666
+
+Interchange Fee Amount
+
+17
+
+N
+
+Calculated interchange fee for this transaction
+
+Format:
+-9999999999999.99
+
+667-669
+
+Mastercard Wallet Identifier
+
+3
+
+AN
+
+This is a Mastercard value that is generated by the Masterpass online platform. This value is passed to the merchant at the time of consumer checkout, and is included in the authorization request transaction.
+
+ 
+
+670
+
+Visa Special Condition Indicator, Risk Identification
+
+1
+
+AN
+
+Special Condition indicator, Risk identification
+
+Possible Values:
+
+Space - Indicator not required for this merchant
+
+1 - Zero floor limit required
+
+2 - Terminal capable of reading and transmitting the full unaltered contents of the magnetic stripe
+3 - Zero floor limit and terminal capable of reading and transmitting the full unaltered contents of the magnetic stripe
+
+ 
+
+671-676
+
+Interchange Percent Rate
+
+6
+
+N
+
+Card brand percent applied for interchange fee
+
+Format:
+-99999
+
+677-682
+
+Interchange Per Item Rate
+
+6
+
+N
+
+Card brand per item rate applied for interchange fee
+
+Format:
+-99999
+
+683
+
+Credit Plan Reject Code
+
+1
+
+AN
+
+Applicable to Retail Private Label clients only
+
+ 
+
+684-686
+
+ESID (Retail File Split)
+
+3
+
+AN
+
+Applicable to Retail Private Label clients only
+
+ 
+
+687-690
+
+Visa Agreement ID
+
+4
+
+AN
+
+This field contains the agreement ID associated with the agreed fee rate for the Commercial Choice Program.
+
+ 
+
+691
+
+Visa Additional Token Response Information
+
+1
+
+AN
+
+This field contains a value that identifies if the transaction is eligible for token services.
+
+1 - Token program Space - Not applicable
+
+ 
+
+692-699
+
+Visa Merchant Identifier
+
+8
+
+AN
+
+This field contains a unique identifier value assigned by Visa for each merchant included in the Commercial Choice Program.
+
+ 
+
+700
+
+Reserved for future use
+
+1
+
+AN
+
+ 
+
+ 
+

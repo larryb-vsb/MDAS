@@ -1,0 +1,57 @@
+{
+  "total": 10,
+  "successful": 0,
+  "failed": 10,
+  "uploads": [
+    {
+      "fileName": "VERMNTSB.6759_DACQ_MER_DTL_10152025_001053.TSYSO",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_830_10272022_083244.TSYSO",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_2400_10272022_001824.TSYSO",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_2400_10282022_002134.TSYSO",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "VSB_MerchantDem_20250729-MID2 Parent Mid.csv",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "TSYS-Terminal-Risk-Report-Oct29-2025.csv",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "801203_AH0314P1_20240118_003-20250912082849.csv",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "801203_AH0314P1_20240122_001-20250912082849.csv",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "VERMNTSB.6759_DACQ_MER_DTL_10042025_000559.TSYSO",
+      "success": false,
+      "error": "Upload failed"
+    },
+    {
+      "fileName": "VERMNTSB.6759_TDDF_2400_10062025_001346.TSYSO",
+      "success": false,
+      "error": "Upload failed"
+    }
+  ]
+}

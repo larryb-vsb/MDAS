@@ -1,0 +1,176 @@
+POS Entry Mode
+Authorization: Two-digit code that identifies the actual method used to enter the cardholder account number and card expiration date. This code specifies the card entry data included in an authorization request.
+Value
+	
+Definition
+
+
+00
+	
+Unknown or terminal not used
+
+
+01
+	
+Manual (key entry)
+
+
+02
+	
+Magnetic stripe read. For Plus transactions, this code also means that the exact Track 2 content is included and CVV checking is possible
+
+
+03
+	
+Barcode read
+
+
+04
+	
+Discover only. OCR coding read
+
+
+05
+	
+Chip card read; card data reliable
+
+
+06
+	
+Track 1 read.
+
+
+07
+	
+Contactless chip card read
+
+
+09
+	
+Token entry from ecommerce containing Digital Secure Remote Payment (DSRP) cryptogram.
+
+
+10
+	
+Credential on file
+
+
+79
+	
+Mastercard only. Chip fall back transaction failed or the terminal had no online connection and the chip card read failed and the magnetic strip data was successful.
+The transaction was completed after a voice authorization and the approval code was manually entered.
+
+
+80
+	
+Chip card capable terminal processed the transaction through chip fall back with the magnetic stripe data.
+
+
+81
+	
+Discover only. Token entry from ecommerce with an optional identity check advanced address verification (AAV) or DSRP cryptogram in the Universal Cardholder Authentication Field (UCAF).
+
+
+82
+	
+Discover only. Entered automatically through the issuer, acquirer, or third party vendor system.
+
+
+83
+	
+Discover only. Radio Frequency Identification Indicator (CHIP).
+
+
+90
+	
+Magnetic stripe read and extract content of Track 1 or Track 2 included (CVV check is possible).
+
+
+91
+	
+Contactless magnetic stripe read and content of the full track data included.
+
+
+95
+	
+Visa Only. Integrated circuit card; card data may be unreliable
+Capture: One-character code specifying the method used to obtain the cardholder account number.
+ 
+Value
+	
+Definition
+
+
+A
+	
+Reserved - bar code read
+
+
+B
+	
+OCR read
+
+
+C
+	
+Check imaging device (POS check service)
+
+
+D
+	
+Full Track 2 Magnetic-stripe read
+
+
+G
+	
+Chip card read (Visa, MasterCard, and JCB transactions only)
+
+
+H
+	
+Full Track 1 magnetic-stripe read
+
+
+P
+	
+Manually-entered, chip card read capable terminal (Visa, MasterCard and JCB transactions only)
+
+
+Q
+	
+Proximity payment device using track data rules
+
+
+R
+	
+Proximity payment device using VSDC or M/chip data rules
+
+
+S
+	
+Full magnetic stripe read, chip card capable terminal (Visa, MasterCard, and JCB transactions only)
+
+
+T
+	
+Manually-entered, Track 2 capable device
+
+
+X
+	
+Manually-entered, Track 1 capable device
+
+
+Z
+	
+EMV fallback
+
+
+@
+	
+Manually-entered, No Track reading capability
+
+
+E-F, I-O, U-W, Y, and 0-9
+	
+Reserved for future use

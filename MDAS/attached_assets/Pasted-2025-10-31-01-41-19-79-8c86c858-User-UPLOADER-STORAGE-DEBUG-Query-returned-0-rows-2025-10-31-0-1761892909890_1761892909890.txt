@@ -1,0 +1,156 @@
+2025-10-31 01:41:19.79
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 01:41:19.79
+8c86c858
+User
+[MMS-WATCHER] [AUTO-STEP6] Found encoded files: false
+2025-10-31 01:41:19.89
+8c86c858
+User
+[MMS-WATCHER] [AUTO-STEP7] Auto Step 7 is disabled, skipping completed file archiving
+2025-10-31 01:41:21.14
+8c86c858
+User
+[MMS-WATCHER] [PIPELINE-RECOVERY] Found 0 recently encoded files
+2025-10-31 01:41:21.14
+8c86c858
+User
+[MMS-WATCHER] [MONTHLY-CACHE] Checking if monthly cache update needed for tddf1_totals
+2025-10-31 01:41:21.20
+8c86c858
+User
+[MMS-WATCHER] [MONTHLY-CACHE] ⚠️ No data found in tddf1_totals
+2025-10-31 01:41:21.20
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Checking for missing individual file cache entries
+2025-10-31 01:41:21.29
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Found 0 total encoded TDDF files
+2025-10-31 01:41:21.30
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: 0
+2025-10-31 01:41:23.51
+8c86c858
+User
+Error fetching TDDF API monitoring: error: column "response_status" does not exist
+2025-10-31 01:41:23.51
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 01:41:23.51
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 01:41:23.51
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:22338:21 {
+2025-10-31 01:41:23.51
+8c86c858
+User
+length: 116,
+2025-10-31 01:41:23.51
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 01:41:23.51
+8c86c858
+User
+code: '42703',
+2025-10-31 01:41:23.51
+8c86c858
+User
+detail: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+hint: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+position: '133',
+2025-10-31 01:41:23.51
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+where: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+schema: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+table: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+column: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+dataType: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+constraint: undefined,
+2025-10-31 01:41:23.51
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 01:41:23.51
+8c86c858
+User
+line: '3716',
+2025-10-31 01:41:23.51
+8c86c858
+User
+routine: 'errorMissingColumn'
+2025-10-31 01:41:23.51
+8c86c858
+User
+}
+2025-10-31 01:41:23.56
+8c86c858
+User
+6:41:23 AM [express] GET /api/tddf-api/monitoring 500 in 214ms :: {"error":"Failed to fetch monitori…
+2025-10-31 01:41:23.69
+8c86c858
+User
+6:41:23 AM [express] GET /api/tddf-archive 200 in 273ms :: {"files":[],"total":0,"limit":25,"offset"…
+2025-10-31 01:41:24.60
+8c86c858
+User
+6:41:24 AM [express] GET /api/uploader/processing-status 200 in 165ms
+2025-10-31 01:41:24.65
+8c86c858
+User
+6:41:24 AM [express] GET /api/uploader 200 in 327ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:41:24.85
+8c86c858
+User
+6:41:24 AM [express] GET /api/uploader 200 in 277ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:41:25.00
+8c86c858
+User
+6:41:24 AM [express] GET /api/uploader 200 in 332ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:41:29.20
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:41:30.00
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue

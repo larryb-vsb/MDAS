@@ -1,0 +1,208 @@
+26-01-09 23:12:30.11
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.804Z
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.805Z
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.806Z
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.807Z
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.80
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.809Z
+2026-01-09 23:14:05.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.811Z
+2026-01-09 23:14:05.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:14:05.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:14:05.812Z
+2026-01-09 23:14:05.82
+357d6323
+User
+[SYSTEM LOGGER] Failed to log to database: Error: Connection terminated unexpectedly
+2026-01-09 23:14:05.82
+357d6323
+User
+at async _SystemLogger.error (file:///home/runner/workspace/dist/index.js:6169:9)
+2026-01-09 23:14:05.82
+357d6323
+User
+at async _SystemLogger.log (file:///home/runner/workspace/dist/index.js:6146:11)
+2026-01-09 23:14:05.82
+357d6323
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-09 23:14:05.82
+357d6323
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-09 23:14:05.82
+357d6323
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-09 23:14:05.82
+357d6323
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-09 23:18:29.21
+357d6323
+User
+at process.processTimers (node:internal/timers:519:7)
+2026-01-09 23:18:29.21
+357d6323
+User
+at async withRetry (file:///home/runner/workspace/dist/index.js:4324:14)
+2026-01-09 23:18:29.21
+357d6323
+User
+at async MMSWatcher.processEncodedFiles (file:///home/runner/workspace/dist/index.js:37822:32)
+2026-01-09 23:18:29.21
+357d6323
+User
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:35905:13)
+2026-01-09 23:18:29.21
+357d6323
+User
+at async withRetry.maxRetries (file:///home/runner/workspace/dist/index.js:35923:17)
+2026-01-09 23:18:29.21
+357d6323
+User
+at async DatabaseStorage.getUploaderUploads (file:///home/runner/workspace/dist/index.js:20259:27)
+2026-01-09 23:18:29.51
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:18:29.515Z
+2026-01-09 23:18:29.51
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:21:11.85
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:21:11.858Z
+2026-01-09 23:21:11.85
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:21:11.86
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:21:11.86
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:21:11.862Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:18.617Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:13.217Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:10.115Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:12.315Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:17.515Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:06.817Z
+2026-01-09 23:22:20.81
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:15.315Z
+2026-01-09 23:22:21.28
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-09 23:22:21.28
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:21.286Z
+2026-01-09 23:22:21.28
+357d6323
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-10T05:22:21.288Z
+2026-01-09 23:22:21.28
+357d6323
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter

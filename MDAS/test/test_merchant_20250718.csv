@@ -1,0 +1,4 @@
+Name,ClientMID,Status,Type
+Test Merchant Alpha,TEST_ALPHA_20250718,Active,retail
+Test Merchant Beta,TEST_BETA_20250718,Pending,online
+Test Merchant Gamma,TEST_GAMMA_20250718,Active,wholesale

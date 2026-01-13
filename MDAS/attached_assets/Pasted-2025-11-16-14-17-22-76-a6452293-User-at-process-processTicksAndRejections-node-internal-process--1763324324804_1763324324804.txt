@@ -1,0 +1,132 @@
+2025-11-16 14:17:22.76
+a6452293
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-16 14:17:22.76
+a6452293
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-16 14:17:22.76
+a6452293
+User
+at async Promise.all (index 9)
+2025-11-16 14:17:22.76
+a6452293
+User
+at async file:///home/runner/workspace/dist/index.js:8727:27
+2025-11-16 14:17:22.76
+a6452293
+User
+code: '42703',
+2025-11-16 14:17:22.76
+a6452293
+User
+constraint: undefined,
+2025-11-16 14:17:22.76
+a6452293
+User
+severity: 'ERROR',
+2025-11-16 14:17:22.76
+a6452293
+User
+hint: undefined,
+2025-11-16 14:17:22.76
+a6452293
+User
+at async DatabaseStorage.getMerchantStats (file:///home/runner/workspace/dist/index.js:9830:33)
+2025-11-16 14:17:22.76
+a6452293
+User
+at async DatabaseStorage.getMerchants (file:///home/runner/workspace/dist/index.js:8726:36)
+2025-11-16 14:17:22.76
+a6452293
+User
+at async file:///home/runner/workspace/dist/index.js:8727:27
+2025-11-16 14:17:22.76
+a6452293
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-16 14:17:26.61
+a6452293
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-11-16 14:17:30.00
+a6452293
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-11-16 14:17:31.44
+a6452293
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'completed' ]
+2025-11-16 14:17:31.44
+a6452293
+User
+[MMS-WATCHER] [AUTO-STEP7] Checking for completed files...
+2025-11-16 14:17:31.44
+a6452293
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-11-16 14:17:31.44
+a6452293
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'encoded' ]
+2025-11-16 14:17:31.44
+a6452293
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-11-16 14:17:31.44
+a6452293
+User
+[MMS-WATCHER] [AUTO-STEP6] Checking for encoded files...
+2025-11-16 14:17:31.54
+a6452293
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 7 rows
+2025-11-16 14:17:31.54
+a6452293
+User
+processing_at: null,
+2025-11-16 14:17:31.54
+a6452293
+User
+line_count: 350,
+2025-11-16 14:17:31.54
+a6452293
+User
+upload_progress: 100,
+2025-11-16 14:17:31.54
+a6452293
+User
+storage_path: 'prod-uploader/2025-11-04/uploader_1762229603447_ga787e257/VERMNTSB.6759_DACQ_MER_DTL_10222025_000539.TSYSO',
+2025-11-16 14:17:31.54
+a6452293
+User
+upload_status: 'started',
+2025-11-16 14:17:31.54
+a6452293
+User
+chunk_count: null,
+2025-11-16 14:17:31.54
+a6452293
+User
+status: 'started',
+2025-11-16 14:17:31.54
+a6452293
+User
+s3_url: 'replit-object-storage://default/prod-uploader/2025-11-04/uploader_1762229603447_ga787e257/VERMNTSB.6759_DACQ_MER_DTL_10222025_000539.TSYSO',
+2025-11-16 14:17:31.54
+a6452293
+User
+updated_at: 2025-11-04T04:13:23.478Z,
+2025-11-16 14:17:31.54
+a6452293
+User
+is_archived: true,
+2025-11-16 14:17:31.54
+a6452293
+User
+current_phase: 'encoded',
+2025-11-16 14:17:31.54
+a6452293
+User
+last_updated: 2025-11-04T04:18:43.336Z,

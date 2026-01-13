@@ -1,0 +1,136 @@
+2025-10-31 00:56:29.99
+8c86c858
+User
+"fileFormat": "tddf",
+2025-10-31 00:56:29.99
+8c86c858
+User
+"encodingDetected": "utf-8",
+2025-10-31 00:56:29.99
+8c86c858
+User
+"processingNotes": "{\"uploaded\":true,\"storageKey\":\"prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO\",\"storageBucket\":\"default-replit-bucket\",\"uploadedAt\":\"2025-10-31T05:56:29.995Z\"}"
+2025-10-31 00:56:29.99
+8c86c858
+User
+}
+2025-10-31 00:56:30.00
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-31 00:56:30.04
+8c86c858
+User
+[UPLOADER] Updated upload uploader_1761890183739_dw7bit373: {"currentPhase":"uploaded","uploadProgress":100,"uploadedAt":"2025-10-31T05:56:29.995Z","storagePath":"prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO","s3Bucket":"default-replit-bucket","s3Key":"prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO","s3Url":"replit-object-storage://default/prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO","fileSize":7048080,"lineCount":10041,"dataSize":7048080,"hasHeaders":false,"fileFormat":"tddf","encodingDetected":"utf-8","processingNotes":"{\"uploaded\":true,\"storageKey\":\"prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO\",\"storageBucket\":\"default-replit-bucket\",\"uploadedAt\":\"2025-10-31T05:56:29.995Z\"}"}
+2025-10-31 00:56:30.10
+8c86c858
+User
+5:56:30 AM [express] POST /api/uploader/uploader_1761890183739_dw7bit373/upload 200 in 628ms :: {"su…
+2025-10-31 00:56:30.27
+8c86c858
+User
+5:56:30 AM [express] PUT /api/uploader/uploader_1761890183739_dw7bit373 200 in 332ms
+2025-10-31 00:56:31.43
+8c86c858
+User
+5:56:31 AM [express] GET /api/uploader 200 in 271ms :: {"uploads":[{"id":"uploader_1761890183739_dw7…
+2025-10-31 00:56:31.57
+8c86c858
+User
+5:56:31 AM [express] POST /api/uploader/uploader_1761890183739_dw7bit373/phase/uploaded 200 in 169ms
+2025-10-31 00:56:29.65
+8c86c858
+User
+[UPLOADER-DEBUG] Update fields for uploader_1761890183739_dw7bit373: [ 'currentPhase', 'uploadStartedAt', 'uploadProgress' ]
+2025-10-31 00:56:29.65
+8c86c858
+User
+[UPLOADER-DEBUG] Updates object: {
+2025-10-31 00:56:29.65
+8c86c858
+User
+"currentPhase": "uploading",
+2025-10-31 00:56:29.65
+8c86c858
+User
+}
+2025-10-31 00:56:29.99
+8c86c858
+User
+'currentPhase', 'uploadProgress',
+2025-10-31 00:56:29.99
+8c86c858
+User
+'fileSize', 'lineCount',
+2025-10-31 00:56:29.99
+8c86c858
+User
+'fileFormat', 'encodingDetected',
+2025-10-31 00:56:29.99
+8c86c858
+User
+"storagePath": "prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO",
+2025-10-31 00:56:29.99
+8c86c858
+User
+"s3Key": "prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO",
+2025-10-31 00:56:29.99
+8c86c858
+User
+"dataSize": 7048080,
+2025-10-31 00:56:29.99
+8c86c858
+User
+"hasHeaders": false,
+2025-10-31 00:56:30.04
+8c86c858
+User
+[UPLOADER-REPLIT] Successfully uploaded: uploader_1761890183739_dw7bit373 to prod-uploader/2025-10-31/uploader_1761890183739_dw7bit373/VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO
+2025-10-31 00:56:30.06
+8c86c858
+User
+5:56:30 AM [express] GET /api/uploader 200 in 273ms :: {"uploads":[{"id":"uploader_1761890183739_dw7…
+2025-10-31 00:56:30.36
+8c86c858
+User
+5:56:30 AM [express] PUT /api/uploader/uploader_1761890183739_dw7bit373 200 in 168ms
+2025-10-31 00:56:39.11
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:56:39.11
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 00:56:39.17
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 1 rows
+2025-10-31 00:56:39.17
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] First row: {
+2025-10-31 00:56:39.17
+8c86c858
+User
+id: 'uploader_1761890183739_dw7bit373',
+2025-10-31 00:56:39.17
+8c86c858
+User
+filename: 'VERMNTSB.6759_TDDF_830_10302025_083401.TSYSO',
+2025-10-31 00:56:39.17
+8c86c858
+User
+file_type: 'tddf',
+2025-10-31 00:56:39.17
+8c86c858
+User
+status: 'started',
+2025-10-31 00:56:39.17
+8c86c858
+User
+session_id: null,
+2025-10-31 00:56:39.17
+8c86c858
+User
+started_at: 2025-10-31T05:56:23.771Z,

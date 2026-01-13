@@ -1,0 +1,7 @@
+AsOfDate,ClientNumber,ClientLegalName,ClientMID,ClientPAddress1,ClientPAddress2,ClientPAddressCity,ClientPAddressState,ClientPAddressCountry,Mtype,ClientPAddressZip,ClientSinceDate,Status
+5/16/2025,472375228,1 Vertical Test Online,VS686AD43D842,420 W Central Ave,,Santa Ana,CA,US,1,92707,,Active
+5/16/2025,472375229,2 Vertical Test Retail,VS686AD43D843,421 W Central Ave,,Santa Ana,CA,US,2,92708,,Active
+5/16/2025,472375230,3 Vertical Test Mixed,VS686AD43D844,422 W Central Ave,,Santa Ana,CA,US,3,92709,,Active
+5/16/2025,472375231,4 Vertical Test B2B,VS686AD43D845,423 W Central Ave,,Santa Ana,CA,US,4,92710,,Active
+5/16/2025,472375232,5 Vertical Test Wholesale,VS686AD43D846,424 W Central Ave,,Santa Ana,CA,US,5,92711,,Active
+5/16/2025,472375233,6 Vertical Test Custom,VS686AD43D847,425 W Central Ave,,Santa Ana,CA,US,6,92712,,Active

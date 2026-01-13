@@ -1,0 +1,217 @@
+TDDF Record Details
+Complete TDDF Field Details
+Show Summary
+ID
+39311
+Sequence Number (1-7)
+0000298
+Entry Run Number (8-13)
+021327
+Sequence Within Run (14-17)
+0003
+Record Identifier (18-19)
+DT
+Bank Number (20-23)
+6759
+Merchant Account Number (24-39)
+0675900000000513
+Association Number 1 (40-45)
+N/A
+Group Number (46-51)
+N/A
+Transaction Code (52-55)
+N/A
+Association Number 2 (56-61)
+N/A
+Reference Number (62-84)
+87287282313900010155107
+Transaction Date (85-92)
+Nov 8, 2022
+Transaction Amount (93-103)
+$0.55
+Batch Julian Date (104-108)
+N/A
+Net Deposit (109-109)
+N/A
+Cardholder Account Number (109-142)
+N/A
+Best Interchange Eligible (143-143)
+N/A
+Transaction Data Condition Code (144-147)
+N/A
+Downgrade Reason 1 (148-149)
+N/A
+Downgrade Reason 2 (150-151)
+N/A
+Downgrade Reason 3 (152-153)
+N/A
+Online Entry (154-154)
+N/A
+ACH Flag (155-155)
+N/A
+Auth Source (176-176)
+N/A
+Cardholder ID Method (177-177)
+N/A
+CAT Indicator (178-178)
+N/A
+Reimbursement Attribute (179-179)
+N/A
+Mail Order Telephone Indicator (180-180)
+N/A
+Auth Char Ind (181-181)
+N/A
+Banknet Reference Number (182-187)
+N/A
+Draft A Flag (188-188)
+N/A
+Auth Currency Code (189-191)
+N/A
+Auth Amount (192-203)
+$0.55
+Validation Code (204-207)
+N/A
+Auth Response Code (215-216)
+N/A
+Network Identifier Debit (217-217)
+N/A
+Switch Settled Indicator (217-217)
+N/A
+POS Entry Mode (217-217)
+N/A
+Debit Credit Indicator (217-217)
+N/A
+Reversal Flag (217-217)
+N/A
+Merchant Name (218-242)
+VERMONT STATE BANK2
+Authorization Number (243-250)
+N/A
+Reject Reason (251-254)
+N/A
+Card Type (251-256)
+N/A
+Currency Code (257-259)
+N/A
+Original Transaction Amount (260-268)
+N/A
+Foreign Card Indicator (269-269)
+N/A
+Carryover Indicator (270-270)
+N/A
+Extension Record Indicator (271-274)
+N/A
+MCC Code (275-278)
+N/A
+Terminal ID (279-284)
+N/A
+Discover POS Entry Mode (285-287)
+N/A
+Purchase ID (288-312)
+N/A
+Cash Back Amount (313-321)
+N/A
+Cash Back Amount Sign (322-322)
+N/A
+POS Data Code (323-335)
+N/A
+Transaction Type Identifier (336-338)
+N/A
+Card Type Extended (339-341)
+N/A
+Product ID (342-343)
+N/A
+Submitted Interchange (344-348)
+N/A
+System Trace Audit Number (349-354)
+N/A
+Discover Transaction Type (355-356)
+N/A
+Discover Processing Code (363-368)
+N/A
+Commercial Card Service Indicator (369-369)
+N/A
+Mastercard Cross Border Fee (370-378)
+N/A
+Card Brand Fee Code (379-379)
+N/A
+DCC Indicator (380-380)
+N/A
+Regulated Indicator (381-381)
+N/A
+Visa Integrity Fee (382-390)
+N/A
+Foreign Exchange Flag (391-391)
+N/A
+Visa Fee Program Indicator (392-394)
+N/A
+Transaction Fee Debit Credit Indicator (395-396)
+N/A
+Transaction Fee Amount (397-413)
+N/A
+Transaction Fee Amount Cardholder (414-424)
+N/A
+IASF Fee Type (425-426)
+N/A
+IASF Fee Amount (427-437)
+N/A
+IASF Fee Debit Credit Indicator (438-438)
+N/A
+Merchant Assigned Reference Number (439-450)
+N/A
+Net Deposit Adjustment Amount (451-465)
+N/A
+Net Deposit Adjustment DC (466-466)
+N/A
+MC Cash Back Fee (467-481)
+N/A
+MC Cash Back Fee Sign (482-482)
+N/A
+AMEX Industry SE Number (483-492)
+N/A
+AMEX Merchant Seller ID (493-512)
+N/A
+AMEX Merchant Seller Name (513-537)
+N/A
+AMEX Merchant Seller Address (538-562)
+N/A
+AMEX Merchant Seller Phone (563-578)
+N/A
+AMEX Merchant Seller Postal Code (579-588)
+N/A
+AMEX Merchant Seller Email (589-628)
+N/A
+Mastercard Transaction Integrity Class (629-630)
+N/A
+Equipment Source Identification (631-633)
+N/A
+Operator ID (634-636)
+N/A
+Requested Payment Service (637-637)
+N/A
+Total Authorized Amount (638-649)
+N/A
+Interchange Fee Amount (650-666)
+N/A
+Mastercard Wallet Identifier (667-669)
+N/A
+Visa Special Condition Indicator (670-670)
+N/A
+Interchange Percent Rate (671-676)
+N/A
+Interchange Per Item Rate (677-682)
+N/A
+Source File ID
+tddf_1753391347957_hmdbwkeh0
+Source Row Number
+2
+Recorded At
+Jul 24, 2025 4:09 PM
+Created At
+Jul 24, 2025 4:09 PM
+Updated At
+Jul 24, 2025 4:09 PM
+Raw Data Available
+No
+Raw Line Data
+00002980213270003DT67590675900000000513800001800000010180000187287282313900010155107110920220000000005531322000000000000055558158XXXXXX7298 NY 4 01AMDBR1HQ1O1109 N840000000000055 01DNVERMONT STATE BANK2 2P1FYW MD84000000000055 NP1549917161166 000000000+600030100100 MDB 00063 000000000 N 0000000000000.00 0000000.00 0000000.00 000000000002 000000000000000 U001424 000000000000 0000000000000.11 02050 01000

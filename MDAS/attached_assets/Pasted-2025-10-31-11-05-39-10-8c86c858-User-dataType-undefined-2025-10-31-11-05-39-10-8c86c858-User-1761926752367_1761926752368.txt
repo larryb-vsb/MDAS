@@ -1,0 +1,163 @@
+2025-10-31 11:05:39.10
+8c86c858
+User
+dataType: undefined,
+2025-10-31 11:05:39.10
+8c86c858
+User
+constraint: undefined,
+2025-10-31 11:05:39.10
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 11:05:39.10
+8c86c858
+User
+line: '3716',
+2025-10-31 11:05:39.10
+8c86c858
+User
+routine: 'errorMissingColumn'
+2025-10-31 11:05:39.10
+8c86c858
+User
+}
+2025-10-31 11:05:39.16
+8c86c858
+User
+4:05:39 PM [express] GET /api/tddf-api/monitoring 500 in 363ms :: {"error":"Failed to fetch monitori…
+2025-10-31 11:05:39.47
+8c86c858
+User
+4:05:39 PM [express] GET /api/tddf-archive 200 in 287ms :: {"files":[{"id":"uploader_1761890444167_r…
+2025-10-31 11:05:39.94
+8c86c858
+User
+4:05:39 PM [express] GET /api/uploader/uploader_1761890505581_tgtvvnwli/timing 200 in 175ms
+2025-10-31 11:05:41.15
+8c86c858
+User
+4:05:41 PM [express] GET /api/uploader 200 in 287ms :: {"uploads":[],"totalCount":0,"limit":10,"offs…
+2025-10-31 11:05:41.34
+8c86c858
+User
+4:05:41 PM [express] GET /api/uploader 200 in 462ms :: {"uploads":[{"id":"uploader_1761890505581_tgt…
+2025-10-31 11:05:42.17
+8c86c858
+User
+4:05:42 PM [express] GET /api/uploader 200 in 291ms :: {"uploads":[{"id":"uploader_1761890505581_tgt…
+2025-10-31 11:05:42.81
+8c86c858
+User
+4:05:42 PM [express] GET /api/uploader/processing-status 200 in 174ms
+2025-10-31 11:05:43.53
+8c86c858
+User
+Error fetching TDDF API monitoring: error: column "uploaded_at" does not exist
+2025-10-31 11:05:43.53
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 11:05:43.53
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 11:05:43.53
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:22359:31 {
+2025-10-31 11:05:43.53
+8c86c858
+User
+length: 112,
+2025-10-31 11:05:43.53
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 11:05:43.53
+8c86c858
+User
+code: '42703',
+2025-10-31 11:05:43.53
+8c86c858
+User
+detail: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+hint: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+position: '440',
+2025-10-31 11:05:43.53
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+where: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+schema: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+table: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+column: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+dataType: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+constraint: undefined,
+2025-10-31 11:05:43.53
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 11:05:43.53
+8c86c858
+User
+line: '3716',
+2025-10-31 11:05:43.53
+8c86c858
+User
+routine: 'errorMissingColumn'
+2025-10-31 11:05:43.53
+8c86c858
+User
+}
+2025-10-31 11:05:43.59
+8c86c858
+User
+4:05:43 PM [express] GET /api/tddf-api/monitoring 500 in 346ms :: {"error":"Failed to fetch monitori…
+2025-10-31 11:05:43.59
+8c86c858
+User
+4:05:43 PM [express] GET /api/uploader/uploader_1761890341369_hatx3xd62/timing 200 in 173ms
+2025-10-31 11:05:44.04
+8c86c858
+User
+4:05:44 PM [express] GET /api/tddf-archive 200 in 458ms :: {"files":[{"id":"uploader_1761890444167_r…
+2025-10-31 11:05:45.14
+8c86c858
+User
+4:05:45 PM [express] GET /api/uploader/uploader_1761890505581_tgtvvnwli/timing 200 in 174ms
+
+Collapse
+
+Wrap
+
+Colors
+

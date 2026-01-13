@@ -1,0 +1,75 @@
+2025-10-31 00:37:19.59
+length: 114,
+2025-10-31 00:37:19.59
+severity: 'ERROR',
+2025-10-31 00:37:19.59
+code: '42P01',
+2025-10-31 00:37:19.59
+detail: undefined,
+2025-10-31 00:37:19.59
+hint: undefined,
+2025-10-31 00:37:19.59
+position: '38',
+2025-10-31 00:37:19.59
+internalPosition: undefined,
+2025-10-31 00:37:19.59
+internalQuery: undefined,
+2025-10-31 00:37:19.59
+where: undefined,
+2025-10-31 00:37:19.59
+schema: undefined,
+2025-10-31 00:37:19.59
+table: undefined,
+2025-10-31 00:37:19.59
+column: undefined,
+2025-10-31 00:37:19.59
+dataType: undefined,
+2025-10-31 00:37:19.59
+constraint: undefined,
+2025-10-31 00:37:19.59
+file: 'parse_relation.c',
+2025-10-31 00:37:19.59
+line: '1449',
+2025-10-31 00:37:19.59
+routine: 'parserOpenTable'
+2025-10-31 00:37:19.59
+}
+2025-10-31 00:37:19.59
+[MMS-WATCHER] [PIPELINE-RECOVERY] Found 0 recently encoded files
+2025-10-31 00:37:19.69
+[MMS-WATCHER] [MONTHLY-CACHE] Checking if monthly cache update needed for tddf1_totals
+2025-10-31 00:37:19.89
+[MMS-WATCHER] [MONTHLY-CACHE] ⚠️ No data found in tddf1_totals
+2025-10-31 00:37:19.89
+[MMS-WATCHER] [CACHE-FIX] Checking for missing individual file cache entries
+2025-10-31 00:37:20.19
+[MMS-WATCHER] [CACHE-FIX] Found 0 total encoded TDDF files
+2025-10-31 00:37:20.34
+[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: 0
+2025-10-31 00:37:20.59
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:37:27.41
+system: received signal terminated
+2025-10-31 00:37:36.49
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-31 00:37:37.05
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:37:37.39
+5:37:37 AM [express] GET /api/duplicates/status 200 in 333ms
+2025-10-31 00:37:52.06
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:38:00.00
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-31 00:38:07.06
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:38:07.18
+5:38:07 AM [express] GET /api/tddf-json/last-processing-datetime 200 in 217ms :: {"lastProcessingDat…
+2025-10-31 00:38:07.62
+5:38:07 AM [express] GET /api/duplicates/status 200 in 164ms
+
+Expand
+
+Wrap
+
+Colors
+

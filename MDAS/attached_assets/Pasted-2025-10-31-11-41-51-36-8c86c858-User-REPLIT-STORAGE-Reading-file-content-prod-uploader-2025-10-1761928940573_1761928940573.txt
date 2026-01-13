@@ -1,0 +1,156 @@
+2025-10-31 11:41:51.36
+8c86c858
+User
+[REPLIT-STORAGE] Reading file content: prod-uploader/2025-10-31/uploader_1761928898134_ued86juso/VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO
+2025-10-31 11:41:51.80
+8c86c858
+User
+[REPLIT-STORAGE] File content read successfully: prod-uploader/2025-10-31/uploader_1761928898134_ued86juso/VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO (712792 chars)
+2025-10-31 11:41:51.80
+8c86c858
+User
+[MMS-WATCHER] [MERCHANT-DETAIL-SCHEMA] Processing merchant detail file with MCC schema: VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO
+2025-10-31 11:41:51.80
+8c86c858
+User
+[REPLIT-STORAGE] Reading file content: prod-uploader/2025-10-31/uploader_1761928898134_ued86juso/VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO
+2025-10-31 11:41:51.85
+8c86c858
+User
+[REPLIT-STORAGE] File content read successfully: prod-uploader/2025-10-31/uploader_1761928898134_ued86juso/VERMNTSB.6759_DACQ_MER_DTL_10072025_002410.TSYSO (712792 chars)
+2025-10-31 11:41:51.85
+8c86c858
+User
+[MCC-PARSER] Fetching schema from table: merchant_mcc_schema
+2025-10-31 11:41:51.91
+8c86c858
+User
+[MCC-PARSER] ❌ Error fetching schema from merchant_mcc_schema: error: relation "merchant_mcc_schema" does not exist
+2025-10-31 11:41:51.91
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 11:41:51.91
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 11:41:51.91
+8c86c858
+User
+at async getMccSchemaFields (file:///home/runner/workspace/dist/index.js:4811:21)
+2025-10-31 11:41:51.91
+8c86c858
+User
+at async MMSWatcher.encodeFile (file:///home/runner/workspace/dist/index.js:33430:36)
+2025-10-31 11:41:51.91
+8c86c858
+User
+at async MMSWatcher.processIdentifiedFiles (file:///home/runner/workspace/dist/index.js:33241:15)
+2025-10-31 11:41:51.91
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 11:41:51.91
+8c86c858
+User
+where: undefined,
+2025-10-31 11:41:51.91
+8c86c858
+User
+column: undefined,
+2025-10-31 11:41:51.91
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 11:41:51.91
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 11:41:51.91
+8c86c858
+User
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32377:15)
+2025-10-31 11:41:51.91
+8c86c858
+User
+[UPLOADER-DEBUG] Update fields for uploader_1761928898134_ued86juso: [ 'currentPhase', 'lastUpdated' ]
+2025-10-31 11:41:51.97
+8c86c858
+User
+at async MMSWatcher.encodeFileWithRetry (file:///home/runner/workspace/dist/index.js:33511:13)
+2025-10-31 11:41:51.97
+8c86c858
+User
+at async MMSWatcher.processIdentifiedFiles (file:///home/runner/workspace/dist/index.js:33241:15)
+2025-10-31 11:41:51.97
+8c86c858
+User
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32377:15)
+2025-10-31 11:41:51.97
+8c86c858
+User
+[UPLOADER] Updated upload uploader_1761928898134_ued86juso: {"currentPhase":"failed","lastUpdated":"2025-10-31T16:41:51.919Z"}
+2025-10-31 11:41:56.02
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 11:41:56.09
+8c86c858
+User
+4:41:56 PM [express] GET /api/mms-watcher/auto45-status 200 in 177ms :: {"success":true,"enabled":tr…
+2025-10-31 11:41:56.40
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 11:41:56.40
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 11:41:56.40
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 11:41:56.40
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 11:41:56.46
+8c86c858
+User
+[REPLIT-STORAGE] Found 346 files in prod-uploader/
+2025-10-31 11:41:56.46
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 346 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 11:41:56.52
+8c86c858
+User
+4:41:56 PM [express] GET /api/uploader/storage-config 200 in 244ms :: {"available":true,"service":"R…
+2025-10-31 11:41:56.58
+8c86c858
+User
+4:41:56 PM [express] GET /api/uploader 200 in 352ms :: {"uploads":[{"id":"uploader_1761928898134_ued…
+2025-10-31 11:41:58.04
+8c86c858
+User
+4:41:58 PM [express] GET /api/uploader 200 in 350ms :: {"uploads":[{"id":"uploader_1761928898134_ued…
+2025-10-31 11:41:59.07
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 11:41:59.07
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 11:41:59.13
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 11:41:59.13
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 11:42:00.00
+8c86c858
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue

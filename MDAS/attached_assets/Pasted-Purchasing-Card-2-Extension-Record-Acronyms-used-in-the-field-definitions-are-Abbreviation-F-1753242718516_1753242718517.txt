@@ -1,0 +1,420 @@
+Purchasing Card 2 Extension Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The Purchasing Card 1 Extension record is used to send purchasing card information. It can be followed by a Purchasing Card 2 Extension Record.
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+A value that identifies the type of record.
+
+Constant value is "P2"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-74
+
+Reserved for future use
+
+19
+
+AN
+
+ 
+
+ 
+
+75-75
+
+Discount Amount Indicator
+
+1
+
+N
+
+The indicator indicates if the discount is applicable.
+
+This pertains to Discount that the merchant gives to the purchaser.
+
+76-84
+
+Discount Amount
+
+9
+
+N
+
+The amount of the discount applied to the transaction.
+
+Format:
+999999999
+
+85-99
+
+Alternate Tax Identifier
+
+15
+
+AN
+
+ 
+
+ 
+
+100-111
+
+Product Code (VS, MC)
+
+12
+
+AN
+
+ 
+
+ 
+
+112-114
+
+Reserved for future use
+
+3
+
+AN
+
+ 
+
+ 
+
+115-149
+
+Item Description
+
+35
+
+AN
+
+ 
+
+ 
+
+150-161
+
+Item Quantity (VS, MC, AM)
+
+12
+
+N
+
+ 
+
+Format:
+999999999999
+
+162-173
+
+Item Unit of Measure (VS, MC)
+
+12
+
+N
+
+ 
+
+Format:
+999999999999
+
+174-185
+
+Unit Cost (VS, MC, AM)
+
+12
+
+N
+
+ 
+
+Format:
+999999999999
+
+186-186
+
+Net/Gross Indicator for Extended Amount
+
+1
+
+N
+
+ 
+
+ 
+
+187-191
+
+VAT Rate applied
+
+5
+
+N
+
+ 
+
+Format:
+9999
+
+192-195
+
+VAT Type Applied/VAT Rating
+
+4
+
+AN
+
+ 
+
+ 
+
+196-207
+
+VAT Amount (MC, VS)
+
+12
+
+N
+
+ 
+
+Format:
+999999999999
+
+208-208
+
+Debit/Credit Indicator
+
+1
+
+AN
+
+Indicates if the transaction is a debit or credit.
+
+Allowed values are:
+
+D - Debit
+C - Credit
+209-210
+
+Type of Supply
+
+2
+
+AN
+
+ 
+
+ 
+
+211-211
+
+Extension Record Indicator (D)
+
+1
+
+AN
+
+The code indicates if another extension record follows this record.
+
+ 
+
+212-223
+
+Item Commodity Code
+
+12
+
+N
+
+A commodity code determined by Associations.
+
+ 
+
+224-235
+
+Line Item Total
+
+12
+
+N
+
+ 
+
+Format:
+999999999999
+
+236-261
+
+Item Descriptor
+
+26
+
+AN
+
+ 
+
+ 
+
+262-700
+
+Reserved for future use
+
+439
+
+AN
+
+ 
+
+ 
+

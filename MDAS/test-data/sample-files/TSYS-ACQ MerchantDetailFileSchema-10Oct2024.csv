@@ -1,0 +1,185 @@
+Position,Field Name,Field Length,Format,Description,Enumeration,MMS
+4-Jan,Bank Number,4,AN,The merchant’s bank number.,,1
+11-Jun,Group (Level 1),6,AN,The group number in which the association points to.,,1
+13-18,Association Number,6,AN,The identification number of an association to which the merchant reports.,,1
+20-35,Account Number,16,AN,The TSYS Acquiring Solutions account number of the merchant.,,1
+37-76,Association Name,40,AN,The name of the association the merchant is associated with.,,1
+78-117,Group Level 1 Name,40,AN,The name of the group.,,1
+119-122,SIC,4,AN,The four digit numerical code to identify the business Standard Industry Classification,,1
+124-127,CLASS,4,AN,MCC (Merchant Category Code),,1
+129-153,DBA Name,25,AN,The trade name under which the merchants operate their business.,,1
+155-167,DBA Address City,13,AN,The city from where the merchants operate their business.,,1
+169-170,DBA Address State,2,AN,The state code associated with the merchant’s business location.,,1
+172-180,DBA Zip,9,AN,The ZIP code of the merchant’s business location.,,1
+182-191,Phone 1,10,AN,The merchant’s phone number.,,1
+193-202,Phone 2,10,AN,The merchant’s phone number.,,1
+204-213,Business License,10,AN,The business license number of the merchant.,,1
+215-218,Bank Officer 1,4,AN,The bank officer number who approved the merchant to accept credit card transactions. The bank officer codes are defined by the acquirer.,,1
+220-223,Bank Officer 2,4,AN,The bank officer number who approved the DDA. The bank officer codes are defined by the acquirer.,,1
+225-228,User Bank Number,4,AN,A client defined field.,,
+230-233,User Branch Number,4,AN,A client defined field.,,
+235-243,Federal Tax ID,9,AN,The merchant federal tax ID.,,1
+245-253,State Tax ID,9,AN,The merchant state tax ID.,,1
+255-255,EDC Flag,1,AN,Identifies if the electronic data capture is enabled for the merchant.,Allowed values:Y/N,
+257-260,REP Code,4,AN,The merchant representative code handling the account. The merchant representative codes are defined by the acquirer.,,
+262-262,Merchant Status,1,AN,Status code of the merchant account,,
+264-264,User Flag 1,1,AN,A client defined field.,,
+266-266,User Flag 1,1,AN,A client defined field.,,
+268-271,User Data 1,4,AN,A client defined field.,,
+273-276,User Data 2,4,AN,A client defined field.,,
+278-281,User Data 3,4,AN,A client defined field.,,
+283-298,User Data 4,16,AN,A client defined field.,,
+300-315,User Data 5,16,AN,A client defined field.,,
+317-332,User Account 1,16,AN,A client defined field.,,
+334-349,User Account 2,16,AN,A client defined field.,,
+351-351,ACH Flag,1,AN,The daily ACH flag determines if the merchant will be funded on a daily basis.,Allowed values:,
+353,Visa CPS2,1,AN,,,
+355,Visa CPS1,1,AN,,,
+357,Visa Supermarket,1,AN,,,
+359,Visa PSRF,1,AN,,,
+361,Visa EIRF,1,AN,,,
+363,MC Merit 3,1,AN,,,
+365,MC Merit 1,1,AN,,,
+367,MC Supermarket,1,AN,,,
+369,MC PT CAT,1,AN,,,
+371,MC Warehouse,1,AN,,,
+373,MC PRM,1,AN,,,
+375,Discover Eligibility,1,AN,,,
+377,Merchant Type,4,AN,,1,1
+382,Inc Status,1,AN,,,
+384-391,Member ID,8,AN,,,
+393,GRS Flag,1,AN,,,
+395-419,Owner Name,25,AN,,1,1
+421-445,Manager Name,25,AN,,1,1
+447-471,Asst Manager Name,25,AN,,,
+473-497,Other Name,25,AN,,,
+499-507,SSN Number,9,AN,,,
+509-517,Owner License Number,9,AN,,,
+519-528,Last Statement Date,10,Date,MMDDCCYY?,,
+530-539,Open Date,10,Date,MMDDCCYY,,
+541-550,Last Credit Check Date,10,Date,,,
+552-561,Last Call Date,10,Date,,,
+563-572,Next Call Date,10,Date,,,
+574-583,Fin Statement Due Date,10,Date,,,
+585-594,Fin Statement Req Date,10,Date,,,
+596,Storage Flag,1,AN,,,
+598-602,Statement Count,5,AN,,,
+604-605,Address Discount Indicator,2,AN,,,
+607-608,Address RCL List,2,AN,,,
+610-611,Address CRB List,2,AN,,,
+613-614,Address Card Mailer,2,AN,,,
+616-617,Address IRS,2,AN,,,
+619-620,Address Imprinters Rentals,2,AN,,,
+622-623,Address Member Fees,2,AN,,,
+625-626,Address POS Terminals,2,AN,,,
+628-629,Address MIS,2,AN,,,
+631-632,Address Adjustments,2,AN,,,
+634-635,Address Chargebacks,2,AN,,,
+637-638,Address Unique Message,2,AN,,,
+640-641,Address BET1,2,AN,,,
+643-644,Address BET2,2,AN,,,
+646-647,Address BET3,2,AN,,,
+649,Interchange Dollar,1,AN,,,
+651,Interchange Count,1,AN,,,
+653,Dest Overall,1,AN,,,
+655,Dest Deposits,1,AN,,,
+657,Dest Adjustments,1,AN,,,
+659,Dest Chargebacks,1,AN,,,
+661,Dest Reversals,1,AN,,,
+663,Dest Chargeback Reversals,1,AN,,,
+665,Dest DDA Adjustments,1,AN,,,
+667,Dest Batch Adjustments,1,AN,,,
+669,Dest Tran Option 1,1,AN,,,
+671,Dest Tran Option 2,1,AN,,,
+673-676,Amex Description Code,4,AN,,,
+678-681,Discover Reference Number,4,AN,,,
+683-692,Amex ID,10,AN,,,
+694-708,Discover Acct ID,15,AN,,,
+710,Filler,1,AN,,,
+712,Filler,1,AN,,,
+714,Filler,1,AN,,,
+716,Filler,1,AN,,,
+718,Filler,1,AN,,,
+720-729,Last Activity Date,10,Date,,,1
+731,Daily Fee Indicator,1,AN,,,1
+733-735,MC Reg ID,3,AN,,,1
+737-746,Customer Service Number,10,AN,,,1
+748-766,Update Date Time,19,Date Time Stamp,,,1
+768-777,Status Change Date,10,Date,,,1
+779,Discover MAP Flag,1,AN,,,1
+781,Amex OptBlue Flag,1,AN,,,1
+783,Filler,1,AN,,,
+785-790,Amex Submitter ID,6,AN,,,
+792-816,Visa Descriptor,25,AN,,,1
+818-842,MC Descriptor,25,AN,,,1
+844-883,URL,40,AN,,,1
+885-894,Close Date,10,Date,,,1
+896-905,Date of Last Auth,10,Date,,,1
+907-921,DUNS Number,15,AN,,,1
+923,Multicurrency Flag,1,AN,,,
+925-926,Post Date Debits,2,AN,,,
+928-929,Post Date Credits,2,AN,,,
+931,Print Statement Indicator,1,AN,,,1
+933-938,Visa BIN,6,AN,,,1
+940-945,MC BIN,6,AN,,,1
+947-952,MC ICA,6,AN,,,1
+954-965,Amex CAP ID,12,AN,,,1
+967-977,Discover AIID,11,AN,,,1
+979-995,DDA Number,17,AN,,,1
+997-1005,Transit Routing Number,9,AN,,,1
+1007,Reclear Flag,1,AN,,,
+1009-1016,Exposure Amount,8,AN,,,1
+1018-1027,Merchant Activation Date,10,AN,YYYY/MM/DD,,1
+,,,,,,
+1029-1038,Date of First Deposit,10,AN,YYYY/MM/DD,,1
+,,,,,,
+1040-1049,Date of Last Deposit,10,AN,YYYY/MM/DD,,1
+,,,,,,
+1051,Trans Destination,1,AN,,,1
+1053-1054,DBA Country Code,2,AN,,,
+1056-1127,Merchant Email Address,72,ANC,,,1
+1129-1200,Chargeback Email Address,72,ANC,,,1
+1202-1202,Merchant Convenience Fee Flag,1,AN,Indicates if Convenience Fee is turned on for the Merchant,Allowed Values:,
+1204-1235,Convenience Fee Account Name,32,AN,Name of the Convenience Fee Account,,
+1237-1253,Convenience Fee Account Number,17,AN,Convenience Fee Account DDA Number,,
+1255-1255,Convenience Fee Type,1,AN,Convenience Fee Account Type,Allowed Values:,
+1257-1265,Convenience Fee Routing Number,9,AN,Convenience Fee Account Routing Number,,
+1267-1276,Convenience Fee Per Item,10,AN,Convenience Fee Per Item Amount,Per Item Format:,
+,,,,,9999.99999,
+1278-1278,Convenience Fee Net/Separate Indicator,1,AN,Indicates whether fees are netted from the deposit or are separate entries in the NACHA,Allowed Values:,
+1280-1280,Convenience Fee Transaction Type Indicator,1,AN,Indicates Card Not Present (CNP) Transaction Type,Allowed Values:,
+1282-1282,Split Funding Net/Separate Indicator,1,AN,Indicates whether fees are netted from the deposit or are separate entries,Allowed Values:,
+1284-1284,Split Funding Merchant Split Funding Flag,1,AN,Indicates if Split Funding is turned on for the Merchant,Allowed Values:,
+1286-1317,Split Funding Account Name 1,32,AN,Name of the first Split Funding Account,,
+1319-1335,Split Funding Account Number 1,17,AN,Split Funding Account DDA Number for Split Funding Account 1,,
+1337-1337,Split Funding Type 1,1,AN,Split Funding Account DDA Type for Split Funding Account 1,Allowed Values:,
+1339-1347,Split Funding Routing Number 1,9,AN,Split Funding Account Transit/Routing Number for Split Funding Account 1,,
+1349-1357,Split Funding Percent 1,9,AN,Split Funding Percent for Split Funding Account 1,Percent Format:,
+1359-1368,Split Funding Per Item 1,10,AN,Split Funding Per Item Amount for Split Funding Account 1,Per Item Format:,
+1370-1401,Split Funding Account Name 2,32,AN,Name of the second Split Funding Account,,
+1403-1419,Split Funding Account Number 2,17,AN,Split Funding Account DDA Number for Split Funding Account 2,,
+1421-1421,Split Funding Type 2,1,AN,Split Funding Account DDA Type for Split Funding Account 2,Allowed Values:,
+1423-1431,Split Funding Routing Number 2,9,AN,Split Funding Account Transit/Routing Number for Split Funding Account 2,,
+1433-1441,Split Funding Percent 2,9,AN,Split Funding Percent for Split Funding Account 2,Percent Format:,
+1443-1452,Split Funding Per Item 2,10,AN,Split Funding Per Item Amount for Split Funding Account 2,Per Item Format:,
+,,,,,9999.99999,
+1454-1485,Split Funding Account Name 3,32,AN,Name of the third Split Funding Account,,
+1487-1503,Split Funding Account Number 3,17,AN,Split Funding Account DDA Number for Split Funding Account 3,,
+1505-1505,Split Funding Type 3,1,AN,Split Funding Account DDA Type for Split Funding Account 3,Allowed Values:,
+1507-1515,Split Funding Routing Number 3,9,AN,Split Funding Account Transit/Routing Number for Split Funding Account 3,,
+1517-1525,Split Funding Percent 3,9,AN,Split Funding Percent for Split Funding Account 3,Percent Format:,
+,,,,,999.99999,
+1527-1536,Split Funding Per Item 3,10,AN,Split Funding Per Item Amount for Split Funding Account 3,Per Item Format:,
+,,,,,9999.99999,
+1538-1569,Split Funding Account Name 4,32,AN,Name of the fourth Split Funding Account,,
+1571-1587,Split Funding Account Number 4,17,AN,Split Funding Account DDA Number for Split Funding Account 4,,
+1589-1589,Split Funding Type 4,1,AN,Split Funding Account DDA Type for Split Funding Account 4,Allowed Values:,
+1591-1599,Split Funding Routing Number 4,9,AN,Split Funding Account Transit/Routing Number for Split Funding Account 4,,
+1601-1609,Split Funding Percent 4,9,AN,Split Funding Percent for Split Funding Account 4,Percent Format:,
+1611-1620,Split Funding Per Item 4,10,AN,Split Funding Per Item Amount for Split Funding Account 4,Per Item Format:,
+1622-1622,Split Funding Include Credits,1,AN,Indicates whether or not to include Credits in Split Funding,Allowed Values:,
+1624-1624,Split Funding Include Chargebacks,1,AN,Indicates whether or not to include Chargebacks in Split Funding,Allowed Values:,
+1626-1626,Split Funding Include Volume Adjustments,1,AN,Indicates whether or not to include Volume Adjustments in Split Funding,Allowed Values:,
+1628-1628,Split Funding Include Reversals,1,AN,Indicates whether or not to include Reversals in Split Funding,Allowed Values:,
+1630-1999,Reserved for future use,370,AN,Filler,,
+2000-2000,Delimiter,1,AN,,,

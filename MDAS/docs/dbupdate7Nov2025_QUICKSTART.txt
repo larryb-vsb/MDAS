@@ -1,0 +1,110 @@
+===============================================================================
+PRODUCTION DATABASE UPGRADE - QUICK START GUIDE
+Version: 7 November 2025
+===============================================================================
+
+WHAT THIS FIXES:
+✓ Auto 7 switch not working (missing dev_system_settings table)
+✓ Monitoring tab showing all zeros (missing dev_tddf_api_request_logs table)
+✓ All TDDF cache tables for performance
+✓ All missing indexes
+
+SCRIPT STATS:
+- 65 Tables
+- 129 Indexes  
+- 1,303 Lines of SQL
+- 100% Idempotent (safe to re-run)
+
+===============================================================================
+STEP-BY-STEP DEPLOYMENT
+===============================================================================
+
+1. BACKUP PRODUCTION DATABASE (CRITICAL!)
+   ```
+   pg_dump -h <prod_host> -U <prod_user> -d <prod_db> > backup_$(date +%Y%m%d).sql
+   ```
+
+2. RUN THE MIGRATION SCRIPT
+   ```
+   psql -h <prod_host> -U <prod_user> -d <prod_db> -f dbupdate7Nov2025.sql
+   ```
+
+3. VERIFY SUCCESS
+   Look for this message at the end:
+   "Production Database Upgrade Complete! Version: 7 Nov 2025"
+
+===============================================================================
+QUICK VERIFICATION
+===============================================================================
+
+After running, execute these SQL commands to verify:
+
+-- Check critical tables exist
+SELECT COUNT(*) FROM dev_system_settings;
+SELECT COUNT(*) FROM dev_tddf_api_request_logs;
+SELECT COUNT(*) FROM dev_connection_log;
+
+-- Count all tables
+SELECT COUNT(*) FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name LIKE 'dev_%';
+-- Should return: 65+
+
+-- Count all indexes
+SELECT COUNT(*) FROM pg_indexes 
+WHERE schemaname = 'public' AND tablename LIKE 'dev_%';
+-- Should return: 129+
+
+===============================================================================
+POST-DEPLOYMENT TESTING
+===============================================================================
+
+1. AUTO 7 SWITCH:
+   - Log into admin panel
+   - Navigate to automation settings
+   - Toggle Auto 7 switch
+   - Verify setting persists after refresh
+
+2. MONITORING TAB:
+   - Navigate to /tddf-api page
+   - Click "Monitoring" tab
+   - Should now show API request logs (not all zeros)
+   - Check "API Monitoring" section has data
+
+3. PERFORMANCE:
+   - Dashboard should load faster (cache tables active)
+   - Analytics charts should display data
+   - Merchant detail pages should be responsive
+
+===============================================================================
+TROUBLESHOOTING
+===============================================================================
+
+IF PERMISSION ERROR:
+   GRANT CREATE ON DATABASE <db_name> TO <user>;
+   
+IF CONNECTION ERROR:
+   Test connection first: psql -h <host> -U <user> -d <db> -c "SELECT 1;"
+   
+IF TABLE ALREADY EXISTS:
+   No problem! Script uses "CREATE TABLE IF NOT EXISTS"
+   Safe to continue
+   
+IF SCRIPT FAILS PARTWAY:
+   Safe to re-run! Script is idempotent
+   Will skip existing tables and continue
+
+===============================================================================
+ROLLBACK (if needed)
+===============================================================================
+
+To rollback, restore from backup:
+   psql -h <prod_host> -U <prod_user> -d <prod_db> < backup_YYYYMMDD.sql
+
+Note: Only rollback if critical errors occur. Missing tables won't break 
+existing functionality - they just enable new features.
+
+===============================================================================
+NEED HELP?
+===============================================================================
+
+Check full documentation: dbupdate7Nov2025_README.md

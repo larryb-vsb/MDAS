@@ -1,0 +1,9 @@
+{
+  "apiKey": "YOUR_API_KEY_HERE",
+  "serverUrl": "https://your-replit-url.replit.app",
+  "uploadDirectory": "C:\\path\\to\\your\\files",
+  "batchSize": 5,
+  "pollingInterval": 10,
+  "maxRetries": 3,
+  "chunkSize": 26214400
+}

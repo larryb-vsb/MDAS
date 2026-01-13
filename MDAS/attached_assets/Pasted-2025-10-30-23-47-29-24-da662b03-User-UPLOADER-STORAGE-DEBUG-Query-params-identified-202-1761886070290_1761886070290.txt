@@ -1,0 +1,137 @@
+2025-10-30 23:47:29.24
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-30 23:47:29.24
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-30 23:47:29.24
+da662b03
+User
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-30 23:47:29.57
+da662b03
+User
+4:47:29 AM [express] GET /api/uploader 200 in 264ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:30.04
+da662b03
+User
+[TDDF-API-PROCESSOR] Using table: tddf_api_queue
+2025-10-30 23:47:31.00
+da662b03
+User
+4:47:31 AM [express] GET /api/uploader 200 in 319ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:31.15
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-30 23:47:31.15
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-30 23:47:31.20
+da662b03
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-30 23:47:31.20
+da662b03
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-30 23:47:32.37
+da662b03
+User
+4:47:32 AM [express] GET /api/uploader 200 in 266ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:33.75
+da662b03
+User
+4:47:33 AM [express] GET /api/uploader 200 in 266ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:33.94
+da662b03
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-30 23:47:33.94
+da662b03
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-30 23:47:33.94
+da662b03
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-30 23:47:33.94
+da662b03
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-30 23:47:34.00
+da662b03
+User
+[REPLIT-STORAGE] Found 328 files in prod-uploader/
+2025-10-30 23:47:34.00
+da662b03
+User
+[STORAGE-CONFIG] Successfully counted 328 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-30 23:47:34.06
+da662b03
+User
+4:47:34 AM [express] GET /api/uploader/storage-config 200 in 220ms :: {"available":true,"service":"R…
+2025-10-30 23:47:34.11
+da662b03
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-30 23:47:34.16
+da662b03
+User
+4:47:34 AM [express] GET /api/mms-watcher/auto45-status 200 in 328ms :: {"success":true,"enabled":tr…
+2025-10-30 23:47:35.11
+da662b03
+User
+4:47:35 AM [express] GET /api/uploader 200 in 267ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:36.48
+da662b03
+User
+4:47:36 AM [express] GET /api/uploader 200 in 268ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:37.85
+da662b03
+User
+4:47:37 AM [express] GET /api/uploader 200 in 268ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:39.23
+da662b03
+User
+4:47:39 AM [express] GET /api/uploader 200 in 267ms :: {"uploads":[{"id":"uploader_1761885008263_rua…
+2025-10-30 23:47:39.30
+da662b03
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-30 23:47:39.30
+da662b03
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-30 23:47:39.30
+da662b03
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-30 23:47:39.30
+da662b03
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-30 23:47:39.35
+da662b03
+User
+[REPLIT-STORAGE] Found 328 files in prod-uploader/
+2025-10-30 23:47:39.35
+da662b03
+User
+[STORAGE-CONFIG] Successfully counted 328 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-30 23:47:39.37
+da662b03
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-30 23:47:39.41
+da662b03
+User
+4:47:39 AM [express] GET /api/uploader/storage-config 200 in 218ms :: {"available":true,"service":"R…
+
+2025-10-30 23:47:39.43
+da662b03
+User
+4:47:39 AM [express] GET /api/mms-watcher/auto45-status 200 in 161ms :: {"success":true,"enabled":tr…

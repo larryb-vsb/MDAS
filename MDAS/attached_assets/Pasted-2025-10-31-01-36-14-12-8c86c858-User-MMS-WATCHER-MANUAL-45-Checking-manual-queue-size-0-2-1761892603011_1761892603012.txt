@@ -1,0 +1,156 @@
+2025-10-31 01:36:14.12
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 01:36:14.43
+8c86c858
+User
+6:36:14 AM [express] GET /api/tddf-archive 200 in 274ms :: {"files":[],"total":0,"limit":25,"offset"…
+2025-10-31 01:36:14.86
+8c86c858
+User
+6:36:14 AM [express] GET /api/uploader 200 in 268ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:36:15.22
+8c86c858
+User
+Error fetching TDDF API monitoring: error: relation "tddf_api_request_logs" does not exist
+2025-10-31 01:36:15.22
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 01:36:15.22
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 01:36:15.22
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:22338:21 {
+2025-10-31 01:36:15.22
+8c86c858
+User
+length: 121,
+2025-10-31 01:36:15.22
+8c86c858
+User
+severity: 'ERROR',
+2025-10-31 01:36:15.22
+8c86c858
+User
+code: '42P01',
+2025-10-31 01:36:15.22
+8c86c858
+User
+detail: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+hint: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+position: '344',
+2025-10-31 01:36:15.22
+8c86c858
+User
+internalPosition: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+internalQuery: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+where: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+schema: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+table: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+column: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+dataType: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+constraint: undefined,
+2025-10-31 01:36:15.22
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 01:36:15.22
+8c86c858
+User
+line: '1449',
+2025-10-31 01:36:15.22
+8c86c858
+User
+routine: 'parserOpenTable'
+2025-10-31 01:36:15.22
+8c86c858
+User
+}
+2025-10-31 01:36:15.27
+8c86c858
+User
+6:36:15 AM [express] GET /api/tddf-api/monitoring 500 in 219ms :: {"error":"Failed to fetch monitori…
+2025-10-31 01:36:16.89
+8c86c858
+User
+6:36:16 AM [express] GET /api/uploader 200 in 317ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:36:17.15
+8c86c858
+User
+6:36:17 AM [express] GET /api/uploader 200 in 483ms :: {"uploads":[{"id":"uploader_1761890540202_097…
+2025-10-31 01:36:17.27
+8c86c858
+User
+6:36:17 AM [express] GET /api/uploader/processing-status 200 in 160ms
+2025-10-31 01:36:18.37
+8c86c858
+User
+6:36:18 AM [express] GET /api/uploader/jsonb-stats 200 in 159ms
+2025-10-31 01:36:18.57
+8c86c858
+User
+6:36:18 AM [express] GET /api/uploader/dashboard-stats 200 in 161ms
+2025-10-31 01:36:18.83
+8c86c858
+User
+6:36:18 AM [express] GET /api/tddf-archive 200 in 267ms :: {"files":[],"total":0,"limit":25,"offset"…
+2025-10-31 01:36:19.48
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 01:36:19.48
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploading' ]
+2025-10-31 01:36:19.53
+8c86c858
+User
+Error fetching TDDF API monitoring: error: relation "tddf_api_request_logs" does not exist
+2025-10-31 01:36:19.53
+8c86c858
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 01:36:19.53
+8c86c858
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 01:36:19.53
+8c86c858
+User
+at async file:///home/runner/workspace/dist/index.js:22338:21 {
+2025-10-31 01:36:19.53
+8c86c858
+User
+length: 121,

@@ -1,0 +1,577 @@
+Record Type,Field Name,Position start,Position stop,Field Length,Format,Description,Enumeration
+DT,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+DT,Entry Run Number,8,13,6,N,,
+DT,Sequence Number within entry run,14,17,4,N,,
+DT,Record Identifier,18,19,2,AN,The value that identifies the type of record.,"Constant value is ""DT"""
+DT,Bank Number,20,23,4,AN,The Global Payments  bank number.,
+DT,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+DT,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+DT,Group Number,46,51,6,AN,Group number for the merchant.,
+DT,Transaction Code,52,55,4,N,Global Payments  Transaction code.,
+DT,Association Number,56,61,6,N,The identification number of an association to which the merchant reports.,
+DT,Reference Number,62,84,23,N,The 11 digits from the beginning reference number on the Merchant Header of the Draft 256 file. The acquirer reference number is built in the FCS process.,
+DT,Transaction Date,85,92,8,N,The date on which the transaction is performed.,Allowed format is MMDDCCYY
+DT,Transaction Amount,93,103,11,N,The amount for which the transaction was performed.,Format:99999999999
+DT,Batch Julian Date,104,108,5,N,Batch Julian Date.,Allowed format is DDDYY
+DT,Net Deposit,109,123,15,N,The deposited amount.,Format:999999999999999
+DT,Cardholder Account Number,124,142,19,N,The account number of the card used in transaction.,
+DT,Best Interchange Eligible,143,144,2,N,,
+DT,Transaction Data Condition Code,145,146,2,N,The condition of the card track information in the authorization request. The field has two parts.The first part of the field indicates the condition of the track 1 information. The second part of the field indicates the condition of the track 2 information.,
+DT,Downgrade Reason 1,147,150,4,N,,
+DT,Downgrade Reason 2,151,154,4,N,,
+DT,Downgrade Reason 3,155,164,10,N,,
+DT,Online Entry,165,165,1,AN,,
+DT,ACH Flag,166,166,1,AN,The daily ACH flag determines if the merchant will be funded on a daily basis.,Allowed values are:YN
+DT,Auth Source,167,167,1,AN,The source code of authorization for the transaction.,
+DT,Cardholder I/D Method,168,168,1,AN,A code for the type of identification the customer used at the time of the transaction.,
+DT,CAT Indicator,169,169,1,AN,A code that indicates if the terminal can be activated by the cardholder.,
+DT,Reimbursement Attribute,170,170,1,AN,The code that identifies the interchange program for which the transaction is being submitted.,
+DT,Mail Order/Telephone Order Indicator,171,171,1,AN,The value in the field should apply to all items included in the batch else the field should be blank.,Allowed values are:1 = SINGLE TRANSACTION2 = RECURRING TRANSACTION3 = INSTALLMENT BILLING4 = UNKNOWN CLASSIFICATION
+DT,Auth Char Ind (ACI),172,172,1,AN,,
+DT,"Banknet Reference Number and Banknet Auth (MC)Transaction Identifier (VS, AM)Discover Network Reference ID (DS) Date(MC)Transaction Identifier (VS, AM)Discover Network Reference ID (DS)",173,187,15,N/AN,MC: Ref Num 9N and Auth Date 6CHVS/AM/DS: 15CH,
+DT,Draft A Flag,188,188,1,AN,,Allowed values are:Y-YesN-No
+DT,Auth Currency Code,189,191,3,N,The code that identifies the currency used in the original authorized transaction.,
+DT,Auth Amount,192,203,12,N,The amount authorized for the original transaction.,Format:999999999999
+DT,Validation Code,204,207,4,N,,
+DT,Auth Response Code,208,209,2,N,The response code of Visa authorization.,Allowed values are:88 = Can provide approval code99 = Cannot provide approval code00 = Credit transaction – approval not needed
+DT,Network Identifier - Debit,210,212,3,N,The code used to identify the network used to process a transaction made with a debit card.,
+DT,Switch Settled Indicator,213,213,1,AN,The code used to indicate that the transaction was settled by the Mastercard Debit Switch.,
+DT,POS Entry Mode,214,215,2,AN,A code that identifies the method used to enter the transaction in the terminal.,
+DT,Debit/Credit Indicator,216,216,1,AN,Indicates if the transaction is a debit or credit.,Allowed values are:D - DebitC - Credit
+DT,Reversal Flag,217,217,1,AN,,
+DT,Merchant Name,218,242,25,AN,The DBA name.,
+DT,Authorization Number,243,248,6,AN,The source code of authorization for transaction.,
+DT,Reject Reason,249,252,4,AN,,
+DT,Card Type,253,254,2,AN,The type of card used in transaction.,
+DT,Currency Code,255,257,3,AN,The code that identifies the currency used in the original authorized transaction.,
+DT,Original Transaction Amount,258,268,11,N,The amount for which the transaction was performed.,Format:99999999999
+DT,Foreign Card Indicator,269,269,1,AN,,
+DT,Carryover Indicator,270,270,1,AN,,
+DT,Extension Record Indicator,271,272,2,AN,Indicates if an extension record follows the Financial Record and its extension.,
+DT,MCC Code,273,276,4,AN,The merchant category code (MCC) identifies the business of the merchant by the type of goods or services it provides.,
+DT,Terminal ID,277,284,8,AN,,
+DT,Discover POS Entry Mode,285,287,3,AN,,
+DT,Purchase ID,288,312,25,AN,,
+DT,Cash Back Amount (MC),313,321,9,N,The amount of cash returned to the cardholder.,Format:999999999
+DT,Cash Back Amount Sign +/- (MC),322,322,1,AN,The cash back amount sign+/- (MC),Allowed values are:+-
+DT,POS Data Code,323,335,13,AN,A 12 part code that indicates specific conditions that exist at the time of the transaction.,
+DT,Transaction Type Identifier,336,338,3,AN,"A code used to monitor and track the participant's activity in special promotion programs, such as Quick Payment Services (QPS), supermarket, service industries, payment transactions, and Warehouse Club programs.",
+DT,Card Type,339,341,3,AN,The type of card used in the transaction.,
+DT,Product ID,342,343,2,AN,The identification number of a product.,
+DT,Submitted Interchange,344,348,5,AN,,
+DT,System Trace Audit Number,349,354,6,AN,A number assigned by the acquiring member or the merchant to help identify the transaction.The field must be right justified and can have leading zeroes.,
+DT,Discover Transaction Type,355,356,2,AN,,Allowed values are:SA - Card SaleRT - CreditCA - Cash AdvanceRS - Card Sale ReversalRC - Cash Advance ReversalRR - Credit Reversal
+DT,Local Transaction Time,357,362,6,AN,The time the first presentment was initiated.,Allowed format is HHMMSS
+DT,Discover Processing Code,363,368,6,AN,The code used to indicate the effect of a transaction on the account or on the receiving institution.,
+DT,Commercial Card Service Indicator,369,369,1,AN,,"Allowed values are:A - GSA IGOTSB - GSA Large-TicketC - Both GSA Large-Ticket and GSAIGOTSD - FleetE - Fleet and GSA IGOTSF - Fleet and GSA Large-TicketG - Fleet, GSA IGOTS, and GSALarge-TicketH - Large TicketI - Fleet and Large-TicketJ - Visa Distribution"
+DT,Mastercard Cross BorderVisa ISA ASSM Fee AmountAMEX Inbound Fee,370,378,9,N,,Format:999999999
+DT,Card Brand Fee Code,379,379,1,AN,,Allowed values are:Space - no fee applied1 - Mastercard Cross Border Domestic Currency2 - Mastercard Cross Border Foreign Currency3 - Visa ISA Purchase4 - Visa ISA Cash5 - AMEX Inbound Fee
+DT,DCC Indicator,380,380,1,AN,Indicates if the Dynamic Currency Conversion was used for the transaction.,Allowed values are:U = DCC was usedE = DCC was enabled but not used
+DT,Regulated Indicator,381,381,1,AN,,Allowed values for Visa:Y - Visa Regulated Debit Fee Transaction with Fraud Prevention AdjustmentBlank or N - Visa Non -Regulated TransactionAllowed values for MastercardB - Mastercard Regulated Debit Fee Transaction1 - Mastercard Regulated Debit Fee Transaction & eligible for Fraud Prevention AdjustmentBlank or N - Mastercard Non-Regulated TransactionAllowed values for Discover:1 - Discover Non-Exempt Transaction with Fraud Prevention Adjustment2 - Discover Non-Exempt TransactionBlank or Zero - Discover Exempt Transaction (Non-Regulated)
+DT,Visa Integrity Fee,382,390,9,N,,
+DT,Foreign Exchange Flag (Re-define:ACH Indicator),391,391,1,AN,Indicates if a foreign exchange rate was applied to the transaction.Note: The field is reused for Global Payments as the ACH Indicator.,Allowed values:YesNo
+DT,Visa Fee Program Indicator,392,394,3,AN,,
+DT,Transaction Fee Debit/Credit Indicator,395,396,2,AN,"Indicates if the transaction fee amount is a debit or credit.Note: If the transaction fee amount is zero, then the Transaction Fee DC Indicator will be space filled",
+DT,Transaction Fee Amount,397,413,17,N,Includes leading sign and decimal with 2 places after.,Format:-9999999999999.99
+DT,Transaction Fee Amount   in Cardholder Billing Currency,414,424,11,N,Includes leading sign and decimal with 2 places after.,Format:-9999999.99
+DT,IASF Fee Type,425,426,2,AN,Visa International Acquirer service fee.,The Fee types are:01 - Canada IASF Multi Currency Purchase02 - Canada IASF Single Currency Purchase03 - Canada IASF Multi Currency Cash04 - Canada IASF Single Currency Cashspace - No fee
+DT,IASF Fee Amount,427,437,11,N,Includes leading sign and decimal with 2 places after.,Format:-9999999.99
+DT,IASF Fee Debit/ Credit Indicator,438,438,1,AN,Indicates if the IASF Fee Amount is a debit or credit.,Allowed values are:D – DebitC - Credit
+DT,Merchant Assigned Reference Number,439,450,12,AN,The merchant assigned reference number passed through from the incoming 150 byte capture file.,
+DT,Net Deposit Adjustment Amount,451,465,15,N,,Format:Blank or999999999999999
+DT,Net Deposit Adjustment DC,466,466,1,AN,,D' Debit 'C' Credit
+DT,MC Cash Back Fee,467,481,15,AN,,
+DT,MC Cash Back Fee Sign,482,482,1,AN,,+' Positive '-' Negative
+DT,Amex Industry SE Number,483,492,10,AN,This field contains the American Express assigned Service Establishment (SE) Number that is used to identify merchants.,
+DT,Amex Merchant Seller ID,493,512,20,AN,A unique code defined by the aggregator or OptBlue participant to identify a seller/vendor.,
+DT,Amex Merchant Seller Name,513,537,25,AN,"This field contains the Merchant/Seller name that appears on the storefront and/or customer receipts, commonly referred to as the D.B.A. (Doing Business As) name.",
+DT,Amex Merchant Seller Address,538,562,25,AN,This field contains the Merchant's/Seller’s street address where the transaction took place.,
+DT,Amex Merchant Seller Phone,563,578,16,AN,This field contains the Merchant's telephone number.,
+DT,Amex Merchant Seller Postal Code,579,588,10,AN,This field contains the postal code of the merchant.,
+DT,Amex Merchant Seller Email,589,628,40,AN,This field contains the Merchant's email address.,
+DT,Mastercard Transaction Integrity Class,629,630,2,AN,This value is assigned by Mastercard and shows the safety and security of the transaction and includes the final assessment of the validity of the card and the cardholder.,"Card and Cardholder Present:A1- EMV/Token in a Secure, Trusted EnvironmentB1- EMV/Chip EquivalentC1- Mag StripeE1- Key EnteredU0- UnclassifiedCard and/or Cardholder Not Present:A2- Digital TransactionsB2- Authenticated CheckoutC2- Transaction ValidationD2- Enhanced DataE2- Generic MessagingU0- Unclassified"
+DT,Equipment Source Identification (ESID),631,633,3,AN,Identifies the source of the transmission of the transaction.,
+DT,Operator ID,634,636,3,AN,Batch Operator Initials from the Draft 256 Data Capture Format Batch Header record.,
+DT,Requested Payment Service (RPS),637,637,1,AN,Visa Requested Payment Service,Space Not a payment service transaction.1- CPS/Passenger Transport – Card Not Present2- CPS/Passenger Transport – Card Present3 -CPS/Hotel (Card Not Present)4 -CPS/Hotel (Card Present)5 -CPS/Auto Rental (Card Not Present)6 -CPS/Auto Rental (Card Present)7 -CPS/Direct Marketing and CPS/Card Not Present8CPS/Automated Fuel Dispenser9 -CPS/ATMA -CPS/Retail (Debit or Credit) – U.S. National orCPS/Supermarket (Debit or Credit) – U.S. NationalB -CPS/Restaurant -Brazil and U.S. NationalC -CPS/Retail Credit Card—U.S. National (no longer valid as of April 2005)E -CPS/Retail Key Entry (Debit or Credit) – U.S. NationalFCPS/Small- Ticket—U.S. NationalG -CPS/Electronic Commerce—Basic (U.S. National)H -CPS/Account FundingI -CPS/Retail - Incremental AuthorizationsJ -CPS/Electronic Commerce - PreferredK -CPS/Electronic Commerce Preferred - Passenger TransportL -CPS/Electronic Commerce Preferred - HotelM -CPS/Electronic Commerce Preferred - Car RentalN -CPS/Retail Service StationP -CPS/Recurring Bill Payment
+DT,Total Authorized Amount,638,649,12,AN,Authorization amount including incremental and reversal amounts.,Format:999999999999
+DT,Interchange Fee Amount,650,666,17,N,Calculated interchange fee for this transaction,Format:-9999999999999.99
+DT,Mastercard Wallet Identifier,667,669,3,AN,"This is a Mastercard value that is generated by the Masterpass online platform. This value is passed to the merchant at the time of consumer checkout, and is included in the authorization request transaction.",
+DT,"Visa Special Condition Indicator, Risk Identification",670,670,1,AN,"Special Condition indicator, Risk identificationPossible Values:Space- Indicator not required for this merchant1- Zero floor limit required2- Terminal capable of reading and transmitting the full unaltered contents of the magnetic stripe3- Zero floor limit and terminal capable of reading and transmitting the full unaltered contents of the magnetic stripe",
+DT,Interchange Percent Rate,671,676,6,N,Card brand percent applied for interchange fee,Format:-99999
+DT,Interchange Per Item Rate,677,682,6,N,Card brand per item rate applied for interchange fee,Format:-99999
+DT,Credit Plan Reject Code,681,681,1,AN,Applicable to Retail Private Label clients only,
+DT,ESID (Retail File Split),684,686,3,AN,Applicable to Retail Private Label clients only,
+DT,Visa Agreement ID,687,690,4,AN,This field contains the agreement ID associated with the agreed fee rate for the Commercial Choice Program.,
+DT,Visa Additional Token Response Information,691,691,1,AN,This field contains a value that identifies if the transaction is eligible for token services.,1 - Token program Space - Not applicable
+DT,Visa Merchant Identifier,692,699,8,AN,This field contains a unique identifier value assigned by Visa for each merchant included in the Commercial Choice Program.,
+DT,Reserved for future use,700,700,1,AN,,
+A1,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+A1,Entry Run Number,8,13,6,N,,
+A1,Sequence Number within entry run,14,17,4,N,,
+A1,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""A1"""
+A1,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+A1,Merchant Account Number,24,39,16,N,The Global Payments  account number.,
+A1,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+A1,Group Number,46,51,6,AN,Group number for the merchant.,
+A1,Transaction Code,52,55,4,N,Global Payments  Transaction code identifies the type of record being transmitted.,
+A1,Multiple Clearing Sequence Number,56,57,2,AN,A code that indicates if a clearing transaction is one of the set of transactions submitted under a single authorization.,
+A1,Multiple Clearing Sequence Count,58,59,,AN,"In a situation where multiple transactions were submitted under a single authorization, this field has the sequence number of this transaction in the series of transactions.",
+A1,Passenger Name,60,79,20,AN,The name of the person for whom the ticket was purchased.,
+A1,Filler,80,89,10,AN,,
+A1,Customer Code,90,106,17,AN,An identification code supplied by the cardholder to the card acceptor.,
+A1,Total Fare Amount,107,118,12,N,The total cost of the ticket.,Format:999999999999
+A1,Total Tax Amount,119,130,12,N,The total amount of taxes assessed on the ticket.,Format:999999999999
+A1,National Tax Amount,131,142,12,N,The amount of national tax assessed on the ticket.,Format:999999999999
+A1,Total Fee Amount,143,154,12,N,The total amount of fees included with the transaction.,Format:999999999999
+A1,Currency Code,155,157,3,N,A code that indicates the type of currency used in the transaction.,
+A1,Exchange Ticket Number,158,170,13,N,A number assigned by the airline to identify a ticket exchanged for the original ticket.,
+A1,Exchange Ticket Amount,171,182,12,N,The amount charged by the airline for a ticket exchanged for the original ticket.,Format:9999999999999999
+A1,Travel Agency Code,183,190,8,N,A code that identifies the travel agency through which the ticket was purchased.,
+A1,Travel Agency Name,191,215,25,AN,The name of the travel agency through which the ticket was purchased.,
+A1,Ticket Number,216,230,15,N,A number assigned by the airline to identify the ticket.,
+A1,Internet Indicator,231,231,1,AN,Indicates if the transaction was made over the internet.,Allowed values are:Y=Transaction was made over the internetN=Transaction was not made over the internet
+A1,Issue Date,232,237,6,N,The date the ticket was issued.,Allowed format is MMDDYY
+A1,Issuing Carrier,238,241,4,N,"An Industry defined code that identifies the airline that issued the ticket.For Mastercard, the field name is Issuing Carrier.For Discover, the field name is Carrier Code.",
+A1,Restricted Ticket Indicator,242,242,1,AN,A code that indicates that the ticket has some restriction associated with its use.,
+A1,Computerized Reservation System,243,246,4,AN,The computerized reservation system uses Computerized Reservation System Indicator Code to provide information about the airline transaction or carrier.,Allowed values are:STRT=StartPARS=TWADATS=DeltaSABR=SabreDALA=Covia-ApolloBLAN=Dr. BlankDERD=DERTUID=TUI
+A1,Extension Indicator,247,248,2,AN,,Values are:AIRL2 - An Airline 2 Extension Record followsSpaces - No Extension Record follows
+A1,Reserved for future use,249,700,452,,,
+A2,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+A2,Entry Run Number,8,13,6,N,,
+A2,Sequence Number within entry run,14,17,4,N,,
+A2,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""A2"""
+A2,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+A2,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+A2,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+A2,Group Number,46,51,6,AN,Group number for the merchant.,
+A2,Transaction Code,52,55,4,N,Global Payments  Transaction code identifies the type of record being transmitted.,
+A2,Conjunction Ticket Number,56,69,14,N,"VISA Conjunction Ticket Number (13) - uses a 13-character conjunction ticket number in positions 17-29. Position 30, contains SPACES and is reserved for future use.Mastercard Conjunction Ticket Number (14) - uses the entire 14-character field.",
+A2,Coupon Number,70,70,1,N,,
+A2,Carrier Code,71,72,2,N,"Industry defined code that identifies the airline.For Visa and Mastercard, the field name is Carrier Code.For Discover, the field name is Leg Carrier Code.",
+A2,Flight Number,73,77,5,N,A number used by the airline to identify the flight for which the ticket was issued.For Visa and Mastercard the field name is Flight Number.For Discover the field name is Leg Flight Number.,
+A2,Service Class,78,79,2,AN,"A code used by the airline to identify the class of service covered by the ticket.For Visa and Mastercard, the field name is Service Class.For Discover, the field name is Leg Class.",
+A2,ORIG City/Airport Code,80,84,5,N,"A code used by the airline to identify the airport where the flight originated.For Visa the field name is Origination City Airport Code.For Mastercard, the field name is City of Origin Airport Code.For Discover, the field name is Leg Departure Airport.",
+A2,Stop Over Code,85,85,1,N,"A code that indicates if there was a stopover during the course of the trip.For Visa and Mastercard, the field name is Stopover Code.For Discover, the field name is Leg Stopover Code.",
+A2,DEST City/Airport Code,86,90,5,N,"Code used by the airline to identify the airport where the flight terminated.For Visa, the field name is Destination City Airport CodeFor Mastercard, the field name is City of Destination Airport Code.For Discover, the field name is Leg Destination Code.",
+A2,Fare Basis Code,91,105,15,N,"A code assigned by the airline to identify the ticket type, special rates, or incentives used to determine the fare.",
+A2,Departure/Travel Date,106,111,6,N,"For the first trip leg, the actual date of travel.For subsequent trip legs, the date may be either the actual date of travel (preferred) or the travel date of the first leg.For VISA, the field name is Departure Date.For Mastercard, the field name is Travel Date.",
+A2,Departure Time,112,115,4,N,"The time that the flight departed from the city of origin.For Visa and Mastercard, the field name is Departure Time.For Discover, the field name is Leg Departure Time.",
+A2,Arrival Time,116,119,4,N,"The time that the flight arrived to the destination city.For Visa and Mastercard, the field name is Arrival Time.For Discover the field name is Leg Arrival Time.",
+A2,Departure Time Segment,120,120,1,N,A code that indicates if the time provided in theDeparture Time field was before or after midnight.Departure Time field was before or after midnight.,Allowed values are:SPACES=Unknown or not availableA=00:00 (midnight) to 11:59P=12:00 (noon) to 23:59
+A2,Arrival Time Segment,121,121,1,N,A code that indicates if the time provided in the Arrival Time field was before or after midnight.,Allowed values are:SPACES=Unknown or not availableA=00:00 (midnight) to 11:59P=12:00 (noon) to 23:59
+A2,Exchange Ticket,122,136,15,AN,The number used to identify the ticket issued to replace the original ticket.,
+A2,Fare Amount,137,148,12,N,The amount of the fare charged for the ticket.,Format:Blank or999999999999
+A2,Fee Amount,149,157,9,N,The amount of any fee attached to the fare.,Format:Blank or999999999
+A2,Taxes Amount,158,166,9,N,The amount of tax assessed on the fare.,Format:Blank or999999999
+A2,Endorsements/Restrictions,167,186,20,AN,"For Mastercard the field name is Endorsements or Restrictions. The notations such as value added tax can be added by the agency or required by the government.Restrictions are limitations set on a ticket based on a type of fare, such as non-refundable or 3-day minimum stay.Discover: Restriction Indicator or Leg Restrictions - notations, such as value added tax, which can be added by the agency or required by the government.Restrictions are limitations set on a ticket based on a type of fare, such as non-refundable or 3-day minimum stay.Restriction Indicator is a part of Sequence II of the Discover Network Airline Supplemental Data Record.Leg Restrictions is a part of Sequence IV of the Discover Network Airline Supplemental Data Record.",
+A2,Extension Indicator,187,188,2,AN,,
+A2,Reserved for future use,189,700,512,AN,,
+CT,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+CT,Entry Run Number,8,13,6,N,,
+CT,Sequence Number within entry run,14,17,4,N,,
+CT,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""CT"""
+CT,Bank Number,20,23,4,AN,The Global Payments Bank number.,
+CT,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+CT,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+CT,Group Number,46,51,6,AN,A Group number for the merchant.,
+CT,Transaction Code,52,55,4,N,Global Payments  transaction code identifies the type of record being transmitted.,
+CT,Purchase Identifier,56,80,25,AN,,
+CT,No Show Indicator,81,81,1,AN,Indicates if the renter did not pick up the rental vehicle.,Allowed values are:0=Not applicable1=No show
+CT,Extra Charge,82,87,6,AN,The codes that indicate the type of additional charges added to a customer's bill. Each of the valid values for the field is one character. You can enter up to six valid values.,Allowed values areSPACES=No extra charges0=No extra charges1=Gas2=Extra mileage3=Late return4=One-way service fee5=Parking violation
+CT,Check Out Date,88,93,6,N,The date when the customer picked up the car or was scheduled to do so.,Allowed format is MMDDYY.
+CT,Market Specific Authorization Data Indicator,94,94,1,AN,,
+CT,Total Authorized Amount,95,106,12,N,The total amount authorized for the rental transaction.,Format:999999999999
+CT,Renter Name,107,146,40,AN,The name of the person renting the vehicle.,
+CT,Return Location ID,147,156,10,AN,An identification number that identifies the location where the vehicle was returned.,
+CT,Program Code,157,158,2,N,"The code used to identify special circumstances, such as a no show customer.For Discover, the field name is Vehicle Program Code or Special Program Code. The code is used to identify characteristics of a rental program.The Vehicle Program Code is part of Sequence II of the Discover Network Vehicle Rental Supplemental Data Record.The Special Program Code is part of Sequence III of the Discover Network Vehicle Rental Supplemental Data",
+CT,Rental Return Date,159,164,6,N,The date when the rented vehicle was returned.,Allowed format is MMDDYY.
+CT,Daily Rental Rate,165,173,9,N,The per day charge for the rented vehicle,Format:999999999
+CT,Weekly Rental Rate,174,182,9,N,The per week charge for the rented vehicle.,Format:999999999
+CT,Rate Per Mile,183,188,6,N,The per mile charge for the rented vehicle.,
+CT,Adjustment Amount Indicator,189,189,1,AN,"Indicates the type of charges made after the vehicle was returnedFor Mastercard, the field name is Adjusted Amount.For Discover, the field name is Adjustment Amount Indicator Code.For American Express, the field name is Auto Rental Audit Adjustment Indicator. The field indicates that an adjustment was made to a vehicle rental charge.","Allowed values for Mastercard:N=No additional chargesA=Drop-off chargeB=Delivery chargeC=Parking expensesD=Extra hoursE=ViolationsX=More than one of the aboveAllowed values for Discover:SPACES=No additional charges or unknownA=Drop-offchargeB=Delivery chargeC=Parking expensesD=Extra hoursE=ViolationsX=More than one of the aboveAllowed values for AMEX:SPACES=Unknown or no adjustment madeA=Drop off chargesB=Delivery chargesC=Parking expensesD=Extra hoursE=ViolationsF-S=Reserved for ISO useT-W=Reserved for national useX=Multiple charges of the above typesY=Adjustment made, cardmember notifiedZ=Adjustment made, cardmember not notified"
+CT,Fuel Charges,190,198,9,N,"For Visa, the field name is Fuel Charges. The field indicates the amount charged for fuel for the rented vehicle.For Mastercard, the field name is Adjusted Amount. The field indicates the amount of any adjustment to the transaction amount.For Discover, the field name is Adjustment Amount. The field indicates the amount of any adjustment to the transaction amount for items like fuel.For American Express, the field name is Auto Rental Audit Adjustment Amount. It is the amount of any adjustments made to a vehicle rental contract after the vehicle was checked in. This amount is given in the currency and decimalization of the first presentment.",Format:999999999
+CT,Insurance Indicator,199,199,1,AN,Indicates if insurance was purchased by the renter.,"Allowed values are,Y=Insurance was purchased by the renterN=Insurance was not purchased by the renterSPACES=Value not provided"
+CT,Insurance Charges,200,208,9,N,"The amount charged to insure the rented vehicle.For Visa, the field must be numeric. It has two implied decimal positions.For Mastercard, the field must have either a valid number or spaces.",Format:999999999
+CT,Car Class Code/Rental Class,209,210,2,AN,"The class of the car that was rented.For Visa, the field name is Car Class Code.For Mastercard, the field name is Rental Class Identifier.For American Express, the field name is Auto Rental Vehicle Class.Note:For the possible values below, enter the last two characters to the right only.For example, to indicate that the car was a subcompact, enter 02.",Allowed  Visa values:0001=Mini0002=Subcompact0003=Economy0004=Compact0005=Midsize0006=Intermediate0007=Standard0008=Full size0009=Luxury0010=Premium0011=Minivan0012=12-passenger van0013=Moving van0014=15-passenger van0015=Cargo van0016=12-foot truck0017=20-foot truck0018=24-foot truckAmerican Express: Auto Rental Vehicle Class Identifier Possible Values:0019=26-foot truck0020=Moped0021=Stretch0022=Regular0023=Unique0024=Exotic0025=Small/medium truck0026=Large truck0027=Small SUV0028=Medium SUV0029=Large SUV0030=Exotic SUV0031=Four Wheel Drive0032=Special9999=Miscellaneous
+CT,One Way Drop-Off Charges,211,219,9,N,The amount of any fee charged for a one way rental vehicle.,Format:999999999
+CT,Total Miles,220,223,4,N,The distance traveled in the vehicle during the rental.,Format:Blank or9999
+CT,Max Free Miles,224,227,4,N,A maximum number of miles for which the renter will not be charged.,Format:Blank or9999
+CT,Extension Record Indicator,228,229,2,AN,The code indicates if another extension record follows this record.,
+CT,Days Rented,230,231,2,N,The number of days the vehicle was rented.,Format:99
+CT,Reserved for future use,232,700,469,AN,,
+DR,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+DR,Entry Run Number,8,13,6,N,,
+DR,Sequence Number within entry run,14,17,4,N,,
+DR,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""DR"""
+DR,Bank Number,20,23,4,AN,The Global Payments Bank number.,
+DR,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+DR,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+DR,Group Number,46,51,6,AN,Group number for the merchant.,
+DR,Transaction Code,52,55,4,N,Global Payments  Transaction code identifies the type of record being transmitted.,
+DR,Purchase ID/Direct Marketing ORD Number,56,80,25,N,The record is built when the purchase identifier format code is 1. The purchase identifier contains the direct marketing order number.,
+DR,Address Verification Service Response,81,81,1,CH,The response code from the Visa Address Verification System.,
+DR,Total Authorized Amount,82,93,12,N,The total amount authorized for the transaction.,Format:999999999.99
+DR,Merchant Customer Service Phone Number,94,106,13,N,"The customer service telephone number used to resolve disputes or answer questions.If you enter a telephone number in this field, the number will replace the Merchant City field and the customer service telephone number will be printed on the Proof and Verification report instead of the merchant's city name.",
+DR,Mail/Phone Installment Sequence Number,107,108,2,N,"If a merchant is billing a cardholder in Installments, this field indicates the number of the current installment.",
+DR,Mail/Phone Installment Count,109,110,2,N,"If a merchant is billing a cardholder in installments, this field indicates the total number of installments.If you enter values in fields 8 and 9, the values will display at the end of the Merchant DBA Name field on the cardholder statement. For example, ""2 of 5"" would print, indicating that the current charge is the second installment out of a total of five installments.",
+DR,Extension Record Indicator (P1),111,112,2,CH,The code indicates if another extension record follows this record.,
+DR,Reserved for future use,113,700,588,CH,,
+CK,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+CK,Entry Run Number,8,13,6,N,,
+CK,Sequence Number within entry run,14,17,4,N,,
+CK,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""CK"""
+CK,Bank Number,20,23,4,AN,The Global Payments Bank number.,
+CK,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+CK,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+CK,Group Number,46,51,6,AN,Group number for the merchant.,
+CK,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+CK,Checking Account Number,56,74,19,N,,
+CK,ABA/Routing Number,75,83,9,N,The routing number of a financial institution where the depository account is located.,
+CK,Check Number,84,98,15,N,,
+CK,Check Service Option,99,100,2,AN,,
+CK,Check Service Program,101,105,5,AN,,
+CK,Receiving Institution ID (RIID),106,111,6,AN,,
+CK,Internal Merchant Batch Key,112,124,13,AN,,
+CK,Extension Record Indicator,125,129,5,AN,The code indicates if another extension record follows this record.,
+CK,Individual ID,130,144,15,AN,,
+CK,SEC Code,145,147,3,AN,Standard Entry Class codes.The SEC is assigned to a transaction for identifying the type of transaction.Note: The SEC code is required if a request includes ACH information,
+CK,Phone Number,148,157,10,AN,The merchant’s phone number.,
+CK,Individual Name,158,179,22,AN,,
+CK,Payment Type,180,180,1,AN,The type of transaction.,
+CK,Terminal City,181,193,13,AN,,
+CK,Terminal State,194,195,2,AN,,
+CK,Discretionary Data,196,197,2,AN,,
+CK,Reserved for future use,198,700,503,AN,,
+F2,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+F2,Entry Run Number,8,13,6,N,,
+F2,Sequence Number within entry run,14,17,4,N,,
+F2,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""F2"""
+F2,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+F2,Merchant Account Number,24,39,16,N,The Global Payments account number of the merchant.,
+F2,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+F2,Group Number,46,51,6,AN,Group number for the merchant.,
+F2,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+F2,Product Code,56,58,3,N,,
+F2,Item Description,59,93,35,AN,,
+F2,Item Quantity,94,98,5,N,,Format:99999
+F2,Extended Item Amount,102,110,9,N,,Format:999999999
+F2,Discount Indicator,111,111,1,AN,The indicator indicates if the discount is applicable.,
+F2,Discount Amount,112,120,9,N,The amount of the discount applied to the transaction.,Format:999999999
+F2,Net/Gross Indicator for EXT Item A,121,121,1,AN,,
+F2,Tax Rate Applied,122,126,5,N,,Format:99999
+F2,Tax Type Applied,127,130,4,AN,,Format:9999
+F2,Tax Amount,131,139,9,N,,Format:999999999
+F2,Debit/Credit Indicator,140,140,1,AN,Indicates if the transaction is a debit or credit.,Allowed values are:D - DebitC - Credit
+F2,VS Message ID/MC Alternate Tax ID,141,155,15,AN,,
+F2,Extension Record Indicator,156,156,1,AN,The code indicates if another extension record follows this record.,
+F2,Federal Excise Tax Exemption Status,157,157,1,AN,,
+F2,Federal Non-Fuel Excise Tax,158,169,12,N,,Format:999999999999
+F2,Federal Fuel Tax Exemption Status,170,170,1,AN,,
+F2,Federal Fuel Excise Tax,171,182,12,N,,Format:999999999999
+F2,State Motor Fuel Tax Exempt Status,183,183,1,AN,,
+F2,State Motor Fuel Tax,184,195,12,N,,Format:999999999999
+F2,County Fuel Tax Exemption Status,196,196,1,AN,,
+F2,County Fuel Sales Tax,197,208,12,N,,Format:999999999999
+F2,State and Local Tax Exempt Status,209,209,1,AN,,
+F2,State and Local Sales Tax(Non-Fuel),210,221,12,N,,Format:999999999999
+F2,County Motor Fuel Tax Exempt Status,222,222,1,AN,,
+F2,County Motor Fuel Sales Tax,223,234,12,N,,Format:999999999999
+F2,City Sales Fuel Tax Exempt Status,235,235,1,AN,,
+F2,City Sales Fuel Tax,236,247,12,N,,Format:999999999999
+F2,City Motor Fuel Tax Exempt Status,248,248,1,AN,,
+F2,City Motor Fuel Sales Tax,249,260,12,N,,Format:999999999999
+F2,Secondary State Fuel Tax Exempt Status,261,261,1,AN,,
+F2,Secondary State Fuel Tax,262,273,12,N,,Format:999999999999
+F2,Reimbursement Attribute Code,274,274,1,N,,
+F2,Federal Sales Tax Exemption Status,275,275,1,AN,,
+F2,Federal Sales Tax,276,287,12,N,,Format:999999999999
+F2,Reserved for future use,288,700,413,AN,,
+FT,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+FT,Entry Run Number,8,13,6,N,,
+FT,Sequence Number within entry run,14,17,4,N,,
+FT,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""FT"""
+FT,Bank Number,20,23,4,AN,The Global Payments Bank number.,
+FT,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+FT,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+FT,Group Number,46,51,6,AN,Group number for the merchant.,
+FT,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+FT,Oil Company Brand Name,56,59,4,AN,,
+FT,Merchant Street Address,60,89,30,AN,,
+FT,Merchant Postal COD 1 and Extension,90,98,9,AN,,
+FT,Purchase Time (HHMM 24-HRClock),99,102,4,N,,
+FT,VS Service Type/MC Fuel Service Type,103,103,1,AN,,
+FT,Motor Fuel Product Code,104,106,3,N,,
+FT,Unit Cost,107,118,12,N,,Format:999999999999
+FT,Unit of Measure,119,119,1,N,,
+FT,Quantity,120,131,12,N,,Format:999999999999
+FT,Gross Fuel Price,132,143,12,N,,Format:999999999999
+FT,Net Fuel Price,144,155,12,N,,Format:999999999999
+FT,Non Net Fuel Price,156,167,12,N,,Format:999999999999
+FT,Odometer Reading,168,174,7,N,,Format:9999999
+FT,Vehicle Number,175,191,17,N,,Format:99999999999999999
+FT,VS Cust Ref Identifier/MC Driver,192,208,17,AN,,
+FT,VS Type of Purch/MC Prod,209,211,3,AN,,
+FT,Coupon/Discount Amount,212,216,5,N,The amount of the discount or coupon applied to the transaction.,Format:99999
+FT,VS ST Fuel Tax/MC Tax Amt 1,217,228,12,N,,Format:999999999999
+FT,MC Tax Amount 2,229,240,12,N,,Format:999999999999
+FT,Local Fuel Tax - Misc. Non-Fuel,241,252,12,N,,Format:999999999999
+FT,VAT Tax Rate,253,256,4,N,,Format:9999
+FT,Product Code 1,257,258,2,N,,
+FT,Product Code 2,259,260,2,N,,
+FT,Product Code 3,261,262,2,N,,
+FT,Product Code 4,263,264,2,N,,
+FT,Product Code 5,265,266,2,N,,
+FT,Product Code 6,267,268,2,N,,
+FT,Product Code 7,269,270,2,N,,
+FT,Product Code 8,271,272,2,N,,
+FT,VS Local Sales Tax/MC Tax Amount 3,273,284,12,N,,Format:999999999999
+FT,Local Tax Included,285,285,1,N,,
+FT,Gross Non-Fuel Price,286,294,9,N,,Format:999999999
+FT,Misc. Fuel Tax Exemption Status,295,295,1,AN,,
+FT,Misc. Non-Fuel Tax Exemption Status,296,296,1,AN,,
+FT,Reserved for future use,297,700,404,AN,,
+BH,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission. A Batch Header must contain a sequence number.,
+BH,Entry Run Number,8,13,6,N,,
+BH,Sequence Number within entry run,14,17,4,N,,
+BH,Record Identifier,18,19,2,AN,The value that identifies the type of record.,"Constant value is ""BH"""
+BH,Bank Number,20,23,4,AN,The Global Payments bank number.,
+BH,Merchant Account Number,24,39,16,N,The Global Payments account number of the merchant.,
+BH,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+BH,Group Number,46,51,6,AN,Group number for the merchant.,
+BH,Transaction Code,52,55,4,N,Global Payments  Transaction code.,
+BH,Batch Date,56,63,8,N,,Allowed format is MMDDCCYY
+BH,Batch Julian Date,64,68,5,N,Batch Julian Date.,Allowed format is DDDYY
+BH,Net Deposit,69,83,15,N,The deposited amount.,Format:9999999999999999
+BH,Reject Reason,84,87,4,AN,Global Payments Reject Reason Code.,
+BH,Merchant Reference Number,88,103,16,N,A number with 5 leading zeros followed by 11 digit reference number.The merchant reference number is similar to the beginning reference number in the Merchant Header record of the Draft 256 file.,
+BH,Batch Header Carry Indicator,104,104,1,AN,,
+BH,Association Number,105,110,6,N,The identification number of an association to which the merchant reports.,
+BH,Merchant Bank Number,111,114,4,AN,The Global Payments  bank number of the merchant.,
+BH,Debit/Credit Indicator,115,115,1,AN,Indicates if the transaction is a debit or credit.,Allowed values are:D - DebitC - Credit
+BH,ACH Posting Date,116,123,8,N,,Allowed format is MMDDCCYY
+BH,Batch ID,124,126,3,AN,Batch ID,
+BH,Reserved for future use,127,683,577,AN,Filler,
+BH,ESID,684,686,3,AN,,
+BH,Reserved for future use,687,700,14,AN,Filler,
+AD,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+AD,Entry Run Number,8,13,6,N,,
+AD,Sequence Number within entry run,14,17,4,N,,
+AD,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""AD"""
+AD,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+AD,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+AD,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+AD,Group Number,46,51,6,AN,Group number for the merchant.,
+AD,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+AD,Reference Number,56,66,11,N,A unique reference number assigned by Global Payments for each transaction.,
+AD,Adjustment Amount,67,77,11,N,,Format:99999999999
+AD,Transaction Date,78,85,8,N,The date on which the transaction is performed.,Allowed format is MMDDCCYY
+AD,Carryover Indicator,86,86,1,AN,,
+AD,Online Entry,87,87,1,AN,,
+AD,ACH Flag,88,88,1,AN,The ACH flag determines if the merchant will be funded on a daily basis.,Allowed values are:YN
+AD,Batch Julian Date,89,93,5,N,,
+AD,Reversal Flag,94,94,1,AN,,
+AD,Debit/Credit Indicator,95,95,1,AN,Indicates if the transaction is a debit or credit.,Allowed values are:D - DebitC - Credit
+AD,Bank Number,96,99,4,N,The Global Payments  Bank number.,
+AD,Association Number,100,105,6,N,The identification number of an association to which the merchant reports.,
+AD,Posting Date,106,113,8,N,,
+AD,Chargeback Case Number,114,126,13,AN,,
+AD,Reserved for future use,127,700,574,AN,,
+P1,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+P1,Entry Run Number,8,13,6,N,,
+P1,Sequence Number within entry run,14,17,4,N,,
+P1,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""P1"""
+P1,Bank Number,20,23,4,AN,The Global Payments Bank number.,
+P1,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+P1,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+P1,Group Number,46,51,6,AN,Group number for the merchant.,
+P1,Transaction Code,52,55,4,N,Global Payments  Transaction code identifies the type of record being transmitted.,
+P1,VAT Tax Amount (Freight),56,67,12,N,,Format:999999999999
+P1,VAT Tax Rate (Freight),68,71,4,N,,Format:Blank or9999
+P1,Reserved for future use,72,75,4,AN,,
+P1,"Product Identifier (VS, AM)Customer Code (MC)",76,100,25,AN,,
+P1,"Loacl Tax (VS, MC,AM)",101,101,1,N,"For Visa, the Visa Code indicates if local tax is included in the amount charged for the goods or services purchased.For Mastercard, the Tax Exempt Indicator Code indicates if the goods or services were exempted from taxes.",Allowed values for Visa are:0 = No tax included1 = State or provincial tax included2 = Non-taxable transactionAllowed values for Mastercard are:Spaces = Unknown or not applicable0 = No Tax Collected1 = Tax Exempt
+P1,Local Tax Amount,102,113,12,N,"For Visa, the amount of any state or provincial tax included in the transaction amount. The currency in which this amount is given must be the same as the amount of the source transaction.This field has two implied decimal places.The field must be right justified. You can use zeroes as filler. The field can have all zeroes.For Mastercard and Discover, the amount of tax assessed on the transaction.",Format:999999999999
+P1,"Freight Amount (VS, MC, AM)",114,125,12,N,"The amount charged for  freight or shipping charges.For Visa transactions, the field has two implied decimal places. It can have all zeros.",Format:999999999999
+P1,Destination Zip (VS),126,135,10,N,"The postal code or ZIP code for the address to which the merchandise was sent.For Visa and Mastercard, the field name is Destination Postal Code or ZIP Code.For Discover, the field name is Destination ZIP.For American Express, the field name is Ship to Postal Code.",
+P1,Merchant Type,136,139,4,AN,"For more information on the merchant type code, refer to the Mastercard documentation.",
+P1,"Duty Amount (VS, MC, AM)",140,151,12,N,"The amount of the duty tax applied to the transaction.For Visa transactions, the field has two implied decimal places. It can have all zeros.",Format:999999999999
+P1,Merchant Tax ID,152,161,10,AN,The tax identifier used by the merchant.,
+P1,"Ship from Zip Code (VS, MC)",162,171,10,N,"The postal code or ZIP code used by the location from which the merchandise was shipped.For Discover, the field name is Originating ZIP.",
+P1,"National Tax Included (VS, MC)",172,172,1,N,"For Visa, the field indicator indicates if the national tax is included in the amount charged for the goods or services purchased.For Mastercard, the field name is Alternate Tax Amount. It indicates if any alternate taxes are included in the amount charged for the goods or services purchased.",
+P1,"National/ALT Tax Amount (VS, MC)",173,184,12,N,"The amount of any national tax included in the transaction amount. The currency in which the amount is paid must be the same as the amount of the source transaction.For Visa, the field name is National Tax Amount.The field has two implied decimal places and must be right justified. You can use zeros as filler. It can have all zeroes.For Mastercard, the field name is Alternate Tax Amount.",Format:999999999999
+P1,Other Tax,185,196,12,N,The amount of any other taxes assessed on the transaction.,Format:999999999999
+P1,"Destination Country Code (VS, MC)",197,199,3,AN,"Valid ISO (International Standardization Organization) code used to identify the country to which the merchandise was shipped.For Visa, the codes are Numeric Country Codes.For Mastercard, the codes are Alpha Country Codes.For Discover, the codes are alphabetic ISO codes.",
+P1,Merchant Reference Number,200,216,17,N,The reference number assigned to the transaction by the merchant.,
+P1,Discount Amount,217,228,12,N,The amount of the discount applied to the transaction.,Format:999999999999
+P1,Merchant VAT Registration,229,248,20,AN,The VAT registration number or SBRN number used by the merchant.,
+P1,Customer VAT Registration,249,261,13,AN,The VAT registration number used by the cardholder.,
+P1,Summary Commodity  Code,262,265,4,N,,
+P1,VAT Invoice Reference Number,266,280,15,N,The reference number used to identify the invoice that has information about the VAT charges assessed on the transaction.,
+P1,Order Date,281,286,6,N,The date on which the order was placed.,Allowed format is MMDDYY
+P1,Detail Record to follow (D),287,287,1,AN,A code that indicates if another extension record follows this record.,
+P1,Reserved for future use,288,700,413,AN,,
+P2,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+P2,Entry Run Number,8,13,6,N,,
+P2,Sequence Number within entry run,14,17,4,N,,
+P2,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""P2"""
+P2,Bank Number,20,23,4,AN,The Global Payments Bank number.,
+P2,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+P2,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+P2,Group Number,46,51,6,AN,Group number for the merchant.,
+P2,Transaction Code,52,55,4,N,Global Payments  Transaction code identifies the type of record being transmitted.,
+P2,Reserved for future use,56,74,19,AN,,
+P2,Discount Amount Indicator,75,75,1,N,The indicator indicates if the discount is applicable.,This pertains to Discount that the merchant gives to the purchaser.
+P2,Discount Amount,76,84,9,N,The amount of the discount applied to the transaction.,Format:999999999
+P2,Alternate Tax Identifier,85,99,15,AN,,
+P2,"Product Code (VS, MC)",100,111,12,AN,,
+P2,Reserved for future use,112,114,3,AN,,
+P2,Item Description,115,149,35,AN,,
+P2,"Item Quantity (VS, MC, AM)",150,161,12,N,,Format:999999999999
+P2,"Item Unit of Measure (VS, MC)",162,173,12,N,,Format:999999999999
+P2,"Unit Cost (VS, MC, AM)",174,185,12,N,,Format:999999999999
+P2,Net/Gross Indicator for Extended Amount,186,186,1,N,,
+P2,VAT Rate applied,187,191,5,N,,Format:9999
+P2,VAT Type Applied/VAT Rating,192,195,4,AN,,
+P2,"VAT Amount (MC, VS)",196,207,12,N,,Format:999999999999
+P2,Debit/Credit Indicator,208,208,1,AN,Indicates if the transaction is a debit or credit.,Allowed values are:D - DebitC - Credit
+P2,Type of Supply,209,210,2,AN,,
+P2,Extension Record Indicator (D),211,211,1,AN,The code indicates if another extension record follows this record.,
+P2,Item Commodity Code,212,223,12,N,A commodity code determined by Associations.,
+P2,Line Item Total,224,235,12,N,,Format:999999999999
+P2,Item Descriptor,236,261,26,AN,,
+P2,Reserved for future use,262,700,439,AN,,
+LG,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+LG,Entry Run Number,8,13,6,N,,
+LG,Sequence Number within entry run,14,17,4,N,,
+LG,Record Identifier,18,19,2,AN,A value that identifies the type of record.,"Constant value is ""LG"""
+LG,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+LG,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+LG,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+LG,Group Number,46,51,6,AN,Group number for the merchant.,
+LG,Transaction Code,52,55,4,N,Global Payments  Transaction code identifies the type of record being transmitted.,
+LG,Hotel Folio Number (Purchase ID),56,80,25,AN,For Visa:Positions 56-64: Hotel folio numberPositions 65-80 BlanksFor Mastercard:Positions 56-65: Hotel folio numberPositions 66-75: Customer service telephone numberPositions 76-80: Blanks For Discover:Positions 56-80: Folio NumberFor American Express:Positions 56-65: Record of charge numberPositions 66-80: Blanks,
+LG,Customer Service Number,81,90,10,N,The telephone number used to resolve disputes or answer customer’s questions.,
+LG,VS No Show Ind/AM Spec Prog Code,91,91,1,N,"An additional service associated with a lodging charge.For Visa, the field name is No Show Indicator.For American Express, the field name is Special Program Code.",Possible Values:0 =Not applicable1 =No show
+LG,VS Extra Chgs/AM Room Rate,92,97,6,N,"For Visa, the field name is Extra Charges. The field indicates the amount of any extra charges.For American Express, the field name is Room Rate. The field indicates the rate charged for the room.",Format:Blank or999999
+LG,"CK IN Date (VS, AM)Arrival Date (MC)",98,103,6,N,The date the cardholder checked into the lodging facility.The field names forVisa: Check-in DateMastercard and Discover: Arrival Date,Allowed format is MMDDYY
+LG,VS MKT SPEC AUTH DATA IND/AM CHG DE,104,104,1,AN,"For Visa, the field name is Market-Specific Authorization Data Indicator. The field identifies the type of enriched information that was present and valid in the initial authorization request.For American Express, the field name is Charge Descriptor. The field identifies the type of charge.",
+LG,VS Total Auth AMT/AM Tax Amount,105,116,12,N,"For Visa, the field name is Amount Authorized. The field indicates the total amount authorized for the transaction.For American Express, the field name is Tax Assessed. The field indicates the amount of the tax assessed on the transaction.",Format:Blank or999999999999
+LG,Property Telephone Number,117,126,10,N,"The telephone number at the lodging location.For Mastercard, the field name is Property Telephone Number.For Discover, the field name is Facility Telephone Number.",
+LG,Check Out Date,127,132,6,N,"The departure date of the cardholder from the lodging.For Mastercard, the field name is Check-Out Date.For Discover, the field name is Departure Date.",Allowed format: MMDDYY
+LG,MC Prog Code/AM Approval Code,133,134,2,N,"For Mastercard and Discover, the field name is Program Code.The field identifies special circumstances, such as a no-show customer.For American Express, the field name is Approval Code.",
+LG,Daily Room Rate,135,146,12,N,"The lodging room rate per day.For Visa the field name is Daily Room Rate.For Mastercard and Discover, the field name is Room Rate.For both associations, this field must be right justified. You can use zeros as filler.",Format:Blank or999999999999
+LG,"Total Tax (VS) Room Tax (MC, AM)",147,158,12,N,"For Visa, the field name is Tax Assessed. The field indicates the total amount of tax assessed on the transaction.For Mastercard and Discover, the field name is Room Tax. The field indicates the amount charged for taxes on the room.For all associations, the field must be right justified. You can use zeros as filler.",Format:Blank or999999999999
+LG,Total Charges For All Calls,159,170,12,N,"The total amount of all calls made from the room.For Mastercard, the field name is Call Charges.For Discover, the field name is Phone Charges.The field must be right justified. You can use zeros as filler.",Format:Blank or999999999999
+LG,Food/Beverage Charges,171,182,12,N,"For Visa, the field name is Food and Beverage Charges.The field indicates the amount of food and beverage charges.For Mastercard and Discover, the field name is Restaurant and Room Service Charges. The field indicates the amount for the restaurant and room service charges.For both associations, the field must be right justified. You can use zeros as filler.",Format:Blank or999999999999
+LG,Bar/Mini Bar Charges,183,194,12,N,"The amount of bar or mini-bar charges.For Mastercard the field name is Bar Charges.For Discover, the field name is Mini-Bar Charges.This field must be right justified. You can use zeros as filler.",Format:Blank or999999999999
+LG,Gift Shop Charges,195,206,12,N,The amount of gift shop charges.This field must be right justified. You can use zeros as filler.,Format:Blank or999999999999
+LG,Laundry/Dry Cleaning Amount,207,218,12,N,The amount of laundry or dry cleaning charges.This field must be right justified. You can use zeros as filler.,Format:Blank or999999999999
+LG,Other Services Code,219,221,3,AN,"Additional services for which the cardholder was billed.For Mastercard the field name is Other Services Code.For Discover, the field name is Other Indicator.",
+LG,Other Services Charges,222,233,12,N,"The amount charged for the additional services identified in the Other Services Code field.For Mastercard, the field name is Other Services Charges.This field must be right justified. You can use zeros as filler.For Discover, the field name is Other Charges. The field indicates the amount charged for the additional services identified in the Other Indicator field.",Format:Blank or999999999999
+LG,Billing Adjustment Indicator,234,234,1,AN,Indicates if additional charges were made on the original transaction.,Allowed values:{Blank} No additional chargesY=Additional charges addedN=No additional charges were added
+LG,"Folio Cash ADV (VS)Bill ADJ AMT (MC,AM)",235,246,12,N,"The total amount of adjustments or cash advances charged to the customer's account.For Visa, the field name is Cash Advance Amount.For Mastercard, the field name is Billing Adjustment Amount.For Discover, the field name is Adjustment Amount.",Format:Blank or999999999999
+LG,Prepaid Expense,247,258,12,N,The total amount of lodging expenses paid in advance by the customer.,Format:Blank or999999999999
+LG,Extension Record Indicator,259,263,5,AN,The code indicates if another extension record follows this record.,
+LG,Room Nights,264,265,2,N,The total number of nights spent in the room.,Format:99
+LG,Total Room Tax,266,277,12,N,The total amount of tax assessed on the room.,Format:Blank or999999999999
+LG,Reserved for future use,278,700,423,AN,,
+GE,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+GE,Entry Run Number,8,13,6,N,,
+GE,Sequence Number within entry run,14,17,4,N,,
+GE,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""GE"""
+GE,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+GE,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+GE,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+GE,Group Number,46,51,6,AN,Group number for the merchant.,
+GE,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+GE,Detail Merchant Name,56,76,21,AN,Reserved,
+GE,Merchant Soft Descriptor,77,101,25,AN,Reserved,
+GE,Reserved for future use,102,700,599,AN,,
+E1,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+E1,Entry Run Number,8,13,6,N,,
+E1,Sequence Number within entry run,14,17,4,N,,
+E1,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""E1"""
+E1,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+E1,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+E1,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+E1,Group Number,46,51,6,AN,Group number for the merchant.,
+E1,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+E1,EMV Tran Type,56,57,2,CH,,
+E1,EMV Term Cap Profile,58,63,6,CH,,
+E1,EMV App Tran Counter,64,67,4,CH,,
+E1,EMV Cryptogram Amount,68,82,15,N,,Format:-99999999999.99
+E1,EMV ISS Script Results,83,132,50,CH,,
+E1,EMV ISS App Data,133,196,64,CH,,
+E1,EMV Card Sequence Number,197,200,4,CH,,
+E1,EMV Term Country Code,201,204,4,CH,,
+E1,EMV App Interchange Profile,205,208,4,CH,,
+E1,EMV Term Verify Results,209,218,10,CH,,
+E1,EMV Term Tran Date,219,224,6,CH,,
+E1,EMV Unpredictable Number,225,232,8,CH,,
+E1,EMV Cryptogram,233,248,16,CH,,
+E1,EMV Form Factor Indicator,249,256,8,CH,,
+E1,EMV Tran Currency Code,257,260,4,CH,,
+E1,EMV DED File Name,261,292,32,CH,,
+E1,EMVISS Auth Data,293,324,32,CH,,
+E1,EMV Tran CAT Code,325,326,2,CH,,
+E1,EMV Crypt Info Data,327,330,4,CH,,
+E1,EMV Term type,331,332,2,CH,,
+E1,EMV Transaction Sequence Number,333,340,8,CH,,
+E1,EMV Amount Authorized,341,353,13,N,,Format:-999999999.99
+E1,EMV Amount Other,354,366,13,N,,Format:-999999999.99
+E1,EMV CVM Result,367,372,6,CH,,
+E1,EMV Interface Dev Serial,373,388,16,CH,,
+E1,EMV Terminal Application Version,389,392,4,CH,,
+E1,EMV Cryptogram Information,393,394,2,CH,,
+E1,Reserved for future use,395,700,306,CH,,
+G2,Sequence Number Area,1,7,7,N,A number to identify the file position within the transmission.,
+G2,Entry Run Number,8,13,6,N,,
+G2,Sequence Number within entry run,14,17,4,N,,
+G2,Record Identifier,18,19,2,AN,The value identifies the type of record.,"Constant value is ""G2"""
+G2,Bank Number,20,23,4,AN,The Global Payments  Bank number.,
+G2,Merchant Account Number,24,39,16,N,The Global Payments  account number of the merchant.,
+G2,Association Number,40,45,6,AN,The identification number of an association to which the merchant reports.,
+G2,Group Number,46,51,6,AN,Group number for the merchant.,
+G2,Transaction Code,52,55,4,N,A Global Payments  Transaction code identifies the type of record being transmitted.,
+G2,Merchant DBA City,56,80,25,CH,,
+G2,Merchant DBA State,81,93,13,CH,,
+G2,Terminal Capability,94,94,1,CH,,
+G2,Auth data Indicator,95,95,1,CH,,
+G2,Visa Acct Funding Source,96,96,1,CH,,
+G2,Visa Message Identifier,97,111,15,CH,,
+G2,MC Electronic Commerce Security Level,112,112,1,CH,,
+G2,Cardholder Authentication,113,113,1,CH,,
+G2,UCAF Coll ID,114,114,1,CH,,
+G2,MVR Return City,115,132,18,CH,,
+G2,Card Acceptance Tax ID,133,152,20,CH,,
+G2,CAT Merchant type PRV,153,153,1,CH,,
+G2,Cat Owner Type PRV,154,154,1,CH,,
+G2,CAT Cert Type PRV,155,155,1,CH,,
+G2,Cat Ethnic Type PRV,156,156,1,CH,,
+G2,Multiple Clearing Sequence Number,157,158,2,AN,,
+G2,VISA Spend Qualified Indicator,159,159,1,AN,,
+G2,VISA Product Extension Flag / VISA Account Level Processing Flag,160,161,2,AN,,
+G2,Multiple Clearing Sequence Count,162,163,2,AN,,
+G2,Token Assurance Level,164,165,2,AN,,
+G2,Fuel Type,166,167,2,AN,,
+G2,Mastercard Electronic Commerce Security Level,168,170,3,AN,,
+G2,Independent Sales Organization ID,171,182,12,AN,,
+G2,Payment Facilitator ID,183,194,12,AN,,
+G2,Mastercard Business Service Arrangement Type Code,195,195,1,AN,,
+G2,Mastercard Business Service ID Code,196,201,6,AN,,
+G2,Device Type,202,203,2,AN,,
+G2,Transit Program,204,207,4,AN,,
+G2,Token Requestor ID,208,218,11,AN,,
+G2,Mastercard Mapping Service Indicator,219,219,1,AN,,
+G2,Discover Acquirer ID,220,230,11,AN,,
+G2,Discover Merchant Account Number,231,246,16,AN,,
+G2,Sub-merchant ID,247,261,15,AN,,
+G2,Original Terminal ID,262,269,8,AN,Original Terminal ID,
+G2,Convenience Fee Amount,270,286,17,N,Convenience Fee Amount calculated based on the Per Item Amount in Express,Format:-9999999999999.99
+G2,Split Funding Amount 1,287,303,17,N,Split Funding Amount calculated for the first Split Funding Account,Format:-9999999999999.99
+G2,Split Funding Amount 2,304,320,17,N,Split Funding Amount calculated for the second Split Funding Account,Format:-9999999999999.99
+G2,Split Funding Amount 3,321,321,17,N,Split Funding Amount calculated for the third Split Funding Account,Format:-9999999999999.99
+G2,Split Funding Amount 4,338,354,17,N,Split Funding Amount calculated for the fourth Split Funding Account,Format:-9999999999999.99
+G2,Reserved for future use,355,683,329,AN,Filler,
+G2,ESID,684,686,3,AN,,
+G2,Reserved for future use,687,700,14,AN,Filler,

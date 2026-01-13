@@ -1,0 +1,191 @@
+2025-11-03 21:51:26.50
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:51:26.50
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:51:26.50
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:51:26.50
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:51:26.50
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:51:26.50
+d2f1715f
+User
+file: 'parse_target.c',
+2025-11-03 21:51:26.50
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:51:26.50
+d2f1715f
+User
+routine: 'checkInsertTargets'
+2025-11-03 21:51:26.50
+d2f1715f
+User
+}
+2025-11-03 21:51:26.55
+d2f1715f
+User
+Error upserting terminal V8250548: error: column "agent" of relation "api_terminals" does not exist
+2025-11-03 21:51:26.55
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:51:26.55
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:51:26.55
+d2f1715f
+User
+at async Parser. (file:///home/runner/workspace/dist/index.js:12423:35) {
+2025-11-03 21:51:26.55
+d2f1715f
+User
+length: 132,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:51:26.55
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:51:26.55
+d2f1715f
+User
+detail: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+position: '183',
+2025-11-03 21:51:26.55
+d2f1715f
+User
+internalPosition: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+schema: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:51:26.55
+d2f1715f
+User
+file: 'parse_target.c',
+2025-11-03 21:51:26.55
+d2f1715f
+User
+line: '1065',
+2025-11-03 21:51:26.55
+d2f1715f
+User
+routine: 'checkInsertTargets'
+2025-11-03 21:51:26.55
+d2f1715f
+User
+}
+2025-11-03 21:51:26.96
+d2f1715f
+User
+Error upserting terminal V8250646: error: column "agent" of relation "api_terminals" does not exist
+2025-11-03 21:51:26.96
+d2f1715f
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-03 21:51:26.96
+d2f1715f
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-03 21:51:26.96
+d2f1715f
+User
+at async Parser. (file:///home/runner/workspace/dist/index.js:12423:35) {
+2025-11-03 21:51:26.96
+d2f1715f
+User
+length: 132,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+severity: 'ERROR',
+2025-11-03 21:51:26.96
+d2f1715f
+User
+code: '42703',
+2025-11-03 21:51:26.96
+d2f1715f
+User
+hint: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+internalQuery: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+where: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+table: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+column: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+dataType: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+constraint: undefined,
+2025-11-03 21:51:26.96
+d2f1715f
+User
+routine: 'checkInsertTargets'
+
+Collapse
+
+Wrap
+
+Colors
+

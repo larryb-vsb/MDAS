@@ -1,0 +1,46 @@
+PS C:\Support\MMS-Data\script> .\uploader.ps1 -url https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev -key undefined
+At C:\Support\MMS-Data\script\uploader.ps1:370 char:53
++     Write-Host "`nUploading: $fileName ($fileSizeMB MB)" -ForegroundC ...
++                                                     ~~
+Unexpected token 'MB' in expression or statement.
+At C:\Support\MMS-Data\script\uploader.ps1:370 char:52
++     Write-Host "`nUploading: $fileName ($fileSizeMB MB)" -ForegroundC ...
++                                                    ~
+Missing closing ')' in expression.
+At C:\Support\MMS-Data\script\uploader.ps1:179 char:9
++     try {
++         ~
+Missing closing '}' in statement block or type definition.
+At C:\Support\MMS-Data\script\uploader.ps1:370 char:55
++     Write-Host "`nUploading: $fileName ($fileSizeMB MB)" -ForegroundC ...
++                                                       ~
+The Try statement is missing its Catch or Finally block.
+At C:\Support\MMS-Data\script\uploader.ps1:175 char:26
++ function Test-Connection {
++                          ~
+Missing closing '}' in statement block or type definition.
+At C:\Support\MMS-Data\script\uploader.ps1:370 char:55
++     Write-Host "`nUploading: $fileName ($fileSizeMB MB)" -ForegroundC ...
++                                                       ~
+Unexpected token ')' in expression or statement.
+At C:\Support\MMS-Data\script\uploader.ps1:374 char:23
++         Write-Host "  Creating upload session..." -ForegroundColor Gr ...
++                       ~~~~~~~~
+Unexpected token 'Creating' in expression or statement.
+At C:\Support\MMS-Data\script\uploader.ps1:383 char:62
++ ...       Write-Host "  Using chunked upload ($totalChunks chunks)" -Fore ...
++                                                            ~~~~~~
+Unexpected token 'chunks' in expression or statement.
+At C:\Support\MMS-Data\script\uploader.ps1:383 char:61
++             Write-Host "  Using chunked upload ($totalChunks chunks)" ...
++                                                             ~
+Missing closing ')' in expression.
+At C:\Support\MMS-Data\script\uploader.ps1:383 char:68
++ ...      Write-Host "  Using chunked upload ($totalChunks chunks)" -Foreg ...
++                                                                 ~
+Unexpected token ')' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+    + CategoryInfo          : ParserError: (:) [], ParseException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Support\MMS-Data\script>

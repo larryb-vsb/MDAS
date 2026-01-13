@@ -1,0 +1,68 @@
+2025-10-31 00:46:18.88
+5:46:18 AM [express] GET /api/uploader 200 in 279ms :: {"uploads":[{"id":"uploader_1761889540358_djl…
+2025-10-31 00:46:19.31
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 00:46:19.31
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 00:46:19.31
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 00:46:19.31
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 00:46:19.37
+[REPLIT-STORAGE] Found 330 files in prod-uploader/
+2025-10-31 00:46:19.37
+[STORAGE-CONFIG] Successfully counted 330 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 00:46:19.43
+5:46:19 AM [express] GET /api/uploader/storage-config 200 in 228ms :: {"available":true,"service":"R…
+2025-10-31 00:46:19.58
+[MMS-WATCHER] [AUTO-STEP6] Error in Step 6 processing interval: error: relation "system_settings" does not exist
+2025-10-31 00:46:19.58
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 00:46:19.58
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 00:46:19.58
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32391:29) {
+2025-10-31 00:46:19.58
+length: 114,
+2025-10-31 00:46:19.58
+severity: 'ERROR',
+2025-10-31 00:46:19.58
+code: '42P01',
+2025-10-31 00:46:19.58
+detail: undefined,
+2025-10-31 00:46:19.58
+hint: undefined,
+2025-10-31 00:46:19.58
+position: '38',
+2025-10-31 00:46:19.58
+internalPosition: undefined,
+2025-10-31 00:46:19.58
+internalQuery: undefined,
+2025-10-31 00:46:19.58
+where: undefined,
+2025-10-31 00:46:19.58
+schema: undefined,
+2025-10-31 00:46:19.58
+table: undefined,
+2025-10-31 00:46:19.58
+column: undefined,
+2025-10-31 00:46:19.58
+dataType: undefined,
+2025-10-31 00:46:19.58
+constraint: undefined,
+2025-10-31 00:46:19.58
+file: 'parse_relation.c',
+2025-10-31 00:46:19.58
+line: '1449',
+2025-10-31 00:46:19.58
+routine: 'parserOpenTable'
+2025-10-31 00:46:19.58
+}
+2025-10-31 00:46:19.74
+[MMS-WATCHER] [AUTO-STEP7] Error in Step 7 archiving interval: error: relation "system_settings" does not exist
+2025-10-31 00:46:19.74
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-10-31 00:46:19.74
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-31 00:46:19.74
+at async Timeout._onTimeout (file:///home/runner/workspace/dist/index.js:32416:29) {

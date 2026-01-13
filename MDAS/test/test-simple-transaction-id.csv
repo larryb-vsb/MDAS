@@ -1,0 +1,3 @@
+TransactionID,MerchantID,Amount,Date,Type
+TX9999,M43132391,100.50,2024-06-19,Credit
+TX9998,M43132391,200.75,2024-06-20,Credit

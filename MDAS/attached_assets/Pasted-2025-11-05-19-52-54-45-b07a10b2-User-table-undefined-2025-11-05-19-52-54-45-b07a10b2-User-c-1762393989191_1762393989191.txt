@@ -1,0 +1,180 @@
+2025-11-05 19:52:54.45
+b07a10b2
+User
+table: undefined,
+2025-11-05 19:52:54.45
+b07a10b2
+User
+column: undefined,
+2025-11-05 19:52:54.45
+b07a10b2
+User
+dataType: undefined,
+2025-11-05 19:52:54.45
+b07a10b2
+User
+constraint: undefined,
+2025-11-05 19:52:54.45
+b07a10b2
+User
+file: 'parse_relation.c',
+2025-11-05 19:52:54.45
+b07a10b2
+User
+line: '1449',
+2025-11-05 19:52:54.45
+b07a10b2
+User
+routine: 'parserOpenTable'
+2025-11-05 19:52:54.45
+b07a10b2
+User
+}
+2025-11-05 19:52:54.47
+b07a10b2
+User
+[ERROR] Error checking IP blocklist: error: relation "dev_ip_blocklist" does not exist
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at async file:///home/runner/workspace/dist/index.js:36947:23 {
+2025-11-05 19:52:54.47
+b07a10b2
+User
+length: 116,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+severity: 'ERROR',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+code: '42P01',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+detail: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+hint: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+position: '106',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+internalPosition: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+internalQuery: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+where: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+schema: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+table: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+column: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+dataType: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+constraint: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+file: 'parse_relation.c',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+line: '1449',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+routine: 'parserOpenTable'
+2025-11-05 19:52:54.47
+b07a10b2
+User
+}
+2025-11-05 19:52:54.47
+b07a10b2
+User
+[ERROR] Error checking IP blocklist: error: relation "dev_ip_blocklist" does not exist
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2025-11-05 19:52:54.47
+b07a10b2
+User
+at async file:///home/runner/workspace/dist/index.js:36947:23 {
+2025-11-05 19:52:54.47
+b07a10b2
+User
+length: 116,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+severity: 'ERROR',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+position: '106',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+internalPosition: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+where: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+dataType: undefined,
+2025-11-05 19:52:54.47
+b07a10b2
+User
+file: 'parse_relation.c',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+line: '1449',
+2025-11-05 19:52:54.47
+b07a10b2
+User
+routine: 'parserOpenTable'

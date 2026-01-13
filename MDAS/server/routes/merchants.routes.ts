@@ -1,0 +1,987 @@
+import type { Express } from "express";
+import { pool, db } from "../db";
+import { sql } from "drizzle-orm";
+import { storage } from "../storage";
+import { getTableName } from "../table-config";
+import { isAuthenticated } from "./middleware";
+import { z } from "zod";
+import fs from "fs";
+
+export function registerMerchantRoutes(app: Express) {
+  // Get merchants with pagination and filters
+  app.get("/api/merchants", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const status = req.query.status as string || "All";
+      const lastUpload = req.query.lastUpload as string || "Any time";
+      const search = req.query.search as string || "";
+      const merchantType = req.query.merchantType as string || "All";
+      const sortBy = req.query.sortBy as string || "name";
+      const sortOrder = (req.query.sortOrder as string || "asc").toLowerCase() as "asc" | "desc";
+
+      const result = await storage.getMerchants(page, limit, status, lastUpload, search, merchantType, sortBy, sortOrder);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch merchants" });
+    }
+  });
+
+  // Get merchant lookup map for TDDF viewer (account_number -> dba_name)
+  app.get("/api/merchants/lookup-map", async (req, res) => {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      const result = await pool.query(`
+        SELECT account_number, dba_name 
+        FROM ${merchantsTableName}
+        WHERE account_number IS NOT NULL 
+          AND account_number != ''
+      `);
+      
+      // Create lookup map: account_number -> dba_name
+      const lookupMap: Record<string, string> = {};
+      result.rows.forEach(row => {
+        lookupMap[row.account_number] = row.dba_name || 'Unknown';
+      });
+      
+      res.json(lookupMap);
+    } catch (error) {
+      console.error("Error fetching merchant lookup map:", error);
+      res.status(500).json({ error: "Failed to fetch merchant lookup map" });
+    }
+  });
+
+  // Get merchants for filter dropdown (MCC merchants: type 0, 1, blank, or null)
+  app.get("/api/merchants/for-filter", isAuthenticated, async (req, res) => {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      console.log('[MERCHANT-FILTER] Fetching MCC merchants for filter dropdown');
+      
+      // Fetch all MCC merchants (type 0, 1, blank, or NULL) including disabled/deleted
+      // Using client_mid as the account number since that's what TDDF uses
+      const result = await pool.query(`
+        SELECT 
+          id,
+          name,
+          client_mid as account_number,
+          status,
+          merchant_type
+        FROM ${merchantsTableName}
+        WHERE (
+          merchant_type IN ('0', '1') 
+          OR merchant_type = '' 
+          OR merchant_type IS NULL
+        )
+        AND name IS NOT NULL
+        AND name != ''
+        AND client_mid IS NOT NULL
+        AND client_mid != ''
+        ORDER BY name ASC
+      `);
+      
+      console.log(`[MERCHANT-FILTER] Found ${result.rows.length} merchants for filter`);
+      
+      // Format the response
+      const merchants = result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        accountNumber: row.account_number,
+        status: row.status || 'Unknown',
+        merchantType: row.merchant_type || 'none'
+      }));
+      
+      res.json(merchants);
+    } catch (error) {
+      console.error("Error fetching merchants for filter:", error);
+      res.status(500).json({ error: "Failed to fetch merchants for filter" });
+    }
+  });
+
+  // Export endpoints for the dedicated Exports page
+  app.get("/api/exports/merchants/download", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      
+      const csvFilePath = await storage.exportMerchantsToCSV(startDate, endDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_merchants',
+        entityType: 'merchants',
+        entityId: `export_${Date.now()}`,
+        notes: `Merchants export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `merchants_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting merchants:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export merchants" 
+      });
+    }
+  });
+
+  // Export all merchants for a specific date
+  app.get("/api/exports/merchants-all/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+      
+      const csvFilePath = await storage.exportAllMerchantsForDateToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_merchants_all',
+        entityType: 'merchants',
+        entityId: `export_all_${Date.now()}`,
+        notes: `All merchants export for date ${targetDate}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `merchants_all_${targetDate.replace(/[:.]/g, '-')}_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting all merchants:", error);
+      res.status(500).json({
+        error: "Failed to export all merchants to CSV"
+      });
+    }
+  });
+
+  // Export transactions to CSV
+  app.get("/api/exports/transactions/download", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const merchantId = req.query.merchantId as string | undefined;
+      
+      const csvFilePath = await storage.exportTransactionsToCSV(
+        merchantId,
+        startDate,
+        endDate
+      );
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_transactions',
+        entityType: 'transactions',
+        entityId: `export_${Date.now()}`,
+        notes: `Transactions export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `transactions_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      res.status(500).json({
+        error: "Failed to export transactions to CSV"
+      });
+    }
+  });
+
+  // Export batch summary to CSV
+  app.get("/api/exports/batch-summary/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+      
+      const csvFilePath = await storage.exportBatchSummaryToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_batch_summary',
+        entityType: 'batch_summary',
+        entityId: `export_${Date.now()}`,
+        notes: `Batch summary export for date ${targetDate}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `batch_summary_${targetDate.replace(/[:.]/g, '-')}_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting batch summary:", error);
+      res.status(500).json({
+        error: "Failed to export batch summary to CSV"
+      });
+    }
+  });
+
+  // Export all data for a date (ZIP file with multiple CSVs)
+  app.get("/api/exports/all-data/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+      
+      const result = await storage.exportAllDataForDateToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_all_data',
+        entityType: 'all_data',
+        entityId: `export_${Date.now()}`,
+        notes: `All data export (ZIP) for date ${targetDate}`
+      });
+      
+      // Set download headers for ZIP file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `all_data_export_${targetDate.replace(/[:.]/g, '-')}_${timestamp}.zip`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'application/zip');
+      
+      // Stream the ZIP file to client
+      const fileStream = fs.createReadStream(result.zipPath);
+      fileStream.pipe(res);
+      
+      // Clean up the files after sending
+      fileStream.on('end', () => {
+        // Delete the ZIP file
+        fs.unlink(result.zipPath, (err) => {
+          if (err) console.error(`Error deleting temporary ZIP file: ${result.zipPath}`, err);
+        });
+        
+        // Delete individual CSV files
+        result.filePaths.forEach(filePath => {
+          fs.unlink(filePath, (err) => {
+            if (err) console.error(`Error deleting temporary CSV file: ${filePath}`, err);
+          });
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting all data:", error);
+      res.status(500).json({
+        error: "Failed to export all data to ZIP"
+      });
+    }
+  });
+
+  // Get export history
+  app.get("/api/exports/history", async (req, res) => {
+    try {
+      // For now, return empty array since we're not persisting export history
+      // In the future, this could query a database table tracking past exports
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching export history:", error);
+      res.status(500).json({
+        error: "Failed to fetch export history"
+      });
+    }
+  });
+
+  // Download merchant demographics export
+  app.get("/api/export/merchants", async (req, res) => {
+    try {
+      const filePath = await storage.generateMerchantsExport();
+      res.download(filePath, "merchant_demographics.csv");
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate export" 
+      });
+    }
+  });
+  
+  // Get merchant details by ID with TDDF transaction statistics
+  app.get("/api/merchants/:id", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      
+      // Use the proper storage method which provides complete analytics including revenue trend data
+      const merchantDetails = await storage.getMerchantById(merchantId);
+      
+      if (!merchantDetails) {
+        return res.status(404).json({ error: `Merchant with ID ${merchantId} not found` });
+      }
+      
+      // Enhance with TDDF transaction statistics
+      try {
+        const tddfJsonbTableName = getTableName('tddf_jsonb');
+        const terminalsTableName = getTableName('terminals');
+        
+        // Find all terminals for this merchant to build Terminal ID list
+        const terminalsResult = await pool.query(`
+          SELECT v_number
+          FROM ${terminalsTableName}
+          WHERE pos_merchant_number = $1
+        `, [merchantId]);
+        
+        // Generate Terminal IDs with both "7" and "0" prefixes from VAR numbers
+        const terminalIds: string[] = [];
+        terminalsResult.rows.forEach(row => {
+          const baseVarNumber = row.v_number.replace('V', '').trim();
+          terminalIds.push('7' + baseVarNumber);
+          terminalIds.push('0' + baseVarNumber);
+        });
+        
+        if (terminalIds.length > 0) {
+          console.log(`[MERCHANT-DETAILS] Querying TDDF for merchant ${merchantId} with ${terminalIds.length} terminal IDs`);
+          
+          // Query TDDF transaction statistics for last 30 days
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          
+          const tddfStatsResult = await pool.query(`
+            SELECT 
+              COUNT(*) as transaction_count,
+              SUM((extracted_fields->>'transactionAmount')::decimal) as total_revenue
+            FROM ${tddfJsonbTableName}
+            WHERE record_type = 'DT'
+              AND extracted_fields->>'terminalId' = ANY($1::text[])
+              AND (extracted_fields->>'transactionDate')::date >= $2::date
+          `, [terminalIds, thirtyDaysAgo.toISOString().split('T')[0]]);
+          
+          const tddfStats = tddfStatsResult.rows[0];
+          const tddfTransactionCount = parseInt(tddfStats.transaction_count || '0');
+          const tddfRevenue = parseFloat(tddfStats.total_revenue || '0');
+          
+          // Add TDDF stats to monthly stats
+          if (merchantDetails.analytics && merchantDetails.analytics.monthlyStats) {
+            const existingTransactions = merchantDetails.analytics.monthlyStats.transactions || 0;
+            const existingRevenue = parseFloat(merchantDetails.analytics.monthlyStats.revenue || '0');
+            
+            merchantDetails.analytics.monthlyStats.transactions = existingTransactions + tddfTransactionCount;
+            merchantDetails.analytics.monthlyStats.revenue = (existingRevenue + tddfRevenue).toFixed(2);
+            
+            console.log(`[MERCHANT-DETAILS] Enhanced stats: ${tddfTransactionCount} TDDF transactions, $${tddfRevenue.toFixed(2)} revenue`);
+          }
+        }
+      } catch (tddfError) {
+        console.error('[MERCHANT-DETAILS] Error fetching TDDF stats:', tddfError);
+        // Continue without TDDF stats if there's an error
+      }
+      
+      res.json(merchantDetails);
+    } catch (error) {
+      console.error("Error fetching merchant details:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch merchant details" 
+      });
+    }
+  });
+
+  // Get last activity date for a merchant (lazy-loaded for performance)
+  // Queries ACH transactions, MCC/TDDF records, and batch data to find most recent activity
+  app.get("/api/merchants/:id/last-activity", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      
+      const achTableName = getTableName('api_achtransactions');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const terminalsTableName = getTableName('terminals');
+      const merchantsTableName = getTableName('merchants');
+      
+      // Get merchant's client_mid for matching
+      const merchantResult = await pool.query(`
+        SELECT client_mid FROM ${merchantsTableName} WHERE id = $1 LIMIT 1
+      `, [merchantId]);
+      
+      const clientMid = merchantResult.rows[0]?.client_mid;
+      
+      // Query 1: Latest ACH transaction date - match by merchant_id (not name)
+      // ACH transactions store merchant_id which matches the dev_merchants.id
+      let achDate: Date | null = null;
+      const achResult = await pool.query(`
+        SELECT transaction_date FROM ${achTableName}
+        WHERE merchant_id = $1
+        ORDER BY transaction_date DESC
+        LIMIT 1
+      `, [merchantId]);
+      achDate = achResult.rows[0]?.transaction_date ? new Date(achResult.rows[0].transaction_date) : null;
+      
+      // Query 2: Latest batch/uploaded file date - search by filename pattern
+      const batchResult = await pool.query(`
+        SELECT uploaded_at FROM ${uploadedFilesTableName}
+        WHERE filename LIKE $1 OR original_filename LIKE $1
+        ORDER BY uploaded_at DESC
+        LIMIT 1
+      `, [`%${clientMid || merchantId}%`]);
+      
+      const batchDate = batchResult.rows[0]?.uploaded_at ? new Date(batchResult.rows[0].uploaded_at) : null;
+      
+      // Query 3: Latest MCC/TDDF transaction date (via terminals)
+      let mccDate: Date | null = null;
+      if (clientMid) {
+        const terminalsResult = await pool.query(`
+          SELECT v_number FROM ${terminalsTableName}
+          WHERE pos_merchant_number = $1
+        `, [merchantId]);
+        
+        const terminalIds: string[] = [];
+        terminalsResult.rows.forEach((row: any) => {
+          const baseVarNumber = row.v_number?.replace('V', '').trim();
+          if (baseVarNumber) {
+            terminalIds.push('7' + baseVarNumber);
+            terminalIds.push('0' + baseVarNumber);
+          }
+        });
+        
+        if (terminalIds.length > 0) {
+          const mccResult = await pool.query(`
+            SELECT extracted_fields->>'transactionDate' as tx_date
+            FROM ${tddfJsonbTableName}
+            WHERE record_type = 'DT'
+              AND extracted_fields->>'terminalId' = ANY($1::text[])
+            ORDER BY (extracted_fields->>'transactionDate')::date DESC
+            LIMIT 1
+          `, [terminalIds]);
+          
+          if (mccResult.rows[0]?.tx_date) {
+            mccDate = new Date(mccResult.rows[0].tx_date);
+          }
+        }
+      }
+      
+      // Find the most recent date across all sources
+      const dates = [
+        { source: 'ach', date: achDate },
+        { source: 'batch', date: batchDate },
+        { source: 'mcc', date: mccDate }
+      ].filter(d => d.date !== null);
+      
+      let lastActivityDate: Date | null = null;
+      let lastActivitySource: string | null = null;
+      
+      if (dates.length > 0) {
+        dates.sort((a, b) => (b.date as Date).getTime() - (a.date as Date).getTime());
+        lastActivityDate = dates[0].date;
+        lastActivitySource = dates[0].source;
+      }
+      
+      res.json({
+        merchantId,
+        lastActivityDate: lastActivityDate?.toISOString() || null,
+        lastActivitySource,
+        sources: {
+          ach: achDate?.toISOString() || null,
+          batch: batchDate?.toISOString() || null,
+          mcc: mccDate?.toISOString() || null
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching last activity:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch last activity" 
+      });
+    }
+  });
+  
+  // Create a new merchant
+  app.post("/api/merchants", isAuthenticated, async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1, { message: "Name is required" }),
+        clientMID: z.string().nullable().optional(),
+        status: z.string().optional(),
+        merchantType: z.string().nullable().optional(),
+        salesChannel: z.string().nullable().optional(),
+        address: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        state: z.string().nullable().optional(),
+        zipCode: z.string().nullable().optional(),
+        category: z.string().nullable().optional()
+      });
+      
+      const merchantData = schema.parse(req.body);
+      
+      // Set the updatedBy field to the logged-in user's username
+      let updatedBy = "System";
+      
+      // Debug: Log user information
+      console.log('[MERCHANT CREATE] User info:', {
+        hasUser: !!req.user,
+        username: req.user?.username,
+        userId: req.user?.id,
+        role: req.user?.role
+      });
+      
+      // If a user is logged in, use their username
+      if (req.user && req.user.username) {
+        updatedBy = req.user.username;
+        console.log('[MERCHANT CREATE] Setting updatedBy to:', updatedBy);
+      } else {
+        console.log('[MERCHANT CREATE] No user found, using System');
+      }
+      
+      // Auto-generate merchant ID for manual creation (user-friendly approach)
+      // CSV imports use authentic IDs, manual creation gets auto-generated IDs
+      let merchantId = (merchantData as any).id;
+      if (!merchantId) {
+        // Generate a timestamp-based merchant ID for manual creation
+        const timestamp = Date.now();
+        const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        merchantId = `MMS${timestamp}${randomSuffix}`;
+        console.log(`[MANUAL MERCHANT] Auto-generated ID: ${merchantId} for merchant: ${merchantData.name}`);
+      }
+      
+      const newMerchant = await storage.createMerchant({
+        ...merchantData,
+        id: merchantId,
+        createdAt: new Date(),
+        editDate: new Date(),
+        lastUploadDate: null,
+        updatedBy: updatedBy
+      });
+      
+      res.status(201).json({ 
+        success: true, 
+        merchant: newMerchant
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to create merchant" 
+      });
+    }
+  });
+  
+  // Update merchant details
+  app.put("/api/merchants/:id", isAuthenticated, async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      
+      const schema = z.object({
+        name: z.string().optional(),
+        clientMID: z.string().nullable().optional(),
+        status: z.string().optional(),
+        merchantType: z.string().nullable().optional(),
+        salesChannel: z.string().nullable().optional(),
+        address: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        state: z.string().nullable().optional(),
+        zipCode: z.string().nullable().optional(),
+        category: z.string().nullable().optional()
+      });
+      
+      const merchantData = schema.parse(req.body);
+      
+      // Set the updatedBy field to the logged-in user's username
+      let updatedBy = "System";
+      
+      // If a user is logged in, use their username
+      if (req.user && req.user.username) {
+        updatedBy = req.user.username;
+      }
+      
+      // Check if this is from a file upload by checking referrer or headers
+      const referrer = req.get('Referrer') || '';
+      if (referrer.includes('/uploads') || req.get('X-File-Upload')) {
+        updatedBy = "System-Uploader";
+      }
+      
+      // Map frontend field names to database column names
+      const fieldMapping = {
+        clientMID: 'client_mid',
+        merchantType: 'merchant_type', 
+        salesChannel: 'sales_channel',
+        zipCode: 'zip_code'
+      };
+      
+      // Transform the merchant data to use correct database column names
+      const mappedData: any = {};
+      Object.keys(merchantData).forEach(key => {
+        const dbColumnName = fieldMapping[key as keyof typeof fieldMapping] || key;
+        mappedData[dbColumnName] = merchantData[key as keyof typeof merchantData];
+      });
+      
+      // Always update the edit date and updatedBy when merchant details are changed
+      const updatedMerchantData: any = {
+        ...mappedData,
+        edit_date: new Date(),
+        updated_by: updatedBy
+      };
+      
+      const updatedMerchant = await storage.updateMerchant(merchantId, updatedMerchantData);
+      
+      res.json({ 
+        success: true, 
+        merchant: updatedMerchant 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update merchant" 
+      });
+    }
+  });
+  
+  // Add transaction for a merchant
+  app.post("/api/merchants/:id/transactions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const transactionSchema = z.object({
+        amount: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+          message: "Amount must be a valid positive number"
+        }),
+        type: z.string(),
+        date: z.string().refine(val => !isNaN(Date.parse(val)), {
+          message: "Date must be valid"
+        })
+      });
+      
+      const transactionData = transactionSchema.parse(req.body);
+      const newTransaction = await storage.addTransaction(id, transactionData);
+      
+      res.status(201).json(newTransaction);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to add transaction" 
+      });
+    }
+  });
+  
+  // Delete transactions
+  app.post("/api/merchants/:id/transactions/delete", async (req, res) => {
+    try {
+      const schema = z.object({
+        transactionIds: z.array(z.string())
+      });
+      
+      const { transactionIds } = schema.parse(req.body);
+      
+      if (transactionIds.length === 0) {
+        return res.status(400).json({ error: "No transaction IDs provided" });
+      }
+      
+      await storage.deleteTransactions(transactionIds);
+      
+      res.json({ 
+        success: true, 
+        message: `${transactionIds.length} transaction(s) deleted successfully` 
+      });
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete transactions" 
+      });
+    }
+  });
+  
+  // Delete multiple merchants (POST route for backward compatibility)
+  app.post("/api/merchants/delete", async (req, res) => {
+    try {
+      const { merchantIds } = req.body;
+      
+      if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: merchantIds must be a non-empty array" });
+      }
+      
+      await storage.deleteMerchants(merchantIds);
+      res.json({ success: true, message: `Successfully deleted ${merchantIds.length} merchants` });
+    } catch (error) {
+      console.error('Error deleting merchants:', error);
+      res.status(500).json({ error: "Failed to delete merchants" });
+    }
+  });
+
+  // Delete multiple merchants (DELETE route)
+  app.delete("/api/merchants", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`[DELETE MERCHANTS API] Received DELETE request for merchants`);
+      console.log(`[DELETE MERCHANTS API] Request body:`, req.body);
+      console.log(`[DELETE MERCHANTS API] User authenticated:`, req.isAuthenticated());
+      
+      const { merchantIds } = req.body;
+      
+      if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        console.log(`[DELETE MERCHANTS API] Invalid request: merchantIds must be a non-empty array`);
+        return res.status(400).json({ error: "Invalid request: merchantIds must be a non-empty array" });
+      }
+      
+      console.log(`[DELETE MERCHANTS API] Attempting to delete ${merchantIds.length} merchants:`, merchantIds);
+      
+      await storage.deleteMerchants(merchantIds);
+      
+      console.log(`[DELETE MERCHANTS API] Successfully deleted ${merchantIds.length} merchants`);
+      res.json({ success: true, message: `Successfully deleted ${merchantIds.length} merchants` });
+    } catch (error) {
+      console.error('[DELETE MERCHANTS API] Error deleting merchants:', error);
+      res.status(500).json({ error: "Failed to delete merchants" });
+    }
+  });
+
+  // Merge merchants endpoint
+  // Function to process merge logs after response is sent
+  async function processPostMergeLogs(targetMerchantId: string, sourceMerchantIds: string[], result: any, username: string) {
+    try {
+      // Create audit log entries for each merged merchant
+      for (const sourceMerchantId of sourceMerchantIds) {
+        // @ENVIRONMENT-CRITICAL - Merchant merge source lookup with environment-aware table naming
+        // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+        const merchantsTableName = getTableName('merchants'); 
+        
+        // Get the source merchant directly from database since it's been removed (using raw SQL)
+        const sourceMerchantResult = await pool.query(`
+          SELECT * FROM ${merchantsTableName} WHERE id = $1
+        `, [sourceMerchantId]);
+        const sourceMerchant = sourceMerchantResult.rows[0];
+        if (sourceMerchant) {
+          const auditLogData = {
+            entityType: 'merchant',
+            entityId: targetMerchantId,
+            action: 'merge',
+            userId: null,
+            username,
+            oldValues: sourceMerchant,
+            newValues: result.targetMerchant,
+            changedFields: ['transactions'],
+            notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${result.targetMerchant.name}" (${targetMerchantId}). Transferred ${result.transactionsTransferred} transactions.`
+          };
+          
+          // @ENVIRONMENT-CRITICAL - Audit log creation with environment-aware table naming
+          // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+          const auditLogsTableName = getTableName('audit_logs');
+          
+          console.log('[POST-MERGE LOGGING] Creating audit log entry for merge');
+          
+          // Create audit log using raw SQL with correct snake_case column names
+          const auditLogResult = await pool.query(`
+            INSERT INTO ${auditLogsTableName} (
+              entity_type, entity_id, action, user_id, username, 
+              timestamp, old_values, new_values, changed_fields, notes
+            ) VALUES (
+              $1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9
+            ) RETURNING id
+          `, [
+            'merchant',
+            targetMerchantId,
+            'merge',
+            null,
+            username,
+            JSON.stringify(sourceMerchant || {}),
+            JSON.stringify(result.targetMerchant || {}),
+            ['transactions'],
+            `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${result.targetMerchant.name}" (${targetMerchantId}). Transferred ${result.transactionsTransferred} transactions.`
+          ]);
+          console.log('[POST-MERGE LOGGING] Audit log created successfully with ID:', auditLogResult.rows[0]?.id);
+          
+          // Verify the audit log was actually inserted using environment-aware table name
+          const verifyAudit = await pool.query(`
+            SELECT id FROM ${auditLogsTableName} WHERE id = $1
+          `, [auditLogResult.rows[0]?.id]);
+          console.log('[POST-MERGE LOGGING] Audit log verification:', verifyAudit.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
+        }
+      }
+      
+      // Create upload log entry
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substr(2, 9);
+      const mergeLogData: any = {
+        id: `merge_${timestamp}_${randomId}`,
+        originalFilename: `Merchant Merge Operation: ${result.targetMerchant.name}`,
+        storagePath: `/logs/merge_${targetMerchantId}_${timestamp}.log`,
+        fileType: 'merchant',
+        uploadedAt: new Date(),
+        processed: true,
+        processingErrors: null,
+        deleted: false,
+        fileContent: '',
+        fileSize: 0,
+        mimeType: 'application/octet-stream',
+        processingStatus: 'completed'
+      };
+      
+      console.log('[POST-MERGE LOGGING] Creating upload log entry:', mergeLogData);
+      const uploadLogResult = await db.execute(sql`
+        INSERT INTO uploaded_files (
+          id, 
+          original_filename, 
+          storage_path, 
+          file_type, 
+          uploaded_at, 
+          processed, 
+          deleted,
+          file_content,
+          file_size,
+          mime_type,
+          processing_status
+        ) VALUES (
+          ${mergeLogData.id},
+          ${mergeLogData.originalFilename},
+          ${mergeLogData.storagePath},
+          ${mergeLogData.fileType},
+          ${mergeLogData.uploadedAt},
+          ${mergeLogData.processed},
+          ${mergeLogData.deleted},
+          ${mergeLogData.fileContent || ''},
+          ${mergeLogData.fileSize || 0},
+          ${mergeLogData.mimeType || 'application/octet-stream'},
+          ${mergeLogData.processingStatus || 'completed'}
+        )
+        RETURNING id
+      `);
+      const logId = (uploadLogResult.rows[0] as any)?.id;
+      console.log('[POST-MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
+      
+      // @ENVIRONMENT-CRITICAL - Upload log verification with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
+      // Verify the upload log was actually inserted using environment-aware table name
+      const verifyResult = await pool.query(`
+        SELECT id FROM ${uploadedFilesTableName} WHERE id = $1
+      `, [logId]);
+      console.log('[POST-MERGE LOGGING] Upload log verification:', verifyResult.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
+      
+      // Create system log entry for the merge operation
+      const systemLogData = {
+        level: 'info',
+        source: 'MerchantMerge',
+        message: `Merchant merge completed successfully: ${result.merchantsRemoved} merchants merged into ${result.targetMerchant.name}`,
+        details: {
+          targetMerchantId,
+          sourceMerchantIds,
+          transactionsTransferred: result.transactionsTransferred,
+          merchantsRemoved: result.merchantsRemoved,
+          targetMerchantName: result.targetMerchant.name,
+          performedBy: username,
+          timestamp: new Date().toISOString()
+        }
+      };
+      // @ENVIRONMENT-CRITICAL - System log creation with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const systemLogsTableName = getTableName('system_logs');
+      
+      console.log('[POST-MERGE LOGGING] Creating system log entry:', systemLogData);
+      
+      // Create system log using raw SQL with environment-aware table name
+      const systemLogColumns = Object.keys(systemLogData).join(', ');
+      const systemLogPlaceholders = Object.keys(systemLogData).map((_, i) => `$${i + 1}`).join(', ');
+      const systemLogValues = Object.values(systemLogData).map(val => 
+        typeof val === 'object' ? JSON.stringify(val) : val
+      );
+      
+      const systemLogResult = await pool.query(`
+        INSERT INTO ${systemLogsTableName} (${systemLogColumns}) VALUES (${systemLogPlaceholders}) RETURNING id
+      `, systemLogValues);
+      console.log('[POST-MERGE LOGGING] System log created successfully with ID:', systemLogResult.rows[0]?.id);
+      
+      // Verify the system log was actually inserted using environment-aware table name
+      const verifySystem = await pool.query(`
+        SELECT id FROM ${systemLogsTableName} WHERE id = $1
+      `, [systemLogResult.rows[0]?.id]);
+      console.log('[POST-MERGE LOGGING] System log verification:', verifySystem.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
+    } catch (error) {
+      console.error('[POST-MERGE LOGGING] Failed to create logs:', error);
+    }
+  }
+
+  app.post("/api/merchants/merge", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[MERGE REQUEST] Received merge request:', { 
+        targetMerchantId: req.body.targetMerchantId, 
+        sourceMerchantIds: req.body.sourceMerchantIds 
+      });
+      
+      const { targetMerchantId, sourceMerchantIds } = req.body;
+      
+      if (!targetMerchantId || !sourceMerchantIds || !Array.isArray(sourceMerchantIds) || sourceMerchantIds.length === 0) {
+        console.log('[MERGE ERROR] Invalid request parameters:', { targetMerchantId, sourceMerchantIds });
+        return res.status(400).json({ 
+          error: "Invalid request: targetMerchantId and sourceMerchantIds array required" 
+        });
+      }
+      
+      const username = req.user?.username || 'System';
+      console.log('[MERGE START] Starting merge process with user:', username);
+      
+      const result = await storage.mergeMerchants(targetMerchantId, sourceMerchantIds, username);
+      
+      console.log('[MERGE SUCCESS] Merge completed successfully:', result);
+      
+      // Logging is now handled directly in storage.ts within the merge transaction
+      console.log('[MERGE LOGGING] Logs created within merge transaction');
+      
+      // Send response after logs are created
+      res.json({
+        message: `Successfully merged ${result.merchantsRemoved} merchants into ${result.targetMerchant.name}`,
+        ...result
+      });
+    } catch (error) {
+      console.error('[MERGE ERROR] Error merging merchants:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to merge merchants" 
+      });
+    }
+  });
+}

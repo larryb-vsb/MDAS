@@ -1,0 +1,72 @@
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --ping
+Error: --key or config file with 'key' is required
+usage: batch-uploader.py [-h] [--config CONFIG] [--url URL] [--key KEY] [--folder FOLDER] [--batch-size BATCH_SIZE]
+                         [--polling-interval POLLING_INTERVAL] [--ping] [--status] [--upload] [--version]
+
+MMS Batch File Uploader - Automated file upload with API key authentication
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG       Path to config file (JSON)
+  --url URL             MMS server URL
+  --key KEY             API key for authentication
+  --folder FOLDER       Directory containing files to upload
+  --batch-size BATCH_SIZE
+                        Number of files per batch (default: 5)
+  --polling-interval POLLING_INTERVAL
+                        Polling interval in seconds (default: 10)
+  --ping                Test server connectivity
+  --status              Check upload queue status
+  --upload              Start batch upload
+  --version             show program's version number and exit
+
+Examples:
+  batch-uploader.py --url https://myapp.replit.dev --key xxxxx --ping
+  batch-uploader.py --url https://myapp.replit.dev --key xxxxx --status
+  batch-uploader.py --url https://myapp.replit.dev --key xxxxx --folder /path/to/files --upload
+  batch-uploader.py --config config.json --upload
+
+Configuration File (config.json):
+  {
+    "url": "https://myapp.replit.dev",
+    "key": "mms_your_api_key_here",
+    "folder": "/path/to/upload/folder",
+    "batchSize": 5,
+    "pollingInterval": 10
+  }
+
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --key "mms_1762316901218_ubkotv2diw" --ping
+
+=== MMS Server Ping ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+✗ HTTP Error: 502
+502 Server Error: Bad Gateway for url: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev/api/uploader/ping
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --key "mms_1762316901218_ubkotv2diw" --ping
+
+=== MMS Server Ping ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+✗ HTTP Error: 502
+502 Server Error: Bad Gateway for url: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev/api/uploader/ping
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --key "mms_1762316901218_ubkotv2diw" --ping
+
+=== MMS Server Ping ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Status: ok
+Environment: development
+Message: MMS Batch Uploader API is operational
+
+✓ Connection successful!
+PS C:\Support\MMS-Data\script> python batch-uploader.py --url "https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev" --key "mms_1762316901218_ubkotv2diw" --ping
+
+=== MMS Server Ping ===
+Server: https://bef6d62f-83ca-42fa-94f8-69f532ffea6b-00-2iabg5om9xvmh.janeway.replit.dev
+
+Status: ok
+Environment: development
+Message: MMS Batch Uploader API is operational
+
+✓ Connection successful!
+PS C:\Support\MMS-Data\script>

@@ -1,0 +1,143 @@
+2025-10-31 00:55:19.59
+8c86c858
+User
+file: 'parse_relation.c',
+2025-10-31 00:55:19.59
+8c86c858
+User
+line: '1449',
+2025-10-31 00:55:19.59
+8c86c858
+User
+routine: 'parserOpenTable'
+2025-10-31 00:55:19.59
+8c86c858
+User
+}
+2025-10-31 00:55:20.41
+8c86c858
+User
+[MMS-WATCHER] [PIPELINE-RECOVERY] Found 0 recently encoded files
+2025-10-31 00:55:20.41
+8c86c858
+User
+[MMS-WATCHER] [MONTHLY-CACHE] Checking if monthly cache update needed for tddf1_totals
+2025-10-31 00:55:20.42
+8c86c858
+User
+5:55:20 AM [express] GET /api/uploader 200 in 431ms :: {"uploads":[{"id":"uploader_1761889940725_gtf…
+2025-10-31 00:55:20.46
+8c86c858
+User
+[MMS-WATCHER] [MONTHLY-CACHE] ⚠️ No data found in tddf1_totals
+2025-10-31 00:55:20.46
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Checking for missing individual file cache entries
+2025-10-31 00:55:20.51
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] Found 0 total encoded TDDF files
+2025-10-31 00:55:20.56
+8c86c858
+User
+[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: 0
+2025-10-31 00:55:21.59
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Checking for identified files...
+2025-10-31 00:55:21.59
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:55:21.59
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'identified' ]
+2025-10-31 00:55:21.64
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:55:21.64
+8c86c858
+User
+[MMS-WATCHER] [AUTO-45] Found identified files: false
+2025-10-31 00:55:21.87
+8c86c858
+User
+5:55:21 AM [express] GET /api/uploader 200 in 271ms :: {"uploads":[{"id":"uploader_1761889940725_gtf…
+2025-10-31 00:55:23.23
+8c86c858
+User
+5:55:23 AM [express] GET /api/uploader 200 in 270ms :: {"uploads":[{"id":"uploader_1761889940725_gtf…
+2025-10-31 00:55:23.62
+8c86c858
+User
+[REPLIT-STORAGE] Config status check - Environment: production, Prefix: prod-uploader
+2025-10-31 00:55:23.62
+8c86c858
+User
+[REPLIT-STORAGE] Configuration check passed
+2025-10-31 00:55:23.62
+8c86c858
+User
+[STORAGE-CONFIG] Environment: production, Default Prefix: prod-uploader, Requested: default
+2025-10-31 00:55:23.62
+8c86c858
+User
+[REPLIT-STORAGE] Listing files with prefix: prod-uploader/
+2025-10-31 00:55:23.67
+8c86c858
+User
+[REPLIT-STORAGE] Found 331 files in prod-uploader/
+2025-10-31 00:55:23.67
+8c86c858
+User
+[STORAGE-CONFIG] Successfully counted 331 files for prefix: prod-uploader, searchPrefix: undefined
+2025-10-31 00:55:23.73
+8c86c858
+User
+5:55:23 AM [express] GET /api/uploader/storage-config 200 in 228ms :: {"available":true,"service":"R…
+2025-10-31 00:55:24.14
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Executing query: SELECT * FROM uploader_uploads WHERE current_phase = $1 ORDER BY start_time DESC
+2025-10-31 00:55:24.14
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query params: [ 'uploaded' ]
+2025-10-31 00:55:24.16
+8c86c858
+User
+[UPLOADER-STORAGE-DEBUG] Query returned 0 rows
+2025-10-31 00:55:24.16
+8c86c858
+User
+[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: 0
+2025-10-31 00:55:24.25
+8c86c858
+User
+[AUTO45-API] Getting Auto 4-5 processing status...
+2025-10-31 00:55:24.31
+8c86c858
+User
+5:55:24 AM [express] GET /api/mms-watcher/auto45-status 200 in 168ms :: {"success":true,"enabled":tr…
+2025-10-31 00:55:24.60
+8c86c858
+User
+5:55:24 AM [express] GET /api/uploader 200 in 273ms :: {"uploads":[{"id":"uploader_1761889940725_gtf…
+2025-10-31 00:55:25.99
+8c86c858
+User
+5:55:25 AM [express] GET /api/uploader 200 in 280ms :: {"uploads":[{"id":"uploader_1761889940725_gtf…
+2025-10-31 00:55:27.36
+8c86c858
+User
+5:55:27 AM [express] GET /api/uploader 200 in 278ms :: {"uploads":[{"id":"uploader_1761889940725_gtf…
+
+Collapse
+
+Wrap
+
+Colors
+

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct API Test</title>
+</head>
+<body>
+    <h1>Direct JSONB API Test</h1>
+    <p>Testing API endpoint directly from browser context with session authentication</p>
+    
+    <button onclick="testDirectAPI()" style="padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Test API Call
+    </button>
+    
+    <div id="results" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; white-space: pre-wrap;"></div>
+
+    <script>
+        async function testDirectAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.textContent = 'Making API call...';
+            
+            console.log('🔍 Starting direct API test...');
+            
+            try {
+                const url = '/api/uploader/uploader_1753770043406_rxjr75vpv/jsonb-data?limit=5';
+                console.log('Making request to:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    resultsDiv.textContent = `❌ Error ${response.status}: ${errorText}`;
+                    console.error('API Error:', errorText);
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('✅ API Response received:', data);
+                
+                const summary = `✅ Success!
+
+Records Found: ${data.data ? data.data.length : 0}
+Total Count: ${data.pagination ? data.pagination.total : 'N/A'}
+Table Used: ${data.tableName || 'N/A'}
+
+Sample Record:
+${data.data && data.data[0] ? JSON.stringify(data.data[0], null, 2) : 'No records'}
+
+Full Response Keys: ${Object.keys(data).join(', ')}`;
+                
+                resultsDiv.textContent = summary;
+                
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                resultsDiv.textContent = `❌ Failed: ${error.message}`;
+            }
+        }
+        
+        // Auto-run the test in 2 seconds
+        setTimeout(() => {
+            console.log('Auto-running API test...');
+            testDirectAPI();
+        }, 2000);
+    </script>
+</body>
+</html>
