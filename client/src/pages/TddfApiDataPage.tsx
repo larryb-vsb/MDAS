@@ -4800,7 +4800,7 @@ export default function TddfApiDataPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {upload.finalFileType === 'tddf' && (
+                          {upload.finalFileType === 'tddf' ? (
                             <Button 
                               variant="ghost" 
                               size="sm" 
@@ -4809,6 +4809,16 @@ export default function TddfApiDataPage() {
                               className="text-green-600 hover:text-green-700 hover:bg-green-50"
                             >
                               <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              disabled
+                              title="No JSONB data available"
+                              className="text-gray-400 cursor-not-allowed"
+                            >
+                              <EyeOff className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
