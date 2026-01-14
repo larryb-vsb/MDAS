@@ -1,8 +1,0 @@
-{
-  "enabled": false,
-  "region": "us-east-1",
-  "accessKeyId": "",
-  "secretAccessKey": "",
-  "bucket": "",
-  "useEnvCredentials": false
-}
