@@ -6024,6 +6024,31 @@ export class DatabaseStorage implements IStorage {
                     }
                   }
                 } else {
+                  // Check alias table for previously merged merchants
+                  const aliasesTableName = getTableName('merchant_aliases');
+                  const normalizedName = name.toLowerCase().trim();
+                  const aliasResult = await pool.query(
+                    `SELECT merchant_id, alias_value FROM ${aliasesTableName} WHERE alias_type = 'name' AND normalized_value = $1 LIMIT 1`,
+                    [normalizedName]
+                  );
+                  
+                  if (aliasResult.rows.length > 0) {
+                    const aliasMerchantId = aliasResult.rows[0].merchant_id;
+                    console.log(`[ALIAS MATCH] Found merchant via alias: "${name}" -> ${aliasMerchantId} (alias: "${aliasResult.rows[0].alias_value}")`);
+                    
+                    // Get all transaction IDs that had this name
+                    const transactionIds = nameToIdMapping.get(name) || [];
+                    
+                    // Remap transactions to existing merchant
+                    for (const transId of transactionIds) {
+                      for (const trans of transactions) {
+                        if (trans.merchantId === transId) {
+                          console.log(`Remapping transaction ${trans.id} from ${trans.merchantId} to aliased merchant ${aliasMerchantId} based on alias match "${name}"`);
+                          trans.merchantId = aliasMerchantId;
+                        }
+                      }
+                    }
+                  } else {
                   // Try intelligent fuzzy match
                   const fuzzyMatchMerchants = allExistingMerchants.filter(m => {
                     const merchantName = m.name.toLowerCase();
@@ -6096,6 +6121,7 @@ export class DatabaseStorage implements IStorage {
                   } else {
                     // NO MATCH FOUND - This merchant needs to be created
                     console.log(`[NO MATCH] No existing merchant found for "${name}" - will be created as new merchant in next step`);
+                  }
                   }
                 }
               } catch (error) {
