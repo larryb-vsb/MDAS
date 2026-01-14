@@ -2549,6 +2549,59 @@ export class DatabaseStorage implements IStorage {
 
           merchantsRemoved++;
 
+          // Create aliases for the merged source merchant's identifiers
+          // This prevents future imports from recreating this merchant
+          const aliasesTableName = getTableName('merchant_aliases');
+          
+          // Save source merchant's name as an alias
+          if (sourceMerchant.name && sourceMerchant.name !== targetMerchant.name) {
+            try {
+              const normalizedName = sourceMerchant.name.toLowerCase().trim();
+              await pool.query(
+                `INSERT INTO ${aliasesTableName} 
+                  (merchant_id, alias_type, alias_value, normalized_value, source, merged_from_id, created_by, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 ON CONFLICT DO NOTHING`,
+                [targetMerchantId, 'name', sourceMerchant.name, normalizedName, 'merge', sourceMerchantId, username, `Auto-created during merge on ${new Date().toISOString()}`]
+              );
+              console.log(`[MERGE ALIAS] Created name alias: "${sourceMerchant.name}" -> ${targetMerchantId}`);
+            } catch (aliasError) {
+              console.error(`[MERGE ALIAS] Failed to create name alias:`, aliasError);
+            }
+          }
+          
+          // Save source merchant's ID as an alias
+          try {
+            const normalizedId = sourceMerchantId.toLowerCase().trim();
+            await pool.query(
+              `INSERT INTO ${aliasesTableName} 
+                (merchant_id, alias_type, alias_value, normalized_value, source, merged_from_id, created_by, notes)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               ON CONFLICT DO NOTHING`,
+              [targetMerchantId, 'id', sourceMerchantId, normalizedId, 'merge', sourceMerchantId, username, `Auto-created during merge on ${new Date().toISOString()}`]
+            );
+            console.log(`[MERGE ALIAS] Created ID alias: "${sourceMerchantId}" -> ${targetMerchantId}`);
+          } catch (aliasError) {
+            console.error(`[MERGE ALIAS] Failed to create ID alias:`, aliasError);
+          }
+          
+          // Save source merchant's MID as an alias if it exists
+          if (sourceMerchant.mid && sourceMerchant.mid !== targetMerchant.mid) {
+            try {
+              const normalizedMid = sourceMerchant.mid.toLowerCase().trim();
+              await pool.query(
+                `INSERT INTO ${aliasesTableName} 
+                  (merchant_id, alias_type, alias_value, normalized_value, source, merged_from_id, created_by, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 ON CONFLICT DO NOTHING`,
+                [targetMerchantId, 'mid', sourceMerchant.mid, normalizedMid, 'merge', sourceMerchantId, username, `Auto-created during merge on ${new Date().toISOString()}`]
+              );
+              console.log(`[MERGE ALIAS] Created MID alias: "${sourceMerchant.mid}" -> ${targetMerchantId}`);
+            } catch (aliasError) {
+              console.error(`[MERGE ALIAS] Failed to create MID alias:`, aliasError);
+            }
+          }
+
           // Create audit log entry for the merge
           const auditLogData: InsertAuditLog = {
             entityType: 'merchant',
