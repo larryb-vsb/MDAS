@@ -534,7 +534,7 @@ export default function TddfJsonViewerPage() {
   const [merchantAccountFilter, setMerchantAccountFilter] = useState<string>('');
   const [terminalIdFilter, setTerminalIdFilter] = useState<string>('');
   const [isReEncoding, setIsReEncoding] = useState(false);
-  const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
+  const [viewMode, setViewMode] = useState<'tree' | 'flat' | 'table' | 'raw'>('tree');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<'all' | 'metadata'>('all');
@@ -1126,13 +1126,15 @@ export default function TddfJsonViewerPage() {
         <div className="mb-6 p-4 bg-white rounded-lg border space-y-3">
           {/* First Row: Filters */}
           <div className="flex items-center gap-4 flex-wrap">
-            <Select value={viewMode} onValueChange={(value: 'tree' | 'flat') => setViewMode(value)}>
-              <SelectTrigger className="w-32">
+            <Select value={viewMode} onValueChange={(value: 'tree' | 'flat' | 'table' | 'raw') => setViewMode(value)}>
+              <SelectTrigger className="w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="tree">Tree View</SelectItem>
                 <SelectItem value="flat">Flat View</SelectItem>
+                <SelectItem value="table">Table View</SelectItem>
+                <SelectItem value="raw">Raw Text</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1567,7 +1569,7 @@ export default function TddfJsonViewerPage() {
                   groupRecordsHierarchically={groupRecordsHierarchically}
                   getMerchantName={getMerchantName}
                 />
-              ) : (
+              ) : viewMode === 'flat' ? (
                 <div className="space-y-4">
                   {records.map((record, index) => (
                     <RecordCard 
@@ -1577,6 +1579,56 @@ export default function TddfJsonViewerPage() {
                       formatFieldValue={formatFieldValue}
                     />
                   ))}
+                </div>
+              ) : viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 border">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Record ID</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key Fields</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raw Line</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {records.map((record) => (
+                        <tr key={record.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{record.line_number}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <Badge className={`text-white ${getRecordTypeBadgeColor(record.record_type)}`}>
+                              {record.record_type}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-600 font-mono">
+                            {record.record_identifier || '-'}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-600">
+                            {record.extracted_fields && (
+                              <span className="text-xs">
+                                {Object.entries(record.extracted_fields).slice(0, 3).map(([key, value]) => (
+                                  <span key={key} className="mr-2">
+                                    <span className="font-medium">{key}:</span> {String(value).substring(0, 20)}
+                                  </span>
+                                ))}
+                                {Object.keys(record.extracted_fields).length > 3 && '...'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-xs font-mono text-gray-500 max-w-md truncate" title={record.raw_line}>
+                            {record.raw_line?.substring(0, 80)}{record.raw_line?.length > 80 ? '...' : ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-green-400 text-xs font-mono whitespace-pre leading-relaxed">
+                    {records.map((record) => record.raw_line).join('\n')}
+                  </pre>
                 </div>
               )}
             </div>
