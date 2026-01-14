@@ -5057,6 +5057,38 @@ export class DatabaseStorage implements IStorage {
             }
             console.log(`[MERCHANT-DETAIL] Updated ${existingMerchants.rows.length} merchant(s) for bank ${bankNum}`);
           } else {
+            // Check alias table before creating - this bank number may have been merged
+            const aliasesTableName = getTableName('merchant_aliases');
+            const normalizedBankNum = bankNum.toLowerCase().trim();
+            const aliasResult = await pool.query(
+              `SELECT merchant_id FROM ${aliasesTableName} WHERE alias_type = 'id' AND normalized_value = $1 LIMIT 1`,
+              [normalizedBankNum]
+            );
+            
+            if (aliasResult.rows.length > 0) {
+              // Found via alias - update the aliased merchant instead of creating new
+              const aliasMerchantId = aliasResult.rows[0].merchant_id;
+              console.log(`[MERCHANT-DETAIL] Found merchant via alias: bank ${bankNum} -> ${aliasMerchantId}`);
+              
+              await pool.query(`
+                UPDATE ${merchantsTableName}
+                SET 
+                  exposure_amount = COALESCE($1, exposure_amount),
+                  merchant_activation_date = COALESCE($2, merchant_activation_date),
+                  board_dt = COALESCE($3, board_dt),
+                  updated_at = NOW(),
+                  updated_by = 'mcc_import'
+                WHERE id = $4
+              `, [
+                merchantData.exposureAmount || null,
+                merchantData.merchantActivationDate || null,
+                merchantData.merchantActivationDate || null,
+                aliasMerchantId
+              ]);
+              
+              merchantsUpdated++;
+              logLines.push(`ALIAS-UPDATED: ${bankNum} -> ${aliasMerchantId} (via alias)`);
+            } else {
             // New merchant - create in main merchants table
             await pool.query(`
               INSERT INTO ${merchantsTableName} (
@@ -5074,6 +5106,7 @@ export class DatabaseStorage implements IStorage {
             ]);
             merchantsCreated++;
             logLines.push(`NEW: ${bankNum} - ${merchantData.dbaName || 'Unknown'}`);
+            }
           }
         } catch (recordError) {
           console.error('[MERCHANT-DETAIL] Error processing record:', recordError);
