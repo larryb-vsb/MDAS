@@ -3772,7 +3772,7 @@ export class DatabaseStorage implements IStorage {
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[TRACE] Processing merchant file from database content: ${file.id}`);
                 const processingStartTime = new Date(); // Define processingStartTime for merchant processing
-                const processingMetrics = await this.processMerchantFileFromContent(dbContent);
+                const processingMetrics = await this.processMerchantFileFromContent(dbContent, file.originalFilename);
                 
                 // Calculate processing time in milliseconds
                 const processingCompletedTime = new Date();
@@ -4437,9 +4437,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process merchant file from database content (new format)
-  async processMerchantFileFromContent(base64Content: string): Promise<{ rowsProcessed: number; merchantsCreated: number; merchantsUpdated: number; errors: number }> {
+  async processMerchantFileFromContent(base64Content: string, sourceFilename?: string): Promise<{ rowsProcessed: number; merchantsCreated: number; merchantsUpdated: number; errors: number }> {
     console.log(`=================== MERCHANT FILE PROCESSING (DATABASE) ===================`);
-    console.log(`Processing merchant file from database content`);
+    console.log(`Processing merchant file from database content${sourceFilename ? ` (${sourceFilename})` : ''}`);
     
     // Decode base64 content
     const csvContent = Buffer.from(base64Content, 'base64').toString('utf8');
@@ -4500,12 +4500,14 @@ export class DatabaseStorage implements IStorage {
           }
           
           // Create merchant object with system fields
+          // Include source filename and row number for tracking
+          const updateSource = sourceFilename ? `${sourceFilename}, row ${rowCount}` : `System-Uploader, row ${rowCount}`;
           const merchantData: Partial<InsertMerchant> = {
             id: merchantId,
             createdAt: new Date(),
             lastUploadDate: new Date(),
             editDate: new Date(),
-            updatedBy: "System-Uploader" // Set the updated by field to System-Uploader
+            updatedBy: updateSource // Include filename and row number for tracking
           };
           
           // Apply field mappings - map CSV fields to database fields
@@ -4680,7 +4682,7 @@ export class DatabaseStorage implements IStorage {
                 last_upload_date: merchant.lastUploadDate,
                 as_of_date: merchant.asOfDate,
                 edit_date: new Date(), // Always update the edit date
-                updated_by: "system" // Set updatedBy to system
+                updated_by: merchant.updatedBy || "system" // Use source filename and row number from merchant data
               };
               
               console.log(`Update data: ${JSON.stringify(updateData)}`);
@@ -4940,6 +4942,9 @@ export class DatabaseStorage implements IStorage {
     console.log(`=================== MERCHANT FILE PROCESSING ===================`);
     console.log(`Processing merchant file: ${filePath}`);
     
+    // Extract filename from path for tracking updates
+    const sourceFilename = filePath.split('/').pop() || filePath;
+    
     // Import field mappings and utility functions
     const { merchantFieldMappings, defaultMerchantValues, merchantIdAliases, findMerchantId, normalizeMerchantId } = await import("@shared/field-mappings");
     
@@ -5013,12 +5018,14 @@ export class DatabaseStorage implements IStorage {
           }
           
           // Create merchant object with system fields
+          // Include source filename and row number for tracking
+          const updateSource = sourceFilename ? `${sourceFilename}, row ${rowCount}` : `System-Uploader, row ${rowCount}`;
           const merchantData: Partial<InsertMerchant> = {
             id: merchantId,
             createdAt: new Date(),
             lastUploadDate: new Date(),
             editDate: new Date(),
-            updatedBy: "System-Uploader" // Set the updated by field to System-Uploader
+            updatedBy: updateSource // Include filename and row number for tracking
           };
           
           // Apply field mappings - map CSV fields to database fields
@@ -5169,7 +5176,7 @@ export class DatabaseStorage implements IStorage {
                 last_upload_date: merchant.lastUploadDate,
                 as_of_date: merchant.asOfDate,
                 edit_date: new Date(), // Always update the edit date
-                updated_by: "system" // Set updatedBy to system
+                updated_by: merchant.updatedBy || "system" // Use source filename and row number from merchant data
               };
               
               console.log(`Update data: ${JSON.stringify(updateData)}`);

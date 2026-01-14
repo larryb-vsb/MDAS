@@ -13,7 +13,7 @@ export const merchantFieldMappings = {
   // Database field: CSV field name
   id: "ClientMID", // Use ClientMID as our primary merchant ID
   name: "ClientLegalName",
-  clientMID: "ClientNum", // Map to clientMID - FIXED to match VSB format
+  clientMID: "ClientMID", // Also store ClientMID in client_mid field for display
   otherClientNumber1: "ClientNum", // Also map ClientNum here for backup
   otherClientNumber2: "MID2", // Parent MID from CSV
   status: "Status", // Merchant status field (Open = Active, Delete = Inactive)
