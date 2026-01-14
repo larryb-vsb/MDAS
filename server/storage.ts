@@ -316,6 +316,25 @@ export interface IStorage {
     targetMerchant: Merchant;
   }>;
   
+  // Merchant alias operations - for tracking alternate names/MIDs after merges
+  createMerchantAlias(aliasData: {
+    merchantId: string;
+    aliasType: 'name' | 'mid' | 'id';
+    aliasValue: string;
+    source?: string;
+    mergedFromId?: string;
+    createdBy?: string;
+    notes?: string;
+  }): Promise<any>;
+  
+  getMerchantAliases(merchantId: string): Promise<any[]>;
+  
+  findMerchantByAlias(aliasType: 'name' | 'mid' | 'id', aliasValue: string): Promise<string | null>;
+  
+  findMerchantByNameFuzzy(name: string): Promise<{ merchantId: string; matchType: 'exact' | 'alias' | 'fuzzy'; matchedValue: string } | null>;
+  
+  deleteMerchantAlias(aliasId: number): Promise<void>;
+  
   // Transaction operations
   getTransactions(
     page: number, 
@@ -2642,6 +2661,133 @@ export class DatabaseStorage implements IStorage {
         targetMerchant: targetMerchant
       };
     });
+  }
+  
+  // Merchant Alias Operations - for tracking alternate names/MIDs after merges
+  async createMerchantAlias(aliasData: {
+    merchantId: string;
+    aliasType: 'name' | 'mid' | 'id';
+    aliasValue: string;
+    source?: string;
+    mergedFromId?: string;
+    createdBy?: string;
+    notes?: string;
+  }): Promise<any> {
+    const aliasesTableName = getTableName('merchant_aliases');
+    const normalizedValue = aliasData.aliasValue.toLowerCase().trim();
+    
+    // Check if this exact alias already exists
+    const existingResult = await pool.query(
+      `SELECT * FROM ${aliasesTableName} WHERE merchant_id = $1 AND alias_type = $2 AND normalized_value = $3`,
+      [aliasData.merchantId, aliasData.aliasType, normalizedValue]
+    );
+    
+    if (existingResult.rows.length > 0) {
+      console.log(`[ALIAS] Alias already exists for merchant ${aliasData.merchantId}: ${aliasData.aliasType}=${aliasData.aliasValue}`);
+      return existingResult.rows[0];
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO ${aliasesTableName} 
+        (merchant_id, alias_type, alias_value, normalized_value, source, merged_from_id, created_by, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        aliasData.merchantId,
+        aliasData.aliasType,
+        aliasData.aliasValue,
+        normalizedValue,
+        aliasData.source || 'manual',
+        aliasData.mergedFromId || null,
+        aliasData.createdBy || 'System',
+        aliasData.notes || null
+      ]
+    );
+    
+    console.log(`[ALIAS] Created alias for merchant ${aliasData.merchantId}: ${aliasData.aliasType}=${aliasData.aliasValue}`);
+    return result.rows[0];
+  }
+  
+  async getMerchantAliases(merchantId: string): Promise<any[]> {
+    const aliasesTableName = getTableName('merchant_aliases');
+    const result = await pool.query(
+      `SELECT * FROM ${aliasesTableName} WHERE merchant_id = $1 ORDER BY created_at DESC`,
+      [merchantId]
+    );
+    return result.rows;
+  }
+  
+  async findMerchantByAlias(aliasType: 'name' | 'mid' | 'id', aliasValue: string): Promise<string | null> {
+    const aliasesTableName = getTableName('merchant_aliases');
+    const normalizedValue = aliasValue.toLowerCase().trim();
+    
+    const result = await pool.query(
+      `SELECT merchant_id FROM ${aliasesTableName} WHERE alias_type = $1 AND normalized_value = $2 LIMIT 1`,
+      [aliasType, normalizedValue]
+    );
+    
+    if (result.rows.length > 0) {
+      console.log(`[ALIAS] Found merchant ${result.rows[0].merchant_id} via ${aliasType} alias: ${aliasValue}`);
+      return result.rows[0].merchant_id;
+    }
+    return null;
+  }
+  
+  async findMerchantByNameFuzzy(name: string): Promise<{ merchantId: string; matchType: 'exact' | 'alias' | 'fuzzy'; matchedValue: string } | null> {
+    const merchantsTableName = getTableName('merchants');
+    const aliasesTableName = getTableName('merchant_aliases');
+    const normalizedName = name.toLowerCase().trim();
+    
+    // Step 1: Check exact match on merchant name
+    const exactResult = await pool.query(
+      `SELECT id, name FROM ${merchantsTableName} WHERE LOWER(TRIM(name)) = $1 AND status != 'Removed' LIMIT 1`,
+      [normalizedName]
+    );
+    if (exactResult.rows.length > 0) {
+      console.log(`[ALIAS-FUZZY] Exact match found: ${exactResult.rows[0].name}`);
+      return { merchantId: exactResult.rows[0].id, matchType: 'exact', matchedValue: exactResult.rows[0].name };
+    }
+    
+    // Step 2: Check name aliases (exact match on normalized alias)
+    const aliasResult = await pool.query(
+      `SELECT merchant_id, alias_value FROM ${aliasesTableName} WHERE alias_type = 'name' AND normalized_value = $1 LIMIT 1`,
+      [normalizedName]
+    );
+    if (aliasResult.rows.length > 0) {
+      console.log(`[ALIAS-FUZZY] Alias match found: ${aliasResult.rows[0].alias_value} -> ${aliasResult.rows[0].merchant_id}`);
+      return { merchantId: aliasResult.rows[0].merchant_id, matchType: 'alias', matchedValue: aliasResult.rows[0].alias_value };
+    }
+    
+    // Step 3: Fuzzy match using LIKE on merchant names (basic fuzzy)
+    // Remove common suffixes for fuzzy matching
+    const fuzzyName = normalizedName
+      .replace(/\s+(inc|llc|corp|corporation|company|co|ltd)\.?$/i, '')
+      .trim();
+    
+    if (fuzzyName.length > 3) {
+      const fuzzyResult = await pool.query(
+        `SELECT id, name FROM ${merchantsTableName} 
+         WHERE status != 'Removed' 
+         AND (
+           LOWER(TRIM(name)) LIKE $1 
+           OR LOWER(TRIM(name)) LIKE $2
+         )
+         LIMIT 1`,
+        [`%${fuzzyName}%`, `${fuzzyName}%`]
+      );
+      if (fuzzyResult.rows.length > 0) {
+        console.log(`[ALIAS-FUZZY] Fuzzy match found: ${fuzzyResult.rows[0].name}`);
+        return { merchantId: fuzzyResult.rows[0].id, matchType: 'fuzzy', matchedValue: fuzzyResult.rows[0].name };
+      }
+    }
+    
+    return null;
+  }
+  
+  async deleteMerchantAlias(aliasId: number): Promise<void> {
+    const aliasesTableName = getTableName('merchant_aliases');
+    await pool.query(`DELETE FROM ${aliasesTableName} WHERE id = $1`, [aliasId]);
+    console.log(`[ALIAS] Deleted alias ID ${aliasId}`);
   }
   
   // @ENVIRONMENT-CRITICAL - Transaction creation operations
