@@ -4795,8 +4795,17 @@ export default function TddfApiDataPage() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
+                            onClick={() => setUploaderFileForView(upload)}
+                            title="View raw file contents"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
                             onClick={() => setLocation(`/tddf-viewer/${upload.id}/${encodeURIComponent(upload.filename)}?unlimited=true`)}
                             title="View JSONB data"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
