@@ -202,6 +202,27 @@ export const merchants = pgTable(getTableName("merchants"), {
   merchantTypeLastUploadIdx: index("merchants_type_last_upload_idx").on(table.merchantType, table.lastUploadDate)
 }));
 
+// Merchant Aliases table - tracks alternate names and MIDs for merged merchants
+// Used to prevent duplicate creation during ACH fuzzy matching and MerchDem imports
+export const merchantAliases = pgTable(getTableName("merchant_aliases"), {
+  id: serial("id").primaryKey(),
+  merchantId: text("merchant_id").notNull(), // Primary merchant ID this alias belongs to
+  aliasType: text("alias_type").notNull(), // 'name', 'mid', 'id' - type of alias
+  aliasValue: text("alias_value").notNull(), // The alternate name, MID, or ID
+  normalizedValue: text("normalized_value"), // Lowercase/normalized version for matching
+  source: text("source"), // Where this alias came from: 'merge', 'manual', 'import'
+  mergedFromId: text("merged_from_id"), // Original merchant ID if this came from a merge
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: text("created_by"), // User who created this alias
+  notes: text("notes") // Additional context
+}, (table) => ({
+  merchantIdIdx: index("merchant_aliases_merchant_id_idx").on(table.merchantId),
+  aliasTypeIdx: index("merchant_aliases_alias_type_idx").on(table.aliasType),
+  aliasValueIdx: index("merchant_aliases_alias_value_idx").on(table.aliasValue),
+  normalizedValueIdx: index("merchant_aliases_normalized_value_idx").on(table.normalizedValue),
+  typeValueIdx: index("merchant_aliases_type_value_idx").on(table.aliasType, table.aliasValue)
+}));
+
 // DEPRECATED: API Merchants table removed - all merchants now use the main 'merchants' table
 // Removed on 2026-01-08 to consolidate merchant data into single table
 
@@ -398,6 +419,12 @@ export const schemaContent = pgTable("schema_content", {
 // Zod schemas for merchants
 export const merchantsSchema = createInsertSchema(merchants);
 export const insertMerchantSchema = merchantsSchema.omit({ id: true });
+
+// Zod schemas for merchant aliases
+export const merchantAliasesSchema = createInsertSchema(merchantAliases);
+export const insertMerchantAliasSchema = merchantAliasesSchema.omit({ id: true });
+export type MerchantAlias = typeof merchantAliases.$inferSelect;
+export type InsertMerchantAlias = typeof merchantAliases.$inferInsert;
 
 // Zod schemas for transactions
 export const transactionsSchema = createInsertSchema(transactions);
