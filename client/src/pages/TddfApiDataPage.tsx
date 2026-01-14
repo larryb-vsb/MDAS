@@ -2325,6 +2325,7 @@ export default function TddfApiDataPage() {
   });
   
   const archivedFiles = archiveData?.files || [];
+  const totalArchivedFiles = archiveData?.total || 0;
 
   // Global filename search query
   const { data: searchResults, isLoading: isSearching, refetch: refetchSearch } = useQuery({
@@ -4140,7 +4141,7 @@ export default function TddfApiDataPage() {
                 {uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length} Processed
               </Badge>
               <Badge variant="outline" className="text-xs bg-gray-50">
-                {isLoadingArchive ? '...' : archivedFiles.length} Archived
+                {isLoadingArchive ? '...' : totalArchivedFiles} Archived
               </Badge>
             </div>
           </div>
@@ -4401,7 +4402,7 @@ export default function TddfApiDataPage() {
                 <Database className="h-4 w-4" />
                 Archive
                 <Badge variant="secondary" className="ml-1 text-xs">
-                  {isLoadingArchive ? '...' : archivedFiles.length}
+                  {isLoadingArchive ? '...' : totalArchivedFiles}
                 </Badge>
               </TabsTrigger>
             </TabsList>
@@ -4849,7 +4850,7 @@ export default function TddfApiDataPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle>
-                        Archived Files ({isLoadingArchive ? '...' : archivedFiles.length})
+                        Archived Files ({isLoadingArchive ? '...' : totalArchivedFiles})
                       </CardTitle>
                       <CardDescription>
                         Archived completed files - data remains in master table. Use Restore to return files to active processing.
@@ -4873,7 +4874,7 @@ export default function TddfApiDataPage() {
                   {/* Bulk Action Toolbar for Archive */}
                   <BulkActionToolbar
                     selectedCount={selectedArchiveFiles.length}
-                    totalCount={archivedFiles.length}
+                    totalCount={totalArchivedFiles}
                     onSelectAll={() => setSelectedArchiveFiles(archivedFiles.map((f: any) => f.id))}
                     onClearSelection={() => setSelectedArchiveFiles([])}
                     isAllSelected={selectedArchiveFiles.length === archivedFiles.length && archivedFiles.length > 0}
@@ -5130,7 +5131,7 @@ export default function TddfApiDataPage() {
                   {/* Enhanced Pagination for Archive */}
                   <EnhancedPagination
                     currentPage={archivePage}
-                    totalItems={archivedFiles.length}
+                    totalItems={totalArchivedFiles}
                     itemsPerPage={archiveItemsPerPage}
                     onPageChange={setArchivePage}
                     onPageSizeChange={setArchiveItemsPerPage}
