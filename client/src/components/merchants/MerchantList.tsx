@@ -322,7 +322,7 @@ export default function MerchantList({
           <span className="ml-1 text-gray-700">{merchant.clientMID || '-'}</span>
         </div>
         <div className="col-span-2">
-          <span className="text-gray-500">Last Activity Date:</span>
+          <span className="text-gray-500">Last Update Date:</span>
           <span className="ml-1 text-gray-700 inline-flex items-center">
             {activityData.source && (
               <span className={`w-2 h-2 rounded-full mr-1 ${
@@ -485,7 +485,7 @@ export default function MerchantList({
                     onClick={() => onSort("lastUpload")}
                   >
                     <div className="flex items-center">
-                      Last Activity
+                      Last Update
                       {renderSortIcon("lastUpload")}
                     </div>
                   </TableHead>
@@ -494,7 +494,7 @@ export default function MerchantList({
                     onClick={() => onSort("lastBatchDate")}
                   >
                     <div className="flex items-center">
-                      Last Activity Date
+                      Last Update Date
                       {renderSortIcon("lastBatchDate")}
                     </div>
                   </TableHead>

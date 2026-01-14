@@ -77,7 +77,7 @@ export default function MerchantFilters({
           </div>
           <div className="min-w-0">
             <Label htmlFor="upload-filter" className="block text-xs sm:text-sm font-medium text-gray-700">
-              Last Activity
+              Last Update
             </Label>
             <Select
               value={uploadFilter}
