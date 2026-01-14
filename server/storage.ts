@@ -4591,6 +4591,11 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
+          // CRITICAL: Always force merchant_type = '3' for MerchDem CSV imports (ACH merchants)
+          // This ensures type is set even if Mtype column doesn't exist in CSV
+          merchantData.merchantType = '3';
+          console.log(`Forcing merchantType = "3" for ACH merchant import`);
+          
           // CRITICAL: Ensure name field is not null for database constraint
           if (!merchantData.name) {
             merchantData.name = `Merchant ${merchantId}`;

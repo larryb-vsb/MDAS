@@ -21,11 +21,11 @@ export const merchantFieldMappings = {
   association: "Association", // Business association field
   mcc: "MCC", // Merchant Category Code
   masterMID: "POS Merchant #", // Master Merchant ID from TSYS (POS Merchant # field)
-  address: "ClientPAddress1", // Updated to match VSB_MerchantDem format
-  city: "ClientPAddress2", // Updated to match VSB_MerchantDem format  
-  state: "ClientPAddress4", // Updated to match VSB_MerchantDem format (State column)
-  zipCode: "ClientPAddress5", // Updated to match VSB_MerchantDem format (Zip column)
-  country: "ClientPAddress3", // Updated to match VSB_MerchantDem format (Country column)
+  address: "ClientPAddress1", // Street address from VSB_MerchantDem
+  city: "ClientPAddressCity", // City from VSB_MerchantDem (was ClientPAddress2 which is suite/unit)
+  state: "ClientPAddressState", // State from VSB_MerchantDem
+  zipCode: "ClientPAddressZip", // Zip code from VSB_MerchantDem
+  country: "ClientPAddressCountry", // Country from VSB_MerchantDem
   category: null, // Default in code
   clientSinceDate: "ClientSinceDate",
   asOfDate: "AsOfDate" // Date from demographic import file
