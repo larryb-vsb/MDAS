@@ -4669,6 +4669,8 @@ export class DatabaseStorage implements IStorage {
               });
               
               // Always update the edit date to current date/time
+              // DEBUG: Check merchantType value before update
+              console.log(`[DEBUG] merchant.merchantType = "${merchant.merchantType}" for ${merchant.id}`);
               const updateData = {
                 name: merchant.name,
                 client_mid: merchant.clientMID,
@@ -4676,7 +4678,7 @@ export class DatabaseStorage implements IStorage {
                 other_client_number2: merchant.otherClientNumber2,
                 client_since_date: merchant.clientSinceDate,
                 status: merchant.status,
-                merchant_type: merchant.merchantType,
+                merchant_type: '3', // FORCE TYPE 3 DIRECTLY in update object
                 sales_channel: merchant.salesChannel,
                 address: merchant.address,
                 city: merchant.city,
