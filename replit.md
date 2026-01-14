@@ -35,6 +35,14 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.5 (2026-01-14)**
+- Implemented Merchant Alias System to prevent duplicate merchant creation
+- New `dev_merchant_aliases` table tracks alternate names, MIDs, and IDs for merged merchants
+- Merge operation now auto-creates aliases for source merchant's name, ID, and MID
+- ACH import checks alias table before fuzzy matching - prevents recreating merged merchants
+- MerchDem/MCC import checks ID aliases before creating new merchants
+- Added storage methods: createMerchantAlias, getMerchantAliases, findMerchantByAlias, findMerchantByNameFuzzy, deleteMerchantAlias
+
 **Version 2.0.4 (2026-01-12)**
 - Fixed inconsistent terminal VAR number formats across all creation paths
 - Terminal IDs now normalized to canonical VXXXXXXX format (e.g., 78912073 → V8912073)
