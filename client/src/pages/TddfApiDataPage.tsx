@@ -4795,7 +4795,7 @@ export default function TddfApiDataPage() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => setUploaderFileForView(upload)}
+                            onClick={() => handleViewUploaderFile(upload)}
                             title="View raw file contents"
                           >
                             <Eye className="h-4 w-4" />
