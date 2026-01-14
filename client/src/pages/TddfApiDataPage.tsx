@@ -4800,15 +4800,17 @@ export default function TddfApiDataPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setLocation(`/tddf-viewer/${upload.id}/${encodeURIComponent(upload.filename)}?unlimited=true`)}
-                            title="View JSONB data"
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          {upload.finalFileType === 'tddf' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setLocation(`/tddf-viewer/${upload.id}/${encodeURIComponent(upload.filename)}?unlimited=true`)}
+                              title="View JSONB data"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       ))}
                     {uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length === 0 && (
