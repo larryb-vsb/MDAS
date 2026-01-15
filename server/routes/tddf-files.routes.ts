@@ -1928,12 +1928,17 @@ export function registerTddfFilesRoutes(app: Express) {
   });
 
   // Get archive file content for viewing
+  // Note: Archived files live in uploader_uploads with is_archived=true
   app.get('/api/tddf-archive/:id/content', isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       
-      // Get archive file details
-      const archiveQuery = `SELECT * FROM ${getTableName('tddf_archive')} WHERE id = $1`;
+      // Get archived file from uploader_uploads (where is_archived = true)
+      const archiveQuery = `
+        SELECT id, filename, storage_path, file_size 
+        FROM ${getTableName('uploader_uploads')} 
+        WHERE id = $1 AND is_archived = true
+      `;
       const archiveResult = await pool.query(archiveQuery, [id]);
       
       if (archiveResult.rows.length === 0) {
@@ -1942,15 +1947,15 @@ export function registerTddfFilesRoutes(app: Express) {
       
       const archiveFile = archiveResult.rows[0];
       
-      console.log(`[ARCHIVE-CONTENT] Reading file: ${archiveFile.archive_path}`);
+      console.log(`[ARCHIVE-CONTENT] Reading file from storage path: ${archiveFile.storage_path}`);
       
-      // Read file content from storage
-      const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.archive_path);
+      // Read file content from storage using the storage_path
+      const fileBuffer = await ReplitStorageService.getFileContent(archiveFile.storage_path);
       const fileContent = Buffer.isBuffer(fileBuffer) ? fileBuffer.toString('utf8') : String(fileBuffer);
       
       res.json({
         success: true,
-        filename: archiveFile.original_filename,
+        filename: archiveFile.filename,
         size: archiveFile.file_size,
         content: fileContent
       });
