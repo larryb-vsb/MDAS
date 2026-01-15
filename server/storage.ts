@@ -5404,6 +5404,9 @@ export class DatabaseStorage implements IStorage {
               const merchantsTableName = getTableName('merchants');
               
               // Always update the edit date to current date/time
+              // CRITICAL FIX: Force merchant_type='3' for MerchDem CSV updates (ACH merchants)
+              const forcedMerchantTypeUpdate = '3';
+              console.log(`[MERCHDEM-CSV-UPDATE] merchant.merchantType = "${merchant.merchantType}", forcing to "${forcedMerchantTypeUpdate}"`);
               const updateData = {
                 name: merchant.name,
                 client_mid: merchant.clientMID,
@@ -5411,7 +5414,7 @@ export class DatabaseStorage implements IStorage {
                 other_client_number2: merchant.otherClientNumber2,
                 client_since_date: merchant.clientSinceDate,
                 status: merchant.status,
-                merchant_type: merchant.merchantType,
+                merchant_type: forcedMerchantTypeUpdate,
                 sales_channel: merchant.salesChannel,
                 address: merchant.address,
                 city: merchant.city,
@@ -5455,6 +5458,9 @@ export class DatabaseStorage implements IStorage {
               const merchantsTableName2 = getTableName('merchants');
               
               // Map merchant object to database column names
+              // CRITICAL FIX: Force merchant_type='3' for MerchDem CSV imports (ACH merchants)
+              const forcedMerchantType = '3'; // ACH Type3 for all MerchDem CSV merchant imports
+              console.log(`[MERCHDEM-CSV-INSERT] merchant.merchantType = "${merchant.merchantType}", forcing to "${forcedMerchantType}"`);
               const merchantForInsert = {
                 id: merchant.id,
                 name: merchant.name,
@@ -5463,7 +5469,7 @@ export class DatabaseStorage implements IStorage {
                 other_client_number2: merchant.otherClientNumber2,
                 client_since_date: merchant.clientSinceDate,
                 status: merchant.status,
-                merchant_type: merchant.merchantType,
+                merchant_type: forcedMerchantType,
                 sales_channel: merchant.salesChannel,
                 address: merchant.address,
                 city: merchant.city,
