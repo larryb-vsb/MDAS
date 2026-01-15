@@ -5,6 +5,16 @@ All notable changes to MDAS (Merchant Datawarehouse and Automation System) will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.7] - 2026-01-15
+
+### Added
+- One-step `/api/uploader/upload` endpoint for batch uploader compatibility
+- Duplicate file detection returns HTTP 409 with existing file ID
+
+### Fixed
+- Batch uploader uploads failing due to missing simple upload endpoint
+- Production Neon connection errors logged for monitoring
+
 ## [2.0.6] - 2026-01-15
 
 ### Added

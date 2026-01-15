@@ -1,0 +1,86 @@
+15 11:16:01.05
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:01.055Z
+2026-01-15 11:16:01.25
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:01.255Z
+2026-01-15 11:16:01.25
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 11:16:01.35
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 11:16:01.35
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:01.355Z
+2026-01-15 11:16:01.55
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 11:16:01.55
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:01.555Z
+2026-01-15 11:16:01.75
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 11:16:01.75
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:01.655Z
+2026-01-15 11:16:01.85
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 11:16:01.85
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:01.855Z
+2026-01-15 11:16:13.68
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 11:16:13.68
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T17:16:13.682Z
+2026-01-15 12:00:28.41
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 12:00:28.41
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T18:00:28.417Z
+2026-01-15 12:00:29.31
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T18:00:29.318Z
+2026-01-15 12:00:29.31
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 12:00:29.81
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T18:00:29.817Z
+2026-01-15 12:00:29.81
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 12:03:24.31
+959eb900
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-15 12:03:24.61
+959eb900
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-15T18:03:24.517Z
+Wrap
+Colors

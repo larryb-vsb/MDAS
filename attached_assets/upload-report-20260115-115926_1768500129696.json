@@ -1,0 +1,19 @@
+{
+  "successful": 0,
+  "failed": 3,
+  "skipped": 0,
+  "files": [
+    {
+      "name": "VERMNTSB.6759_DACQ_MER_DTL_01152026_001832.TSYSO",
+      "status": "failed"
+    },
+    {
+      "name": "VERMNTSB.6759_TDDF_2400_01152026_005950.TSYSO",
+      "status": "failed"
+    },
+    {
+      "name": "VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO",
+      "status": "failed"
+    }
+  ]
+}

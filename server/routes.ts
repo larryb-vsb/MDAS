@@ -1323,6 +1323,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Simple one-step upload endpoint for batch uploader (combines start + upload)
+  app.post("/api/uploader/upload", isAuthenticatedOrApiKey, isHostApproved, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const filename = req.file.originalname;
+      const fileBuffer = req.file.buffer;
+      const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`[UPLOADER-SIMPLE] Starting one-step upload: ${filename} (${fileBuffer.length} bytes)`);
+      
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      
+      // Check Replit Object Storage configuration
+      if (!ReplitStorageService.isConfigured()) {
+        return res.status(500).json({ 
+          error: 'Replit Object Storage not available.',
+          configStatus: ReplitStorageService.getConfigStatus()
+        });
+      }
+      
+      // Check for duplicate file by filename
+      const uploadsTableName = getTableName('uploader_uploads');
+      const duplicateCheck = await pool.query(`
+        SELECT id, current_phase FROM ${uploadsTableName}
+        WHERE filename = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [filename]);
+      
+      if (duplicateCheck.rows.length > 0) {
+        console.log(`[UPLOADER-SIMPLE] Duplicate detected: ${filename} (existing ID: ${duplicateCheck.rows[0].id})`);
+        return res.status(409).json({
+          error: 'File already exists',
+          existingId: duplicateCheck.rows[0].id,
+          existingPhase: duplicateCheck.rows[0].current_phase
+        });
+      }
+      
+      // Generate storage key for upload
+      const storageKey = ReplitStorageService.generateUploadKey(filename, uploadId);
+      
+      // Create database record
+      const upload = await storage.createUploaderUpload({
+        id: uploadId,
+        filename,
+        fileSize: fileBuffer.length,
+        storagePath: storageKey,
+        s3Bucket: 'mms-uploader-files',
+        s3Key: storageKey,
+        createdBy: (req.user as any)?.username || 'batch-uploader',
+        sessionId: `batch_${Date.now()}`,
+        serverId: process.env.HOSTNAME || 'unknown',
+        keepForReview: false
+      });
+      
+      // Upload to Replit Object Storage
+      const uploadResult = await ReplitStorageService.uploadFile(
+        fileBuffer,
+        filename,
+        uploadId,
+        req.file.mimetype
+      );
+      
+      // Extract file metadata
+      const fileContent = fileBuffer.toString('utf-8');
+      const lines = fileContent.split('\n');
+      const lineCount = lines.length;
+      
+      // Detect file format
+      let fileFormat = 'text';
+      if (filename.toLowerCase().endsWith('.csv')) fileFormat = 'csv';
+      else if (filename.toLowerCase().endsWith('.tsv')) fileFormat = 'tsv';
+      else if (filename.toLowerCase().endsWith('.json')) fileFormat = 'json';
+      else if (filename.toLowerCase().endsWith('.tsyso')) fileFormat = 'tddf';
+      
+      // Update database with metadata
+      await storage.updateUploaderUpload(uploadId, {
+        currentPhase: 'uploaded',
+        uploadProgress: 100,
+        uploadedAt: new Date(),
+        storagePath: uploadResult.key,
+        s3Bucket: uploadResult.bucket,
+        s3Key: uploadResult.key,
+        s3Url: uploadResult.url,
+        s3Etag: uploadResult.etag,
+        fileSize: fileBuffer.length,
+        lineCount: lineCount,
+        dataSize: fileBuffer.length,
+        fileFormat: fileFormat,
+        encodingDetected: 'utf-8'
+      });
+      
+      console.log(`[UPLOADER-SIMPLE] ✅ Upload complete: ${uploadId} -> ${uploadResult.key}`);
+      
+      res.json({ 
+        success: true,
+        id: uploadId,
+        filename: filename,
+        lineCount: lineCount,
+        fileSize: fileBuffer.length
+      });
+    } catch (error: any) {
+      console.error('[UPLOADER-SIMPLE] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Chunked upload endpoint for large files (>25MB)
   app.post("/api/uploader/:id/upload-chunk", isAuthenticatedOrApiKey, isHostApproved, upload.single('chunk'), async (req, res) => {
     try {
