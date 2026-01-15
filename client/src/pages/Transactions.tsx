@@ -522,7 +522,7 @@ function AchTransactionsTab() {
           </div>
 
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
-            <SelectTrigger className="w-28 sm:w-32" data-testid="select-limit">
+            <SelectTrigger className="w-32 sm:w-36" data-testid="select-limit">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -530,6 +530,9 @@ function AchTransactionsTab() {
               <SelectItem value="25">25 per page</SelectItem>
               <SelectItem value="50">50 per page</SelectItem>
               <SelectItem value="100">100 per page</SelectItem>
+              <SelectItem value="250">250 per page</SelectItem>
+              <SelectItem value="500">500 per page</SelectItem>
+              <SelectItem value="1000">1000 per page</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1304,7 +1307,7 @@ function MccTddfTransactionsTab() {
           </p>
 
           <Select value={limit.toString()} onValueChange={handleLimitChange}>
-            <SelectTrigger className="w-28 sm:w-32" data-testid="select-limit-dt">
+            <SelectTrigger className="w-32 sm:w-36" data-testid="select-limit-dt">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1312,6 +1315,9 @@ function MccTddfTransactionsTab() {
               <SelectItem value="25">25 per page</SelectItem>
               <SelectItem value="50">50 per page</SelectItem>
               <SelectItem value="100">100 per page</SelectItem>
+              <SelectItem value="250">250 per page</SelectItem>
+              <SelectItem value="500">500 per page</SelectItem>
+              <SelectItem value="1000">1000 per page</SelectItem>
             </SelectContent>
           </Select>
         </div>
