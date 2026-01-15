@@ -6849,10 +6849,108 @@ export class DatabaseStorage implements IStorage {
             
             console.log(`Collected ${merchantNameMapping.size} merchant names from transactions`);
             
-            // DISABLED: For type 3 ACH transaction files, we always create new merchants
-            // Do NOT match to existing merchants by name - each file creates its own merchant records
-            console.log(`[TYPE 3 ACH] Merchant name matching DISABLED - all merchants from transaction files will be created as new type 3 merchants`);
-            console.log(`Found ${nameToIdMapping.size} unique merchant names to create`);
+            // ENABLED: Fuzzy matching for format1 ACH transaction files to prevent duplicates
+            // Uses 80% similarity threshold with pg_trgm, same as AH0314P1 processing
+            console.log(`[TYPE 3 ACH] Merchant name fuzzy matching ENABLED - checking for similar merchants before creation`);
+            console.log(`Found ${nameToIdMapping.size} unique merchant names to process`);
+            
+            // Pre-process: Check each unique merchant name for existing matches
+            const aliasesTableName = getTableName('merchant_aliases');
+            
+            for (const [merchantName, merchantIds] of nameToIdMapping) {
+              // Step 1: Check exact match on merchant name (case-insensitive)
+              const exactResult = await pool.query(
+                `SELECT id, name FROM ${merchantsTableName} WHERE LOWER(TRIM(name)) = $1 AND status != 'Removed' LIMIT 1`,
+                [merchantName.toLowerCase().trim()]
+              );
+              
+              if (exactResult.rows.length > 0) {
+                const existingMerchant = exactResult.rows[0];
+                console.log(`[EXACT MATCH] Found existing merchant for "${merchantName}": ${existingMerchant.id} (${existingMerchant.name})`);
+                
+                // Remap all transactions with this merchant name to existing merchant
+                for (const oldId of merchantIds) {
+                  for (const trans of transactions) {
+                    if (trans.merchantId === oldId) {
+                      console.log(`Remapping transaction ${trans.id} from ${oldId} to ${existingMerchant.id}`);
+                      trans.merchantId = existingMerchant.id;
+                    }
+                  }
+                  // Update the mapping
+                  merchantNameMapping.set(existingMerchant.id, merchantName);
+                }
+                continue;
+              }
+              
+              // Step 2: Check alias table for previously merged merchants
+              const normalizedName = merchantName.toLowerCase().trim();
+              const aliasResult = await pool.query(
+                `SELECT merchant_id, alias_value FROM ${aliasesTableName} WHERE alias_type = 'name' AND normalized_value = $1 LIMIT 1`,
+                [normalizedName]
+              );
+              
+              if (aliasResult.rows.length > 0) {
+                const aliasMerchantId = aliasResult.rows[0].merchant_id;
+                console.log(`[ALIAS MATCH] Found merchant via alias: "${merchantName}" -> ${aliasMerchantId}`);
+                
+                // Remap transactions
+                for (const oldId of merchantIds) {
+                  for (const trans of transactions) {
+                    if (trans.merchantId === oldId) {
+                      console.log(`Remapping transaction ${trans.id} from ${oldId} to aliased merchant ${aliasMerchantId}`);
+                      trans.merchantId = aliasMerchantId;
+                    }
+                  }
+                  merchantNameMapping.set(aliasMerchantId, merchantName);
+                }
+                continue;
+              }
+              
+              // Step 3: Fuzzy match using pg_trgm similarity (80% threshold)
+              const normalizeForFuzzy = (n: string) => n.toLowerCase()
+                .replace(/\s+(llc|inc|ltd|corp|corporation|company|co|lp|llp)\.?(\s+|$)/gi, '')
+                .replace(/[^a-z0-9\s]/g, '')
+                .trim();
+              
+              const cleanTransactionName = normalizeForFuzzy(merchantName);
+              
+              if (cleanTransactionName.length > 3) {
+                const similarityResult = await pool.query(`
+                  SELECT id, name, 
+                         SIMILARITY(
+                           LOWER(REGEXP_REPLACE(name, '\\s+(LLC|INC|LTD|CORP|CORPORATION|COMPANY|CO|LP|LLP)\\.?\\s*$', '', 'gi')),
+                           $1
+                         ) as similarity_score
+                  FROM ${merchantsTableName}
+                  WHERE status != 'Removed'
+                    AND SIMILARITY(
+                          LOWER(REGEXP_REPLACE(name, '\\s+(LLC|INC|LTD|CORP|CORPORATION|COMPANY|CO|LP|LLP)\\.?\\s*$', '', 'gi')),
+                          $1
+                        ) >= 0.80
+                  ORDER BY similarity_score DESC
+                  LIMIT 1
+                `, [cleanTransactionName]);
+                
+                if (similarityResult.rows.length > 0) {
+                  const matchedMerchant = similarityResult.rows[0];
+                  console.log(`[FUZZY MATCH] Found similar merchant for "${merchantName}": ${matchedMerchant.id} (${matchedMerchant.name}) with ${(matchedMerchant.similarity_score * 100).toFixed(1)}% similarity`);
+                  
+                  // Remap transactions
+                  for (const oldId of merchantIds) {
+                    for (const trans of transactions) {
+                      if (trans.merchantId === oldId) {
+                        console.log(`Remapping transaction ${trans.id} from ${oldId} to similar merchant ${matchedMerchant.id}`);
+                        trans.merchantId = matchedMerchant.id;
+                      }
+                    }
+                    merchantNameMapping.set(matchedMerchant.id, merchantName);
+                  }
+                  continue;
+                }
+              }
+              
+              console.log(`[NO MATCH] No existing merchant found for "${merchantName}" - will be created as new`);
+            }
           }
           
           for (const transaction of transactions) {
