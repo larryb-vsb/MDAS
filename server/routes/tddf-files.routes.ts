@@ -24,19 +24,43 @@ const tddfStorage = multer({
   }
 });
 
-// Business day extraction utility for TDDF filenames
-function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
-  // Pattern: VERMNTSB.6759_TDDF_830_10272022_001356.TSYSO
+// Business day extraction utility for TDDF and ACH filenames
+function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null, fileSequence: string | null } {
+  // Check for ACH pattern first: PREFIX_AH0314P1_YYYYMMDD_SEQ-TIMESTAMP
+  // Example: 801203_AH0314P1_20241022_001-20260106225932.csv
+  const achPattern = /AH0314P1_(\d{8})_(\d{3})-/i;
+  const achMatch = filename.match(achPattern);
+  
+  if (achMatch) {
+    const dateStr = achMatch[1];
+    const fileSequence = achMatch[2];
+    
+    // Parse YYYYMMDD format
+    const year = dateStr.substring(0, 4);
+    const month = dateStr.substring(4, 6);
+    const day = dateStr.substring(6, 8);
+    
+    try {
+      const businessDay = new Date(`${year}-${month}-${day}`);
+      if (!isNaN(businessDay.getTime())) {
+        return { businessDay, fileDate: dateStr, fileSequence };
+      }
+    } catch (error) {
+      // Fall through to TDDF pattern
+    }
+  }
+  
+  // TDDF Pattern: VERMNTSB.6759_TDDF_830_10272022_001356.TSYSO
   // Look for 8-digit date pattern: MMDDYYYY
   const dateMatch = filename.match(/(\d{8})/);
   
   if (!dateMatch) {
-    return { businessDay: null, fileDate: null };
+    return { businessDay: null, fileDate: null, fileSequence: null };
   }
   
   const dateStr = dateMatch[1];
   
-  // Parse MMDDYYYY format
+  // Parse MMDDYYYY format (TDDF style)
   if (dateStr.length === 8) {
     const month = dateStr.substring(0, 2);
     const day = dateStr.substring(2, 4);
@@ -46,15 +70,15 @@ function extractBusinessDayFromFilename(filename: string): { businessDay: Date |
       const businessDay = new Date(`${year}-${month}-${day}`);
       // Validate the date is reasonable (not invalid)
       if (isNaN(businessDay.getTime())) {
-        return { businessDay: null, fileDate: dateStr };
+        return { businessDay: null, fileDate: dateStr, fileSequence: null };
       }
-      return { businessDay, fileDate: dateStr };
+      return { businessDay, fileDate: dateStr, fileSequence: null };
     } catch (error) {
-      return { businessDay: null, fileDate: dateStr };
+      return { businessDay: null, fileDate: dateStr, fileSequence: null };
     }
   }
   
-  return { businessDay: null, fileDate: dateStr };
+  return { businessDay: null, fileDate: dateStr, fileSequence: null };
 }
 
 export function registerTddfFilesRoutes(app: Express) {
@@ -1623,7 +1647,9 @@ export function registerTddfFilesRoutes(app: Express) {
           other_record_count,
           business_day,
           file_sequence_number,
-          file_processing_time
+          file_processing_time,
+          final_file_type,
+          line_count
         FROM ${getTableName('uploader_uploads')}
         WHERE is_archived = true
         ORDER BY ${sortColumn} ${sortDirection} NULLS LAST
@@ -1631,6 +1657,19 @@ export function registerTddfFilesRoutes(app: Express) {
       `;
       
       const result = await pool.query(query, [limit, offset]);
+      
+      // Compute business_day and file_sequence from filename for files that don't have them stored
+      const filesWithComputedDates = result.rows.map((file: any) => {
+        if (!file.business_day && file.original_filename) {
+          const extracted = extractBusinessDayFromFilename(file.original_filename);
+          return {
+            ...file,
+            business_day: extracted.businessDay?.toISOString().split('T')[0] || null,
+            file_sequence_number: file.file_sequence_number || extracted.fileSequence
+          };
+        }
+        return file;
+      });
       
       // Get total count
       const countQuery = `
@@ -1642,7 +1681,7 @@ export function registerTddfFilesRoutes(app: Express) {
       const countResult = await pool.query(countQuery);
       
       res.json({
-        files: result.rows,
+        files: filesWithComputedDates,
         total: parseInt(countResult.rows[0].total),
         limit: parseInt(limit as string),
         offset: parseInt(offset as string)

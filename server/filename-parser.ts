@@ -138,3 +138,90 @@ export function generateDuplicateKey(metadata: TddfFilenameMetadata): string | n
   const dateString = metadata.file_processing_date?.toISOString().split('T')[0] || 'unknown';
   return `${metadata.file_system_id}_${metadata.file_sequence_number}_${dateString}`;
 }
+
+/**
+ * ACH Filename Metadata (for AH0314P1 files)
+ */
+export interface AchFilenameMetadata {
+  original_filename: string;
+  business_day: Date | null;
+  file_sequence_number: string | null;
+  file_type: string | null;
+  parsing_success: boolean;
+}
+
+/**
+ * Parse ACH filename to extract metadata
+ * Pattern: PREFIX_AH0314P1_YYYYMMDD_SEQ-TIMESTAMP.ext
+ * Example: 801203_AH0314P1_20241022_001-20260106225932.csv
+ */
+export function parseAchFilename(filename: string): AchFilenameMetadata {
+  const metadata: AchFilenameMetadata = {
+    original_filename: filename,
+    business_day: null,
+    file_sequence_number: null,
+    file_type: null,
+    parsing_success: false
+  };
+
+  try {
+    // Pattern: PREFIX_AH0314P1_YYYYMMDD_SEQ-TIMESTAMP
+    const achPattern = /^[^_]+_AH0314P1_(\d{8})_(\d{3})-/i;
+    const match = filename.match(achPattern);
+    
+    if (match) {
+      const [, dateString, sequence] = match;
+      
+      // Parse date (YYYYMMDD format)
+      const year = parseInt(dateString.substring(0, 4), 10);
+      const month = parseInt(dateString.substring(4, 6), 10);
+      const day = parseInt(dateString.substring(6, 8), 10);
+      
+      if (year >= 2000 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        metadata.business_day = new Date(year, month - 1, day);
+      }
+      
+      metadata.file_sequence_number = sequence;
+      metadata.file_type = 'transaction_csv';
+      metadata.parsing_success = true;
+      
+      console.log(`[FILENAME-PARSER] Successfully parsed ACH filename ${filename}:`, {
+        business_day: metadata.business_day?.toISOString().split('T')[0],
+        sequence: sequence
+      });
+    }
+  } catch (error) {
+    console.error(`[FILENAME-PARSER] Error parsing ACH filename ${filename}:`, error);
+    metadata.parsing_success = false;
+  }
+  
+  return metadata;
+}
+
+/**
+ * Extract business day from any filename type
+ * Returns { business_day: Date | null, file_sequence: string | null }
+ */
+export function extractBusinessDayFromFilename(filename: string): { business_day: Date | null, file_sequence: string | null } {
+  // Try ACH pattern first (AH0314P1 files)
+  if (filename.includes('AH0314P1')) {
+    const achMetadata = parseAchFilename(filename);
+    if (achMetadata.parsing_success) {
+      return {
+        business_day: achMetadata.business_day,
+        file_sequence: achMetadata.file_sequence_number
+      };
+    }
+  }
+  
+  // Try TDDF pattern
+  const tddfMetadata = parseTddfFilename(filename);
+  if (tddfMetadata.mainframe_process_data.parsing_success) {
+    return {
+      business_day: tddfMetadata.file_processing_date,
+      file_sequence: tddfMetadata.file_sequence_number
+    };
+  }
+  
+  return { business_day: null, file_sequence: null };
+}
