@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, addDays, subDays } from "date-fns";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -700,7 +701,16 @@ function AchTransactionsTab() {
                             data-testid={`cell-merchant-${transaction.id}`}
                             title={transaction.merchant_name}
                           >
-                            {transaction.merchant_name}
+                            {transaction.merchant_id ? (
+                              <Link
+                                href={`/merchants/${transaction.merchant_id}`}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              >
+                                {transaction.merchant_name}
+                              </Link>
+                            ) : (
+                              transaction.merchant_name
+                            )}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap" data-testid={`cell-date-${transaction.id}`}>
                             {formatDate(transaction.transaction_date)}
@@ -733,7 +743,16 @@ function AchTransactionsTab() {
                             data-testid={`cell-company-${transaction.id}`}
                             title={transaction.company}
                           >
-                            {transaction.company}
+                            {transaction.merchant_id ? (
+                              <Link
+                                href={`/merchants/${transaction.merchant_id}`}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              >
+                                {transaction.company}
+                              </Link>
+                            ) : (
+                              transaction.company
+                            )}
                           </TableCell>
                           <TableCell
                             className="hidden lg:table-cell text-sm"
