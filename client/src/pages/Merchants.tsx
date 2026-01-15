@@ -22,6 +22,12 @@ interface MerchantsResponse {
   };
 }
 
+interface MerchantCounts {
+  all: number;
+  mcc: number;
+  ach: number;
+}
+
 export default function Merchants() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -102,6 +108,18 @@ export default function Merchants() {
     }
   });
   
+  // Query merchant counts for tab badges
+  const { data: merchantCounts } = useQuery<MerchantCounts>({
+    queryKey: ['/api/merchants/counts'],
+    queryFn: async () => {
+      const response = await fetch('/api/merchants/counts');
+      if (!response.ok) {
+        throw new Error('Failed to fetch merchant counts');
+      }
+      return response.json();
+    }
+  });
+  
   // Delete selected merchants mutation
   const deleteMutation = useMutation({
     mutationFn: async (merchantIds: string[]) => {
@@ -123,6 +141,7 @@ export default function Merchants() {
       });
       setSelectedMerchants([]);
       queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants/counts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
     },
     onError: (error) => {
@@ -158,6 +177,7 @@ export default function Merchants() {
       });
       setSelectedMerchants([]);
       queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants/counts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
     },
     onError: (error) => {
@@ -186,6 +206,7 @@ export default function Merchants() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/merchants/counts'] });
     queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
     toast({
       title: "Refreshing",
@@ -240,16 +261,31 @@ export default function Merchants() {
               <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">All Merchants</span>
               <span className="sm:hidden">All</span>
+              {merchantCounts?.all !== undefined && (
+                <span className="ml-1 text-[10px] sm:text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full font-medium">
+                  {merchantCounts.all.toLocaleString()}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="mcc" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
               <Store className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">MCC Merchants</span>
               <span className="sm:hidden">MCC</span>
+              {merchantCounts?.mcc !== undefined && (
+                <span className="ml-1 text-[10px] sm:text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full font-medium">
+                  {merchantCounts.mcc.toLocaleString()}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="ach" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
               <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">ACH Merchants</span>
               <span className="sm:hidden">ACH</span>
+              {merchantCounts?.ach !== undefined && (
+                <span className="ml-1 text-[10px] sm:text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full font-medium">
+                  {merchantCounts.ach.toLocaleString()}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="mcc-config" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-2 sm:px-3">
               <Settings className="h-3 w-3 sm:h-4 sm:w-4" />

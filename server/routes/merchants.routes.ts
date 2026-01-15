@@ -27,6 +27,36 @@ export function registerMerchantRoutes(app: Express) {
     }
   });
 
+  // Get merchant counts by type for tab badges
+  // Shows total non-removed merchants in each category (intuitive total counts)
+  app.get("/api/merchants/counts", async (req, res) => {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      // Total counts by category (excludes 'Removed' status only)
+      // - All: all non-removed merchants
+      // - MCC: non-removed merchants where merchant_type is NOT '3' (or is NULL/empty)
+      // - ACH: non-removed merchants where merchant_type = '3'
+      const result = await pool.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE COALESCE(status, '') != 'Removed') as all_count,
+          COUNT(*) FILTER (WHERE COALESCE(status, '') != 'Removed' AND COALESCE(merchant_type, '') != '3') as mcc_count,
+          COUNT(*) FILTER (WHERE COALESCE(status, '') != 'Removed' AND merchant_type = '3') as ach_count
+        FROM ${merchantsTableName}
+      `);
+      
+      const counts = result.rows[0];
+      res.json({
+        all: parseInt(counts.all_count) || 0,
+        mcc: parseInt(counts.mcc_count) || 0,
+        ach: parseInt(counts.ach_count) || 0
+      });
+    } catch (error) {
+      console.error("Error fetching merchant counts:", error);
+      res.status(500).json({ error: "Failed to fetch merchant counts" });
+    }
+  });
+
   // Get merchant lookup map for TDDF viewer (account_number -> dba_name)
   app.get("/api/merchants/lookup-map", async (req, res) => {
     try {
