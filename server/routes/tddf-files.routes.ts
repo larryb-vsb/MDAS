@@ -1693,40 +1693,78 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
-  // Get file activity heatmap data - counts of files by day for a specific year
+  // Get file activity heatmap data - counts of files by day
+  // Supports: ?months=12 for trailing months, or ?year=2025 for specific calendar year
   app.get('/api/tddf-archive/activity-heatmap', isAuthenticated, async (req, res) => {
     try {
-      const { year } = req.query;
-      const targetYear = parseInt(year as string) || new Date().getFullYear();
+      const { year, months } = req.query;
       
-      // Get daily counts of archived files for the specified year
-      const query = `
-        SELECT 
-          DATE(archived_at) as date,
-          COUNT(*) as count
-        FROM ${getTableName('uploader_uploads')}
-        WHERE is_archived = true 
-          AND EXTRACT(YEAR FROM archived_at) = $1
-          AND archived_at IS NOT NULL
-        GROUP BY DATE(archived_at)
-        ORDER BY date ASC
-      `;
+      let query: string;
+      let uploadQuery: string;
+      let params: any[] = [];
+      let responseMetadata: any = {};
       
-      const result = await pool.query(query, [targetYear]);
+      if (months) {
+        // Trailing months mode (like GitHub's "last year" view)
+        const monthsBack = Math.min(parseInt(months as string) || 12, 24);
+        
+        query = `
+          SELECT 
+            DATE(archived_at) as date,
+            COUNT(*) as count
+          FROM ${getTableName('uploader_uploads')}
+          WHERE is_archived = true 
+            AND archived_at >= NOW() - INTERVAL '${monthsBack} months'
+            AND archived_at IS NOT NULL
+          GROUP BY DATE(archived_at)
+          ORDER BY date ASC
+        `;
+        
+        uploadQuery = `
+          SELECT 
+            DATE(uploaded_at) as date,
+            COUNT(*) as count
+          FROM ${getTableName('uploader_uploads')}
+          WHERE uploaded_at >= NOW() - INTERVAL '${monthsBack} months'
+            AND uploaded_at IS NOT NULL
+          GROUP BY DATE(uploaded_at)
+          ORDER BY date ASC
+        `;
+        
+        responseMetadata = { months: monthsBack };
+      } else {
+        // Specific calendar year mode
+        const targetYear = parseInt(year as string) || new Date().getFullYear();
+        
+        query = `
+          SELECT 
+            DATE(archived_at) as date,
+            COUNT(*) as count
+          FROM ${getTableName('uploader_uploads')}
+          WHERE is_archived = true 
+            AND EXTRACT(YEAR FROM archived_at) = $1
+            AND archived_at IS NOT NULL
+          GROUP BY DATE(archived_at)
+          ORDER BY date ASC
+        `;
+        
+        uploadQuery = `
+          SELECT 
+            DATE(uploaded_at) as date,
+            COUNT(*) as count
+          FROM ${getTableName('uploader_uploads')}
+          WHERE EXTRACT(YEAR FROM uploaded_at) = $1
+            AND uploaded_at IS NOT NULL
+          GROUP BY DATE(uploaded_at)
+          ORDER BY date ASC
+        `;
+        
+        params = [targetYear];
+        responseMetadata = { year: targetYear };
+      }
       
-      // Also get daily counts of uploaded files for context
-      const uploadQuery = `
-        SELECT 
-          DATE(uploaded_at) as date,
-          COUNT(*) as count
-        FROM ${getTableName('uploader_uploads')}
-        WHERE EXTRACT(YEAR FROM uploaded_at) = $1
-          AND uploaded_at IS NOT NULL
-        GROUP BY DATE(uploaded_at)
-        ORDER BY date ASC
-      `;
-      
-      const uploadResult = await pool.query(uploadQuery, [targetYear]);
+      const result = await pool.query(query, params);
+      const uploadResult = await pool.query(uploadQuery, params);
       
       res.json({
         archived: result.rows.map(row => ({
@@ -1737,7 +1775,7 @@ export function registerTddfFilesRoutes(app: Express) {
           date: row.date,
           count: parseInt(row.count)
         })),
-        year: targetYear
+        ...responseMetadata
       });
       
     } catch (error) {

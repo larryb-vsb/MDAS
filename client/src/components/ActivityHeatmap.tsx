@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format, eachDayOfInterval, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
+import { format, eachDayOfInterval, startOfWeek, endOfWeek, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
@@ -13,7 +13,8 @@ interface ActivityData {
 interface HeatmapResponse {
   archived: ActivityData[];
   uploaded: ActivityData[];
-  year: number;
+  year?: number;
+  months?: number;
 }
 
 interface ActivityHeatmapProps {
@@ -48,9 +49,13 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
   const [selectedYear, setSelectedYear] = useState(currentYear);
   
   const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const isCurrentYear = selectedYear === currentYear;
   
   const { data, isLoading } = useQuery<HeatmapResponse>({
-    queryKey: [`/api/tddf-archive/activity-heatmap?year=${selectedYear}`],
+    queryKey: [isCurrentYear 
+      ? `/api/tddf-archive/activity-heatmap?months=12` 
+      : `/api/tddf-archive/activity-heatmap?year=${selectedYear}`
+    ],
   });
   
   if (isLoading) {
@@ -80,13 +85,21 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
   const maxCount = Math.max(...activityData.map(d => d.count), 1);
   
   const today = new Date();
-  const isCurrentYear = selectedYear === currentYear;
-  const yearStart = startOfYear(new Date(selectedYear, 0, 1));
-  const yearEnd = isCurrentYear ? today : endOfYear(new Date(selectedYear, 0, 1));
+  
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  
+  if (isCurrentYear) {
+    rangeStart = subMonths(today, 12);
+    rangeEnd = today;
+  } else {
+    rangeStart = startOfYear(new Date(selectedYear, 0, 1));
+    rangeEnd = endOfYear(new Date(selectedYear, 0, 1));
+  }
   
   const allDays = eachDayOfInterval({
-    start: startOfWeek(yearStart, { weekStartsOn: 0 }),
-    end: endOfWeek(yearEnd, { weekStartsOn: 0 })
+    start: startOfWeek(rangeStart, { weekStartsOn: 0 }),
+    end: endOfWeek(rangeEnd, { weekStartsOn: 0 })
   });
   
   const weeks: Date[][] = [];
@@ -130,7 +143,7 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm font-medium">
-                {totalCount.toLocaleString()} {dataType === 'archived' ? 'files archived' : 'files uploaded'} in {selectedYear}
+                {totalCount.toLocaleString()} {dataType === 'archived' ? 'files archived' : 'files uploaded'} {isCurrentYear ? 'in the last year' : `in ${selectedYear}`}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Less</span>
@@ -175,7 +188,7 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
                         const dateStr = format(day, 'yyyy-MM-dd');
                         const count = activityMap.get(dateStr) || 0;
                         const level = getIntensityLevel(count, maxCount);
-                        const isInRange = day >= yearStart && day <= yearEnd;
+                        const isInRange = day >= rangeStart && day <= rangeEnd;
                         
                         return (
                           <Tooltip key={dayIndex}>
