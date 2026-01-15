@@ -614,6 +614,9 @@ export interface IStorage {
   updateTddfApiProcessingQueue(queueId: number, updates: any): Promise<any>;
   getTddfApiMonitoring(timeRange?: string): Promise<any>;
   getApiUserByKey(apiKey: string): Promise<ApiUser | null>;
+  
+  // Duplicate upload audit operations
+  auditDuplicateUploads(): Promise<{ duplicates: any[], summary: string }>;
 
 }
 
