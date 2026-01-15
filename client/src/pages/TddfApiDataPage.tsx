@@ -2769,6 +2769,31 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Recalculate business dates mutation
+  const recalculateBusinessDatesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('/api/uploader/recalculate-business-dates', {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-archive'] });
+      toast({ 
+        title: "Business date recalculation started", 
+        description: "Background process is updating business dates from filenames"
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Recalculation failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Archive sorting handler
   const handleArchiveSort = (column: string) => {
     if (archiveSortBy === column) {
@@ -4873,18 +4898,30 @@ export default function TddfApiDataPage() {
                         Archived completed files - data remains in master table. Use Restore to return files to active processing.
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        refetchArchive();
-                        toast({ title: "Archive data refreshed" });
-                      }}
-                      disabled={isLoadingArchive}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Refresh
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => recalculateBusinessDatesMutation.mutate()}
+                        disabled={recalculateBusinessDatesMutation.isPending}
+                        title="Recalculate business dates from filenames for all files"
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        {recalculateBusinessDatesMutation.isPending ? 'Recalculating...' : 'Recalc Dates'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          refetchArchive();
+                          toast({ title: "Archive data refreshed" });
+                        }}
+                        disabled={isLoadingArchive}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Refresh
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
