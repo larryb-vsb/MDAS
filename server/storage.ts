@@ -4924,13 +4924,17 @@ export class DatabaseStorage implements IStorage {
               });
               
               const insertTableName = getTableName('merchants'); // Fixed: Use unified merchants table
+              // CRITICAL FIX: Force merchant_type='3' directly in INSERT for ACH merchants
+              // merchant.merchantType was undefined at runtime despite being set in code
+              const forcedMerchantType = '3'; // ACH Type3 for all CSV merchant imports
+              console.log(`[CSV-MERCHANT-INSERT] merchant.merchantType = "${merchant.merchantType}", forcing to "${forcedMerchantType}"`);
               await pool.query(`
                 INSERT INTO ${insertTableName} (
                   id, name, merchant_type, client_since_date, as_of_date, 
                   created_at, last_upload_date, edit_date, updated_by
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
               `, [
-                merchant.id, merchant.name, merchant.merchantType, merchant.clientSinceDate,
+                merchant.id, merchant.name, forcedMerchantType, merchant.clientSinceDate,
                 merchant.asOfDate, merchant.createdAt, merchant.lastUploadDate, 
                 merchant.editDate, merchant.updatedBy
               ]);
