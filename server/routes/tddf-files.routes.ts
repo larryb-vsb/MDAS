@@ -1693,6 +1693,59 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
+  // Get file activity heatmap data - counts of files by day for last 12 months
+  app.get('/api/tddf-archive/activity-heatmap', isAuthenticated, async (req, res) => {
+    try {
+      const { months = 12 } = req.query;
+      const monthsBack = Math.min(parseInt(months as string) || 12, 24);
+      
+      // Get daily counts of archived files for the last N months
+      const query = `
+        SELECT 
+          DATE(archived_at) as date,
+          COUNT(*) as count
+        FROM ${getTableName('uploader_uploads')}
+        WHERE is_archived = true 
+          AND archived_at >= NOW() - INTERVAL '${monthsBack} months'
+          AND archived_at IS NOT NULL
+        GROUP BY DATE(archived_at)
+        ORDER BY date ASC
+      `;
+      
+      const result = await pool.query(query);
+      
+      // Also get daily counts of uploaded files for context
+      const uploadQuery = `
+        SELECT 
+          DATE(uploaded_at) as date,
+          COUNT(*) as count
+        FROM ${getTableName('uploader_uploads')}
+        WHERE uploaded_at >= NOW() - INTERVAL '${monthsBack} months'
+          AND uploaded_at IS NOT NULL
+        GROUP BY DATE(uploaded_at)
+        ORDER BY date ASC
+      `;
+      
+      const uploadResult = await pool.query(uploadQuery);
+      
+      res.json({
+        archived: result.rows.map(row => ({
+          date: row.date,
+          count: parseInt(row.count)
+        })),
+        uploaded: uploadResult.rows.map(row => ({
+          date: row.date,
+          count: parseInt(row.count)
+        })),
+        months: monthsBack
+      });
+      
+    } catch (error) {
+      console.error('Error fetching activity heatmap data:', error);
+      res.status(500).json({ error: 'Failed to fetch activity heatmap data' });
+    }
+  });
+
   // Get specific archive file details
   app.get('/api/tddf-archive/:id', isAuthenticated, async (req, res) => {
     try {

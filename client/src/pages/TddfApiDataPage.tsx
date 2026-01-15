@@ -27,6 +27,7 @@ import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, 
 import { format, addDays, subDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
+import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { UploaderUpload } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize, getStatusBadgeVariant, TddfApiFile, TddfApiSchema } from '@/lib/tddf-shared';
@@ -4845,6 +4846,16 @@ export default function TddfApiDataPage() {
 
             {/* ARCHIVE TAB - Archived files with restore functionality */}
             <TabsContent value="archive" className="space-y-4">
+              {/* Activity Heatmap Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Archive Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ActivityHeatmap dataType="archived" months={12} />
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
