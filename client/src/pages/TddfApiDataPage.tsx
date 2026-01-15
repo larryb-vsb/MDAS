@@ -5044,9 +5044,9 @@ export default function TddfApiDataPage() {
                               <span>•</span>
                               <span>{upload.finalFileType || 'unknown'}</span>
                             </div>
-                            {upload.errorMessage && (
+                            {upload.statusMessage && (
                               <div className="text-xs text-red-600 mt-1 truncate max-w-md">
-                                Error: {upload.errorMessage}
+                                Error: {upload.statusMessage}
                               </div>
                             )}
                           </div>
