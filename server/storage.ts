@@ -6202,20 +6202,25 @@ export class DatabaseStorage implements IStorage {
               if (nameToUse) {
                 console.log(`[NEW MERCHANT] Creating merchant with name: ${nameToUse} for ID: ${merchantId}`);
                 
+                // CRITICAL FIX: Force merchant_type='3' for ACH transaction-created merchants
+                const forcedMerchantType = '3';
+                console.log(`[ACH-TXN-MERCHANT-INSERT] Creating merchant ${merchantId} with forced merchant_type="${forcedMerchantType}"`);
+                
                 const newMerchant = {
                   id: merchantId,
                   name: nameToUse,
-                  clientMID: `CM-${merchantId}`,
+                  client_mid: `CM-${merchantId}`,
                   status: "Active/Open",
+                  merchant_type: forcedMerchantType,
                   address: "123 Business St",
                   city: "Chicago",
                   state: "IL",
-                  zipCode: "60601",
+                  zip_code: "60601",
                   country: "US",
                   category: "Retail",
-                  createdAt: new Date(),
-                  lastUploadDate: new Date(),
-                  editDate: new Date()
+                  created_at: new Date(),
+                  last_upload_date: new Date(),
+                  edit_date: new Date()
                 };
                 
                 // @ENVIRONMENT-CRITICAL - Dynamic merchant creation with environment-aware table naming
@@ -6224,7 +6229,7 @@ export class DatabaseStorage implements IStorage {
                 const columns = Object.keys(newMerchant).join(', ');
                 const values = Object.values(newMerchant).map((_, index) => `$${index + 1}`).join(', ');
                 await pool.query(`INSERT INTO ${merchantsTableName} (${columns}) VALUES (${values})`, Object.values(newMerchant));
-                console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
+                console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}, merchant_type=${forcedMerchantType}`);
               } else {
                 console.log(`[SKIP MERCHANT] No name available for ${merchantId}, will skip transactions for this merchant to avoid bad data`);
                 // Remove transactions without merchant names to avoid constraint violations
@@ -6232,23 +6237,16 @@ export class DatabaseStorage implements IStorage {
                 console.log(`Filtered out transactions for merchant ${merchantId} due to missing name`);
               }
             } else {
-              // Merchant exists - update status to Active/Open and lastUploadDate
+              // Merchant exists - update status to Active/Open, lastUploadDate, and merchant_type
               const existingMerchant = existingMerchantResult.rows[0];
-              if (existingMerchant.status !== 'Active/Open') {
-                await pool.query(`
-                  UPDATE ${merchantsTableName} 
-                  SET status = 'Active/Open', "lastUploadDate" = NOW(), "editDate" = NOW()
-                  WHERE id = $1
-                `, [merchantId]);
-                console.log(`[UPDATE] Updating lastUploadDate and status to Active/Open for existing merchant: ${merchantId} (${existingMerchant.name})`);
-              } else {
-                await pool.query(`
-                  UPDATE ${merchantsTableName} 
-                  SET "lastUploadDate" = NOW()
-                  WHERE id = $1
-                `, [merchantId]);
-                console.log(`[UPDATE] Updating lastUploadDate for existing merchant: ${merchantId} (${existingMerchant.name})`);
-              }
+              // CRITICAL FIX: Always set merchant_type='3' for ACH transaction processing
+              console.log(`[ACH-TXN-MERCHANT-UPDATE] Updating merchant ${merchantId} with forced merchant_type="3"`);
+              await pool.query(`
+                UPDATE ${merchantsTableName} 
+                SET status = 'Active/Open', last_upload_date = NOW(), edit_date = NOW(), merchant_type = '3'
+                WHERE id = $1
+              `, [merchantId]);
+              console.log(`[UPDATE] Updated merchant: ${merchantId} (${existingMerchant.name}) - status=Active/Open, merchant_type=3`);
             }
           }
           
