@@ -35,6 +35,14 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.7 (2026-01-15)**
+- Enhanced AH0314P1 merchant name fuzzy matching with PostgreSQL pg_trgm similarity function
+- Uses 80% similarity threshold to catch near-duplicates (e.g., "TOROVERDE II INC" vs "TOROVERDE INC")
+- Case-insensitive matching prevents duplicates like "METRO 1996 LLC" vs "Metro 1996 LLC"
+- Normalizes names by removing business suffixes (LLC, INC, CORP, LTD, COMPANY, etc.) before comparison
+- Returns highest similarity match when multiple candidates exist
+- Added restore buttons to file search results for both Active Uploads and Archived Files sections
+
 **Version 2.0.6 (2026-01-15)**
 - Enhanced filename parsing to support ACH0314P1 files (YYYYMMDD date format)
 - Added `parseAchFilename()` and `extractBusinessDayFromFilename()` utilities for dual format support
