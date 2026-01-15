@@ -4780,6 +4780,12 @@ export default function TddfApiDataPage() {
                               <span>{upload.finalFileType || 'unknown'}</span>
                               <span>•</span>
                               <span>{upload.lineCount?.toLocaleString() || 0} lines</span>
+                              {upload.businessDay && (
+                                <>
+                                  <span>•</span>
+                                  <span>{format(new Date(upload.businessDay), 'MMM d, yyyy')}</span>
+                                </>
+                              )}
                               <span>•</span>
                               <span>Encoding: <TimingDisplay uploadId={upload.id} /></span>
                             </div>
