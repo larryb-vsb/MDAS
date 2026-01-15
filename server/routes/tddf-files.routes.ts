@@ -1693,26 +1693,26 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
-  // Get file activity heatmap data - counts of files by day for last 12 months
+  // Get file activity heatmap data - counts of files by day for a specific year
   app.get('/api/tddf-archive/activity-heatmap', isAuthenticated, async (req, res) => {
     try {
-      const { months = 12 } = req.query;
-      const monthsBack = Math.min(parseInt(months as string) || 12, 24);
+      const { year } = req.query;
+      const targetYear = parseInt(year as string) || new Date().getFullYear();
       
-      // Get daily counts of archived files for the last N months
+      // Get daily counts of archived files for the specified year
       const query = `
         SELECT 
           DATE(archived_at) as date,
           COUNT(*) as count
         FROM ${getTableName('uploader_uploads')}
         WHERE is_archived = true 
-          AND archived_at >= NOW() - INTERVAL '${monthsBack} months'
+          AND EXTRACT(YEAR FROM archived_at) = $1
           AND archived_at IS NOT NULL
         GROUP BY DATE(archived_at)
         ORDER BY date ASC
       `;
       
-      const result = await pool.query(query);
+      const result = await pool.query(query, [targetYear]);
       
       // Also get daily counts of uploaded files for context
       const uploadQuery = `
@@ -1720,13 +1720,13 @@ export function registerTddfFilesRoutes(app: Express) {
           DATE(uploaded_at) as date,
           COUNT(*) as count
         FROM ${getTableName('uploader_uploads')}
-        WHERE uploaded_at >= NOW() - INTERVAL '${monthsBack} months'
+        WHERE EXTRACT(YEAR FROM uploaded_at) = $1
           AND uploaded_at IS NOT NULL
         GROUP BY DATE(uploaded_at)
         ORDER BY date ASC
       `;
       
-      const uploadResult = await pool.query(uploadQuery);
+      const uploadResult = await pool.query(uploadQuery, [targetYear]);
       
       res.json({
         archived: result.rows.map(row => ({
@@ -1737,7 +1737,7 @@ export function registerTddfFilesRoutes(app: Express) {
           date: row.date,
           count: parseInt(row.count)
         })),
-        months: monthsBack
+        year: targetYear
       });
       
     } catch (error) {

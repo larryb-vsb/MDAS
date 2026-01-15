@@ -4852,7 +4852,7 @@ export default function TddfApiDataPage() {
                   <CardTitle className="text-lg">Archive Activity</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ActivityHeatmap dataType="archived" months={12} />
+                  <ActivityHeatmap dataType="archived" />
                 </CardContent>
               </Card>
 
