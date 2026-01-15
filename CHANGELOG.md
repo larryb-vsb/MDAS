@@ -5,6 +5,39 @@ All notable changes to MDAS (Merchant Datawarehouse and Automation System) will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2026-01-15
+
+### Added
+- GitHub-style 12-month activity heatmap on Archive tab showing daily archive activity
+- Year navigation controls for heatmap (last 5 years)
+- `/api/tddf-archive/activity-heatmap` endpoint with `?months=12` and `?year=YYYY` parameters
+- File type filter dropdown on Archive tab (TDDF, ACH Transactions, ACH Merchant, MasterCard DI)
+- Archive cards now display file size, file type, line count, and business day
+
+### Changed
+- Archive tab UI redesigned with card-based layout matching Processed tab
+- Heatmap shows trailing 12-month window for current year, calendar year for past years
+
+### Fixed
+- Fixed heatmap alignment and whitespace issues with constants-based layout (10px cells, 2px gaps)
+- Month labels properly positioned above corresponding grid columns
+
+## [2.0.5] - 2026-01-14
+
+### Added
+- Merchant Alias System to prevent duplicate merchant creation during ACH imports
+- `dev_merchant_aliases` table tracks alternate names, MIDs, and IDs for merged merchants
+- ACH import now checks alias table before fuzzy matching
+- MerchDem/MCC import checks ID aliases before creating new merchants
+- Storage methods: `createMerchantAlias`, `getMerchantAliases`, `findMerchantByAlias`, `findMerchantByNameFuzzy`, `deleteMerchantAlias`
+
+### Changed
+- Merge operation auto-creates aliases for source merchant's name, ID, and MID
+
+### Fixed
+- Enhanced ACH filename parsing to support YYYYMMDD date format (ACH0314P1 files)
+- Added `parseAchFilename()` and `extractBusinessDayFromFilename()` utilities
+
 ## [2.0.4] - 2026-01-12
 
 ### Fixed
