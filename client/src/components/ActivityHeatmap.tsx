@@ -22,6 +22,10 @@ interface ActivityHeatmapProps {
   className?: string;
 }
 
+const CELL_SIZE = 10;
+const CELL_GAP = 2;
+const WEEK_WIDTH = CELL_SIZE + CELL_GAP;
+
 function getIntensityLevel(count: number, maxCount: number): number {
   if (count === 0) return 0;
   if (maxCount === 0) return 0;
@@ -133,16 +137,18 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
   });
   
   const totalCount = activityData.reduce((sum, d) => sum + d.count, 0);
+  const gridWidth = weeks.length * WEEK_WIDTH;
+  const dayLabelWidth = 28;
   
   return (
     <TooltipProvider>
-      <div className={cn("flex items-start gap-3", className)}>
-        <div className="border border-border rounded-lg p-3 inline-block">
-          <div className="flex items-center justify-between mb-2 gap-8">
-            <div className="text-sm font-medium whitespace-nowrap">
+      <div className={cn("flex items-start gap-6", className)}>
+        <div className="border border-border rounded-lg p-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium">
               {totalCount.toLocaleString()} {dataType === 'archived' ? 'files archived' : 'files uploaded'} {isCurrentYear ? 'in the last year' : `in ${selectedYear}`}
             </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground ml-4">
               <span>Less</span>
               <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(0))} />
               <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(1))} />
@@ -154,31 +160,31 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
           </div>
           
           <div className="flex">
-            <div className="flex flex-col mr-1 text-[10px] text-muted-foreground" style={{ marginTop: '14px' }}>
-              <div className="h-[10px] flex items-center mb-[2px]">Mon</div>
-              <div className="h-[10px] flex items-center mt-[10px]">Wed</div>
-              <div className="h-[10px] flex items-center mt-[10px]">Fri</div>
+            <div className="flex flex-col text-[10px] text-muted-foreground pr-1" style={{ width: dayLabelWidth, paddingTop: 15 }}>
+              <div style={{ height: CELL_SIZE + CELL_GAP }} />
+              <div className="flex items-center" style={{ height: CELL_SIZE }}>Mon</div>
+              <div style={{ height: CELL_SIZE + CELL_GAP }} />
+              <div className="flex items-center" style={{ height: CELL_SIZE }}>Wed</div>
+              <div style={{ height: CELL_SIZE + CELL_GAP }} />
+              <div className="flex items-center" style={{ height: CELL_SIZE }}>Fri</div>
             </div>
             
-            <div className="flex flex-col">
-              <div className="flex mb-[2px]" style={{ height: '12px' }}>
+            <div style={{ width: gridWidth }}>
+              <div className="relative" style={{ height: 14, marginBottom: 1 }}>
                 {monthLabels.map((monthInfo, i) => (
-                  <div 
+                  <span 
                     key={i}
                     className="text-[10px] text-muted-foreground absolute"
-                    style={{ 
-                      position: 'relative',
-                      left: `${monthInfo.weekIndex * 12}px`
-                    }}
+                    style={{ left: monthInfo.weekIndex * WEEK_WIDTH }}
                   >
                     {monthInfo.label}
-                  </div>
+                  </span>
                 ))}
               </div>
               
-              <div className="flex" style={{ gap: '2px' }}>
+              <div className="flex" style={{ gap: CELL_GAP }}>
                 {weeks.map((week, weekIndex) => (
-                  <div key={weekIndex} className="flex flex-col" style={{ gap: '2px' }}>
+                  <div key={weekIndex} className="flex flex-col" style={{ gap: CELL_GAP }}>
                     {week.map((day, dayIndex) => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const count = activityMap.get(dateStr) || 0;
@@ -190,10 +196,11 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
                           <TooltipTrigger asChild>
                             <div 
                               className={cn(
-                                "w-[10px] h-[10px] rounded-sm cursor-pointer transition-colors",
+                                "rounded-sm cursor-pointer transition-colors",
                                 isInRange ? getIntensityColor(level) : 'bg-transparent',
                                 isInRange && "hover:ring-1 hover:ring-gray-400"
                               )}
+                              style={{ width: CELL_SIZE, height: CELL_SIZE }}
                             />
                           </TooltipTrigger>
                           {isInRange && (
@@ -214,13 +221,13 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
           </div>
         </div>
         
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1 pt-1">
           {availableYears.map((year) => (
             <button
               key={year}
               onClick={() => setSelectedYear(year)}
               className={cn(
-                "px-3 py-1 text-sm rounded-md transition-colors text-right",
+                "px-3 py-1.5 text-sm rounded-md transition-colors text-right",
                 year === selectedYear
                   ? "bg-primary text-primary-foreground font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
