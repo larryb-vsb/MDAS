@@ -5566,6 +5566,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // BUSINESS DAY RECALCULATION - Background process to update business_day from filenames
+  // ============================================================================
+  app.post('/api/uploader/recalculate-business-dates', isAuthenticated, async (req, res) => {
+    try {
+      console.log('[BUSINESS-DAY-RECALC] Starting background business date recalculation...');
+      
+      // Import the parser utility
+      const { extractBusinessDayFromFilename } = await import('./filename-parser');
+      
+      const uploadsTableName = getTableName('uploader_uploads');
+      const archiveTableName = getTableName('tddf_archive');
+      
+      // Response immediately to avoid timeout
+      res.json({ 
+        success: true, 
+        message: 'Business date recalculation started in background',
+        status: 'processing'
+      });
+      
+      // Run recalculation in background
+      (async () => {
+        let uploadsUpdated = 0;
+        let archiveUpdated = 0;
+        let errors: string[] = [];
+        
+        try {
+          // 1. Recalculate for uploader_uploads table
+          console.log('[BUSINESS-DAY-RECALC] Fetching uploads records...');
+          const uploadsResult = await pool.query(`
+            SELECT id, filename FROM ${uploadsTableName}
+            WHERE filename IS NOT NULL
+          `);
+          
+          console.log(`[BUSINESS-DAY-RECALC] Found ${uploadsResult.rows.length} uploads to process`);
+          
+          for (const row of uploadsResult.rows) {
+            try {
+              const { business_day } = extractBusinessDayFromFilename(row.filename);
+              
+              if (business_day) {
+                const dateStr = business_day.toISOString().split('T')[0];
+                await pool.query(`
+                  UPDATE ${uploadsTableName}
+                  SET business_day = $1
+                  WHERE id = $2
+                `, [dateStr, row.id]);
+                uploadsUpdated++;
+              }
+            } catch (err) {
+              errors.push(`Upload ${row.id}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
+          }
+          
+          console.log(`[BUSINESS-DAY-RECALC] Updated ${uploadsUpdated} uploads`);
+          
+          // 2. Recalculate for tddf_archive table
+          console.log('[BUSINESS-DAY-RECALC] Fetching archive records...');
+          const archiveResult = await pool.query(`
+            SELECT id, original_filename FROM ${archiveTableName}
+            WHERE original_filename IS NOT NULL
+          `);
+          
+          console.log(`[BUSINESS-DAY-RECALC] Found ${archiveResult.rows.length} archive records to process`);
+          
+          for (const row of archiveResult.rows) {
+            try {
+              const { business_day } = extractBusinessDayFromFilename(row.original_filename);
+              
+              if (business_day) {
+                const dateStr = business_day.toISOString().split('T')[0];
+                await pool.query(`
+                  UPDATE ${archiveTableName}
+                  SET business_day = $1
+                  WHERE id = $2
+                `, [dateStr, row.id]);
+                archiveUpdated++;
+              }
+            } catch (err) {
+              errors.push(`Archive ${row.id}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
+          }
+          
+          console.log(`[BUSINESS-DAY-RECALC] Updated ${archiveUpdated} archive records`);
+          console.log(`[BUSINESS-DAY-RECALC] Completed: ${uploadsUpdated} uploads, ${archiveUpdated} archive records updated. Errors: ${errors.length}`);
+          
+        } catch (error) {
+          console.error('[BUSINESS-DAY-RECALC] Background process error:', error);
+        }
+      })();
+      
+    } catch (error) {
+      console.error('[BUSINESS-DAY-RECALC] Error starting recalculation:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to start business date recalculation'
+      });
+    }
+  });
+
+  // GET endpoint to check recalculation status / counts
+  app.get('/api/uploader/business-date-stats', isAuthenticated, async (req, res) => {
+    try {
+      const uploadsTableName = getTableName('uploader_uploads');
+      const archiveTableName = getTableName('tddf_archive');
+      
+      // Get stats for uploads
+      const uploadsStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(business_day) as with_business_day,
+          COUNT(*) - COUNT(business_day) as missing_business_day
+        FROM ${uploadsTableName}
+        WHERE filename IS NOT NULL
+      `);
+      
+      // Get stats for archive
+      const archiveStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(business_day) as with_business_day,
+          COUNT(*) - COUNT(business_day) as missing_business_day
+        FROM ${archiveTableName}
+        WHERE original_filename IS NOT NULL
+      `);
+      
+      res.json({
+        success: true,
+        uploads: {
+          total: parseInt(uploadsStats.rows[0]?.total || 0),
+          withBusinessDay: parseInt(uploadsStats.rows[0]?.with_business_day || 0),
+          missingBusinessDay: parseInt(uploadsStats.rows[0]?.missing_business_day || 0)
+        },
+        archive: {
+          total: parseInt(archiveStats.rows[0]?.total || 0),
+          withBusinessDay: parseInt(archiveStats.rows[0]?.with_business_day || 0),
+          missingBusinessDay: parseInt(archiveStats.rows[0]?.missing_business_day || 0)
+        }
+      });
+    } catch (error) {
+      console.error('[BUSINESS-DAY-STATS] Error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to get business date stats'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
