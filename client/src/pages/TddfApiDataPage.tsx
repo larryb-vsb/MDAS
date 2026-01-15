@@ -4889,41 +4889,23 @@ export default function TddfApiDataPage() {
                     ]}
                   />
 
-                  {/* Archive Filters */}
+                  {/* Archive Filters - Card-based Layout */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div>
-                      <Label>Archive Status</Label>
+                      <Label>File Type</Label>
                       <Select 
                         value={archiveFilters.archiveStatus} 
                         onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, archiveStatus: value }))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="All statuses" />
+                          <SelectValue placeholder="All types" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Files</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="archived">Archived</SelectItem>
-                          <SelectItem value="processed">Processed</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Step 6 Status</Label>
-                      <Select 
-                        value={archiveFilters.step6Status}
-                        onValueChange={(value) => setArchiveFilters(prev => ({ ...prev, step6Status: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Files</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="tddf">TDDF</SelectItem>
+                          <SelectItem value="transaction_csv">ACH Transactions</SelectItem>
+                          <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
+                          <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -4945,6 +4927,28 @@ export default function TddfApiDataPage() {
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     </div>
+                    <div>
+                      <Label>Sort</Label>
+                      <Select value={`${archiveSortBy}-${archiveSortOrder}`} onValueChange={(value) => {
+                        const parts = value.split('-');
+                        const field = parts.slice(0, -1).join('-');
+                        const order = parts[parts.length - 1] as 'asc' | 'desc';
+                        setArchiveSortBy(field);
+                        setArchiveSortOrder(order);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="archived_at-desc">Archived (Newest)</SelectItem>
+                          <SelectItem value="archived_at-asc">Archived (Oldest)</SelectItem>
+                          <SelectItem value="business_day-desc">Business Day (Newest)</SelectItem>
+                          <SelectItem value="business_day-asc">Business Day (Oldest)</SelectItem>
+                          <SelectItem value="original_filename-asc">Name (A-Z)</SelectItem>
+                          <SelectItem value="original_filename-desc">Name (Z-A)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 mb-4">
@@ -4965,168 +4969,104 @@ export default function TddfApiDataPage() {
                     </Button>
                   </div>
 
-                  {/* Archive Table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={selectedArchiveFiles.length === archivedFiles.length && archivedFiles.length > 0}
+                  {/* Archive Files List - Card Layout */}
+                  <div className="space-y-2">
+                    {isLoadingArchive ? (
+                      <div className="text-center py-8">
+                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                        <span className="ml-2">Loading archive data...</span>
+                      </div>
+                    ) : archivedFiles.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        No archived files found. Use Step 7 Archive to archive completed files.
+                      </div>
+                    ) : (
+                      archivedFiles
+                        .filter((file: any) => archiveFilters.archiveStatus === 'all' || file.final_file_type === archiveFilters.archiveStatus)
+                        .map((file: any) => (
+                        <div 
+                          key={file.id} 
+                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <Checkbox 
+                            checked={selectedArchiveFiles.includes(file.id)}
                             onCheckedChange={(checked) => {
                               if (checked) {
-                                setSelectedArchiveFiles(archivedFiles.map((f: any) => f.id));
+                                setSelectedArchiveFiles([...selectedArchiveFiles, file.id]);
                               } else {
-                                setSelectedArchiveFiles([]);
+                                setSelectedArchiveFiles(selectedArchiveFiles.filter(id => id !== file.id));
                               }
                             }}
-                            aria-label="Select all archive files"
                           />
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50 select-none"
-                          onClick={() => handleArchiveSort('original_filename')}
-                        >
-                          <div className="flex items-center">
-                            Original Filename
-                            {getArchiveSortIndicator('original_filename')}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate text-sm">{file.original_filename}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <span>{file.file_size_mb ? `${file.file_size_mb} MB` : 'Size unknown'}</span>
+                              <span>•</span>
+                              <span>{file.final_file_type || 'unknown'}</span>
+                              <span>•</span>
+                              <span>{file.line_count?.toLocaleString() || 0} lines</span>
+                              {file.business_day && (
+                                <>
+                                  <span>•</span>
+                                  <span>{format(new Date(file.business_day), 'MMM d, yyyy')}</span>
+                                </>
+                              )}
+                              <span>•</span>
+                              <span>Archived: {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy') : '-'}</span>
+                            </div>
                           </div>
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50 select-none"
-                          onClick={() => handleArchiveSort('business_day')}
-                        >
-                          <div className="flex items-center">
-                            Business Day
-                            {getArchiveSortIndicator('business_day')}
-                          </div>
-                        </TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50 select-none"
-                          onClick={() => handleArchiveSort('records')}
-                        >
-                          <div className="flex items-center">
-                            Records
-                            {getArchiveSortIndicator('records')}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50 select-none"
-                          onClick={() => handleArchiveSort('archived_at')}
-                        >
-                          <div className="flex items-center">
-                            Archived Date
-                            {getArchiveSortIndicator('archived_at')}
-                          </div>
-                        </TableHead>
-                        <TableHead>Archived By</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoadingArchive ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
-                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                            <span className="ml-2">Loading archive data...</span>
-                          </TableCell>
-                        </TableRow>
-                      ) : archivedFiles.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                            No archived files found. Use Step 7 Archive to archive completed files.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        archivedFiles
-                          .slice(archivePage * archiveItemsPerPage, (archivePage + 1) * archiveItemsPerPage)
-                          .map((file: any) => (
-                          <TableRow key={file.id}>
-                            <TableCell>
-                              <Checkbox 
-                                checked={selectedArchiveFiles.includes(file.id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedArchiveFiles([...selectedArchiveFiles, file.id]);
-                                  } else {
-                                    setSelectedArchiveFiles(selectedArchiveFiles.filter(id => id !== file.id));
-                                  }
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium max-w-[300px]" title={file.original_filename}>
-                              <div className="truncate">{file.original_filename}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {file.file_size_mb ? `${file.file_size_mb} MB` : 'Size unknown'}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {file.business_day ? format(new Date(file.business_day), 'MMM d, yyyy') : '-'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
-                                Archived
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {(() => {
-                                const totalRecords = (file.bh_record_count || 0) + (file.dt_record_count || 0) + (file.other_record_count || 0);
-                                return totalRecords > 0 ? (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="font-medium cursor-help underline decoration-dotted">
-                                          {totalRecords.toLocaleString()}
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <div className="text-sm">
-                                          <div><strong>BH:</strong> {file.bh_record_count?.toLocaleString() || 0}</div>
-                                          <div><strong>DT:</strong> {file.dt_record_count?.toLocaleString() || 0}</div>
-                                          <div><strong>Others:</strong> {file.other_record_count?.toLocaleString() || 0}</div>
-                                        </div>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                );
-                              })()}
-                            </TableCell>
-                            <TableCell>
-                              {file.archived_at ? format(new Date(file.archived_at), 'MMM d, yyyy HH:mm') : 'Pending'}
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-sm">{file.archived_by || file.created_by || '-'}</span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
-                                  title="View JSONB data"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => restoreArchivedMutation.mutate([String(file.id)])}
-                                  title="Restore to active processing"
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  disabled={restoreArchivedMutation.isPending}
-                                >
-                                  <RotateCcw className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                          <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
+                            Archived
+                          </Badge>
+                          {/* View raw file */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewArchiveFile(file)}
+                            title="View raw file contents"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {/* View JSONB data (TDDF only) */}
+                          {file.final_file_type === 'tddf' ? (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setLocation(`/tddf-viewer/${file.id}/${encodeURIComponent(file.original_filename)}?unlimited=true`)}
+                              title="View JSONB data"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              disabled
+                              title="No JSONB data available"
+                              className="text-gray-400 cursor-not-allowed"
+                            >
+                              <EyeOff className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {/* Restore button */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => restoreArchivedMutation.mutate([String(file.id)])}
+                            title="Restore to active processing"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            disabled={restoreArchivedMutation.isPending}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
 
                   {/* Enhanced Pagination for Archive */}
                   <EnhancedPagination
