@@ -3371,7 +3371,31 @@ export default function TddfApiDataPage() {
                                       {file.current_phase || 'unknown'}
                                     </Badge>
                                     {file.is_archived && (
-                                      <Badge variant="outline" className="bg-gray-100 text-[10px] px-1.5 py-0 whitespace-nowrap">Archived</Badge>
+                                      <>
+                                        <Badge variant="outline" className="bg-gray-100 text-[10px] px-1.5 py-0 whitespace-nowrap">Archived</Badge>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={async () => {
+                                            try {
+                                              await restoreArchivedMutation.mutateAsync([file.id]);
+                                              toast({ title: "File restored successfully" });
+                                              refetchSearch();
+                                            } catch (error: any) {
+                                              toast({ 
+                                                title: "Failed to restore file", 
+                                                description: error.message,
+                                                variant: "destructive" 
+                                              });
+                                            }
+                                          }}
+                                          className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                          disabled={restoreArchivedMutation.isPending}
+                                          title="Restore file"
+                                        >
+                                          <RotateCcw className="h-3 w-3" />
+                                        </Button>
+                                      </>
                                     )}
                                     <Button
                                       variant="ghost"
@@ -3445,6 +3469,28 @@ export default function TddfApiDataPage() {
                                     {file.archived_by && (
                                       <span className="text-[10px] text-muted-foreground whitespace-nowrap">by {file.archived_by}</span>
                                     )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={async () => {
+                                        try {
+                                          await restoreArchivedMutation.mutateAsync([file.id]);
+                                          toast({ title: "File restored successfully" });
+                                          refetchSearch();
+                                        } catch (error: any) {
+                                          toast({ 
+                                            title: "Failed to restore file", 
+                                            description: error.message,
+                                            variant: "destructive" 
+                                          });
+                                        }
+                                      }}
+                                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      disabled={restoreArchivedMutation.isPending}
+                                      title="Restore file"
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                    </Button>
                                     <Button
                                       variant="ghost"
                                       size="sm"
