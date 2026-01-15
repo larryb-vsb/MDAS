@@ -132,101 +132,95 @@ export function ActivityHeatmap({ dataType = 'archived', className }: ActivityHe
     }
   });
   
-  const dayLabels = ['Mon', 'Wed', 'Fri'];
-  
   const totalCount = activityData.reduce((sum, d) => sum + d.count, 0);
   
   return (
     <TooltipProvider>
-      <div className={cn("flex gap-4", className)}>
-        <div className="flex-1 border border-border rounded-lg p-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium">
-                {totalCount.toLocaleString()} {dataType === 'archived' ? 'files archived' : 'files uploaded'} {isCurrentYear ? 'in the last year' : `in ${selectedYear}`}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <span>Less</span>
-                <div className={cn("w-3 h-3 rounded-sm", getIntensityColor(0))} />
-                <div className={cn("w-3 h-3 rounded-sm", getIntensityColor(1))} />
-                <div className={cn("w-3 h-3 rounded-sm", getIntensityColor(2))} />
-                <div className={cn("w-3 h-3 rounded-sm", getIntensityColor(3))} />
-                <div className={cn("w-3 h-3 rounded-sm", getIntensityColor(4))} />
-                <span>More</span>
-              </div>
+      <div className={cn("flex items-start gap-3", className)}>
+        <div className="border border-border rounded-lg p-3 inline-block">
+          <div className="flex items-center justify-between mb-2 gap-8">
+            <div className="text-sm font-medium whitespace-nowrap">
+              {totalCount.toLocaleString()} {dataType === 'archived' ? 'files archived' : 'files uploaded'} {isCurrentYear ? 'in the last year' : `in ${selectedYear}`}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+              <span>Less</span>
+              <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(0))} />
+              <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(1))} />
+              <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(2))} />
+              <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(3))} />
+              <div className={cn("w-[10px] h-[10px] rounded-sm", getIntensityColor(4))} />
+              <span>More</span>
+            </div>
+          </div>
+          
+          <div className="flex">
+            <div className="flex flex-col mr-1 text-[10px] text-muted-foreground" style={{ marginTop: '14px' }}>
+              <div className="h-[10px] flex items-center mb-[2px]">Mon</div>
+              <div className="h-[10px] flex items-center mt-[10px]">Wed</div>
+              <div className="h-[10px] flex items-center mt-[10px]">Fri</div>
             </div>
             
-            <div className="flex gap-0.5 overflow-x-auto">
-              <div className="flex flex-col gap-0.5 mr-1 text-[10px] text-muted-foreground">
-                {dayLabels.map((label, i) => (
-                  <div key={label} className="h-3 flex items-center" style={{ marginTop: i === 0 ? '16px' : '10px' }}>
-                    {label}
+            <div className="flex flex-col">
+              <div className="flex mb-[2px]" style={{ height: '12px' }}>
+                {monthLabels.map((monthInfo, i) => (
+                  <div 
+                    key={i}
+                    className="text-[10px] text-muted-foreground absolute"
+                    style={{ 
+                      position: 'relative',
+                      left: `${monthInfo.weekIndex * 12}px`
+                    }}
+                  >
+                    {monthInfo.label}
                   </div>
                 ))}
               </div>
               
-              <div className="flex flex-col">
-                <div className="flex gap-0.5 mb-1">
-                  {monthLabels.map((monthInfo, i) => (
-                    <div 
-                      key={i}
-                      className="text-[10px] text-muted-foreground"
-                      style={{ 
-                        marginLeft: i === 0 ? 0 : (monthLabels[i].weekIndex - monthLabels[i - 1].weekIndex - 1) * 13.5,
-                        width: '30px'
-                      }}
-                    >
-                      {monthInfo.label}
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="flex gap-0.5">
-                  {weeks.map((week, weekIndex) => (
-                    <div key={weekIndex} className="flex flex-col gap-0.5">
-                      {week.map((day, dayIndex) => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const count = activityMap.get(dateStr) || 0;
-                        const level = getIntensityLevel(count, maxCount);
-                        const isInRange = day >= rangeStart && day <= rangeEnd;
-                        
-                        return (
-                          <Tooltip key={dayIndex}>
-                            <TooltipTrigger asChild>
-                              <div 
-                                className={cn(
-                                  "w-3 h-3 rounded-sm cursor-pointer transition-colors",
-                                  isInRange ? getIntensityColor(level) : 'bg-transparent',
-                                  isInRange && "hover:ring-1 hover:ring-gray-400"
-                                )}
-                              />
-                            </TooltipTrigger>
-                            {isInRange && (
-                              <TooltipContent side="top" className="text-xs">
-                                <div className="font-medium">{format(day, 'MMM d, yyyy')}</div>
-                                <div className="text-muted-foreground">
-                                  {count} {count === 1 ? 'file' : 'files'} {dataType}
-                                </div>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
+              <div className="flex" style={{ gap: '2px' }}>
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="flex flex-col" style={{ gap: '2px' }}>
+                    {week.map((day, dayIndex) => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const count = activityMap.get(dateStr) || 0;
+                      const level = getIntensityLevel(count, maxCount);
+                      const isInRange = day >= rangeStart && day <= rangeEnd;
+                      
+                      return (
+                        <Tooltip key={dayIndex}>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className={cn(
+                                "w-[10px] h-[10px] rounded-sm cursor-pointer transition-colors",
+                                isInRange ? getIntensityColor(level) : 'bg-transparent',
+                                isInRange && "hover:ring-1 hover:ring-gray-400"
+                              )}
+                            />
+                          </TooltipTrigger>
+                          {isInRange && (
+                            <TooltipContent side="top" className="text-xs">
+                              <div className="font-medium">{format(day, 'MMM d, yyyy')}</div>
+                              <div className="text-muted-foreground">
+                                {count} {count === 1 ? 'file' : 'files'} {dataType}
+                              </div>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
         
-        <div className="flex flex-col gap-1 min-w-[60px]">
+        <div className="flex flex-col gap-0.5">
           {availableYears.map((year) => (
             <button
               key={year}
               onClick={() => setSelectedYear(year)}
               className={cn(
-                "px-3 py-1.5 text-sm rounded-md transition-colors text-right",
+                "px-3 py-1 text-sm rounded-md transition-colors text-right",
                 year === selectedYear
                   ? "bg-primary text-primary-foreground font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
