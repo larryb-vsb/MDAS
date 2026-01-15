@@ -407,7 +407,7 @@ function AchTransactionsTab() {
   // Bulk delete mutation
   const deleteTransactionsMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const response = await apiRequest("DELETE", "/api/transactions/bulk", { ids });
+      const response = await apiRequest("/api/transactions/bulk", { method: "DELETE", body: { ids } });
       return response;
     },
     onSuccess: (data: any) => {
