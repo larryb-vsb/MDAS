@@ -2106,6 +2106,16 @@ export default function TddfApiDataPage() {
   const [processedFilesCurrentPage, setProcessedFilesCurrentPage] = useState(0);
   const [processedFilesItemsPerPage, setProcessedFilesItemsPerPage] = useState(10);
 
+  // Pagination and selection state for failed files tab
+  const [failedFilesCurrentPage, setFailedFilesCurrentPage] = useState(0);
+  const [failedFilesItemsPerPage, setFailedFilesItemsPerPage] = useState(10);
+  const [selectedFailedUploads, setSelectedFailedUploads] = useState<string[]>([]);
+
+  // Pagination and selection state for warning files tab
+  const [warningFilesCurrentPage, setWarningFilesCurrentPage] = useState(0);
+  const [warningFilesItemsPerPage, setWarningFilesItemsPerPage] = useState(10);
+  const [selectedWarningUploads, setSelectedWarningUploads] = useState<string[]>([]);
+
   // Global filename filtering state for cross-tab functionality
   const [globalFilenameFilter, setGlobalFilenameFilter] = useState<string>('');
   
@@ -4455,25 +4465,39 @@ export default function TddfApiDataPage() {
 
           {/* Inner Tabs for File Categories */}
           <Tabs value={filesInnerTab} onValueChange={setFilesInnerTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="uploaded" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Uploaded
-                <Badge variant="secondary" className="ml-1 text-xs">
+            <TabsList className="grid w-full grid-cols-5 mb-4">
+              <TabsTrigger value="uploaded" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Uploaded</span>
+                <Badge variant="secondary" className="ml-0.5 text-[10px] sm:text-xs">
                   {uploads.filter((u: UploaderUpload) => ['started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding'].includes(u.currentPhase)).length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="processed" className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Processed
-                <Badge variant="secondary" className="ml-1 text-xs">
+              <TabsTrigger value="processed" className="flex items-center gap-1 text-xs sm:text-sm">
+                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Processed</span>
+                <Badge variant="secondary" className="ml-0.5 text-[10px] sm:text-xs">
                   {uploads.filter((u: UploaderUpload) => ['encoded', 'completed', 'processing'].includes(u.currentPhase)).length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="archive" className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Archive
-                <Badge variant="secondary" className="ml-1 text-xs">
+              <TabsTrigger value="failed" className="flex items-center gap-1 text-xs sm:text-sm">
+                <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />
+                <span className="hidden sm:inline">Failed</span>
+                <Badge variant="destructive" className="ml-0.5 text-[10px] sm:text-xs">
+                  {uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed').length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="warning" className="flex items-center gap-1 text-xs sm:text-sm">
+                <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-500" />
+                <span className="hidden sm:inline">Warning</span>
+                <Badge variant="outline" className="ml-0.5 text-[10px] sm:text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+                  {uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || (u.uploadStatus === 'warning')).length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="archive" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Database className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Archive</span>
+                <Badge variant="secondary" className="ml-0.5 text-[10px] sm:text-xs">
                   {isLoadingArchive ? '...' : totalArchivedFiles}
                 </Badge>
               </TabsTrigger>
@@ -4917,6 +4941,337 @@ export default function TddfApiDataPage() {
                     onPageChange={setProcessedFilesCurrentPage}
                     onPageSizeChange={setProcessedFilesItemsPerPage}
                   />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* FAILED TAB - Files that failed processing */}
+            <TabsContent value="failed" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-red-500" />
+                        Failed Files
+                      </CardTitle>
+                      <CardDescription>
+                        Files that encountered errors during processing. You can retry or delete them.
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/uploader'] })}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Bulk Action Toolbar for Failed Files */}
+                  <BulkActionToolbar
+                    selectedCount={selectedFailedUploads.length}
+                    totalCount={uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed').length}
+                    onSelectAll={() => {
+                      const failedFiles = uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed');
+                      setSelectedFailedUploads(failedFiles.map((u: UploaderUpload) => u.id));
+                    }}
+                    onClearSelection={() => setSelectedFailedUploads([])}
+                    isAllSelected={
+                      selectedFailedUploads.length > 0 &&
+                      selectedFailedUploads.length === uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed').length
+                    }
+                    actions={[
+                      {
+                        label: 'Retry Selected',
+                        icon: <RotateCcw className="h-4 w-4 mr-1" />,
+                        onClick: () => {
+                          if (selectedFailedUploads.length > 0) {
+                            resetStatusMutation.mutate(selectedFailedUploads);
+                            setSelectedFailedUploads([]);
+                          }
+                        },
+                        disabled: resetStatusMutation.isPending || selectedFailedUploads.length === 0,
+                        variant: 'outline' as const,
+                        className: 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                      },
+                      {
+                        label: 'Delete Selected',
+                        icon: <Trash2 className="h-4 w-4 mr-1" />,
+                        onClick: () => {
+                          if (selectedFailedUploads.length > 0) {
+                            bulkDeleteMutation.mutate(selectedFailedUploads);
+                            setSelectedFailedUploads([]);
+                          }
+                        },
+                        disabled: bulkDeleteMutation.isPending || selectedFailedUploads.length === 0,
+                        variant: 'destructive' as const
+                      }
+                    ]}
+                  />
+
+                  {/* Failed Files List */}
+                  <div className="space-y-2">
+                    {uploads
+                      .filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed')
+                      .slice(failedFilesCurrentPage * failedFilesItemsPerPage, (failedFilesCurrentPage + 1) * failedFilesItemsPerPage)
+                      .map((upload: UploaderUpload) => (
+                        <div 
+                          key={upload.id} 
+                          className="flex items-center gap-3 p-3 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                          <Checkbox
+                            checked={selectedFailedUploads.includes(upload.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedFailedUploads([...selectedFailedUploads, upload.id]);
+                              } else {
+                                setSelectedFailedUploads(selectedFailedUploads.filter(id => id !== upload.id));
+                              }
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate text-sm">{upload.filename}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{upload.startTime ? formatDistanceToNow(new Date(upload.startTime), { addSuffix: true }) : 'recently'}</span>
+                              <span>•</span>
+                              <span>{formatFileSize(upload.fileSize || 0)}</span>
+                              <span>•</span>
+                              <span>{upload.finalFileType || 'unknown'}</span>
+                            </div>
+                            {upload.errorMessage && (
+                              <div className="text-xs text-red-600 mt-1 truncate max-w-md">
+                                Error: {upload.errorMessage}
+                              </div>
+                            )}
+                          </div>
+                          <Badge variant="destructive">
+                            Failed
+                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => resetStatusMutation.mutate([upload.id])}
+                              disabled={resetStatusMutation.isPending}
+                              title="Retry processing"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setUploaderFileForView(upload)}
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => bulkDeleteMutation.mutate([upload.id])}
+                              disabled={bulkDeleteMutation.isPending}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                              title="Delete file"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    {uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed').length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                        <p className="font-medium">No Failed Files</p>
+                        <p className="text-sm">All files have been processed successfully.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pagination for Failed Files */}
+                  {uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed').length > 0 && (
+                    <EnhancedPagination
+                      currentPage={failedFilesCurrentPage}
+                      totalItems={uploads.filter((u: UploaderUpload) => u.currentPhase === 'failed' || u.uploadStatus === 'failed').length}
+                      itemsPerPage={failedFilesItemsPerPage}
+                      onPageChange={setFailedFilesCurrentPage}
+                      onPageSizeChange={setFailedFilesItemsPerPage}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* WARNING TAB - Files with warnings */}
+            <TabsContent value="warning" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                        Warning Files
+                      </CardTitle>
+                      <CardDescription>
+                        Files that encountered warnings during processing. You can reset the warning status or delete them.
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/uploader'] })}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Bulk Action Toolbar for Warning Files */}
+                  <BulkActionToolbar
+                    selectedCount={selectedWarningUploads.length}
+                    totalCount={uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning').length}
+                    onSelectAll={() => {
+                      const warningFiles = uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning');
+                      setSelectedWarningUploads(warningFiles.map((u: UploaderUpload) => u.id));
+                    }}
+                    onClearSelection={() => setSelectedWarningUploads([])}
+                    isAllSelected={
+                      selectedWarningUploads.length > 0 &&
+                      selectedWarningUploads.length === uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning').length
+                    }
+                    actions={[
+                      {
+                        label: 'Reset Warnings',
+                        icon: <RefreshCw className="h-4 w-4 mr-1" />,
+                        onClick: () => {
+                          if (selectedWarningUploads.length > 0) {
+                            resetStatusMutation.mutate(selectedWarningUploads);
+                            setSelectedWarningUploads([]);
+                          }
+                        },
+                        disabled: resetStatusMutation.isPending || selectedWarningUploads.length === 0,
+                        variant: 'outline' as const,
+                        className: 'border-yellow-600 text-yellow-600 hover:bg-yellow-50'
+                      },
+                      {
+                        label: 'Delete Selected',
+                        icon: <Trash2 className="h-4 w-4 mr-1" />,
+                        onClick: () => {
+                          if (selectedWarningUploads.length > 0) {
+                            bulkDeleteMutation.mutate(selectedWarningUploads);
+                            setSelectedWarningUploads([]);
+                          }
+                        },
+                        disabled: bulkDeleteMutation.isPending || selectedWarningUploads.length === 0,
+                        variant: 'destructive' as const
+                      }
+                    ]}
+                  />
+
+                  {/* Warning Files List */}
+                  <div className="space-y-2">
+                    {uploads
+                      .filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning')
+                      .slice(warningFilesCurrentPage * warningFilesItemsPerPage, (warningFilesCurrentPage + 1) * warningFilesItemsPerPage)
+                      .map((upload: UploaderUpload) => (
+                        <div 
+                          key={upload.id} 
+                          className="flex items-center gap-3 p-3 border border-yellow-200 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
+                        >
+                          <Checkbox
+                            checked={selectedWarningUploads.includes(upload.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedWarningUploads([...selectedWarningUploads, upload.id]);
+                              } else {
+                                setSelectedWarningUploads(selectedWarningUploads.filter(id => id !== upload.id));
+                              }
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate text-sm">{upload.filename}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{upload.startTime ? formatDistanceToNow(new Date(upload.startTime), { addSuffix: true }) : 'recently'}</span>
+                              <span>•</span>
+                              <span>{formatFileSize(upload.fileSize || 0)}</span>
+                              <span>•</span>
+                              <span>{upload.finalFileType || 'unknown'}</span>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                            Warning
+                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedWarningUpload({ id: upload.id, filename: upload.filename });
+                                setWarningDialogOpen(true);
+                              }}
+                              title="View warning details"
+                              className="border-yellow-600 text-yellow-700 hover:bg-yellow-100"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => resetStatusMutation.mutate([upload.id])}
+                              disabled={resetStatusMutation.isPending}
+                              title="Reset warning status"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setUploaderFileForView(upload)}
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => bulkDeleteMutation.mutate([upload.id])}
+                              disabled={bulkDeleteMutation.isPending}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                              title="Delete file"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    {uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning').length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                        <p className="font-medium">No Warning Files</p>
+                        <p className="text-sm">All files processed without warnings.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pagination for Warning Files */}
+                  {uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning').length > 0 && (
+                    <EnhancedPagination
+                      currentPage={warningFilesCurrentPage}
+                      totalItems={uploads.filter((u: UploaderUpload) => u.currentPhase === 'warning' || u.uploadStatus === 'warning').length}
+                      itemsPerPage={warningFilesItemsPerPage}
+                      onPageChange={setWarningFilesCurrentPage}
+                      onPageSizeChange={setWarningFilesItemsPerPage}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
