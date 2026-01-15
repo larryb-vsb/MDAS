@@ -6095,62 +6095,36 @@ export class DatabaseStorage implements IStorage {
                       }
                     }
                   } else {
-                  // Try intelligent fuzzy match
-                  const fuzzyMatchMerchants = allExistingMerchants.filter(m => {
-                    const merchantName = m.name.toLowerCase();
-                    const transactionName = name.toLowerCase();
-                    
-                    // Remove common business suffixes for better core name matching
-                    const cleanMerchantName = merchantName
-                      .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
-                      .trim();
-                      
-                    const cleanTransactionName = transactionName
-                      .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
-                      .trim();
-                    
-                    // First check if core names (without business types) match exactly and are substantial
-                    if (cleanMerchantName === cleanTransactionName && cleanMerchantName.length > 4) {
-                      console.log(`[NAME MATCH] Core names match exactly: "${cleanMerchantName}" = "${cleanTransactionName}"`);
-                      return true;
-                    }
-                    
-                    // Smart fuzzy matching for legitimate variations
-                    // Only match if names are substantial (>6 chars) to prevent false short matches
-                    if (cleanMerchantName.length > 6 && cleanTransactionName.length > 6) {
-                      // Check if one name contains the other (for cases like "McDonald's" vs "McDonald's Restaurant")
-                      if (cleanMerchantName.includes(cleanTransactionName) || cleanTransactionName.includes(cleanMerchantName)) {
-                        console.log(`[FUZZY MATCH] Name containment match: "${cleanMerchantName}" <-> "${cleanTransactionName}"`);
-                        return true;
-                      }
-                      
-                      // Check for common variations (Massachusetts vs Massachusett, etc.)
-                      const isStateVariation = (name1: string, name2: string) => {
-                        const stateVariations = [
-                          ['massachusetts', 'massachusett', 'mass'],
-                          ['california', 'calif', 'ca'],
-                          ['pennsylvania', 'penn', 'pa']
-                        ];
-                        
-                        for (const variations of stateVariations) {
-                          const hasVariation1 = variations.some(v => name1.includes(v));
-                          const hasVariation2 = variations.some(v => name2.includes(v));
-                          if (hasVariation1 && hasVariation2) return true;
-                        }
-                        return false;
-                      };
-                      
-                      if (isStateVariation(cleanMerchantName, cleanTransactionName)) {
-                        console.log(`[FUZZY MATCH] State variation match: "${cleanMerchantName}" <-> "${cleanTransactionName}"`);
-                        return true;
-                      }
-                    }
-                    
-                    return false;
-                  });
+                  // Try PostgreSQL similarity-based fuzzy matching (80% threshold)
+                  // Normalize name by removing business suffixes for comparison
+                  const normalizeForFuzzy = (n: string) => n.toLowerCase()
+                    .replace(/\s+(llc|inc|ltd|corp|corporation|company|co|lp|llp)\.?(\s+|$)/gi, '')
+                    .replace(/[^a-z0-9\s]/g, '') // Remove special chars
+                    .trim();
                   
-                  if (fuzzyMatchMerchants.length > 0) {
-                    console.log(`[FUZZY MATCH] Found similar merchant for "${name}": ${fuzzyMatchMerchants[0].id} (${fuzzyMatchMerchants[0].name})`);
+                  const cleanTransactionName = normalizeForFuzzy(name);
+                  console.log(`[FUZZY] Searching for similar merchants to "${name}" (normalized: "${cleanTransactionName}")`);
+                  
+                  // Use PostgreSQL pg_trgm similarity function with 80% threshold
+                  const similarityResult = await pool.query(`
+                    SELECT id, name, 
+                           SIMILARITY(
+                             LOWER(REGEXP_REPLACE(name, '\\s+(LLC|INC|LTD|CORP|CORPORATION|COMPANY|CO|LP|LLP)\\.?\\s*$', '', 'gi')),
+                             $1
+                           ) as similarity_score
+                    FROM ${merchantsTableName}
+                    WHERE status != 'Removed'
+                      AND SIMILARITY(
+                            LOWER(REGEXP_REPLACE(name, '\\s+(LLC|INC|LTD|CORP|CORPORATION|COMPANY|CO|LP|LLP)\\.?\\s*$', '', 'gi')),
+                            $1
+                          ) >= 0.80
+                    ORDER BY similarity_score DESC
+                    LIMIT 1
+                  `, [cleanTransactionName]);
+                  
+                  if (similarityResult.rows.length > 0) {
+                    const matchedMerchant = similarityResult.rows[0];
+                    console.log(`[FUZZY MATCH] Found similar merchant for "${name}": ${matchedMerchant.id} (${matchedMerchant.name}) with ${(matchedMerchant.similarity_score * 100).toFixed(1)}% similarity`);
                     
                     // Get all transaction IDs that had this name
                     const transactionIds = nameToIdMapping.get(name) || [];
@@ -6159,14 +6133,14 @@ export class DatabaseStorage implements IStorage {
                     for (const transId of transactionIds) {
                       for (const trans of transactions) {
                         if (trans.merchantId === transId) {
-                          console.log(`Remapping transaction ${trans.id} from ${trans.merchantId} to similar merchant ${fuzzyMatchMerchants[0].id} based on fuzzy name match "${name}" ~ "${fuzzyMatchMerchants[0].name}"`);
-                          trans.merchantId = fuzzyMatchMerchants[0].id;
+                          console.log(`Remapping transaction ${trans.id} from ${trans.merchantId} to similar merchant ${matchedMerchant.id} based on ${(matchedMerchant.similarity_score * 100).toFixed(1)}% fuzzy match "${name}" ~ "${matchedMerchant.name}"`);
+                          trans.merchantId = matchedMerchant.id;
                         }
                       }
                     }
                   } else {
                     // NO MATCH FOUND - This merchant needs to be created
-                    console.log(`[NO MATCH] No existing merchant found for "${name}" - will be created as new merchant in next step`);
+                    console.log(`[NO MATCH] No existing merchant found for "${name}" (normalized: "${cleanTransactionName}") with >=80% similarity - will be created as new merchant`);
                   }
                   }
                 }
