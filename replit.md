@@ -35,6 +35,15 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.6 (2026-01-15)**
+- Enhanced filename parsing to support ACH0314P1 files (YYYYMMDD date format)
+- Added `parseAchFilename()` and `extractBusinessDayFromFilename()` utilities for dual format support
+- Archive tab UI redesigned to match Processed tab with card-based layout
+- Added file type filter dropdown to Archive tab (TDDF, ACH Transactions, ACH Merchant, MasterCard DI)
+- Archive cards now show file size, file type, line count, and business day in subtitle row
+- Added GitHub-style 12-month activity heatmap showing daily archive activity
+- New `/api/tddf-archive/activity-heatmap` endpoint for aggregated daily file counts
+
 **Version 2.0.5 (2026-01-14)**
 - Implemented Merchant Alias System to prevent duplicate merchant creation
 - New `dev_merchant_aliases` table tracks alternate names, MIDs, and IDs for merged merchants
