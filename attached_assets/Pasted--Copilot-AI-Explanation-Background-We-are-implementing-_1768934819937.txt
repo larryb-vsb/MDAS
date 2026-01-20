@@ -1,0 +1,84 @@
+
+
+Copilot AI Explanation ~~~~~~~~~~~~~~~~~~~
+
+Background
+
+We are implementing an internal Line of Business (LOB) application (Merchant Data Warehouse) that generates system alerts and report notifications for internal staff.
+To align with security, phishing prevention, and audit best practices, we need to establish a dedicated, trusted subdomain for all system generated email and enforce controlled mail flow through Microsoft 365.
+
+________________________________________
+
+Requested Configuration
+1. Create Dedicated Application Mail Subdomain
+Please assist with configuring the following application-only mail subdomain :
+mdasmail.vermontstatebank.com
+This subdomain will be used exclusively for automated system messages, not human mailboxes.
+Example sender:
+alerts@mdasmail.vermontstatebank.com
+
+________________________________________
+2. DNS Configuration (Subdomain Only)
+Please configure and verify the following DNS records for dasmail.vermontstatebank.com:
+SPF
+•	Allow sending only via Microsoft 365
+•	Hard fail on all others
+DKIM
+•	Enable DKIM signing in Microsoft 365 for the subdomain
+•	Publish required CNAME records
+DMARC
+•	Enforce strict policy
+•	Alignment set to strict
+•	Policy set to reject
+Target outcome:
+•	Prevent spoofing
+•	Protect primary domain reputation
+•	Pass DMARC alignment for all legitimate messages
+
+________________________________________
+
+3. Exchange Online / M365 Mail Flow Controls
+Please implement the following mail flow controls:
+A. Inbound Connector
+•	Connector that only allows mail claiming to be from dasmail.vermontstatebank.com if: 
+o	It originates from approved internal relay IPs (app servers or SMTP relay)
+o	TLS is enforced
+B. Enforcement Rule
+•	Mail flow rule to reject any message with sender domain
+@mdasmail.vermontstatebank.com
+unless it arrives via the approved connector
+This ensures:
+•	No spoofed or unauthorized system mail
+•	Full control and auditability
+________________________________________
+
+4. Application Sending Model
+The application will:
+•	Send mail via internal SMTP relay (preferred)
+•	Not send mail directly to the internet
+•	Not use shared or human mailboxes
+(Optional enhancement if available):
+•	Microsoft Graph API with managed identity (future phase)
+________________________________________
+
+5. Security & Content Expectations (Informational)
+For awareness, system-generated mail from this domain will:
+•	Contain alert summaries and report notifications only
+•	Include links back to authenticated internal systems
+•	Not include customer data, merchant PII, or attachments
+________________________________________
+
+Validation & Deliverables Requested
+Please confirm and provide:
+1.	DNS records created/updated
+2.	Connector and mail flow rule names
+3.	DKIM and DMARC validation confirmation
+4.	Test message headers showing: 
+o	SPF = pass
+o	DKIM = pass
+o	DMARC = pass
+________________________________________
+
+Priority / Timeline
+This is supporting an internal reporting system scheduled for rollout soon.
+Please advise on estimated completion timeline and any prerequisites needed from us.
