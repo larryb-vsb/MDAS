@@ -23,6 +23,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
 import TddfObjectStorageReport from "@/components/reports/TddfObjectStorageReport";
+import EmailConfiguration from "@/components/settings/EmailConfiguration";
 
 import { useMutation } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1440,6 +1441,10 @@ export default function Settings() {
             </Card>
           </div>
           
+          
+          <div className="grid grid-cols-1 gap-6">
+            <EmailConfiguration />
+          </div>
           
           <div className="grid grid-cols-1 gap-6">
             <UserManagement />
