@@ -8,6 +8,14 @@ The Merchant Datawarehouse and Automation System (MDAS) is a comprehensive merch
 
 Preferred communication style: Simple, everyday language.
 
+## Test Credentials
+
+Admin login credentials are stored in Replit **Secrets** under `Test_Creds`.
+
+- **Format**: JSON object `{"username":"radmin","password":"MDAS123"}`
+- **Usage**: The server reads this secret at startup to create/sync the admin user
+- **Location**: Replit Secrets panel → `Test_Creds`
+
 ## System Architecture
 
 ### UI/UX Decisions
