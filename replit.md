@@ -1,5 +1,28 @@
 # Merchant Datawarehouse and Automation System (MDAS)
 
+## E2E Testing / Playwright Authentication
+
+**IMPORTANT FOR TESTING AGENT**: This app requires login before accessing protected pages.
+
+### Login Credentials
+- **Secret Name**: `Test_Creds` (stored in Replit Secrets)
+- **Format**: `{"username":"radmin","password":"MDAS123"}`
+- **Username**: `radmin`
+- **Password**: `MDAS123`
+
+### Login Flow for E2E Tests
+1. Navigate to `/auth` (or any protected route will redirect here)
+2. Enter username `radmin` in the Username field
+3. Enter password `MDAS123` in the Password field  
+4. Click the "Login" button
+5. Wait for redirect to dashboard (`/` or `/tddf1-monthly`)
+6. Proceed with testing protected pages (e.g., `/settings`)
+
+### Protected Routes
+All routes except `/auth` require authentication. The testing agent must complete the login flow above before testing any features.
+
+---
+
 ## Overview
 
 The Merchant Datawarehouse and Automation System (MDAS) is a comprehensive merchant data warehouse for Vermont State Bank. Its primary purpose is to integrate mainframe data processing, merchant management, and financial reporting. Key capabilities include processing TSYS mainframe TDDF files, ensuring merchant ACH deposit compliance, providing API integrations, and delivering real-time analytics. The business vision is to provide a robust, automated solution for financial data management, enhancing efficiency and compliance.
@@ -7,14 +30,6 @@ The Merchant Datawarehouse and Automation System (MDAS) is a comprehensive merch
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-
-## Test Credentials
-
-Admin login credentials are stored in Replit **Secrets** under `Test_Creds`.
-
-- **Format**: JSON object `{"username":"radmin","password":"MDAS123"}`
-- **Usage**: The server reads this secret at startup to create/sync the admin user
-- **Location**: Replit Secrets panel → `Test_Creds`
 
 ## System Architecture
 
