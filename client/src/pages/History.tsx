@@ -126,6 +126,30 @@ interface DailyBreakdown {
   authorizationCount?: number;
 }
 
+interface ProcessingData {
+  date: string;
+  totalAuthorizations: {
+    count: number;
+    amount: number;
+  };
+  totalCapture: {
+    count: number;
+    amount: number;
+  };
+  binSummary: {
+    authorizations: number;
+    purchases: number;
+    credits: number;
+    prepaidLoad: number;
+    tipsCashback: number;
+    netAmount: number;
+  };
+  batches: {
+    count: number;
+    netDeposit: number;
+  };
+}
+
 type ViewType = 'landing' | 'monthly' | 'quarterly' | 'daily';
 
 interface ParsedRoute {
@@ -515,6 +539,23 @@ export default function History() {
         }
       });
       if (!response.ok) throw new Error('Failed to fetch daily data');
+      return response.json();
+    },
+    enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date && !!dateString
+  });
+
+  // Fetch processing data (by transaction date) for TSYS reconciliation
+  const { data: processingData, isLoading: processingLoading, refetch: refetchProcessing } = useQuery<ProcessingData>({
+    queryKey: ['daily-processing', dateString],
+    queryFn: async (): Promise<ProcessingData> => {
+      const response = await fetch(`/api/tddf/daily-processing/${dateString}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch processing data');
       return response.json();
     },
     enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date && !!dateString
@@ -2142,10 +2183,14 @@ export default function History() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className={clsx('grid w-full grid-cols-3', isDarkMode ? 'bg-gray-800' : '')}>
+          <TabsList className={clsx('grid w-full grid-cols-4', isDarkMode ? 'bg-gray-800' : '')}>
             <TabsTrigger value="overview" data-testid="tab-daily-overview">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Daily Overview
+              <FileText className="h-4 w-4 mr-2" />
+              Files Processed
+            </TabsTrigger>
+            <TabsTrigger value="processing" data-testid="tab-processing">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Processing
             </TabsTrigger>
             <TabsTrigger value="table" data-testid="tab-table-view">
               <TableIcon className="h-4 w-4 mr-2" />
@@ -2366,6 +2411,154 @@ export default function History() {
           {/* Merchant Volume Tab */}
           <TabsContent value="merchants" className="space-y-4">
             <Tddf1MerchantVolumeTab selectedDate={parsedRoute.date} isDarkMode={isDarkMode} />
+          </TabsContent>
+
+          {/* Processing Tab - By Transaction Date (matches TSYS) */}
+          <TabsContent value="processing" className="space-y-4">
+            {/* Daily Summary Section - matches TSYS layout */}
+            <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+              <CardHeader className={`${isDarkMode ? 'bg-blue-900/50' : 'bg-blue-800'} rounded-t-lg`}>
+                <CardTitle className="text-white text-sm font-medium">Daily Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Transaction Date: <span className="font-medium">{dateString}</span>
+                </div>
+                
+                {processingLoading ? (
+                  <div className="text-center py-8">Loading processing data...</div>
+                ) : processingData ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className={isDarkMode ? 'border-gray-700 bg-gray-700' : 'bg-gray-100'}>
+                          <TableHead colSpan={2} className={`text-center font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                            Total Authorizations
+                          </TableHead>
+                          <TableHead colSpan={2} className={`text-center font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                            Total Capture
+                          </TableHead>
+                        </TableRow>
+                        <TableRow className={isDarkMode ? 'border-gray-700' : ''}>
+                          <TableHead className={`text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Count</TableHead>
+                          <TableHead className={`text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Amount</TableHead>
+                          <TableHead className={`text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Count</TableHead>
+                          <TableHead className={`text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow className={isDarkMode ? 'border-gray-700' : ''}>
+                          <TableCell className={`text-center font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {processingData.totalAuthorizations.count.toLocaleString()}
+                          </TableCell>
+                          <TableCell className={`text-center font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.totalAuthorizations.amount)}
+                          </TableCell>
+                          <TableCell className={`text-center font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {processingData.totalCapture.count.toLocaleString()}
+                          </TableCell>
+                          <TableCell className={`text-center font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.totalCapture.amount)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className={`text-center py-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No processing data available for this date
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* BIN Summary Section - matches TSYS layout */}
+            <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+              <CardHeader className={`${isDarkMode ? 'bg-blue-900/50' : 'bg-blue-800'} rounded-t-lg`}>
+                <CardTitle className="text-white text-sm font-medium">BIN Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {processingLoading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : processingData ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className={isDarkMode ? 'border-gray-700 bg-gray-700' : 'bg-gray-100'}>
+                          <TableHead className={isDarkMode ? 'text-gray-200' : 'text-gray-700'}>BIN</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Authorizations</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Purchases</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Credits</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Prepaid Load</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Tips/Cashback</TableHead>
+                          <TableHead className={`text-right ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Net Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow className={isDarkMode ? 'border-gray-700' : ''}>
+                          <TableCell className={`font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                            400119
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.authorizations)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.purchases)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.credits)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.prepaidLoad)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.tipsCashback)}
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
+                            {formatCurrency(processingData.binSummary.netAmount)}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow className={`font-bold ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'bg-gray-50'}`}>
+                          <TableCell className={isDarkMode ? 'text-white' : 'text-gray-900'}>Total:</TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.authorizations)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.purchases)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.credits)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.prepaidLoad)}
+                          </TableCell>
+                          <TableCell className={`text-right ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {formatCurrency(processingData.binSummary.tipsCashback)}
+                          </TableCell>
+                          <TableCell className={`text-right font-bold ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
+                            {formatCurrency(processingData.binSummary.netAmount)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className={`text-center py-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No BIN summary data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Info notice about data source */}
+            <Card className={isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}>
+              <CardContent className="py-3">
+                <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                  <strong>Note:</strong> This tab shows transactions by their actual transaction date to match TSYS daily summaries. 
+                  The "Daily Overview" tab shows data by file processing date.
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

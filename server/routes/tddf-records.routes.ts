@@ -3154,4 +3154,116 @@ export function registerTddfRecordsRoutes(app: Express) {
       res.status(500).json({ error: 'Failed to fetch DT records' });
     }
   });
+
+  // ==================== PROCESSING TAB - BY TRANSACTION DATE ====================
+  // This endpoint returns data aggregated by actual transaction date (from extracted_fields)
+  // to match TSYS Authorization & Capture daily summaries
+  app.get("/api/tddf/daily-processing/:date", isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.params;
+      
+      // Validate date format (YYYY-MM-DD)
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+      if (!datePattern.test(date)) {
+        return res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD' });
+      }
+      
+      const jsonbTableName = getTableName('tddf_jsonb');
+      
+      console.log(`[DAILY-PROCESSING] Getting processing data for transaction date: ${date}`);
+      
+      // Query to get DT (Detail Transaction) records by actual transaction date
+      // This matches TSYS "Total Capture" - settled transactions
+      const dtQuery = `
+        SELECT 
+          COUNT(*) as capture_count,
+          COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as capture_amount,
+          COALESCE(SUM(CASE 
+            WHEN (extracted_fields->>'transactionCode')::text LIKE '01%' 
+            THEN (extracted_fields->>'transactionAmount')::numeric 
+            ELSE 0 
+          END), 0) as purchase_amount,
+          COALESCE(SUM(CASE 
+            WHEN (extracted_fields->>'transactionCode')::text LIKE '02%' 
+            THEN (extracted_fields->>'transactionAmount')::numeric 
+            ELSE 0 
+          END), 0) as credit_amount,
+          COALESCE(SUM((extracted_fields->>'tipAmount')::numeric), 0) as tips_cashback_amount
+        FROM ${jsonbTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'transactionDate' = $1
+      `;
+      
+      // Query to get BH (Batch Header) records by processing date for net deposits
+      const bhQuery = `
+        SELECT 
+          COUNT(*) as batch_count,
+          COALESCE(SUM((extracted_fields->>'netDeposit')::numeric), 0) as net_deposit_amount
+        FROM ${jsonbTableName}
+        WHERE record_type = 'BH'
+          AND extracted_fields->>'transactionDate' = $1
+      `;
+      
+      // Query to get authorization estimate - count of unique transactions
+      // In TDDF, DT records represent settled auths, so we estimate auth count
+      const authQuery = `
+        SELECT 
+          COUNT(DISTINCT CONCAT(
+            extracted_fields->>'cardNumber', 
+            extracted_fields->>'transactionAmount',
+            extracted_fields->>'transactionDate',
+            extracted_fields->>'transactionTime'
+          )) as auth_count,
+          COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as auth_amount
+        FROM ${jsonbTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'transactionDate' = $1
+      `;
+      
+      // Execute all queries in parallel
+      const [dtResult, bhResult, authResult] = await Promise.all([
+        pool.query(dtQuery, [date]),
+        pool.query(bhQuery, [date]),
+        pool.query(authQuery, [date])
+      ]);
+      
+      const dtData = dtResult.rows[0] || {};
+      const bhData = bhResult.rows[0] || {};
+      const authData = authResult.rows[0] || {};
+      
+      // Format response to match TSYS daily summary structure
+      const response = {
+        date: date,
+        totalAuthorizations: {
+          count: parseInt(authData.auth_count) || 0,
+          amount: parseFloat(authData.auth_amount) || 0
+        },
+        totalCapture: {
+          count: parseInt(dtData.capture_count) || 0,
+          amount: parseFloat(dtData.capture_amount) || 0
+        },
+        binSummary: {
+          authorizations: parseFloat(authData.auth_amount) || 0,
+          purchases: parseFloat(dtData.purchase_amount) || 0,
+          credits: parseFloat(dtData.credit_amount) || 0,
+          prepaidLoad: 0,
+          tipsCashback: parseFloat(dtData.tips_cashback_amount) || 0,
+          netAmount: parseFloat(bhData.net_deposit_amount) || 0
+        },
+        batches: {
+          count: parseInt(bhData.batch_count) || 0,
+          netDeposit: parseFloat(bhData.net_deposit_amount) || 0
+        }
+      };
+      
+      console.log(`[DAILY-PROCESSING] Transaction date ${date}: ${response.totalCapture.count} captures, $${response.totalCapture.amount.toFixed(2)}`);
+      
+      res.json(response);
+    } catch (error) {
+      console.error('[DAILY-PROCESSING] Error fetching processing data:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch processing data" 
+      });
+    }
+  });
 }
