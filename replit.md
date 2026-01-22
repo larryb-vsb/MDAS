@@ -58,6 +58,14 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.9 (2026-01-22)**
+- Added "Transactions" tab to History page showing individual DT records by actual transaction date
+- Removed "Table View" tab and consolidated content into "Files Processed" tab
+- History page now has 4 tabs: Files Processed, Processing, Transactions, Merchant Volume
+- Transactions tab displays: DT badge (green), card type, masked account, amount, merchant ID/name, date, customer ID, file reference
+- Pagination support with "Page X of Y" controls for browsing DT records
+- Uses `/api/tddf-records/dt-latest?batchDate=YYYY-MM-DD` endpoint to filter by transaction date
+
 **Version 2.0.8 (2026-01-22)**
 - Added "Processing" tab to History page for TSYS reconciliation
 - New `/api/tddf/daily-processing/:date` endpoint queries transactions by actual transaction date (from `extracted_fields->>'transactionDate'`) instead of file processing date
