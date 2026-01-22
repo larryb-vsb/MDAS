@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity, Sun, Moon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronRight, Calendar, TrendingUp, FileText, DollarSign, RefreshCw, Download, ChevronDown, ChevronUp, Home, Database, ChevronLeft, BarChart3, Table as TableIcon, Building2, Activity, Sun, Moon, Search, X } from 'lucide-react';
 import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
 import { useRoute, useLocation } from 'wouter';
 import { format, parse, startOfMonth, endOfMonth, startOfQuarter, getQuarter, addMonths, subMonths, addDays, subDays, eachDayOfInterval, getDay, isWeekend, isSameDay } from 'date-fns';
@@ -586,19 +587,23 @@ export default function History() {
     enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date && !!dateString
   });
 
-  // State for DT transactions pagination
+  // State for DT transactions pagination and filtering
   const [transactionsPage, setTransactionsPage] = useState(0);
+  const [merchantNameFilter, setMerchantNameFilter] = useState('');
   const transactionsLimit = 100;
 
   // Fetch DT transactions by transaction date for Transactions tab
   const { data: dtTransactionsData, isLoading: dtTransactionsLoading, refetch: refetchDtTransactions } = useQuery<DTTransactionsResponse>({
-    queryKey: ['dt-transactions', dateString, transactionsPage],
+    queryKey: ['dt-transactions', dateString, transactionsPage, merchantNameFilter],
     queryFn: async (): Promise<DTTransactionsResponse> => {
       const params = new URLSearchParams({
         batchDate: dateString,
         limit: transactionsLimit.toString(),
         offset: (transactionsPage * transactionsLimit).toString()
       });
+      if (merchantNameFilter.trim()) {
+        params.append('merchantName', merchantNameFilter.trim());
+      }
       const response = await fetch(`/api/tddf-records/dt-latest?${params}`, {
         cache: 'no-cache',
         headers: {
@@ -2612,12 +2617,40 @@ export default function History() {
 
           {/* Transactions Tab - DT records by transaction date */}
           <TabsContent value="transactions" className="space-y-4">
-            {/* Header with count and pagination */}
+            {/* Header with count, filter, and pagination */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
               <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {dtTransactionsLoading ? 'Loading...' : `${dtTransactionsData?.total.toLocaleString() || 0} transactions for ${dateString}`}
+                {merchantNameFilter && <span className="ml-1">(filtered)</span>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
+                {/* Merchant Name Search */}
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Filter by merchant name..."
+                    value={merchantNameFilter}
+                    onChange={(e) => {
+                      setMerchantNameFilter(e.target.value);
+                      setTransactionsPage(0); // Reset to first page when filtering
+                    }}
+                    className={`pl-8 pr-8 w-56 h-8 text-sm ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}
+                  />
+                  {merchantNameFilter && (
+                    <button
+                      onClick={() => {
+                        setMerchantNameFilter('');
+                        setTransactionsPage(0);
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {/* Pagination */}
+                <div className="flex items-center gap-2">
                 <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Page {transactionsPage + 1} of {Math.ceil((dtTransactionsData?.total || 0) / transactionsLimit) || 1}
                 </span>
@@ -2637,6 +2670,7 @@ export default function History() {
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+                </div>
               </div>
             </div>
 

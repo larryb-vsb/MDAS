@@ -3068,6 +3068,14 @@ export function registerTddfRecordsRoutes(app: Express) {
         paramIndex++;
       }
       
+      // Filter by merchant name (case-insensitive LIKE search)
+      const merchantName = req.query.merchantName;
+      if (merchantName && String(merchantName).trim()) {
+        conditions.push(`UPPER(r.extracted_fields->>'merchantName') LIKE UPPER($${paramIndex})`);
+        params.push(`%${String(merchantName).trim()}%`);
+        paramIndex++;
+      }
+      
       // Filter by POS Entry Mode (JSONB field)
       const posEntryMode = req.query.posEntryMode;
       if (posEntryMode && String(posEntryMode).trim() && posEntryMode !== 'all') {
