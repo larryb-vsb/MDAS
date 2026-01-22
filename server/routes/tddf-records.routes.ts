@@ -2267,21 +2267,51 @@ export function registerTddfRecordsRoutes(app: Express) {
       }
       
       // Date range filter (for 30/60/90 day presets)
-      if (date_from && date_to) {
+      // Note: When cardholder_account is present, date_from is handled separately with 90-day clamping
+      if (date_from && date_to && !cardholder_account) {
         whereConditions.push(`(r.extracted_fields->>'transactionDate')::date >= $${paramIndex}::date`);
         params.push(date_from as string);
         paramIndex++;
         whereConditions.push(`(r.extracted_fields->>'transactionDate')::date <= $${paramIndex}::date`);
         params.push(date_to as string);
         paramIndex++;
+      } else if (date_to && cardholder_account) {
+        // When cardholder search is active, only add date_to here (date_from is clamped in cardholder section)
+        whereConditions.push(`(r.extracted_fields->>'transactionDate')::date <= $${paramIndex}::date`);
+        params.push(date_to as string);
+        paramIndex++;
       }
       
       // Cardholder account search (partial match for quick lookup)
+      // When searching by cardholder, enforce 90-day max lookback for performance
       if (cardholder_account) {
         const cardNumber = (cardholder_account as string).trim();
         whereConditions.push(`r.extracted_fields->>'cardholderAccountNumber' ILIKE $${paramIndex}`);
         params.push(`%${cardNumber}%`);
         paramIndex++;
+        
+        // Calculate the 90-day floor date
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const minDateStr = ninetyDaysAgo.toISOString().split('T')[0];
+        
+        // Enforce 90-day max lookback: either clamp user's date_from or auto-apply
+        if (!batch_date) {
+          // If user provided date_from, clamp it to be no earlier than 90 days ago
+          let effectiveDateFrom = minDateStr;
+          if (date_from) {
+            const userDateFrom = new Date(date_from as string);
+            if (userDateFrom < ninetyDaysAgo) {
+              // User's date is older than 90 days - clamp to 90 days
+              effectiveDateFrom = minDateStr;
+            } else {
+              effectiveDateFrom = date_from as string;
+            }
+          }
+          whereConditions.push(`(r.extracted_fields->>'transactionDate')::date >= $${paramIndex}::date`);
+          params.push(effectiveDateFrom);
+          paramIndex++;
+        }
       }
       
       const whereClause = whereConditions.length > 0 ? 
