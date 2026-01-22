@@ -2233,12 +2233,8 @@ export default function History() {
         </Card>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs defaultValue="processing" className="space-y-4">
           <TabsList className={clsx('grid w-full grid-cols-4', isDarkMode ? 'bg-gray-800' : '')}>
-            <TabsTrigger value="overview" data-testid="tab-daily-overview">
-              <FileText className="h-4 w-4 mr-2" />
-              Files Processed
-            </TabsTrigger>
             <TabsTrigger value="processing" data-testid="tab-processing">
               <TrendingUp className="h-4 w-4 mr-2" />
               Processing
@@ -2250,6 +2246,10 @@ export default function History() {
             <TabsTrigger value="merchants" data-testid="tab-merchant-volume">
               <Building2 className="h-4 w-4 mr-2" />
               Merchant Volume
+            </TabsTrigger>
+            <TabsTrigger value="overview" data-testid="tab-daily-overview">
+              <FileText className="h-4 w-4 mr-2" />
+              Files Processed
             </TabsTrigger>
           </TabsList>
 
