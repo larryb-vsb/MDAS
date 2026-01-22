@@ -2194,6 +2194,9 @@ export function registerTddfRecordsRoutes(app: Express) {
         filename,
         merchant_account,
         batch_date,
+        date_from,
+        date_to,
+        cardholder_account,
         fieldKey,
         fieldValue
       } = req.query;
@@ -2251,15 +2254,33 @@ export function registerTddfRecordsRoutes(app: Express) {
       if (merchant_account) {
         const merchantAcct = merchant_account as string;
         const normalizedMerchantAcct = merchantAcct.replace(/^0+/, '').padStart(16, '0');
-        whereConditions.push(`r.record_data->>'merchantAccountNumber' = $${paramIndex}`);
+        whereConditions.push(`r.extracted_fields->>'merchantAccountNumber' = $${paramIndex}`);
         params.push(normalizedMerchantAcct);
         paramIndex++;
       }
       
       // Date filter (single date match)
       if (batch_date) {
-        whereConditions.push(`(r.record_data->>'batchDate') = $${paramIndex}`);
+        whereConditions.push(`(r.extracted_fields->>'batchDate') = $${paramIndex}`);
         params.push(batch_date as string);
+        paramIndex++;
+      }
+      
+      // Date range filter (for 30/60/90 day presets)
+      if (date_from && date_to) {
+        whereConditions.push(`(r.extracted_fields->>'transactionDate')::date >= $${paramIndex}::date`);
+        params.push(date_from as string);
+        paramIndex++;
+        whereConditions.push(`(r.extracted_fields->>'transactionDate')::date <= $${paramIndex}::date`);
+        params.push(date_to as string);
+        paramIndex++;
+      }
+      
+      // Cardholder account search (partial match for quick lookup)
+      if (cardholder_account) {
+        const cardNumber = (cardholder_account as string).trim();
+        whereConditions.push(`r.extracted_fields->>'cardholderAccountNumber' ILIKE $${paramIndex}`);
+        params.push(`%${cardNumber}%`);
         paramIndex++;
       }
       
@@ -2278,7 +2299,7 @@ export function registerTddfRecordsRoutes(app: Express) {
           r.record_type,
           r.line_number,
           r.raw_line as raw_data,
-          r.record_data as parsed_data,
+          r.extracted_fields as parsed_data,
           r.created_at,
           u.filename,
           u.created_at as business_day

@@ -1223,6 +1223,12 @@ function RawDataTab({
   // DT Field Search state
   const [selectedField, setSelectedField] = useState<string>('');
   const [fieldSearchValue, setFieldSearchValue] = useState<string>('');
+  
+  // Cardholder Account search state (persistent quick search)
+  const [cardholderAccount, setCardholderAccount] = useState<string>('');
+  
+  // Date range preset state (30/60/90 days)
+  const [dateRange, setDateRange] = useState<string>('none');
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -1247,6 +1253,16 @@ function RawDataTab({
     if (selectedDate) {
       params.append('batch_date', format(selectedDate, 'yyyy-MM-dd'));
     }
+    // Add date range filter (30/60/90 days)
+    if (dateRange && dateRange !== 'none' && !selectedDate) {
+      const days = parseInt(dateRange);
+      if (!isNaN(days)) {
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - days);
+        params.append('date_from', format(fromDate, 'yyyy-MM-dd'));
+        params.append('date_to', format(new Date(), 'yyyy-MM-dd'));
+      }
+    }
     if (recordType && recordType !== 'all') {
       params.append('recordType', recordType);
     }
@@ -1255,6 +1271,10 @@ function RawDataTab({
     }
     if (globalFilenameFilter) {
       params.append('filename', globalFilenameFilter);
+    }
+    // Add cardholder account search (persistent quick search)
+    if (cardholderAccount.trim()) {
+      params.append('cardholder_account', cardholderAccount.trim());
     }
     // Add field search parameters
     if (selectedField && fieldSearchValue.trim()) {
@@ -1336,6 +1356,8 @@ function RawDataTab({
     setGlobalFilenameFilter('');
     setSelectedField('');
     setFieldSearchValue('');
+    setCardholderAccount('');
+    setDateRange('none');
     setPage(1);
   };
 
@@ -1366,6 +1388,31 @@ function RawDataTab({
               />
             </PopoverContent>
           </Popover>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Label>Range:</Label>
+          <Select 
+            value={dateRange} 
+            onValueChange={(v) => { 
+              setDateRange(v);
+              if (v !== 'none') {
+                setSelectedDate(null);
+              }
+              setPage(1); 
+            }}
+            disabled={!!selectedDate}
+          >
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Select range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Range</SelectItem>
+              <SelectItem value="30">Last 30 Days</SelectItem>
+              <SelectItem value="60">Last 60 Days</SelectItem>
+              <SelectItem value="90">Last 90 Days</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1419,6 +1466,38 @@ function RawDataTab({
         <Button variant="ghost" size="sm" onClick={() => { clearFilters(); setSearchTriggered(false); }}>
           Clear Filters
         </Button>
+      </div>
+
+      {/* Cardholder Account Quick Search - Always Visible */}
+      <div className="flex items-center gap-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5 text-blue-600" />
+          <Label className="text-blue-700 dark:text-blue-300 font-medium">Cardholder Account:</Label>
+        </div>
+        <Input
+          placeholder="Enter card number or last 4 digits..."
+          value={cardholderAccount}
+          onChange={(e) => setCardholderAccount(e.target.value)}
+          className="w-[280px] bg-white dark:bg-gray-800"
+          data-testid="input-cardholder-account"
+        />
+        <Button 
+          onClick={handleSearch}
+          size="sm"
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Search className="mr-2 h-4 w-4" />
+          Search Card
+        </Button>
+        {cardholderAccount && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => { setCardholderAccount(''); setPage(1); }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* DT Field Search - Second Row */}
@@ -5562,7 +5641,7 @@ export default function TddfApiDataPage() {
         <TabsContent value="raw-data" className="space-y-4">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold">TDDF Raw Data</h2>
+              <h2 className="text-2xl font-bold">MCC - TDDF Raw Data</h2>
               <p className="text-muted-foreground">View all TDDF records with pagination and filtering</p>
             </div>
             <Button 
