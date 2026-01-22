@@ -58,6 +58,14 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.8 (2026-01-22)**
+- Added "Processing" tab to History page for TSYS reconciliation
+- New `/api/tddf/daily-processing/:date` endpoint queries transactions by actual transaction date (from `extracted_fields->>'transactionDate'`) instead of file processing date
+- Resolves confusion where MDAS appeared to have duplicates when comparing with TSYS daily summaries
+- Processing tab shows Daily Summary (Total Authorizations/Capture with counts and amounts) and BIN Summary
+- Renamed "Daily Overview" tab to "Files Processed" for clarity
+- Tab layout updated from 3 columns to 4 columns
+
 **Version 2.0.7 (2026-01-15)**
 - Enhanced AH0314P1 merchant name fuzzy matching with PostgreSQL pg_trgm similarity function
 - Uses 80% similarity threshold to catch near-duplicates (e.g., "TOROVERDE II INC" vs "TOROVERDE INC")
