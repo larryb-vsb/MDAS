@@ -150,6 +150,31 @@ interface ProcessingData {
   };
 }
 
+interface DTTransaction {
+  id: string;
+  file_id: string;
+  record_type: string;
+  line_number: number;
+  filename: string;
+  parsed_data: {
+    cardType?: string;
+    cardholderAccountNumber?: string;
+    transactionAmount?: string;
+    merchantId?: string;
+    merchantName?: string;
+    transactionDate?: string;
+    customerId?: string;
+    posEntryMode?: string;
+  };
+}
+
+interface DTTransactionsResponse {
+  data: DTTransaction[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 type ViewType = 'landing' | 'monthly' | 'quarterly' | 'daily';
 
 interface ParsedRoute {
@@ -556,6 +581,32 @@ export default function History() {
         }
       });
       if (!response.ok) throw new Error('Failed to fetch processing data');
+      return response.json();
+    },
+    enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date && !!dateString
+  });
+
+  // State for DT transactions pagination
+  const [transactionsPage, setTransactionsPage] = useState(0);
+  const transactionsLimit = 100;
+
+  // Fetch DT transactions by transaction date for Transactions tab
+  const { data: dtTransactionsData, isLoading: dtTransactionsLoading, refetch: refetchDtTransactions } = useQuery<DTTransactionsResponse>({
+    queryKey: ['dt-transactions', dateString, transactionsPage],
+    queryFn: async (): Promise<DTTransactionsResponse> => {
+      const params = new URLSearchParams({
+        batchDate: dateString,
+        limit: transactionsLimit.toString(),
+        offset: (transactionsPage * transactionsLimit).toString()
+      });
+      const response = await fetch(`/api/tddf-records/dt-latest?${params}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch DT transactions');
       return response.json();
     },
     enabled: parsedRoute.viewType === 'daily' && !!parsedRoute.date && !!dateString
@@ -2192,9 +2243,9 @@ export default function History() {
               <TrendingUp className="h-4 w-4 mr-2" />
               Processing
             </TabsTrigger>
-            <TabsTrigger value="table" data-testid="tab-table-view">
-              <TableIcon className="h-4 w-4 mr-2" />
-              Table View
+            <TabsTrigger value="transactions" data-testid="tab-transactions">
+              <Activity className="h-4 w-4 mr-2" />
+              Transactions
             </TabsTrigger>
             <TabsTrigger value="merchants" data-testid="tab-merchant-volume">
               <Building2 className="h-4 w-4 mr-2" />
@@ -2313,10 +2364,8 @@ export default function History() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Table View Tab */}
-          <TabsContent value="table" className="space-y-4">
+            {/* Files Processed Table */}
             <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
               <CardHeader>
                 <CardTitle className={isDarkMode ? 'text-white' : ''}>
@@ -2358,7 +2407,7 @@ export default function History() {
               </CardContent>
             </Card>
 
-            {/* Record Type Table */}
+            {/* Record Type Details Table */}
             {dailyData?.recordTypeBreakdown && Object.keys(dailyData.recordTypeBreakdown).length > 0 && (
               <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
                 <CardHeader>
@@ -2555,8 +2604,111 @@ export default function History() {
               <CardContent className="py-3">
                 <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                   <strong>Note:</strong> This tab shows transactions by their actual transaction date to match TSYS daily summaries. 
-                  The "Daily Overview" tab shows data by file processing date.
+                  The "Files Processed" tab shows data by file processing date.
                 </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab - DT records by transaction date */}
+          <TabsContent value="transactions" className="space-y-4">
+            {/* Header with count and pagination */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {dtTransactionsLoading ? 'Loading...' : `${dtTransactionsData?.total.toLocaleString() || 0} transactions for ${dateString}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Page {transactionsPage + 1} of {Math.ceil((dtTransactionsData?.total || 0) / transactionsLimit) || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTransactionsPage(p => Math.max(0, p - 1))}
+                  disabled={transactionsPage === 0 || dtTransactionsLoading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTransactionsPage(p => p + 1)}
+                  disabled={dtTransactionsLoading || !dtTransactionsData || ((transactionsPage + 1) * transactionsLimit >= dtTransactionsData.total)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Transactions List */}
+            <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+              <CardContent className="p-0">
+                {dtTransactionsLoading ? (
+                  <div className="text-center py-8">Loading transactions...</div>
+                ) : dtTransactionsData?.data && dtTransactionsData.data.length > 0 ? (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {dtTransactionsData.data.map((tx, idx) => {
+                      const parsed = tx.parsed_data || {};
+                      const amount = parseFloat(parsed.transactionAmount || '0');
+                      return (
+                        <div 
+                          key={tx.id || idx} 
+                          className={`flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                        >
+                          {/* Expand chevron placeholder */}
+                          <ChevronRight className={`h-4 w-4 flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                          
+                          {/* DT Badge */}
+                          <Badge className="bg-green-500 text-white flex-shrink-0 text-xs px-2">DT</Badge>
+                          
+                          {/* Card Type */}
+                          <span className={`flex-shrink-0 w-28 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {parsed.cardType || 'Unknown'}
+                          </span>
+                          
+                          {/* Masked Account */}
+                          <span className={`font-mono flex-shrink-0 w-40 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {parsed.cardholderAccountNumber || ''}
+                          </span>
+                          
+                          {/* Amount */}
+                          <span className={`font-medium flex-shrink-0 w-24 ${amount >= 0 ? (isDarkMode ? 'text-green-400' : 'text-green-700') : (isDarkMode ? 'text-red-400' : 'text-red-700')}`}>
+                            {formatCurrency(amount)}
+                          </span>
+                          
+                          {/* Merchant ID */}
+                          <span className={`font-mono flex-shrink-0 w-36 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                            {parsed.merchantId || ''}
+                          </span>
+                          
+                          {/* Merchant Name */}
+                          <span className={`flex-shrink-0 w-44 truncate ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                            {parsed.merchantName || ''}
+                          </span>
+                          
+                          {/* Transaction Date */}
+                          <span className={`flex-shrink-0 w-24 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {parsed.transactionDate || ''}
+                          </span>
+                          
+                          {/* Customer ID */}
+                          <span className={`flex-shrink-0 w-24 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                            {parsed.customerId || ''}
+                          </span>
+                          
+                          {/* File Reference */}
+                          <span className={`text-xs flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {tx.filename || ''} {tx.line_number ? `L${tx.line_number}` : ''}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No transactions found for this date
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
