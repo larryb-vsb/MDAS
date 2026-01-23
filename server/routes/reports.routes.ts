@@ -417,9 +417,9 @@ export function registerReportsRoutes(app: Express) {
       const queryParams: any[] = [];
       
       if (startDate && endDate) {
-        // Filter merchants active during the date range (client_since_date <= endDate)
-        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date <= $1';
-        queryParams.push(endDate);
+        // Filter merchants with client_since_date within the date range
+        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date >= $1 AND client_since_date <= $2';
+        queryParams.push(startDate, endDate);
         console.log(`[TYPE3-DEMOGRAPHICS] Filtering by date range: ${startDate} to ${endDate}`);
       } else if (startDate) {
         // Filter merchants with client_since_date on or after startDate
