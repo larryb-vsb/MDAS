@@ -1227,13 +1227,29 @@ function RawDataTab({
   // Cardholder Account search state (persistent quick search)
   const [cardholderAccount, setCardholderAccount] = useState<string>('');
   
-  // Date range preset state (30/60/90 days)
-  const [dateRange, setDateRange] = useState<string>('none');
+  // Date range preset state (default to 1 week for faster searches)
+  const [dateRange, setDateRange] = useState<string>('7');
   
   // Query performance tracking
   const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
   const [queryDuration, setQueryDuration] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  
+  // Format time in human-readable format (seconds, minutes, or hours)
+  const formatDuration = (ms: number): string => {
+    const seconds = ms / 1000;
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    } else if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}m ${secs}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    }
+  };
   
   // Chunked loading state for progressive results
   const [isChunkedLoading, setIsChunkedLoading] = useState(false);
@@ -1723,7 +1739,7 @@ function RawDataTab({
         {queryDuration !== null && !isLoading && !isChunkedLoading && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-mono">
             <Clock className="h-3 w-3" />
-            {(queryDuration / 1000).toFixed(2)}s
+            {formatDuration(queryDuration)}
           </span>
         )}
       </div>
@@ -1771,7 +1787,7 @@ function RawDataTab({
                 
                 {/* Timer */}
                 <p className="text-lg font-mono text-blue-600 mt-2">
-                  {(elapsedTime / 1000).toFixed(1)}s
+                  {formatDuration(elapsedTime)}
                 </p>
               </div>
             </div>
@@ -1787,7 +1803,7 @@ function RawDataTab({
                   <p className="text-xs text-gray-400 mt-1">Filtering last {dateRange} days</p>
                 )}
                 <p className="text-lg font-mono text-blue-600 mt-3">
-                  {(elapsedTime / 1000).toFixed(1)}s
+                  {formatDuration(elapsedTime)}
                 </p>
               </div>
             </div>
@@ -3832,10 +3848,10 @@ export default function TddfApiDataPage() {
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
           <TabsList className="inline-flex w-max sm:grid sm:w-full sm:grid-cols-8 gap-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap">Overview</TabsTrigger>
+            <TabsTrigger value="raw-data" className="text-xs sm:text-sm whitespace-nowrap">Raw Data</TabsTrigger>
             <TabsTrigger value="files" className="text-xs sm:text-sm whitespace-nowrap">Files</TabsTrigger>
             <TabsTrigger value="processing" className="text-xs sm:text-sm whitespace-nowrap">Processing</TabsTrigger>
             <TabsTrigger value="data" className="text-xs sm:text-sm whitespace-nowrap">Data</TabsTrigger>
-            <TabsTrigger value="raw-data" className="text-xs sm:text-sm whitespace-nowrap">Raw Data</TabsTrigger>
             <TabsTrigger value="api-keys" className="text-xs sm:text-sm whitespace-nowrap">API Keys</TabsTrigger>
             <TabsTrigger value="monitoring" className="text-xs sm:text-sm whitespace-nowrap">Monitoring</TabsTrigger>
             <TabsTrigger value="schemas" className="text-xs sm:text-sm whitespace-nowrap">Schemas</TabsTrigger>
