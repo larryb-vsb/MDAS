@@ -726,6 +726,30 @@ CREATE INDEX IF NOT EXISTS system_logs_timestamp_idx ON system_logs(timestamp);
 CREATE INDEX IF NOT EXISTS system_logs_level_idx ON system_logs(level);
 
 
+-- =====================================================================
+-- MERCHANT ALIASES TABLE (v2.0.5 - Duplicate Prevention System)
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS merchant_aliases (
+  id serial PRIMARY KEY,
+  merchant_id text NOT NULL,
+  alias_type text NOT NULL,
+  alias_value text NOT NULL,
+  normalized_value text,
+  source text,
+  merged_from_id text,
+  created_at timestamp DEFAULT NOW() NOT NULL,
+  created_by text,
+  notes text
+);
+
+CREATE INDEX IF NOT EXISTS merchant_aliases_merchant_id_idx ON merchant_aliases(merchant_id);
+CREATE INDEX IF NOT EXISTS merchant_aliases_alias_type_idx ON merchant_aliases(alias_type);
+CREATE INDEX IF NOT EXISTS merchant_aliases_alias_value_idx ON merchant_aliases(alias_value);
+CREATE INDEX IF NOT EXISTS merchant_aliases_normalized_value_idx ON merchant_aliases(normalized_value);
+CREATE INDEX IF NOT EXISTS merchant_aliases_type_value_idx ON merchant_aliases(alias_type, alias_value);
+
+
 COMMIT;
 
 -- =====================================================================

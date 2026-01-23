@@ -1,6 +1,6 @@
 # Schema Sanity Check Report
 
-**Generated:** 2026-01-07T16:46:15.674Z
+**Generated:** 2026-01-23T18:34:34.361Z
 
 ## Summary
 
@@ -8,10 +8,10 @@
 |--------|-------|
 | Dev Tables | 93 |
 | Prod Tables | 92 |
-| Matching Tables | 10 |
+| Matching Tables | 9 |
 | Tables with Differences | 62 |
 | Dev-Only Tables | 12 |
-| Prod-Only Tables | 16 |
+| Prod-Only Tables | 17 |
 | Total Column Differences | 197 |
 
 ## Tables with Differences
@@ -791,6 +791,7 @@
 
 ## Prod-Only Tables
 
+- api_merchants
 - backup_history
 - backup_schedules
 - tddf_batch_relationships_pre_cache

@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-01-07T16:46:15.674Z",
+  "timestamp": "2026-01-23T18:34:34.361Z",
   "summary": {
     "totalDevTables": 93,
     "totalProdTables": 92,
-    "matchingTables": 10,
+    "matchingTables": 9,
     "tablesWithDiffs": 62,
     "devOnlyTables": 12,
-    "prodOnlyTables": 16,
+    "prodOnlyTables": 17,
     "totalColumnDiffs": 197
   },
   "tables": [
@@ -717,1739 +717,6 @@
           "indexName": "api_achtransactions_file_source_idx",
           "status": "prod_only",
           "prodDef": "CREATE INDEX api_achtransactions_file_source_idx ON public.api_achtransactions USING btree (file_source)"
-        }
-      ]
-    },
-    {
-      "table": "api_merchants",
-      "status": "match",
-      "devColumns": [
-        {
-          "column_name": "id",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "NO",
-          "column_default": null,
-          "ordinal_position": 1
-        },
-        {
-          "column_name": "name",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 2
-        },
-        {
-          "column_name": "status",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 3
-        },
-        {
-          "column_name": "address",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 4
-        },
-        {
-          "column_name": "city",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 5
-        },
-        {
-          "column_name": "state",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 6
-        },
-        {
-          "column_name": "zip",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 7
-        },
-        {
-          "column_name": "country",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 8
-        },
-        {
-          "column_name": "phone",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 9
-        },
-        {
-          "column_name": "email",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 10
-        },
-        {
-          "column_name": "website",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 11
-        },
-        {
-          "column_name": "client_mid",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 12
-        },
-        {
-          "column_name": "merchant_type",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 13
-        },
-        {
-          "column_name": "bank",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 14
-        },
-        {
-          "column_name": "risk_level",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 15
-        },
-        {
-          "column_name": "compliance_status",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 16
-        },
-        {
-          "column_name": "review_required",
-          "data_type": "boolean",
-          "udt_name": "bool",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": "false",
-          "ordinal_position": 17
-        },
-        {
-          "column_name": "created_at",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": "CURRENT_TIMESTAMP",
-          "ordinal_position": 18
-        },
-        {
-          "column_name": "updated_at",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": "CURRENT_TIMESTAMP",
-          "ordinal_position": 19
-        },
-        {
-          "column_name": "last_upload_date",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 20
-        },
-        {
-          "column_name": "client_since_date",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 21
-        },
-        {
-          "column_name": "as_of_date",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 22
-        },
-        {
-          "column_name": "dba_name",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 23
-        },
-        {
-          "column_name": "legal_name",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 24
-        },
-        {
-          "column_name": "contact_person",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 25
-        },
-        {
-          "column_name": "account_manager",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 26
-        },
-        {
-          "column_name": "sale_amt",
-          "data_type": "numeric",
-          "udt_name": "numeric",
-          "character_maximum_length": null,
-          "numeric_precision": 15,
-          "numeric_scale": 2,
-          "is_nullable": "YES",
-          "column_default": "0",
-          "ordinal_position": 27
-        },
-        {
-          "column_name": "credit_amt",
-          "data_type": "numeric",
-          "udt_name": "numeric",
-          "character_maximum_length": null,
-          "numeric_precision": 15,
-          "numeric_scale": 2,
-          "is_nullable": "YES",
-          "column_default": "0",
-          "ordinal_position": 28
-        },
-        {
-          "column_name": "monthly_volume",
-          "data_type": "numeric",
-          "udt_name": "numeric",
-          "character_maximum_length": null,
-          "numeric_precision": 15,
-          "numeric_scale": 2,
-          "is_nullable": "YES",
-          "column_default": "0",
-          "ordinal_position": 29
-        },
-        {
-          "column_name": "fee_structure",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 30
-        },
-        {
-          "column_name": "pricing_tier",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 31
-        },
-        {
-          "column_name": "notes",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 32
-        },
-        {
-          "column_name": "tags",
-          "data_type": "ARRAY",
-          "udt_name": "_text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 33
-        },
-        {
-          "column_name": "metadata",
-          "data_type": "jsonb",
-          "udt_name": "jsonb",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 34
-        },
-        {
-          "column_name": "search_index",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 35
-        }
-      ],
-      "prodColumns": [
-        {
-          "column_name": "id",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "NO",
-          "column_default": null,
-          "ordinal_position": 1
-        },
-        {
-          "column_name": "name",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 2
-        },
-        {
-          "column_name": "status",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 3
-        },
-        {
-          "column_name": "address",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 4
-        },
-        {
-          "column_name": "city",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 5
-        },
-        {
-          "column_name": "state",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 6
-        },
-        {
-          "column_name": "zip",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 7
-        },
-        {
-          "column_name": "country",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 8
-        },
-        {
-          "column_name": "phone",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 9
-        },
-        {
-          "column_name": "email",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 10
-        },
-        {
-          "column_name": "website",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 11
-        },
-        {
-          "column_name": "client_mid",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 12
-        },
-        {
-          "column_name": "merchant_type",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 13
-        },
-        {
-          "column_name": "bank",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 14
-        },
-        {
-          "column_name": "risk_level",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 15
-        },
-        {
-          "column_name": "compliance_status",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 16
-        },
-        {
-          "column_name": "review_required",
-          "data_type": "boolean",
-          "udt_name": "bool",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": "false",
-          "ordinal_position": 17
-        },
-        {
-          "column_name": "created_at",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": "CURRENT_TIMESTAMP",
-          "ordinal_position": 18
-        },
-        {
-          "column_name": "updated_at",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": "CURRENT_TIMESTAMP",
-          "ordinal_position": 19
-        },
-        {
-          "column_name": "last_upload_date",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 20
-        },
-        {
-          "column_name": "client_since_date",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 21
-        },
-        {
-          "column_name": "as_of_date",
-          "data_type": "timestamp with time zone",
-          "udt_name": "timestamptz",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 22
-        },
-        {
-          "column_name": "dba_name",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 23
-        },
-        {
-          "column_name": "legal_name",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 24
-        },
-        {
-          "column_name": "contact_person",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 25
-        },
-        {
-          "column_name": "account_manager",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 26
-        },
-        {
-          "column_name": "sale_amt",
-          "data_type": "numeric",
-          "udt_name": "numeric",
-          "character_maximum_length": null,
-          "numeric_precision": 15,
-          "numeric_scale": 2,
-          "is_nullable": "YES",
-          "column_default": "0",
-          "ordinal_position": 27
-        },
-        {
-          "column_name": "credit_amt",
-          "data_type": "numeric",
-          "udt_name": "numeric",
-          "character_maximum_length": null,
-          "numeric_precision": 15,
-          "numeric_scale": 2,
-          "is_nullable": "YES",
-          "column_default": "0",
-          "ordinal_position": 28
-        },
-        {
-          "column_name": "monthly_volume",
-          "data_type": "numeric",
-          "udt_name": "numeric",
-          "character_maximum_length": null,
-          "numeric_precision": 15,
-          "numeric_scale": 2,
-          "is_nullable": "YES",
-          "column_default": "0",
-          "ordinal_position": 29
-        },
-        {
-          "column_name": "fee_structure",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 30
-        },
-        {
-          "column_name": "pricing_tier",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 31
-        },
-        {
-          "column_name": "notes",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 32
-        },
-        {
-          "column_name": "tags",
-          "data_type": "ARRAY",
-          "udt_name": "_text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 33
-        },
-        {
-          "column_name": "metadata",
-          "data_type": "jsonb",
-          "udt_name": "jsonb",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 34
-        },
-        {
-          "column_name": "search_index",
-          "data_type": "text",
-          "udt_name": "text",
-          "character_maximum_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": "YES",
-          "column_default": null,
-          "ordinal_position": 35
-        }
-      ],
-      "columnDiffs": [
-        {
-          "column": "id",
-          "status": "match",
-          "devInfo": {
-            "column_name": "id",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "NO",
-            "column_default": null,
-            "ordinal_position": 1
-          },
-          "prodInfo": {
-            "column_name": "id",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "NO",
-            "column_default": null,
-            "ordinal_position": 1
-          },
-          "differences": []
-        },
-        {
-          "column": "name",
-          "status": "match",
-          "devInfo": {
-            "column_name": "name",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 2
-          },
-          "prodInfo": {
-            "column_name": "name",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 2
-          },
-          "differences": []
-        },
-        {
-          "column": "status",
-          "status": "match",
-          "devInfo": {
-            "column_name": "status",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 3
-          },
-          "prodInfo": {
-            "column_name": "status",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 3
-          },
-          "differences": []
-        },
-        {
-          "column": "address",
-          "status": "match",
-          "devInfo": {
-            "column_name": "address",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 4
-          },
-          "prodInfo": {
-            "column_name": "address",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 4
-          },
-          "differences": []
-        },
-        {
-          "column": "city",
-          "status": "match",
-          "devInfo": {
-            "column_name": "city",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 5
-          },
-          "prodInfo": {
-            "column_name": "city",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 5
-          },
-          "differences": []
-        },
-        {
-          "column": "state",
-          "status": "match",
-          "devInfo": {
-            "column_name": "state",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 6
-          },
-          "prodInfo": {
-            "column_name": "state",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 6
-          },
-          "differences": []
-        },
-        {
-          "column": "zip",
-          "status": "match",
-          "devInfo": {
-            "column_name": "zip",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 7
-          },
-          "prodInfo": {
-            "column_name": "zip",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 7
-          },
-          "differences": []
-        },
-        {
-          "column": "country",
-          "status": "match",
-          "devInfo": {
-            "column_name": "country",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 8
-          },
-          "prodInfo": {
-            "column_name": "country",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 8
-          },
-          "differences": []
-        },
-        {
-          "column": "phone",
-          "status": "match",
-          "devInfo": {
-            "column_name": "phone",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 9
-          },
-          "prodInfo": {
-            "column_name": "phone",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 9
-          },
-          "differences": []
-        },
-        {
-          "column": "email",
-          "status": "match",
-          "devInfo": {
-            "column_name": "email",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 10
-          },
-          "prodInfo": {
-            "column_name": "email",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 10
-          },
-          "differences": []
-        },
-        {
-          "column": "website",
-          "status": "match",
-          "devInfo": {
-            "column_name": "website",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 11
-          },
-          "prodInfo": {
-            "column_name": "website",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 11
-          },
-          "differences": []
-        },
-        {
-          "column": "client_mid",
-          "status": "match",
-          "devInfo": {
-            "column_name": "client_mid",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 12
-          },
-          "prodInfo": {
-            "column_name": "client_mid",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 12
-          },
-          "differences": []
-        },
-        {
-          "column": "merchant_type",
-          "status": "match",
-          "devInfo": {
-            "column_name": "merchant_type",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 13
-          },
-          "prodInfo": {
-            "column_name": "merchant_type",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 13
-          },
-          "differences": []
-        },
-        {
-          "column": "bank",
-          "status": "match",
-          "devInfo": {
-            "column_name": "bank",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 14
-          },
-          "prodInfo": {
-            "column_name": "bank",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 14
-          },
-          "differences": []
-        },
-        {
-          "column": "risk_level",
-          "status": "match",
-          "devInfo": {
-            "column_name": "risk_level",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 15
-          },
-          "prodInfo": {
-            "column_name": "risk_level",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 15
-          },
-          "differences": []
-        },
-        {
-          "column": "compliance_status",
-          "status": "match",
-          "devInfo": {
-            "column_name": "compliance_status",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 16
-          },
-          "prodInfo": {
-            "column_name": "compliance_status",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 16
-          },
-          "differences": []
-        },
-        {
-          "column": "review_required",
-          "status": "match",
-          "devInfo": {
-            "column_name": "review_required",
-            "data_type": "boolean",
-            "udt_name": "bool",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": "false",
-            "ordinal_position": 17
-          },
-          "prodInfo": {
-            "column_name": "review_required",
-            "data_type": "boolean",
-            "udt_name": "bool",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": "false",
-            "ordinal_position": 17
-          },
-          "differences": []
-        },
-        {
-          "column": "created_at",
-          "status": "match",
-          "devInfo": {
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": "CURRENT_TIMESTAMP",
-            "ordinal_position": 18
-          },
-          "prodInfo": {
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": "CURRENT_TIMESTAMP",
-            "ordinal_position": 18
-          },
-          "differences": []
-        },
-        {
-          "column": "updated_at",
-          "status": "match",
-          "devInfo": {
-            "column_name": "updated_at",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": "CURRENT_TIMESTAMP",
-            "ordinal_position": 19
-          },
-          "prodInfo": {
-            "column_name": "updated_at",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": "CURRENT_TIMESTAMP",
-            "ordinal_position": 19
-          },
-          "differences": []
-        },
-        {
-          "column": "last_upload_date",
-          "status": "match",
-          "devInfo": {
-            "column_name": "last_upload_date",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 20
-          },
-          "prodInfo": {
-            "column_name": "last_upload_date",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 20
-          },
-          "differences": []
-        },
-        {
-          "column": "client_since_date",
-          "status": "match",
-          "devInfo": {
-            "column_name": "client_since_date",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 21
-          },
-          "prodInfo": {
-            "column_name": "client_since_date",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 21
-          },
-          "differences": []
-        },
-        {
-          "column": "as_of_date",
-          "status": "match",
-          "devInfo": {
-            "column_name": "as_of_date",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 22
-          },
-          "prodInfo": {
-            "column_name": "as_of_date",
-            "data_type": "timestamp with time zone",
-            "udt_name": "timestamptz",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 22
-          },
-          "differences": []
-        },
-        {
-          "column": "dba_name",
-          "status": "match",
-          "devInfo": {
-            "column_name": "dba_name",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 23
-          },
-          "prodInfo": {
-            "column_name": "dba_name",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 23
-          },
-          "differences": []
-        },
-        {
-          "column": "legal_name",
-          "status": "match",
-          "devInfo": {
-            "column_name": "legal_name",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 24
-          },
-          "prodInfo": {
-            "column_name": "legal_name",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 24
-          },
-          "differences": []
-        },
-        {
-          "column": "contact_person",
-          "status": "match",
-          "devInfo": {
-            "column_name": "contact_person",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 25
-          },
-          "prodInfo": {
-            "column_name": "contact_person",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 25
-          },
-          "differences": []
-        },
-        {
-          "column": "account_manager",
-          "status": "match",
-          "devInfo": {
-            "column_name": "account_manager",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 26
-          },
-          "prodInfo": {
-            "column_name": "account_manager",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 26
-          },
-          "differences": []
-        },
-        {
-          "column": "sale_amt",
-          "status": "match",
-          "devInfo": {
-            "column_name": "sale_amt",
-            "data_type": "numeric",
-            "udt_name": "numeric",
-            "character_maximum_length": null,
-            "numeric_precision": 15,
-            "numeric_scale": 2,
-            "is_nullable": "YES",
-            "column_default": "0",
-            "ordinal_position": 27
-          },
-          "prodInfo": {
-            "column_name": "sale_amt",
-            "data_type": "numeric",
-            "udt_name": "numeric",
-            "character_maximum_length": null,
-            "numeric_precision": 15,
-            "numeric_scale": 2,
-            "is_nullable": "YES",
-            "column_default": "0",
-            "ordinal_position": 27
-          },
-          "differences": []
-        },
-        {
-          "column": "credit_amt",
-          "status": "match",
-          "devInfo": {
-            "column_name": "credit_amt",
-            "data_type": "numeric",
-            "udt_name": "numeric",
-            "character_maximum_length": null,
-            "numeric_precision": 15,
-            "numeric_scale": 2,
-            "is_nullable": "YES",
-            "column_default": "0",
-            "ordinal_position": 28
-          },
-          "prodInfo": {
-            "column_name": "credit_amt",
-            "data_type": "numeric",
-            "udt_name": "numeric",
-            "character_maximum_length": null,
-            "numeric_precision": 15,
-            "numeric_scale": 2,
-            "is_nullable": "YES",
-            "column_default": "0",
-            "ordinal_position": 28
-          },
-          "differences": []
-        },
-        {
-          "column": "monthly_volume",
-          "status": "match",
-          "devInfo": {
-            "column_name": "monthly_volume",
-            "data_type": "numeric",
-            "udt_name": "numeric",
-            "character_maximum_length": null,
-            "numeric_precision": 15,
-            "numeric_scale": 2,
-            "is_nullable": "YES",
-            "column_default": "0",
-            "ordinal_position": 29
-          },
-          "prodInfo": {
-            "column_name": "monthly_volume",
-            "data_type": "numeric",
-            "udt_name": "numeric",
-            "character_maximum_length": null,
-            "numeric_precision": 15,
-            "numeric_scale": 2,
-            "is_nullable": "YES",
-            "column_default": "0",
-            "ordinal_position": 29
-          },
-          "differences": []
-        },
-        {
-          "column": "fee_structure",
-          "status": "match",
-          "devInfo": {
-            "column_name": "fee_structure",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 30
-          },
-          "prodInfo": {
-            "column_name": "fee_structure",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 30
-          },
-          "differences": []
-        },
-        {
-          "column": "pricing_tier",
-          "status": "match",
-          "devInfo": {
-            "column_name": "pricing_tier",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 31
-          },
-          "prodInfo": {
-            "column_name": "pricing_tier",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 31
-          },
-          "differences": []
-        },
-        {
-          "column": "notes",
-          "status": "match",
-          "devInfo": {
-            "column_name": "notes",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 32
-          },
-          "prodInfo": {
-            "column_name": "notes",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 32
-          },
-          "differences": []
-        },
-        {
-          "column": "tags",
-          "status": "match",
-          "devInfo": {
-            "column_name": "tags",
-            "data_type": "ARRAY",
-            "udt_name": "_text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 33
-          },
-          "prodInfo": {
-            "column_name": "tags",
-            "data_type": "ARRAY",
-            "udt_name": "_text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 33
-          },
-          "differences": []
-        },
-        {
-          "column": "metadata",
-          "status": "match",
-          "devInfo": {
-            "column_name": "metadata",
-            "data_type": "jsonb",
-            "udt_name": "jsonb",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 34
-          },
-          "prodInfo": {
-            "column_name": "metadata",
-            "data_type": "jsonb",
-            "udt_name": "jsonb",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 34
-          },
-          "differences": []
-        },
-        {
-          "column": "search_index",
-          "status": "match",
-          "devInfo": {
-            "column_name": "search_index",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 35
-          },
-          "prodInfo": {
-            "column_name": "search_index",
-            "data_type": "text",
-            "udt_name": "text",
-            "character_maximum_length": null,
-            "numeric_precision": null,
-            "numeric_scale": null,
-            "is_nullable": "YES",
-            "column_default": null,
-            "ordinal_position": 35
-          },
-          "differences": []
-        }
-      ],
-      "indexDiffs": [
-        {
-          "indexName": "api_merchants_pkey",
-          "status": "match",
-          "devDef": "CREATE UNIQUE INDEX api_merchants_pkey ON public.api_merchants USING btree (id)",
-          "prodDef": "CREATE UNIQUE INDEX api_merchants_pkey ON public.api_merchants USING btree (id)"
         }
       ]
     },
@@ -48438,6 +46705,12 @@
           "prodDef": "CREATE INDEX idx_tddf_jsonb_extracted_fields ON ONLY public.tddf_jsonb USING gin (extracted_fields)"
         },
         {
+          "indexName": "idx_card_number",
+          "status": "match",
+          "devDef": "CREATE INDEX idx_card_number ON ONLY public.tddf_jsonb USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX idx_card_number ON ONLY public.tddf_jsonb USING btree (((extracted_fields ->> 'cardNumber'::text)))"
+        },
+        {
           "indexName": "tddf_jsonb_partitioned_pkey",
           "status": "prod_only",
           "prodDef": "CREATE UNIQUE INDEX tddf_jsonb_partitioned_pkey ON ONLY public.tddf_jsonb USING btree (id, tddf_processing_date)"
@@ -49447,6 +47720,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2022_q4_extracted_fields_idx ON public.tddf_jsonb_2022_q4 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2022_q4_extracted_fields_idx ON public.tddf_jsonb_2022_q4 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2022_q4_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2022_q4_expr_idx7 ON public.tddf_jsonb_2022_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2022_q4_expr_idx7 ON public.tddf_jsonb_2022_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -50453,6 +48732,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2023_q1_extracted_fields_idx ON public.tddf_jsonb_2023_q1 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2023_q1_extracted_fields_idx ON public.tddf_jsonb_2023_q1 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2023_q1_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2023_q1_expr_idx7 ON public.tddf_jsonb_2023_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2023_q1_expr_idx7 ON public.tddf_jsonb_2023_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -51459,6 +49744,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2023_q2_extracted_fields_idx ON public.tddf_jsonb_2023_q2 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2023_q2_extracted_fields_idx ON public.tddf_jsonb_2023_q2 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2023_q2_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2023_q2_expr_idx7 ON public.tddf_jsonb_2023_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2023_q2_expr_idx7 ON public.tddf_jsonb_2023_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -52465,6 +50756,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2023_q3_extracted_fields_idx ON public.tddf_jsonb_2023_q3 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2023_q3_extracted_fields_idx ON public.tddf_jsonb_2023_q3 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2023_q3_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2023_q3_expr_idx7 ON public.tddf_jsonb_2023_q3 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2023_q3_expr_idx7 ON public.tddf_jsonb_2023_q3 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -53471,6 +51768,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2023_q4_extracted_fields_idx ON public.tddf_jsonb_2023_q4 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2023_q4_extracted_fields_idx ON public.tddf_jsonb_2023_q4 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2023_q4_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2023_q4_expr_idx7 ON public.tddf_jsonb_2023_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2023_q4_expr_idx7 ON public.tddf_jsonb_2023_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -54477,6 +52780,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2024_q1_extracted_fields_idx ON public.tddf_jsonb_2024_q1 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2024_q1_extracted_fields_idx ON public.tddf_jsonb_2024_q1 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2024_q1_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2024_q1_expr_idx7 ON public.tddf_jsonb_2024_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2024_q1_expr_idx7 ON public.tddf_jsonb_2024_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -55483,6 +53792,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2024_q2_extracted_fields_idx ON public.tddf_jsonb_2024_q2 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2024_q2_extracted_fields_idx ON public.tddf_jsonb_2024_q2 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2024_q2_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2024_q2_expr_idx7 ON public.tddf_jsonb_2024_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2024_q2_expr_idx7 ON public.tddf_jsonb_2024_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -56489,6 +54804,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2024_q3_extracted_fields_idx ON public.tddf_jsonb_2024_q3 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2024_q3_extracted_fields_idx ON public.tddf_jsonb_2024_q3 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2024_q3_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2024_q3_expr_idx7 ON public.tddf_jsonb_2024_q3 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2024_q3_expr_idx7 ON public.tddf_jsonb_2024_q3 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -57495,6 +55816,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2024_q4_extracted_fields_idx ON public.tddf_jsonb_2024_q4 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2024_q4_extracted_fields_idx ON public.tddf_jsonb_2024_q4 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2024_q4_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2024_q4_expr_idx7 ON public.tddf_jsonb_2024_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2024_q4_expr_idx7 ON public.tddf_jsonb_2024_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -58501,6 +56828,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2025_q1_extracted_fields_idx ON public.tddf_jsonb_2025_q1 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2025_q1_extracted_fields_idx ON public.tddf_jsonb_2025_q1 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2025_q1_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2025_q1_expr_idx7 ON public.tddf_jsonb_2025_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2025_q1_expr_idx7 ON public.tddf_jsonb_2025_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -59507,6 +57840,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2025_q2_extracted_fields_idx ON public.tddf_jsonb_2025_q2 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2025_q2_extracted_fields_idx ON public.tddf_jsonb_2025_q2 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2025_q2_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2025_q2_expr_idx7 ON public.tddf_jsonb_2025_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2025_q2_expr_idx7 ON public.tddf_jsonb_2025_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -60513,6 +58852,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2025_q3_extracted_fields_idx ON public.tddf_jsonb_2025_q3 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2025_q3_extracted_fields_idx ON public.tddf_jsonb_2025_q3 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2025_q3_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2025_q3_expr_idx7 ON public.tddf_jsonb_2025_q3 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2025_q3_expr_idx7 ON public.tddf_jsonb_2025_q3 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -61519,6 +59864,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2025_q4_extracted_fields_idx ON public.tddf_jsonb_2025_q4 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2025_q4_extracted_fields_idx ON public.tddf_jsonb_2025_q4 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2025_q4_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2025_q4_expr_idx7 ON public.tddf_jsonb_2025_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2025_q4_expr_idx7 ON public.tddf_jsonb_2025_q4 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -62530,6 +60881,12 @@
           "indexName": "idx_tddf_jsonb_2026_q1_upload_hash",
           "status": "dev_only",
           "devDef": "CREATE INDEX idx_tddf_jsonb_2026_q1_upload_hash ON public.tddf_jsonb_2026_q1 USING btree (upload_id, raw_line_hash)"
+        },
+        {
+          "indexName": "tddf_jsonb_2026_q1_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2026_q1_expr_idx7 ON public.tddf_jsonb_2026_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2026_q1_expr_idx7 ON public.tddf_jsonb_2026_q1 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -63536,6 +61893,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_2026_q2_extracted_fields_idx ON public.tddf_jsonb_2026_q2 USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_2026_q2_extracted_fields_idx ON public.tddf_jsonb_2026_q2 USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_2026_q2_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_2026_q2_expr_idx7 ON public.tddf_jsonb_2026_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_2026_q2_expr_idx7 ON public.tddf_jsonb_2026_q2 USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -64542,6 +62905,12 @@
           "status": "match",
           "devDef": "CREATE INDEX tddf_jsonb_default_extracted_fields_idx ON public.tddf_jsonb_default USING gin (extracted_fields)",
           "prodDef": "CREATE INDEX tddf_jsonb_default_extracted_fields_idx ON public.tddf_jsonb_default USING gin (extracted_fields)"
+        },
+        {
+          "indexName": "tddf_jsonb_default_expr_idx7",
+          "status": "match",
+          "devDef": "CREATE INDEX tddf_jsonb_default_expr_idx7 ON public.tddf_jsonb_default USING btree (((extracted_fields ->> 'cardNumber'::text)))",
+          "prodDef": "CREATE INDEX tddf_jsonb_default_expr_idx7 ON public.tddf_jsonb_default USING btree (((extracted_fields ->> 'cardNumber'::text)))"
         }
       ]
     },
@@ -79732,6 +78101,14 @@
     {
       "table": "del_uploader_uploads_backup",
       "status": "dev_only",
+      "devColumns": [],
+      "prodColumns": [],
+      "columnDiffs": [],
+      "indexDiffs": []
+    },
+    {
+      "table": "api_merchants",
+      "status": "prod_only",
       "devColumns": [],
       "prodColumns": [],
       "columnDiffs": [],
