@@ -329,4 +329,95 @@ export function registerUserRoutes(app: Express) {
       res.status(500).json({ error: "Failed to change password" });
     }
   });
+
+  // ==================== E2E TESTING ENDPOINTS ====================
+  // These endpoints are for Playwright e2e testing only
+  // They allow creating and cleaning up test users without authentication
+  
+  // Create a test user for e2e testing (no auth required)
+  app.post("/api/e2e/create-test-user", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Validate that username starts with e2e_test_ prefix for safety
+      if (!username || !username.startsWith("e2e_test_")) {
+        return res.status(400).json({ 
+          error: "Username must start with 'e2e_test_' prefix for e2e testing" 
+        });
+      }
+      
+      // Require 28+ character password for test users
+      if (!password || password.length < 28) {
+        return res.status(400).json({ 
+          error: "Password must be at least 28 characters for e2e test users" 
+        });
+      }
+      
+      console.log(`[E2E-TEST] Creating test user: ${username}`);
+      
+      const hashedPassword = await storage.hashPassword(password);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        email: `${username}@e2e-test.local`,
+        authType: "local",
+        role: "admin",
+        createdAt: new Date()
+      });
+      
+      console.log(`[E2E-TEST] Test user created: ${username} (ID: ${user.id})`);
+      
+      res.status(201).json({ 
+        id: user.id, 
+        username: user.username,
+        role: user.role 
+      });
+    } catch (error) {
+      console.error("[E2E-TEST] Error creating test user:", error);
+      res.status(500).json({ error: "Failed to create test user" });
+    }
+  });
+  
+  // Delete a test user and their security logs (no auth required)
+  app.delete("/api/e2e/cleanup-test-user/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+      
+      // Get user to verify it's a test user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Only allow deleting users with e2e_test_ prefix
+      if (!user.username.startsWith("e2e_test_")) {
+        return res.status(403).json({ 
+          error: "Can only delete users with 'e2e_test_' prefix" 
+        });
+      }
+      
+      console.log(`[E2E-TEST] Cleaning up test user: ${user.username} (ID: ${userId})`);
+      
+      // Delete security logs first (foreign key constraint)
+      try {
+        await storage.deleteSecurityLogsByUserId(userId);
+        console.log(`[E2E-TEST] Deleted security logs for user ID: ${userId}`);
+      } catch (logError) {
+        console.warn(`[E2E-TEST] Could not delete security logs:`, logError);
+      }
+      
+      // Delete the test user
+      await storage.deleteUser(userId);
+      console.log(`[E2E-TEST] Test user deleted: ${user.username}`);
+      
+      res.json({ success: true, deletedUser: user.username });
+    } catch (error) {
+      console.error("[E2E-TEST] Error cleaning up test user:", error);
+      res.status(500).json({ error: "Failed to cleanup test user" });
+    }
+  });
 }

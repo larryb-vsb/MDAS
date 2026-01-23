@@ -144,6 +144,7 @@ export interface IStorage {
     reason?: string | null;
     details?: any;
   }): Promise<void>;
+  deleteSecurityLogsByUserId(userId: number): Promise<void>;
   formatLogsToCSV(logs: any[]): string;
   
   // Orphaned upload recovery
@@ -8670,6 +8671,17 @@ export class DatabaseStorage implements IStorage {
       ]);
     } catch (error) {
       console.error('Error logging security event:', error);
+    }
+  }
+
+  async deleteSecurityLogsByUserId(userId: number): Promise<void> {
+    try {
+      const securityLogsTableName = getTableName('security_logs');
+      await pool.query(`DELETE FROM ${securityLogsTableName} WHERE user_id = $1`, [userId]);
+      console.log(`[STORAGE] Deleted security logs for user ID: ${userId}`);
+    } catch (error) {
+      console.error('Error deleting security logs by user ID:', error);
+      throw error;
     }
   }
   
