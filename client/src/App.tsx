@@ -43,6 +43,7 @@ import TddfJsonViewerPage from "@/pages/TddfJsonViewerPage";
 import About from "@/pages/About";
 import Uploads from "@/pages/Uploads";
 import QuarterlyMerchantReport from "@/pages/QuarterlyMerchantReport";
+import DailyProcessingReport from "@/pages/DailyProcessingReport";
 import Reports from "@/pages/Reports";
 
 function Router() {
@@ -95,6 +96,7 @@ function Router() {
       <ProtectedRoute path="/tddf-viewer/:uploadId/:filename" component={TddfJsonViewerPage} />
       <ProtectedRoute path="/reports" component={Reports} />
       <ProtectedRoute path="/reports/quarterly-merchants" component={QuarterlyMerchantReport} />
+      <ProtectedRoute path="/reports/daily-processing" component={DailyProcessingReport} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/login" component={AuthPage} />

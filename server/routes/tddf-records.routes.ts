@@ -3335,4 +3335,164 @@ export function registerTddfRecordsRoutes(app: Express) {
       });
     }
   });
+
+  // ==================== DAILY PROCESSING REPORT - BY MERCHANT/ASSOCIATION ====================
+  // Aggregates DT records by association number (or merchant account for 800888) for a given date
+  app.get("/api/reports/daily-processing/:date", isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.params;
+      
+      // Validate date format (YYYY-MM-DD)
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+      if (!datePattern.test(date)) {
+        return res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD' });
+      }
+      
+      const jsonbTableName = getTableName('tddf_jsonb');
+      const merchantsTableName = getTableName('merchants');
+      
+      console.log(`[DAILY-REPORT] Getting daily processing report for: ${date}`);
+      
+      // Query to aggregate by association number (for non-800888) and merchant account (for 800888)
+      // Transaction codes:
+      // 01xx = Purchase/Authorization
+      // 02xx = Credit/Refund
+      // 03xx = Prepaid/Load
+      // Tips are in tipAmount field
+      const query = `
+        WITH aggregated AS (
+          SELECT 
+            CASE 
+              WHEN extracted_fields->>'associationNumber1' = '800888' 
+              THEN extracted_fields->>'merchantAccountNumber'
+              ELSE extracted_fields->>'associationNumber1'
+            END as chain,
+            extracted_fields->>'merchantName' as merchant_name,
+            extracted_fields->>'associationNumber1' as assoc_num,
+            extracted_fields->>'merchantAccountNumber' as merchant_account,
+            (extracted_fields->>'transactionAmount')::numeric as txn_amount,
+            (extracted_fields->>'netDeposit')::numeric as net_deposit,
+            extracted_fields->>'transactionCode' as txn_code,
+            COALESCE((extracted_fields->>'tipAmount')::numeric, 0) as tip_amount
+          FROM ${jsonbTableName}
+          WHERE record_type = 'DT'
+            AND extracted_fields->>'transactionDate' = $1
+        )
+        SELECT 
+          chain,
+          MAX(merchant_name) as name,
+          MAX(assoc_num) as association_number,
+          MAX(merchant_account) as merchant_account_number,
+          -- Auth Amount: All transactions (01xx codes are authorizations/purchases)
+          SUM(CASE WHEN txn_code LIKE '01%' THEN txn_amount ELSE 0 END) as auth_amount,
+          -- Purchase Amount: Captured/settled transactions  
+          SUM(CASE WHEN txn_code LIKE '01%' OR txn_code LIKE '03%' THEN txn_amount ELSE 0 END) as purchase_amount,
+          -- Credit Amount: Refunds (02xx codes)
+          SUM(CASE WHEN txn_code LIKE '02%' THEN txn_amount ELSE 0 END) as credit_amount,
+          -- Prepaid/LC: Prepaid loads (03xx codes)
+          SUM(CASE WHEN txn_code LIKE '03%' THEN txn_amount ELSE 0 END) as prepaid_lc,
+          -- Tips/CB/Amc: Tips and adjustments
+          SUM(tip_amount) as tip_cb_amc,
+          -- Net Amount: Net deposit
+          SUM(net_deposit) as net_amount,
+          COUNT(*) as transaction_count
+        FROM aggregated
+        GROUP BY chain
+        ORDER BY chain
+      `;
+      
+      const result = await pool.query(query, [date]);
+      
+      // Calculate totals
+      let totalAuthAmount = 0;
+      let totalPurchaseAmount = 0;
+      let totalCreditAmount = 0;
+      let totalPrepaidLc = 0;
+      let totalTipCbAmc = 0;
+      let totalNetAmount = 0;
+      let totalTransactions = 0;
+      
+      const rows = result.rows.map(row => {
+        const authAmount = parseFloat(row.auth_amount) || 0;
+        const purchaseAmount = parseFloat(row.purchase_amount) || 0;
+        const creditAmount = parseFloat(row.credit_amount) || 0;
+        const prepaidLc = parseFloat(row.prepaid_lc) || 0;
+        const tipCbAmc = parseFloat(row.tip_cb_amc) || 0;
+        const netAmount = parseFloat(row.net_amount) || 0;
+        
+        totalAuthAmount += authAmount;
+        totalPurchaseAmount += purchaseAmount;
+        totalCreditAmount += creditAmount;
+        totalPrepaidLc += prepaidLc;
+        totalTipCbAmc += tipCbAmc;
+        totalNetAmount += netAmount;
+        totalTransactions += parseInt(row.transaction_count) || 0;
+        
+        return {
+          chain: row.chain,
+          name: row.name,
+          associationNumber: row.association_number,
+          merchantAccountNumber: row.merchant_account_number,
+          authAmount,
+          purchaseAmount,
+          creditAmount,
+          prepaidLc,
+          tipCbAmc,
+          netAmount,
+          transactionCount: parseInt(row.transaction_count) || 0
+        };
+      });
+      
+      // Try to get association names from merchants table
+      const chainIds = rows.map(r => r.chain).filter(c => c && c.length === 6);
+      if (chainIds.length > 0) {
+        try {
+          const merchantQuery = `
+            SELECT association_number, association_name, name
+            FROM ${merchantsTableName}
+            WHERE association_number = ANY($1)
+          `;
+          const merchantResult = await pool.query(merchantQuery, [chainIds]);
+          
+          const assocNameMap = new Map<string, string>();
+          merchantResult.rows.forEach(m => {
+            if (m.association_number && (m.association_name || m.name)) {
+              assocNameMap.set(m.association_number, m.association_name || m.name);
+            }
+          });
+          
+          // Update rows with association names
+          rows.forEach(row => {
+            if (row.chain && row.chain.length === 6 && assocNameMap.has(row.chain)) {
+              row.name = assocNameMap.get(row.chain) || row.name;
+            }
+          });
+        } catch (err) {
+          console.log('[DAILY-REPORT] Could not fetch association names:', err);
+        }
+      }
+      
+      console.log(`[DAILY-REPORT] Found ${rows.length} merchants/associations for ${date}`);
+      
+      res.json({
+        date,
+        data: rows,
+        totals: {
+          authAmount: totalAuthAmount,
+          purchaseAmount: totalPurchaseAmount,
+          creditAmount: totalCreditAmount,
+          prepaidLc: totalPrepaidLc,
+          tipCbAmc: totalTipCbAmc,
+          netAmount: totalNetAmount,
+          transactionCount: totalTransactions,
+          merchantCount: rows.length
+        }
+      });
+    } catch (error) {
+      console.error('[DAILY-REPORT] Error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate daily processing report" 
+      });
+    }
+  });
 }

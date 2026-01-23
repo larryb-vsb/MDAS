@@ -32,6 +32,17 @@ interface ReportConfig {
 
 const availableReports: ReportConfig[] = [
   {
+    id: "daily-processing",
+    name: "Daily Processing Report",
+    description: "Transaction summary by merchant/association for a specific date with auth, purchase, credit, and net amounts",
+    category: "transaction",
+    icon: <FileBarChart className="h-5 w-5" />,
+    path: "/reports/daily-processing",
+    status: "available",
+    lastRun: "2026-01-23",
+    scheduleEnabled: false,
+  },
+  {
     id: "quarterly-merchants",
     name: "Quarterly Merchant Report",
     description: "New and closed MCC merchants by quarter with activation and close dates",
