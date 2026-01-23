@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format, subDays } from "date-fns";
@@ -38,7 +38,13 @@ import {
   Mail,
   FileText,
   ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
+
+type SortColumn = "chain" | "name" | "authAmount" | "purchaseAmount" | "creditAmount" | "prepaidLc" | "tipCbAmc" | "netAmount";
+type SortDirection = "asc" | "desc";
 import MainLayout from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -100,6 +106,8 @@ export default function DailyProcessingReport() {
   const [queryDate, setQueryDate] = useState(selectedDate);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailAddress, setEmailAddress] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("netAmount");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<DailyReportResponse>({
     queryKey: [`/api/reports/daily-processing/${queryDate}`],
@@ -137,6 +145,42 @@ export default function DailyProcessingReport() {
 
   const handleRunReport = () => {
     setQueryDate(selectedDate);
+  };
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    if (!data?.data) return [];
+    
+    return [...data.data].sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+      
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        const comparison = aVal.localeCompare(bVal);
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+      
+      const aNum = Number(aVal) || 0;
+      const bNum = Number(bVal) || 0;
+      return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
+    });
+  }, [data?.data, sortColumn, sortDirection]);
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
   const getExportData = () => {
@@ -437,30 +481,82 @@ export default function DailyProcessingReport() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold">Chain</TableHead>
-                        <TableHead className="font-semibold">Name</TableHead>
-                        <TableHead className="font-semibold text-right">
-                          Auth Amount
+                        <TableHead 
+                          className="font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("chain")}
+                        >
+                          <div className="flex items-center">
+                            Chain
+                            <SortIcon column="chain" />
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-right">
-                          Purchase Amount
+                        <TableHead 
+                          className="font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("name")}
+                        >
+                          <div className="flex items-center">
+                            Name
+                            <SortIcon column="name" />
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-right">
-                          Credit Amount
+                        <TableHead 
+                          className="font-semibold text-right cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("authAmount")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Auth Amount
+                            <SortIcon column="authAmount" />
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-right">
-                          Prepaid/LC
+                        <TableHead 
+                          className="font-semibold text-right cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("purchaseAmount")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Purchase Amount
+                            <SortIcon column="purchaseAmount" />
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-right">
-                          Tip/CB/Amc
+                        <TableHead 
+                          className="font-semibold text-right cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("creditAmount")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Credit Amount
+                            <SortIcon column="creditAmount" />
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-right">
-                          Net Amount
+                        <TableHead 
+                          className="font-semibold text-right cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("prepaidLc")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Prepaid/LC
+                            <SortIcon column="prepaidLc" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="font-semibold text-right cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("tipCbAmc")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Tip/CB/Amc
+                            <SortIcon column="tipCbAmc" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="font-semibold text-right cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("netAmount")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Net Amount
+                            <SortIcon column="netAmount" />
+                          </div>
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data.data.map((row, index) => (
+                      {sortedData.map((row, index) => (
                         <TableRow key={index} className="hover:bg-gray-50">
                           <TableCell className="font-mono text-sm">
                             {formatChain(row.chain)}
