@@ -3085,9 +3085,9 @@ export function registerTddfRecordsRoutes(app: Express) {
         paramIndex++;
       }
       
-      // Filter by association number (JSONB field)
+      // Filter by association number (JSONB field - stored as associationNumber1)
       if (associationNumber && String(associationNumber).trim()) {
-        conditions.push(`r.extracted_fields->>'associationNumber' = $${paramIndex}`);
+        conditions.push(`r.extracted_fields->>'associationNumber1' = $${paramIndex}`);
         params.push(String(associationNumber).trim());
         paramIndex++;
       }
