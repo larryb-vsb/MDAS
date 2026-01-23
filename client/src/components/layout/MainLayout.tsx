@@ -136,6 +136,26 @@ const navItems = [
     href: "/",
   },
   {
+    icon: <DollarSign className="h-5 w-5 text-gray-300" />,
+    label: "Transactions",
+    href: "/transactions",
+  },
+  {
+    icon: <History className="h-5 w-5 text-cyan-400" />,
+    label: "History",
+    href: "/history",
+  },
+  {
+    icon: <Database className="h-5 w-5 text-purple-400" />,
+    label: "API Data",
+    href: "/tddf-api",
+  },
+  {
+    icon: <FileText className="h-5 w-5 text-gray-300" />,
+    label: "Exports",
+    href: "/exports",
+  },
+  {
     icon: <Users className="h-5 w-5 text-gray-300" />,
     label: "Merchants",
     href: "/merchants",
@@ -161,46 +181,19 @@ const navItems = [
     href: "/terminals",
   },
   {
-    icon: <DollarSign className="h-5 w-5 text-gray-300" />,
-    label: "Transactions",
-    href: "/transactions",
-  },
-
-  {
-    icon: <History className="h-5 w-5 text-cyan-400" />,
-    label: "History",
-    href: "/history",
-  },
-  {
-    icon: <Database className="h-5 w-5 text-purple-400" />,
-    label: "API Data",
-    href: "/tddf-api",
-  },
-  {
-    icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
-    label: "Analytics",
-    href: "/analytics",
-  },
-  {
-    icon: <Activity className="h-5 w-5 text-blue-400" />,
-    label: "Processing",
-    href: "/processing",
-  },
-
-  {
-    icon: <HardDrive className="h-5 w-5 text-purple-400" />,
-    label: "Storage Management",
-    href: "/storage-management",
-  },
-  {
-    icon: <Database className="h-5 w-5 text-green-400" />,
-    label: "Pre-Cache Management",
-    href: "/pre-cache-management",
-  },
-  {
     icon: <Archive className="h-5 w-5 text-amber-400" />,
-    label: "Legacy",
+    label: "System",
     submenu: [
+      {
+        icon: <HardDrive className="h-4 w-4 text-purple-400" />,
+        label: "Storage Management",
+        href: "/storage-management",
+      },
+      {
+        icon: <Database className="h-4 w-4 text-green-400" />,
+        label: "Pre-Cache Management",
+        href: "/pre-cache-management",
+      },
       {
         icon: <UploadCloud className="h-4 w-4 text-gray-300" />,
         label: "MDAS Uploader",
@@ -211,23 +204,28 @@ const navItems = [
         label: "TDDF1",
         href: "/tddf1",
       },
+      {
+        icon: <BarChart3 className="h-4 w-4 text-gray-300" />,
+        label: "Analytics",
+        href: "/analytics",
+      },
+      {
+        icon: <Activity className="h-4 w-4 text-blue-400" />,
+        label: "Processing",
+        href: "/processing",
+      },
+      {
+        icon: <FileBarChart className="h-4 w-4 text-blue-400" />,
+        label: "Reports",
+        href: "/reports",
+      },
+      {
+        icon: <ScrollText className="h-4 w-4 text-gray-300" />,
+        label: "Logs",
+        href: "/logs",
+        adminOnly: true,
+      },
     ],
-  },
-  {
-    icon: <FileText className="h-5 w-5 text-gray-300" />,
-    label: "Exports",
-    href: "/exports",
-  },
-  {
-    icon: <FileBarChart className="h-5 w-5 text-blue-400" />,
-    label: "Reports",
-    href: "/reports",
-  },
-  {
-    icon: <ScrollText className="h-5 w-5 text-gray-300" />,
-    label: "Logs",
-    href: "/logs",
-    adminOnly: true,
   },
   {
     icon: <Settings className="h-5 w-5 text-gray-300" />,
@@ -390,19 +388,25 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     (item) => !item.adminOnly || isAdmin,
   );
 
-  // Check if any Legacy submenu items are active
-  const isLegacyActive =
+  // Check if any System submenu items are active
+  const isSystemActive =
     location === "/uploader" ||
     location.startsWith("/uploader/") ||
     location === "/tddf1" ||
-    location.startsWith("/tddf1/");
+    location.startsWith("/tddf1/") ||
+    location === "/storage-management" ||
+    location === "/pre-cache-management" ||
+    location === "/analytics" ||
+    location === "/processing" ||
+    location === "/reports" ||
+    location === "/logs";
 
-  // Auto-expand Legacy submenu if any of its items are active
+  // Auto-expand System submenu if any of its items are active
   useEffect(() => {
-    if (isLegacyActive) {
+    if (isSystemActive) {
       setLegacyExpanded(true);
     }
-  }, [isLegacyActive]);
+  }, [isSystemActive]);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -464,10 +468,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 }}
                 submenu={item.submenu}
                 isExpanded={
-                  item.label === "Legacy" ? legacyExpanded : undefined
+                  item.label === "System" ? legacyExpanded : undefined
                 }
                 onToggle={
-                  item.label === "Legacy"
+                  item.label === "System"
                     ? () => setLegacyExpanded(!legacyExpanded)
                     : undefined
                 }
@@ -574,10 +578,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 }}
                 submenu={item.submenu}
                 isExpanded={
-                  item.label === "Legacy" ? legacyExpanded : undefined
+                  item.label === "System" ? legacyExpanded : undefined
                 }
                 onToggle={
-                  item.label === "Legacy"
+                  item.label === "System"
                     ? () => setLegacyExpanded(!legacyExpanded)
                     : undefined
                 }
