@@ -47,20 +47,18 @@ interface Type3ReportData {
 
 export default function Type3DemographicsReport() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [asOfDate, setAsOfDate] = useState("");
   
-  // Build query URL with date filters
+  // Build query URL with date filter
   const buildQueryUrl = () => {
     const params = new URLSearchParams();
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
+    if (asOfDate) params.append("asOfDate", asOfDate);
     const queryString = params.toString();
     return queryString ? `/api/reports/type3-demographics?${queryString}` : "/api/reports/type3-demographics";
   };
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<Type3ReportData>({
-    queryKey: ["/api/reports/type3-demographics", startDate, endDate],
+    queryKey: ["/api/reports/type3-demographics", asOfDate],
     queryFn: async () => {
       const response = await fetch(buildQueryUrl());
       if (!response.ok) throw new Error("Failed to fetch data");
@@ -69,8 +67,7 @@ export default function Type3DemographicsReport() {
   });
 
   const clearDateFilters = () => {
-    setStartDate("");
-    setEndDate("");
+    setAsOfDate("");
   };
 
   const filteredMerchants = data?.merchants?.filter((merchant) => {
@@ -155,43 +152,25 @@ export default function Type3DemographicsReport() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Filter by Client Start Date
+              Filter by Client Since Date
             </CardTitle>
             <CardDescription>
-              Filter merchants by when they became clients (extracted from demographic file names)
+              Show all merchants who became clients on or before the selected date
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="startDate">From Date</Label>
+                <Label htmlFor="asOfDate">Clients As Of Date</Label>
                 <Input
-                  id="startDate"
+                  id="asOfDate"
                   type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setStartDate(newDate);
-                    // Auto-set end date to same as start date for day-by-day navigation
-                    if (newDate) {
-                      setEndDate(newDate);
-                    }
-                  }}
-                  className="w-44"
+                  value={asOfDate}
+                  onChange={(e) => setAsOfDate(e.target.value)}
+                  className="w-48"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="endDate">To Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-44"
-                  min={startDate || undefined}
-                />
-              </div>
-              {(startDate || endDate) && (
+              {asOfDate && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -199,12 +178,12 @@ export default function Type3DemographicsReport() {
                   className="text-muted-foreground"
                 >
                   <X className="h-4 w-4 mr-1" />
-                  Clear Filters
+                  Clear Filter
                 </Button>
               )}
-              {(startDate || endDate) && (
+              {asOfDate && (
                 <Badge variant="secondary" className="h-8 px-3">
-                  Showing merchants {startDate ? `from ${startDate}` : ""} {endDate ? `through ${endDate}` : ""}
+                  Showing all merchants who were clients by {asOfDate}
                 </Badge>
               )}
             </div>

@@ -409,28 +409,18 @@ export function registerReportsRoutes(app: Express) {
     try {
       const merchantsTableName = getTableName('merchants');
       
-      // Optional date filters based on client_since_date
-      const startDate = req.query.startDate as string | undefined;
-      const endDate = req.query.endDate as string | undefined;
+      // Optional date filter - shows all merchants who were clients by the "asOfDate"
+      // (client_since_date on or before asOfDate)
+      const asOfDate = req.query.asOfDate as string | undefined;
       
       let dateFilter = '';
       const queryParams: any[] = [];
       
-      if (startDate && endDate) {
-        // Filter merchants with client_since_date within the date range
-        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date >= $1 AND client_since_date <= $2';
-        queryParams.push(startDate, endDate);
-        console.log(`[TYPE3-DEMOGRAPHICS] Filtering by date range: ${startDate} to ${endDate}`);
-      } else if (startDate) {
-        // Filter merchants with client_since_date on or after startDate
-        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date >= $1';
-        queryParams.push(startDate);
-        console.log(`[TYPE3-DEMOGRAPHICS] Filtering by start date: ${startDate}`);
-      } else if (endDate) {
-        // Filter merchants active by endDate (client_since_date <= endDate)
+      if (asOfDate) {
+        // Show all merchants whose client_since_date is on or before the asOfDate
         dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date <= $1';
-        queryParams.push(endDate);
-        console.log(`[TYPE3-DEMOGRAPHICS] Filtering merchants active by: ${endDate}`);
+        queryParams.push(asOfDate);
+        console.log(`[TYPE3-DEMOGRAPHICS] Filtering merchants who were clients by: ${asOfDate}`);
       }
       
       const result = await pool.query(`
