@@ -1874,7 +1874,8 @@ export class DatabaseStorage implements IStorage {
           lastUpload,
           lastBatch: stats.lastBatch,
           lastTransaction: stats.lastTransaction,
-          clientSinceDate: merchant.client_since_date
+          clientSinceDate: merchant.client_since_date,
+          reviewRequired: merchant.review_required || false
         };
       }));
       

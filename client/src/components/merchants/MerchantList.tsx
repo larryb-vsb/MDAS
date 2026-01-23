@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, Upload, Edit, Trash2, CheckSquare, GitMerge, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, Upload, Edit, Trash2, CheckSquare, GitMerge, ArrowUpDown, ArrowUp, ArrowDown, Copy } from "lucide-react";
 import MerchantPagination from "./MerchantPagination";
 import MergeModal from "./MergeModal";
 import { Merchant, Pagination } from "@/lib/types";
@@ -600,11 +600,27 @@ export default function MerchantList({
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div 
-                              className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600"
-                              onClick={() => setLocation(`/merchants/${merchant.id}`)}
-                            >
-                              {merchant.name}
+                            <div className="flex items-center gap-1.5">
+                              <div 
+                                className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                                onClick={() => setLocation(`/merchants/${merchant.id}`)}
+                              >
+                                {merchant.name}
+                              </div>
+                              {merchant.reviewRequired && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center justify-center w-4 h-4 bg-amber-100 text-amber-600 rounded-full cursor-help">
+                                        <Copy className="w-2.5 h-2.5" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Potential Duplicate - Review Required</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                             <div className="text-sm text-gray-500">ID: #{merchant.id}</div>
                           </div>

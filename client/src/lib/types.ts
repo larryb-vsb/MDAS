@@ -42,6 +42,7 @@ export interface Merchant {
   lastBatch?: MerchantBatchInfo;
   lastTransaction?: MerchantTransactionInfo;
   clientSinceDate?: string | null;
+  reviewRequired?: boolean;
 }
 
 // Pagination type
