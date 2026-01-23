@@ -3546,9 +3546,8 @@ export default function TddfApiDataPage() {
             </Button>
             <div>
               <h1 className="text-xl sm:text-3xl font-bold tracking-tight">MDAS API Data</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
-                High-performance position-based flat file processing with dynamic schema configuration
-              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Search and Manage MDAS Data 
+</p>
             </div>
           </div>
           <Badge variant="outline" className="w-fit text-xs">
