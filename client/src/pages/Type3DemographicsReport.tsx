@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, RefreshCw, Download, Search, Users, Building2, Phone, Mail, MapPin } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { AlertCircle, RefreshCw, Download, Search, Users, Building2, Phone, Mail, MapPin, Calendar, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
@@ -46,10 +47,31 @@ interface Type3ReportData {
 
 export default function Type3DemographicsReport() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  
+  // Build query URL with date filters
+  const buildQueryUrl = () => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+    const queryString = params.toString();
+    return queryString ? `/api/reports/type3-demographics?${queryString}` : "/api/reports/type3-demographics";
+  };
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<Type3ReportData>({
-    queryKey: ["/api/reports/type3-demographics"],
+    queryKey: ["/api/reports/type3-demographics", startDate, endDate],
+    queryFn: async () => {
+      const response = await fetch(buildQueryUrl());
+      if (!response.ok) throw new Error("Failed to fetch data");
+      return response.json();
+    },
   });
+
+  const clearDateFilters = () => {
+    setStartDate("");
+    setEndDate("");
+  };
 
   const filteredMerchants = data?.merchants?.filter((merchant) => {
     if (!searchTerm) return true;
@@ -128,6 +150,58 @@ export default function Type3DemographicsReport() {
             </AlertDescription>
           </Alert>
         )}
+
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Filter by Client Start Date
+            </CardTitle>
+            <CardDescription>
+              Filter merchants by when they became clients (extracted from demographic file names)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="startDate">From Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="endDate">To Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearDateFilters}
+                  className="text-muted-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
+              {(startDate || endDate) && (
+                <Badge variant="secondary" className="h-8 px-3">
+                  Showing merchants {startDate ? `from ${startDate}` : ""} {endDate ? `through ${endDate}` : ""}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>

@@ -5282,9 +5282,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process a merchant demographics CSV file
-  async processMerchantFile(filePath: string): Promise<{ rowsProcessed: number; merchantsCreated: number; merchantsUpdated: number; errors: number }> {
+  async processMerchantFile(filePath: string, fileStartDate?: Date | null): Promise<{ rowsProcessed: number; merchantsCreated: number; merchantsUpdated: number; errors: number }> {
     console.log(`=================== MERCHANT FILE PROCESSING ===================`);
     console.log(`Processing merchant file: ${filePath}`);
+    if (fileStartDate) {
+      console.log(`Using file start date for client_since_date: ${fileStartDate.toISOString().split('T')[0]}`);
+    }
     
     // Extract filename from path for tracking updates
     const sourceFilename = filePath.split('/').pop() || filePath;
@@ -5501,6 +5504,34 @@ export class DatabaseStorage implements IStorage {
               // @DEPLOYMENT-CHECK - Uses environment-aware table naming
               const merchantsTableName = getTableName('merchants');
               
+              // Determine the client_since_date to use:
+              // Priority: fileStartDate (from filename) > CSV data > existing value
+              // Only update if: (1) no existing date, or (2) new date is earlier (older)
+              const existingClientSinceDate = existingMerchant[0].client_since_date 
+                ? new Date(existingMerchant[0].client_since_date) 
+                : null;
+              
+              // Use file start date first, then CSV data, then keep existing
+              let clientSinceDateToUse = merchant.clientSinceDate;
+              if (fileStartDate) {
+                // File start date available - use it if no CSV date or if it's earlier
+                if (!merchant.clientSinceDate || fileStartDate < new Date(merchant.clientSinceDate)) {
+                  clientSinceDateToUse = fileStartDate;
+                }
+              }
+              
+              // Only update if new date is earlier than existing, or if no existing date
+              if (existingClientSinceDate && clientSinceDateToUse) {
+                if (new Date(clientSinceDateToUse) >= existingClientSinceDate) {
+                  console.log(`[MERCHDEM-CSV-UPDATE] Preserving earlier existing client_since_date: ${existingClientSinceDate.toISOString().split('T')[0]} (new date was ${new Date(clientSinceDateToUse).toISOString().split('T')[0]})`);
+                  clientSinceDateToUse = existingClientSinceDate;
+                } else {
+                  console.log(`[MERCHDEM-CSV-UPDATE] Using earlier new client_since_date: ${new Date(clientSinceDateToUse).toISOString().split('T')[0]} (existing was ${existingClientSinceDate.toISOString().split('T')[0]})`);
+                }
+              } else if (!existingClientSinceDate && clientSinceDateToUse) {
+                console.log(`[MERCHDEM-CSV-UPDATE] Setting new client_since_date: ${new Date(clientSinceDateToUse).toISOString().split('T')[0]} (no existing date)`);
+              }
+              
               // Always update the edit date to current date/time
               // CRITICAL FIX: Force merchant_type='3' for MerchDem CSV updates (ACH merchants)
               const forcedMerchantTypeUpdate = '3';
@@ -5510,7 +5541,7 @@ export class DatabaseStorage implements IStorage {
                 client_mid: merchant.clientMID,
                 other_client_number1: merchant.otherClientNumber1,
                 other_client_number2: merchant.otherClientNumber2,
-                client_since_date: merchant.clientSinceDate,
+                client_since_date: clientSinceDateToUse,
                 status: merchant.status,
                 merchant_type: forcedMerchantTypeUpdate,
                 sales_channel: merchant.salesChannel,
@@ -5555,6 +5586,20 @@ export class DatabaseStorage implements IStorage {
               // @DEPLOYMENT-CHECK - Uses environment-aware table naming
               const merchantsTableName2 = getTableName('merchants');
               
+              // Determine client_since_date for new merchant:
+              // Priority: fileStartDate (from filename) > CSV data
+              let insertClientSinceDate = merchant.clientSinceDate;
+              if (fileStartDate) {
+                // Use file start date if no CSV date, or if file date is earlier
+                if (!merchant.clientSinceDate || fileStartDate < new Date(merchant.clientSinceDate)) {
+                  insertClientSinceDate = fileStartDate;
+                  console.log(`[MERCHDEM-CSV-INSERT] Using file start date for client_since_date: ${fileStartDate.toISOString().split('T')[0]}`);
+                }
+              }
+              if (insertClientSinceDate) {
+                console.log(`[MERCHDEM-CSV-INSERT] New merchant client_since_date: ${new Date(insertClientSinceDate).toISOString().split('T')[0]}`);
+              }
+              
               // Map merchant object to database column names
               // CRITICAL FIX: Force merchant_type='3' for MerchDem CSV imports (ACH merchants)
               const forcedMerchantType = '3'; // ACH Type3 for all MerchDem CSV merchant imports
@@ -5565,7 +5610,7 @@ export class DatabaseStorage implements IStorage {
                 client_mid: merchant.clientMID,
                 other_client_number1: merchant.otherClientNumber1,
                 other_client_number2: merchant.otherClientNumber2,
-                client_since_date: merchant.clientSinceDate,
+                client_since_date: insertClientSinceDate,
                 status: merchant.status,
                 merchant_type: forcedMerchantType,
                 sales_channel: merchant.salesChannel,

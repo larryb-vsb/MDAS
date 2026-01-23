@@ -409,6 +409,30 @@ export function registerReportsRoutes(app: Express) {
     try {
       const merchantsTableName = getTableName('merchants');
       
+      // Optional date filters based on client_since_date
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      
+      let dateFilter = '';
+      const queryParams: any[] = [];
+      
+      if (startDate && endDate) {
+        // Filter merchants active during the date range (client_since_date <= endDate)
+        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date <= $1';
+        queryParams.push(endDate);
+        console.log(`[TYPE3-DEMOGRAPHICS] Filtering by date range: ${startDate} to ${endDate}`);
+      } else if (startDate) {
+        // Filter merchants with client_since_date on or after startDate
+        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date >= $1';
+        queryParams.push(startDate);
+        console.log(`[TYPE3-DEMOGRAPHICS] Filtering by start date: ${startDate}`);
+      } else if (endDate) {
+        // Filter merchants active by endDate (client_since_date <= endDate)
+        dateFilter = ' AND client_since_date IS NOT NULL AND client_since_date <= $1';
+        queryParams.push(endDate);
+        console.log(`[TYPE3-DEMOGRAPHICS] Filtering merchants active by: ${endDate}`);
+      }
+      
       const result = await pool.query(`
         SELECT 
           id, name, dba_name, client_mid, 
@@ -420,8 +444,9 @@ export function registerReportsRoutes(app: Express) {
         FROM ${merchantsTableName}
         WHERE merchant_type = '3'
         AND status != 'Removed'
+        ${dateFilter}
         ORDER BY name
-      `);
+      `, queryParams);
 
       const merchants = result.rows.map(row => ({
         id: row.id,

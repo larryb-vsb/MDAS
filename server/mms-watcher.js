@@ -1550,6 +1550,48 @@ class MMSWatcher {
     return keywordCount >= 3;
   }
 
+  /**
+   * Parse date from merchant demographic filename
+   * Supports formats:
+   * - VSB_MerchantDem_20260122.csv (YYYYMMDD)
+   * - Client Dem 01-02-2026.csv (MM-DD-YYYY)
+   * - Client Dem 07-21-2023 test21.csv (MM-DD-YYYY with suffix)
+   * @param {string} filename - The filename to parse
+   * @returns {Date|null} - Parsed date or null if not found
+   */
+  parseMerchantDemFilenameDate(filename) {
+    if (!filename) return null;
+    
+    // Pattern 1: VSB_MerchantDem_YYYYMMDD.csv
+    const yyyymmddMatch = filename.match(/(\d{4})(\d{2})(\d{2})(?:\.csv)?$/i);
+    if (yyyymmddMatch) {
+      const year = parseInt(yyyymmddMatch[1]);
+      const month = parseInt(yyyymmddMatch[2]) - 1; // 0-indexed
+      const day = parseInt(yyyymmddMatch[3]);
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime()) && year >= 2000 && year <= 2100) {
+        console.log(`[MMS-WATCHER] Parsed YYYYMMDD date from filename: ${filename} -> ${date.toISOString().split('T')[0]}`);
+        return date;
+      }
+    }
+    
+    // Pattern 2: Client Dem MM-DD-YYYY (with optional suffix before .csv)
+    const mmddyyyyMatch = filename.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+    if (mmddyyyyMatch) {
+      const month = parseInt(mmddyyyyMatch[1]) - 1; // 0-indexed
+      const day = parseInt(mmddyyyyMatch[2]);
+      const year = parseInt(mmddyyyyMatch[3]);
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime()) && year >= 2000 && year <= 2100) {
+        console.log(`[MMS-WATCHER] Parsed MM-DD-YYYY date from filename: ${filename} -> ${date.toISOString().split('T')[0]}`);
+        return date;
+      }
+    }
+    
+    console.log(`[MMS-WATCHER] No date pattern found in filename: ${filename}`);
+    return null;
+  }
+
   detectTerminalCsvPatterns(lines) {
     // Check if CSV headers match terminal export patterns
     if (lines.length === 0) return false;
@@ -1846,9 +1888,15 @@ class MMSWatcher {
         const tempFilePath = path.join(os.tmpdir(), `temp_merchant_${upload.id}_${Date.now()}.csv`);
         fs.writeFileSync(tempFilePath, fileContent);
         
+        // Extract start date from filename for client_since_date
+        const fileStartDate = this.parseMerchantDemFilenameDate(upload.filename);
+        if (fileStartDate) {
+          console.log(`[MMS-WATCHER] Extracted start date from filename: ${fileStartDate.toISOString().split('T')[0]}`);
+        }
+        
         try {
           // Process merchant CSV file using existing storage method
-          const processingResults = await this.storage.processMerchantFile(tempFilePath);
+          const processingResults = await this.storage.processMerchantFile(tempFilePath, fileStartDate);
           
           // Update to completed phase with merchant results (CSV files are terminal after encoding)
           await this.storage.updateUploaderPhase(upload.id, 'completed', {
