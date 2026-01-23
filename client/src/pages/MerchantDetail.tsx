@@ -1856,11 +1856,18 @@ export default function MerchantDetail() {
                     </div>
 
                     {/* Key Dates Section - Grouped at Top */}
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-4 border-b pb-6">
-                      <div className="md:col-span-4">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-5 border-b pb-6">
+                      <div className="md:col-span-5">
                         <h3 className="text-lg font-semibold mb-4">Key Dates</h3>
                       </div>
                       
+                      <div>
+                        <FormLabel className="text-blue-600 dark:text-blue-400">ACH Client Since Date</FormLabel>
+                        <div className="p-2 border border-blue-200 dark:border-blue-800 rounded-md bg-blue-50 dark:bg-blue-900/30 text-sm font-medium">
+                          {data?.merchant.clientSinceDate ? new Date(data.merchant.clientSinceDate).toLocaleDateString() : 'Not available'}
+                        </div>
+                      </div>
+
                       <div>
                         <FormLabel>Merchant Activation Date (Opened Date)</FormLabel>
                         <div className="p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm">
@@ -2558,7 +2565,13 @@ export default function MerchantDetail() {
                 {isLoading ? (
                   <Skeleton className="w-full h-24" />
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <h3 className="text-xs font-medium text-blue-600 dark:text-blue-400">ACH Client Since Date</h3>
+                      <p className="mt-1 text-base font-semibold">
+                        {data?.merchant.clientSinceDate ? new Date(data.merchant.clientSinceDate).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">MCC Merchant Activation Date</h3>
                       <p className="mt-1 text-base font-semibold">
