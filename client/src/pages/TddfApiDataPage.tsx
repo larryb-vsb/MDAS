@@ -1777,55 +1777,85 @@ function RawDataTab({
               <p className="text-sm">Set your filters above and click Search to load TDDF records</p>
             </div>
           ) : isChunkedLoading ? (
-            <div className="p-8 flex flex-col items-center justify-center space-y-4">
-              <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-              <div className="text-center space-y-2">
-                {/* Detect if using daily chunks by checking if first chunk is single-day */}
-                {(() => {
-                  const isDailyChunks = chunks.length > 0 && chunks[0].from === chunks[0].to;
-                  return (
-                    <>
-                      <p className="text-lg font-medium text-gray-700">
-                        Loading {isDailyChunks ? 'day by day' : 'week by week'}...
-                      </p>
-                      
-                      {/* Progress bar */}
-                      <div className="w-64 mx-auto">
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
-                          <span>{isDailyChunks ? 'Day' : 'Week'} {currentChunkIndex + 1} of {chunks.length}</span>
-                          <span>{Math.round(((currentChunkIndex + 1) / chunks.length) * 100)}%</span>
+            <div className="space-y-4">
+              {/* Compact progress bar at top */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center gap-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-500 flex-shrink-0" />
+                  {(() => {
+                    const isDailyChunks = chunks.length > 0 && chunks[0].from === chunks[0].to;
+                    return (
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-gray-700">
+                            {isDailyChunks ? 'Day' : 'Week'} {currentChunkIndex + 1} of {chunks.length}
+                            {chunks[currentChunkIndex] && (
+                              <span className="text-gray-500 ml-2">
+                                ({isDailyChunks 
+                                  ? format(new Date(chunks[currentChunkIndex].from), 'MMM d')
+                                  : `${format(new Date(chunks[currentChunkIndex].from), 'MMM d')} - ${format(new Date(chunks[currentChunkIndex].to), 'MMM d')}`
+                                })
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-green-600 font-medium">{accumulatedRecords.length} found</span>
+                          <span className="font-mono text-blue-600">{formatDuration(elapsedTime)}</span>
                         </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mt-1">
                           <div 
                             className="h-full bg-blue-500 transition-all duration-300"
                             style={{ width: `${((currentChunkIndex + 1) / chunks.length) * 100}%` }}
                           />
                         </div>
                       </div>
-                      
-                      {/* Current date being queried */}
-                      {chunks[currentChunkIndex] && (
-                        <p className="text-sm text-gray-600 font-medium">
-                          {isDailyChunks 
-                            ? format(new Date(chunks[currentChunkIndex].from), 'MMM d, yyyy')
-                            : `${format(new Date(chunks[currentChunkIndex].from), 'MMM d')} - ${format(new Date(chunks[currentChunkIndex].to), 'MMM d, yyyy')}`
-                          }
-                        </p>
-                      )}
-                    </>
-                  );
-                })()}
-                
-                {/* Records found so far */}
-                <p className="text-sm text-green-600">
-                  {accumulatedRecords.length} records found
-                </p>
-                
-                {/* Timer */}
-                <p className="text-lg font-mono text-blue-600 mt-2">
-                  {formatDuration(elapsedTime)}
-                </p>
+                    );
+                  })()}
+                </div>
               </div>
+              
+              {/* Show records as they are found */}
+              {accumulatedRecords.length > 0 ? (
+                <div className="divide-y divide-gray-200">
+                  {accumulatedRecords.slice(0, 50).map((record: any, index: number) => {
+                    const parsedData = record.parsed_data || {};
+                    const cardNumber = parsedData.cardNumber || parsedData.cardholderAccountNumber || '';
+                    const amount = parsedData.transactionAmount || '';
+                    const merchantId = parsedData.merchantAccountNumber || '';
+                    const txnDate = parsedData.transactionDate || '';
+                    
+                    return (
+                      <div key={record.id || index} className="py-2 px-3 hover:bg-gray-50 text-sm">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            DT
+                          </span>
+                          {cardNumber && (
+                            <span className="font-mono text-gray-600">{cardNumber}</span>
+                          )}
+                          {amount && (
+                            <span className="font-medium text-green-600">${parseFloat(amount).toFixed(2)}</span>
+                          )}
+                          {merchantId && (
+                            <span className="text-gray-500">{merchantId}</span>
+                          )}
+                          {txnDate && (
+                            <span className="text-gray-400">{txnDate}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {accumulatedRecords.length > 50 && (
+                    <div className="py-2 px-3 text-center text-sm text-gray-500">
+                      Showing first 50 of {accumulatedRecords.length} records...
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-gray-500">
+                  Searching... records will appear here as found
+                </div>
+              )}
             </div>
           ) : isLoading ? (
             <div className="p-8 flex flex-col items-center justify-center space-y-4">
