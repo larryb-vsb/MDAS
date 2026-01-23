@@ -1418,8 +1418,23 @@ function RawDataTab({
         const params = new URLSearchParams();
         params.append('limit', '500'); // Higher limit per chunk
         params.append('offset', '0');
-        params.append('date_from', chunk.from);
-        params.append('date_to', chunk.to);
+        
+        // Use the faster dt-latest endpoint when searching by cardholder account (DT records only)
+        // This endpoint uses the indexed transactionDate field for single-day queries
+        const useOptimizedEndpoint = cardholderAccount.trim() && chunk.from === chunk.to;
+        
+        if (useOptimizedEndpoint) {
+          // Fast path: use dt-latest endpoint with batchDate (single date)
+          params.append('batchDate', chunk.from);
+          params.append('cardNumber', cardholderAccount.trim());
+        } else {
+          // Standard path: use all-records endpoint with date range
+          params.append('date_from', chunk.from);
+          params.append('date_to', chunk.to);
+          if (cardholderAccount.trim()) {
+            params.append('cardholder_account', cardholderAccount.trim());
+          }
+        }
         
         if (recordType && recordType !== 'all') {
           params.append('recordType', recordType);
@@ -1430,15 +1445,17 @@ function RawDataTab({
         if (globalFilenameFilter) {
           params.append('filename', globalFilenameFilter);
         }
-        if (cardholderAccount.trim()) {
-          params.append('cardholder_account', cardholderAccount.trim());
-        }
         if (selectedField && fieldSearchValue.trim()) {
           params.append('fieldKey', selectedField);
           params.append('fieldValue', fieldSearchValue.trim());
         }
         
-        const response = await fetch(`/api/tddf-api/all-records?${params.toString()}`);
+        // Choose endpoint based on optimization path
+        const endpoint = useOptimizedEndpoint 
+          ? `/api/tddf-records/dt-latest?${params.toString()}`
+          : `/api/tddf-api/all-records?${params.toString()}`;
+        
+        const response = await fetch(endpoint);
         const result = await response.json();
         
         if (result.data && Array.isArray(result.data)) {
