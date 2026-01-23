@@ -6,14 +6,14 @@
 
 ### Login Credentials
 - **Secret Name**: `Test_Creds` (stored in Replit Secrets)
-- **Format**: `{"username":"radmin","password":"MDAS123"}`
+- **Format**: `{"username":"radmin","password":"..."}`
 - **Username**: `radmin`
-- **Password**: `MDAS123`
+- **Password**: `-FwAFCAwKXQPma/1,8(X<.tZ=3lp^W`
 
 ### Login Flow for E2E Tests
 1. Navigate to `/auth` (or any protected route will redirect here)
 2. Enter username `radmin` in the Username field
-3. Enter password `MDAS123` in the Password field  
+3. Enter password `-FwAFCAwKXQPma/1,8(X<.tZ=3lp^W` in the Password field  
 4. Click the "Login" button
 5. Wait for redirect to dashboard (`/` or `/tddf1-monthly`)
 6. Proceed with testing protected pages (e.g., `/settings`)

@@ -169,7 +169,14 @@ export default function Type3DemographicsReport() {
                   id="startDate"
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setStartDate(newDate);
+                    // Auto-set end date to same as start date for day-by-day navigation
+                    if (newDate) {
+                      setEndDate(newDate);
+                    }
+                  }}
                   className="w-44"
                 />
               </div>
@@ -181,6 +188,7 @@ export default function Type3DemographicsReport() {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-44"
+                  min={startDate || undefined}
                 />
               </div>
               {(startDate || endDate) && (
