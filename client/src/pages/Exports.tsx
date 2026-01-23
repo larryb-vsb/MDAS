@@ -83,7 +83,10 @@ export default function Exports() {
         // Build query parameters for the export request
         const queryParams = new URLSearchParams();
         
-        if (exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') {
+        if (exportType === 'merchant-demographics') {
+          // Type 3 merchant demographics doesn't need any date parameters
+          // It exports all Type 3 merchants
+        } else if (exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') {
           // For batch summary, merchants-all, and all-data, use the "from" date as the target date
           if (dateRange.from) {
             queryParams.append('targetDate', dateRange.from.toISOString().split('T')[0]);
@@ -184,6 +187,7 @@ export default function Exports() {
                     <SelectContent>
                       <SelectItem value="merchants">Merchants</SelectItem>
                       <SelectItem value="merchants-all">All Merchants (for date)</SelectItem>
+                      <SelectItem value="merchant-demographics">Type 3 (ACH) Merchant Demographics</SelectItem>
                       <SelectItem value="transactions">Transactions</SelectItem>
                       <SelectItem value="batch-summary">Batch Summary</SelectItem>
                       <SelectItem value="all-data">Export All (ZIP)</SelectItem>
@@ -192,9 +196,16 @@ export default function Exports() {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {(exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') ? 'Target Date' : 'Date Range'}
-                  </label>
+                  {exportType !== 'merchant-demographics' && (
+                    <label className="text-sm font-medium">
+                      {(exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') ? 'Target Date' : 'Date Range'}
+                    </label>
+                  )}
+                  {exportType === 'merchant-demographics' && (
+                    <p className="text-xs text-muted-foreground">
+                      Exports all Type 3 (ACH) merchants with full demographic data including contact info, banking details, and business information
+                    </p>
+                  )}
                   {exportType === 'batch-summary' && (
                     <p className="text-xs text-muted-foreground">
                       Select a specific date to generate batch summary
@@ -211,7 +222,8 @@ export default function Exports() {
                     </p>
                   )}
                   
-                  {/* Quick filter buttons */}
+                  {/* Quick filter buttons - hide for merchant-demographics */}
+                  {exportType !== 'merchant-demographics' && (
                   <div className="flex flex-wrap gap-2 mb-3">
                     <Button
                       variant="outline"
@@ -257,9 +269,12 @@ export default function Exports() {
                         </Button>
                       </>
                     )}
-                  </div>
+                  </div>)}
 
-                  {(exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') ? (
+                  {exportType === 'merchant-demographics' ? (
+                    // No date picker needed for Type 3 demographics
+                    null
+                  ) : (exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') ? (
                     // Single date picker for batch summary
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
@@ -340,6 +355,7 @@ export default function Exports() {
                       Export {
                         exportType === "merchants" ? "Merchants" : 
                         exportType === "merchants-all" ? "All Merchants" :
+                        exportType === "merchant-demographics" ? "Type 3 Demographics" :
                         exportType === "transactions" ? "Transactions" :
                         exportType === "all-data" ? "All Data (ZIP)" :
                         "Batch Summary"

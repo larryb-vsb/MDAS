@@ -218,6 +218,46 @@ export function registerMerchantRoutes(app: Express) {
     }
   });
 
+  // Export Type 3 (ACH) merchant demographics to CSV
+  app.get("/api/exports/merchant-demographics/download", async (req, res) => {
+    try {
+      const csvFilePath = await storage.exportType3MerchantDemographicsToCSV();
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_type3_demographics',
+        entityType: 'merchants',
+        entityId: `export_type3_${Date.now()}`,
+        notes: 'Type 3 (ACH) merchant demographics export'
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `type3_merchant_demographics_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting Type 3 merchant demographics:", error);
+      res.status(500).json({
+        error: "Failed to export Type 3 merchant demographics to CSV"
+      });
+    }
+  });
+
   // Export transactions to CSV
   app.get("/api/exports/transactions/download", async (req, res) => {
     try {

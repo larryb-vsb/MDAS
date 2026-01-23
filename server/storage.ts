@@ -378,6 +378,7 @@ export interface IStorage {
   exportBatchSummaryToCSV(
     targetDate: string
   ): Promise<string>;
+  exportType3MerchantDemographicsToCSV(): Promise<string>;
   
   // Dashboard stats
   getDashboardStats(): Promise<{
@@ -3231,6 +3232,102 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error exporting merchants to CSV:', error);
       throw new Error('Failed to export merchants to CSV');
+    }
+  }
+
+  // @ENVIRONMENT-CRITICAL - Type 3 (ACH) Merchant Demographics CSV export
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async exportType3MerchantDemographicsToCSV(): Promise<string> {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      // Get all Type 3 (ACH) merchants
+      const query = `
+        SELECT * FROM ${merchantsTableName}
+        WHERE merchant_type = '3'
+        AND status != 'Removed'
+        ORDER BY name
+      `;
+      
+      const result = await pool.query(query);
+      const merchants = result.rows;
+      
+      // Format as of date
+      const asOfDate = new Date().toLocaleDateString('en-US');
+      
+      // Format results for CSV matching the ACH Merchant Demographic Report format
+      const csvData = merchants.map(merchant => ({
+        'AsOfDate': asOfDate,
+        'ClientNum': merchant.id || '',
+        'ClientLega': merchant.name || '',
+        'ClientMID': merchant.client_mid || '',
+        'ClientPAddr': merchant.address || '',
+        'ClientCity': merchant.city || '',
+        'ClientState': merchant.state || '',
+        'ClientZip': merchant.zip_code || '',
+        'ClientCounty': merchant.county || '',
+        'ClientSinceDate': merchant.client_since_date ? new Date(merchant.client_since_date).toLocaleDateString('en-US') : '',
+        'DBAName': merchant.dba_name || '',
+        'Phone1': merchant.phone_1 || '',
+        'Phone2': merchant.phone_2 || '',
+        'PrimaryCell': merchant.primary_cell || '',
+        'MerchantEmail': merchant.merchant_email_address || '',
+        'ChargebackEmail': merchant.chargeback_email_address || '',
+        'URL': merchant.url || '',
+        'OwnerName': merchant.owner_name || '',
+        'ManagerName': merchant.manager_name || '',
+        'ContactFirst': merchant.contact_first || '',
+        'ContactMid': merchant.contact_mid || '',
+        'ContactLast': merchant.contact_last || '',
+        'ContactSuffix': merchant.contact_suffix || '',
+        'MerchantStatus': merchant.merchant_status || '',
+        'MerchantType': merchant.merchant_type || '3',
+        'MCC': merchant.mcc || '',
+        'SalesChannel': merchant.sales_channel || '',
+        'Association': merchant.association || '',
+        'DDANumber': merchant.dda_number || '',
+        'TransitRoutingNumber': merchant.transit_routing_number || '',
+        'FederalTaxID': merchant.federal_tax_id || '',
+        'StateTaxID': merchant.state_tax_id || '',
+        'BusinessLicense': merchant.business_license || '',
+        'BankOfficer1': merchant.bank_officer_1 || '',
+        'BankOfficer2': merchant.bank_officer_2 || '',
+        'ClientHold': merchant.client_hold || '',
+        'CloseDate': merchant.close_date ? new Date(merchant.close_date).toLocaleDateString('en-US') : '',
+        'MerchantActivationDate': merchant.merchant_activation_date ? new Date(merchant.merchant_activation_date).toLocaleDateString('en-US') : '',
+        'DateOfFirstDeposit': merchant.date_of_first_deposit ? new Date(merchant.date_of_first_deposit).toLocaleDateString('en-US') : '',
+        'DateOfLastDeposit': merchant.date_of_last_deposit ? new Date(merchant.date_of_last_deposit).toLocaleDateString('en-US') : '',
+        'LastActivityDate': merchant.last_activity_date ? new Date(merchant.last_activity_date).toLocaleDateString('en-US') : '',
+        'MailingAddress': merchant.mailing_address || '',
+        'MailingCity': merchant.mailing_city || '',
+        'MailingZip': merchant.mailing_zip || ''
+      }));
+      
+      // Generate a temp file path
+      const tempFilePath = path.join(os.tmpdir(), `type3_merchant_demographics_${Date.now()}.csv`);
+      
+      // Generate CSV content
+      const csvContent = this.generateCSVContent(csvData);
+      
+      // Write CSV data to file
+      return new Promise((resolve, reject) => {
+        const writableStream = createWriteStream(tempFilePath);
+        
+        writableStream.write(csvContent);
+        writableStream.end();
+        
+        writableStream.on('finish', () => {
+          resolve(tempFilePath);
+        });
+        
+        writableStream.on('error', (error) => {
+          console.error('Error writing Type 3 demographics CSV file:', error);
+          reject(new Error('Failed to create Type 3 demographics CSV export'));
+        });
+      });
+    } catch (error) {
+      console.error('Error exporting Type 3 merchant demographics to CSV:', error);
+      throw new Error('Failed to export Type 3 merchant demographics to CSV');
     }
   }
 
