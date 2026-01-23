@@ -3430,3 +3430,36 @@ export type InsertTddfApiDailyCacheMetadata = typeof insertTddfApiDailyCacheMeta
 export type InsertTddfApiDailyProcessingLog = typeof insertTddfApiDailyProcessingLogSchema._type;
 export type InsertSystemSettings = typeof insertSystemSettingsSchema._type;
 export type InsertMerchantMccSchema = z.infer<typeof insertMerchantMccSchemaSchema>;
+
+// Email Outbox Table - Queue for scheduled/pending email delivery
+export const emailOutbox = pgTable(getTableName("email_outbox"), {
+  id: serial("id").primaryKey(),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  bodyHtml: text("body_html"),
+  reportType: text("report_type"), // e.g., 'daily_processing', 'quarterly_merchants'
+  reportDate: text("report_date"), // Date parameter for the report
+  attachmentPath: text("attachment_path"), // Path to attachment file in storage
+  attachmentName: text("attachment_name"), // Filename for the attachment
+  attachmentType: text("attachment_type"), // 'csv', 'xlsx', 'pdf'
+  status: text("status").notNull().default("pending"), // pending, sent, failed, cancelled
+  priority: integer("priority").default(5), // 1-10, lower = higher priority
+  scheduledFor: timestamp("scheduled_for"), // When to send (null = ASAP)
+  sentAt: timestamp("sent_at"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").default(0),
+  maxRetries: integer("max_retries").default(3),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  statusIdx: index("email_outbox_status_idx").on(table.status),
+  scheduledForIdx: index("email_outbox_scheduled_for_idx").on(table.scheduledFor),
+  createdAtIdx: index("email_outbox_created_at_idx").on(table.createdAt)
+}));
+
+export const insertEmailOutboxSchema = createInsertSchema(emailOutbox).omit({ id: true, createdAt: true, updatedAt: true });
+export type EmailOutbox = typeof emailOutbox.$inferSelect;
+export type InsertEmailOutbox = z.infer<typeof insertEmailOutboxSchema>;
