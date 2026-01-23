@@ -1558,7 +1558,8 @@ export class DatabaseStorage implements IStorage {
     search: string = "",
     merchantType: string = "All",
     sortBy: string = "name",
-    sortOrder: "asc" | "desc" = "asc"
+    sortOrder: "asc" | "desc" = "asc",
+    flagged: string = ""
   ): Promise<{
     merchants: any[];
     pagination: {
@@ -1581,7 +1582,8 @@ export class DatabaseStorage implements IStorage {
         status === "All" && 
         lastUpload === "Any time" && 
         search === "" &&
-        merchantType === "All"
+        merchantType === "All" &&
+        flagged === ""
       );
 
       if (canUsePreCache) {
@@ -1758,6 +1760,13 @@ export class DatabaseStorage implements IStorage {
           
           conditions.push(`(${typeConditions.join(' OR ')})`);
         }
+      }
+      
+      // Apply flagged filter (for duplicate detection)
+      if (flagged === "true") {
+        conditions.push(`review_required = true`);
+      } else if (flagged === "false") {
+        conditions.push(`(review_required = false OR review_required IS NULL)`);
       }
       
       // Build WHERE clause

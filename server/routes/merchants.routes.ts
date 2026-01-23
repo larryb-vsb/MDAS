@@ -19,8 +19,9 @@ export function registerMerchantRoutes(app: Express) {
       const merchantType = req.query.merchantType as string || "All";
       const sortBy = req.query.sortBy as string || "name";
       const sortOrder = (req.query.sortOrder as string || "asc").toLowerCase() as "asc" | "desc";
+      const flagged = req.query.flagged as string || "";
 
-      const result = await storage.getMerchants(page, limit, status, lastUpload, search, merchantType, sortBy, sortOrder);
+      const result = await storage.getMerchants(page, limit, status, lastUpload, search, merchantType, sortBy, sortOrder, flagged);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch merchants" });

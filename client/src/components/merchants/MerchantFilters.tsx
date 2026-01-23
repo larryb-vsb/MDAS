@@ -18,6 +18,8 @@ interface MerchantFiltersProps {
   setUploadFilter: (value: string) => void;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
+  flaggedFilter?: string;
+  setFlaggedFilter?: (value: string) => void;
 }
 
 export default function MerchantFilters({
@@ -27,6 +29,8 @@ export default function MerchantFilters({
   setUploadFilter,
   searchQuery,
   setSearchQuery,
+  flaggedFilter = "All",
+  setFlaggedFilter,
 }: MerchantFiltersProps) {
   return (
     <div className="mt-4 sm:mt-8 space-y-3 sm:space-y-4">
@@ -97,6 +101,28 @@ export default function MerchantFilters({
               </SelectContent>
             </Select>
           </div>
+          {setFlaggedFilter && (
+            <div className="min-w-0">
+              <Label htmlFor="flagged-filter" className="block text-xs sm:text-sm font-medium text-gray-700">
+                Flagged
+              </Label>
+              <Select
+                value={flaggedFilter}
+                onValueChange={setFlaggedFilter}
+              >
+                <SelectTrigger className="w-full h-9 mt-1 text-xs sm:text-sm">
+                  <SelectValue placeholder="Flagged" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="All">All</SelectItem>
+                    <SelectItem value="Flagged">Flagged Only</SelectItem>
+                    <SelectItem value="Not Flagged">Not Flagged</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <button className="flex-1 sm:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">

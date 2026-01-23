@@ -43,6 +43,7 @@ export default function Merchants() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+  const [flaggedFilter, setFlaggedFilter] = useState("All");
   
   // State for sorting
   const [sortColumn, setSortColumn] = useState<string>("name");
@@ -62,10 +63,10 @@ export default function Merchants() {
     }
   }, []);
   
-  // Reset page to 1 when search query, status filter, upload filter, or itemsPerPage changes
+  // Reset page to 1 when search query, status filter, upload filter, flaggedFilter, or itemsPerPage changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, uploadFilter, itemsPerPage]);
+  }, [searchQuery, statusFilter, uploadFilter, flaggedFilter, itemsPerPage]);
   
   // Determine merchantType based on active tab
   // MCC merchants are all non-ACH merchants (backend filters by excluding type '3')
@@ -73,7 +74,7 @@ export default function Merchants() {
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
-    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery, merchantType, sortColumn, sortDirection],
+    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery, merchantType, sortColumn, sortDirection, flaggedFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -98,6 +99,10 @@ export default function Merchants() {
       if (sortColumn) {
         params.append('sortBy', sortColumn);
         params.append('sortOrder', sortDirection);
+      }
+      
+      if (flaggedFilter !== "All") {
+        params.append('flagged', flaggedFilter === "Flagged" ? "true" : "false");
       }
       
       const response = await fetch(`/api/merchants?${params.toString()}`);
@@ -302,6 +307,8 @@ export default function Merchants() {
               setUploadFilter={setUploadFilter}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              flaggedFilter={flaggedFilter}
+              setFlaggedFilter={setFlaggedFilter}
             />
             
             <MerchantList
@@ -332,6 +339,8 @@ export default function Merchants() {
               statusFilter={statusFilter}
               setStatusFilter={setStatusFilter}
               uploadFilter={uploadFilter}
+              flaggedFilter={flaggedFilter}
+              setFlaggedFilter={setFlaggedFilter}
               setUploadFilter={setUploadFilter}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -368,6 +377,8 @@ export default function Merchants() {
               setUploadFilter={setUploadFilter}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              flaggedFilter={flaggedFilter}
+              setFlaggedFilter={setFlaggedFilter}
             />
             
             <MerchantList
