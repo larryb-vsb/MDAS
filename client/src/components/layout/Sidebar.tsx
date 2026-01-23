@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { Database, Shield, ScrollText, FileBarChart } from "lucide-react";
+import { Database, Shield, ScrollText, FileBarChart, Store } from "lucide-react";
 
 interface SidebarProps {
   isVisible?: boolean;
@@ -29,11 +29,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
     {
       name: "Merchants",
       href: "/",
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-        </svg>
-      ),
+      icon: <Store className="w-5 h-5 mr-3 text-emerald-500" />,
     },
     {
       name: "Terminals",
