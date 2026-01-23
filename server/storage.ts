@@ -1872,7 +1872,8 @@ export class DatabaseStorage implements IStorage {
           status: merchant.status,
           lastUpload,
           lastBatch: stats.lastBatch,
-          lastTransaction: stats.lastTransaction
+          lastTransaction: stats.lastTransaction,
+          clientSinceDate: merchant.client_since_date
         };
       }));
       

@@ -41,6 +41,7 @@ export interface Merchant {
   lastUpload: string;
   lastBatch?: MerchantBatchInfo;
   lastTransaction?: MerchantTransactionInfo;
+  clientSinceDate?: string | null;
 }
 
 // Pagination type

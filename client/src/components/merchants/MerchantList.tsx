@@ -507,6 +507,15 @@ export default function MerchantList({
                       {renderSortIcon("lastTransactionDate")}
                     </div>
                   </TableHead>
+                  <TableHead 
+                    className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => onSort("clientSinceDate")}
+                  >
+                    <div className="flex items-center">
+                      Client Since
+                      {renderSortIcon("clientSinceDate")}
+                    </div>
+                  </TableHead>
                   <TableHead className="relative px-6 py-3">
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -542,6 +551,9 @@ export default function MerchantList({
                         <Skeleton className="w-28 h-4" />
                         <Skeleton className="w-24 h-3 mt-1" />
                       </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap">
+                        <Skeleton className="w-20 h-4" />
+                      </TableCell>
                       <TableCell className="px-6 py-4 text-right whitespace-nowrap">
                         <Skeleton className="w-20 h-6 ml-auto" />
                       </TableCell>
@@ -549,7 +561,7 @@ export default function MerchantList({
                   ))
                 ) : merchants.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="px-6 py-10 text-center">
+                    <TableCell colSpan={8} className="px-6 py-10 text-center">
                       <p className="text-gray-500">No merchants found</p>
                       <Button 
                         onClick={() => setLocation('/uploads')}
@@ -599,7 +611,20 @@ export default function MerchantList({
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                        {merchant.clientMID || '-'}
+                        {merchant.clientMID ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">
+                                  ...{merchant.clientMID.slice(-5)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="font-mono">{merchant.clientMID}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : '-'}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
                         <span 
@@ -644,6 +669,12 @@ export default function MerchantList({
                             : '-'
                           }
                         </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {merchant.clientSinceDate 
+                          ? new Date(merchant.clientSinceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : '-'
+                        }
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                         <div className="flex items-center justify-end space-x-3">
