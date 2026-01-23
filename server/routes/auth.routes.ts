@@ -140,11 +140,11 @@ export function registerAuthRoutes(app: Express) {
       const [adminInUsers, adminInDevUsers] = await Promise.all([
         usersExists ? 
           db.execute(sql`SELECT COUNT(*) as count FROM users WHERE username = 'admin'`)
-            .then(r => r.rows[0]?.count > 0)
+            .then(r => ((r.rows[0] as { count: number } | undefined)?.count ?? 0) > 0)
             .catch(() => false) : false,
         devUsersExists ?
           db.execute(sql`SELECT COUNT(*) as count FROM dev_users WHERE username = 'admin'`) 
-            .then(r => r.rows[0]?.count > 0)
+            .then(r => ((r.rows[0] as { count: number } | undefined)?.count ?? 0) > 0)
             .catch(() => false) : false
       ]);
       
