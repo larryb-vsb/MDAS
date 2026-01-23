@@ -403,4 +403,62 @@ export function registerReportsRoutes(app: Express) {
       });
     }
   });
+
+  // Type 3 (ACH) Merchant Demographics Report
+  app.get("/api/reports/type3-demographics", async (req, res) => {
+    try {
+      const merchantsTableName = getTableName('merchants');
+      
+      const result = await pool.query(`
+        SELECT 
+          id, name, dba_name, client_mid, 
+          address, city, state, zip_code,
+          phone_1, phone_2, email,
+          contact_first, contact_last,
+          status, client_since_date, merchant_activation_date,
+          dda_number, transit_routing_number
+        FROM ${merchantsTableName}
+        WHERE merchant_type = '3'
+        AND status != 'Removed'
+        ORDER BY name
+      `);
+
+      const merchants = result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        dbaName: row.dba_name,
+        clientMid: row.client_mid,
+        address: row.address,
+        city: row.city,
+        state: row.state,
+        zipCode: row.zip_code,
+        phone1: row.phone_1,
+        phone2: row.phone_2,
+        email: row.email,
+        contactFirst: row.contact_first,
+        contactLast: row.contact_last,
+        status: row.status,
+        clientSinceDate: row.client_since_date,
+        merchantActivationDate: row.merchant_activation_date,
+        ddaNumber: row.dda_number,
+        transitRoutingNumber: row.transit_routing_number
+      }));
+
+      const activeCount = merchants.filter(m => 
+        m.status?.toLowerCase().includes('active')
+      ).length;
+
+      res.json({
+        merchants,
+        totalCount: merchants.length,
+        activeCount,
+        generatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[TYPE3-DEMOGRAPHICS] Error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to load Type 3 demographics" 
+      });
+    }
+  });
 }

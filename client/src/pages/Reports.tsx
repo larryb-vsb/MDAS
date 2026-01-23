@@ -54,6 +54,17 @@ const availableReports: ReportConfig[] = [
     scheduleEnabled: false,
   },
   {
+    id: "type3-demographics",
+    name: "Type 3 (ACH) Merchant Demographics",
+    description: "Complete demographic data for all ACH merchants including contact info, banking details, and business information",
+    category: "merchant",
+    icon: <Users className="h-5 w-5" />,
+    path: "/reports/type3-demographics",
+    status: "available",
+    lastRun: "2026-01-23",
+    scheduleEnabled: false,
+  },
+  {
     id: "monthly-activity",
     name: "Monthly Activity Summary",
     description: "Transaction volume and merchant activity by month",

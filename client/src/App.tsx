@@ -44,6 +44,7 @@ import About from "@/pages/About";
 import Uploads from "@/pages/Uploads";
 import QuarterlyMerchantReport from "@/pages/QuarterlyMerchantReport";
 import DailyProcessingReport from "@/pages/DailyProcessingReport";
+import Type3DemographicsReport from "@/pages/Type3DemographicsReport";
 import Reports from "@/pages/Reports";
 
 function Router() {
@@ -97,6 +98,7 @@ function Router() {
       <ProtectedRoute path="/reports" component={Reports} />
       <ProtectedRoute path="/reports/quarterly-merchants" component={QuarterlyMerchantReport} />
       <ProtectedRoute path="/reports/daily-processing" component={DailyProcessingReport} />
+      <ProtectedRoute path="/reports/type3-demographics" component={Type3DemographicsReport} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/login" component={AuthPage} />
