@@ -43,118 +43,118 @@ export const MERCHANT_DETAIL_FIELD_MAP = [
   { index: 12, mmsField: 'Phone 1', dbColumn: 'phone', parser: (v) => v?.trim() || null },
   
   // Index 13: Phone 2 (193-202)
-  { index: 13, mmsField: 'Phone 2', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 13, mmsField: 'Phone 2', dbColumn: 'phone_2', parser: (v) => v?.trim() || null },
   
   // Index 14: Business License (204-213)
-  { index: 14, mmsField: 'Business License', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 14, mmsField: 'Business License', dbColumn: 'business_license', parser: (v) => v?.trim() || null },
   
   // Index 15: Bank Officer 1 (215-218)
-  { index: 15, mmsField: 'Bank Officer 1', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 15, mmsField: 'Bank Officer 1', dbColumn: 'bank_officer_1', parser: (v) => v?.trim() || null },
   
   // Index 16: Bank Officer 2 (220-223)
-  { index: 16, mmsField: 'Bank Officer 2', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 16, mmsField: 'Bank Officer 2', dbColumn: 'bank_officer_2', parser: (v) => v?.trim() || null },
   
   // Index 17: Federal Tax ID (235-243)
-  { index: 17, mmsField: 'Federal Tax ID', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 17, mmsField: 'Federal Tax ID', dbColumn: 'federal_tax_id', parser: (v) => v?.trim() || null },
   
   // Index 18: State Tax ID (245-253)
-  { index: 18, mmsField: 'State Tax ID', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 18, mmsField: 'State Tax ID', dbColumn: 'state_tax_id', parser: (v) => v?.trim() || null },
   
   // Index 19: Merchant Type (377)
   { index: 19, mmsField: 'Merchant Type', dbColumn: 'merchant_type', parser: (v) => '0' }, // Always '0' for DACQ files
   
   // Index 20: Owner Name (395-419)
-  { index: 20, mmsField: 'Owner Name', dbColumn: null, parser: (v) => v?.trim() || null }, // No db column
+  { index: 20, mmsField: 'Owner Name', dbColumn: 'owner_name', parser: (v) => v?.trim() || null },
   
   // Index 21: Manager Name (421-445)
-  { index: 21, mmsField: 'Manager Name', dbColumn: 'contact_person', parser: (v) => v?.trim() || null },
+  { index: 21, mmsField: 'Manager Name', dbColumn: 'manager_name', parser: (v) => v?.trim() || null },
   
   // Index 22: Last Activity Date (720-729)
-  { index: 22, mmsField: 'Last Activity Date', dbColumn: null, parser: parseDate },
+  { index: 22, mmsField: 'Last Activity Date', dbColumn: 'last_activity_date', parser: parseDate },
   
   // Index 23: Daily Fee Indicator (731)
-  { index: 23, mmsField: 'Daily Fee Indicator', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 23, mmsField: 'Daily Fee Indicator', dbColumn: 'daily_fee_indicator', parser: (v) => v?.trim() || null },
   
   // Index 24: MC Reg ID (733-735)
-  { index: 24, mmsField: 'MC Reg ID', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 24, mmsField: 'MC Reg ID', dbColumn: 'mc_reg_id', parser: (v) => v?.trim() || null },
   
   // Index 25: Customer Service Number (737-746)
-  { index: 25, mmsField: 'Customer Service Number', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 25, mmsField: 'Customer Service Number', dbColumn: 'customer_service_number', parser: (v) => v?.trim() || null },
   
   // Index 26: Update Date Time (748-766)
-  { index: 26, mmsField: 'Update Date Time', dbColumn: 'edit_date', parser: parseDateTime },
+  { index: 26, mmsField: 'Update Date Time', dbColumn: 'update_date_time', parser: parseDateTime },
   
   // Index 27: Status Change Date (768-777)
-  { index: 27, mmsField: 'Status Change Date', dbColumn: null, parser: parseDate },
+  { index: 27, mmsField: 'Status Change Date', dbColumn: 'status_change_date', parser: parseDate },
   
   // Index 28: Discover MAP Flag (779)
-  { index: 28, mmsField: 'Discover MAP Flag', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 28, mmsField: 'Discover MAP Flag', dbColumn: 'discover_map_flag', parser: (v) => v?.trim() || null },
   
   // Index 29: Amex OptBlue Flag (781)
-  { index: 29, mmsField: 'Amex OptBlue Flag', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 29, mmsField: 'Amex OptBlue Flag', dbColumn: 'amex_optblue_flag', parser: (v) => v?.trim() || null },
   
   // Index 30: Visa Descriptor (792-816)
-  { index: 30, mmsField: 'Visa Descriptor', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 30, mmsField: 'Visa Descriptor', dbColumn: 'visa_descriptor', parser: (v) => v?.trim() || null },
   
   // Index 31: MC Descriptor (818-842)
-  { index: 31, mmsField: 'MC Descriptor', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 31, mmsField: 'MC Descriptor', dbColumn: 'mc_descriptor', parser: (v) => v?.trim() || null },
   
   // Index 32: URL (844-883)
-  { index: 32, mmsField: 'URL', dbColumn: 'website', parser: (v) => v?.trim() || null },
+  { index: 32, mmsField: 'URL', dbColumn: 'url', parser: (v) => v?.trim() || null },
   
   // Index 33: Close Date (885-894)
-  { index: 33, mmsField: 'Close Date', dbColumn: null, parser: parseDate },
+  { index: 33, mmsField: 'Close Date', dbColumn: 'close_date', parser: parseDate },
   
   // Index 34: Date of Last Auth (896-905)
-  { index: 34, mmsField: 'Date of Last Auth', dbColumn: null, parser: parseDate },
+  { index: 34, mmsField: 'Date of Last Auth', dbColumn: 'date_of_last_auth', parser: parseDate },
   
   // Index 35: DUNS Number (907-921)
-  { index: 35, mmsField: 'DUNS Number', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 35, mmsField: 'DUNS Number', dbColumn: 'duns_number', parser: (v) => v?.trim() || null },
   
   // Index 36: Print Statement Indicator (931)
-  { index: 36, mmsField: 'Print Statement Indicator', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 36, mmsField: 'Print Statement Indicator', dbColumn: 'print_statement_indicator', parser: (v) => v?.trim() || null },
   
   // Index 37: Visa BIN (933-938)
-  { index: 37, mmsField: 'Visa BIN', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 37, mmsField: 'Visa BIN', dbColumn: 'visa_bin', parser: (v) => v?.trim() || null },
   
   // Index 38: MC BIN (940-945)
-  { index: 38, mmsField: 'MC BIN', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 38, mmsField: 'MC BIN', dbColumn: 'mc_bin', parser: (v) => v?.trim() || null },
   
   // Index 39: MC ICA (947-952)
-  { index: 39, mmsField: 'MC ICA', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 39, mmsField: 'MC ICA', dbColumn: 'mc_ica', parser: (v) => v?.trim() || null },
   
   // Index 40: Amex CAP ID (954-965)
-  { index: 40, mmsField: 'Amex CAP ID', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 40, mmsField: 'Amex CAP ID', dbColumn: 'amex_cap_id', parser: (v) => v?.trim() || null },
   
   // Index 41: Discover AIID (967-977)
-  { index: 41, mmsField: 'Discover AIID', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 41, mmsField: 'Discover AIID', dbColumn: 'discover_aiid', parser: (v) => v?.trim() || null },
   
   // Index 42: DDA Number (979-995)
-  { index: 42, mmsField: 'DDA Number', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 42, mmsField: 'DDA Number', dbColumn: 'dda_number', parser: (v) => v?.trim() || null },
   
   // Index 43: Transit Routing Number (997-1005)
-  { index: 43, mmsField: 'Transit Routing Number', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 43, mmsField: 'Transit Routing Number', dbColumn: 'transit_routing_number', parser: (v) => v?.trim() || null },
   
   // Index 44: Exposure Amount (1009-1016)
-  { index: 44, mmsField: 'Exposure Amount', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 44, mmsField: 'Exposure Amount', dbColumn: 'exposure_amount', parser: (v) => v?.trim() || null },
   
   // Index 45: Merchant Activation Date (1018-1027)
-  { index: 45, mmsField: 'Merchant Activation Date', dbColumn: 'client_since_date', parser: parseYYYYMMDD },
+  { index: 45, mmsField: 'Merchant Activation Date', dbColumn: 'merchant_activation_date', parser: parseYYYYMMDD },
   
   // Index 46: Date of First Deposit (1029-1038)
-  { index: 46, mmsField: 'Date of First Deposit', dbColumn: null, parser: parseYYYYMMDD },
+  { index: 46, mmsField: 'Date of First Deposit', dbColumn: 'date_of_first_deposit', parser: parseYYYYMMDD },
   
   // Index 47: Date of Last Deposit (1040-1049)
-  { index: 47, mmsField: 'Date of Last Deposit', dbColumn: null, parser: parseYYYYMMDD },
+  { index: 47, mmsField: 'Date of Last Deposit', dbColumn: 'date_of_last_deposit', parser: parseYYYYMMDD },
   
   // Index 48: Trans Destination (1051)
-  { index: 48, mmsField: 'Trans Destination', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 48, mmsField: 'Trans Destination', dbColumn: 'trans_destination', parser: (v) => v?.trim() || null },
   
   // Index 49: Merchant Email Address (1056-1127)
-  { index: 49, mmsField: 'Merchant Email Address', dbColumn: 'email', parser: (v) => v?.trim() || null },
+  { index: 49, mmsField: 'Merchant Email Address', dbColumn: 'merchant_email_address', parser: (v) => v?.trim() || null },
   
   // Index 50: Chargeback Email Address (1129-1200)
-  { index: 50, mmsField: 'Chargeback Email Address', dbColumn: null, parser: (v) => v?.trim() || null },
+  { index: 50, mmsField: 'Chargeback Email Address', dbColumn: 'chargeback_email_address', parser: (v) => v?.trim() || null },
 ];
 
 // Date parsing helpers
