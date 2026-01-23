@@ -181,6 +181,11 @@ const navItems = [
     href: "/terminals",
   },
   {
+    icon: <FileBarChart className="h-5 w-5 text-blue-400" />,
+    label: "Reports",
+    href: "/reports",
+  },
+  {
     icon: <Archive className="h-5 w-5 text-amber-400" />,
     label: "System",
     submenu: [
@@ -213,11 +218,6 @@ const navItems = [
         icon: <Activity className="h-4 w-4 text-blue-400" />,
         label: "Processing",
         href: "/processing",
-      },
-      {
-        icon: <FileBarChart className="h-4 w-4 text-blue-400" />,
-        label: "Reports",
-        href: "/reports",
       },
       {
         icon: <ScrollText className="h-4 w-4 text-gray-300" />,
@@ -398,7 +398,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     location === "/pre-cache-management" ||
     location === "/analytics" ||
     location === "/processing" ||
-    location === "/reports" ||
     location === "/logs";
 
   // Auto-expand System submenu if any of its items are active
