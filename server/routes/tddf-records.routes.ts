@@ -3128,6 +3128,15 @@ export function registerTddfRecordsRoutes(app: Express) {
         paramIndex++;
       }
       
+      // Filter by card number (partial match for cardholder search)
+      // Support both field names: cardNumber (common) and cardholderAccountNumber (legacy)
+      const cardNumberFilter = req.query.cardNumber;
+      if (cardNumberFilter && String(cardNumberFilter).trim()) {
+        conditions.push(`COALESCE(r.extracted_fields->>'cardNumber', r.extracted_fields->>'cardholderAccountNumber') ILIKE $${paramIndex}`);
+        params.push(`%${String(cardNumberFilter).trim()}%`);
+        paramIndex++;
+      }
+      
       // Filter by POS Entry Mode (JSONB field)
       const posEntryMode = req.query.posEntryMode;
       if (posEntryMode && String(posEntryMode).trim() && posEntryMode !== 'all') {

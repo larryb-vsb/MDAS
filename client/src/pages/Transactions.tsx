@@ -1088,6 +1088,7 @@ function MccTddfTransactionsTab() {
   const [associationNumber, setAssociationNumber] = useState<string>("");
   const [groupNumber, setGroupNumber] = useState<string>("");
   const [terminalId, setTerminalId] = useState<string>("");
+  const [cardNumber, setCardNumber] = useState<string>("");
   const [cardType, setCardType] = useState<string>("all");
   const [posEntryMode, setPosEntryMode] = useState<string>("all");
   const [filtersApplied, setFiltersApplied] = useState(false);
@@ -1146,6 +1147,9 @@ function MccTddfTransactionsTab() {
     }
     if (terminalId.trim()) {
       params.append("terminalId", terminalId.trim());
+    }
+    if (cardNumber.trim()) {
+      params.append("cardNumber", cardNumber.trim());
     }
     if (cardType && cardType !== "all") {
       params.append("cardType", cardType);
@@ -1278,6 +1282,7 @@ function MccTddfTransactionsTab() {
     setGroupNumber("");
     setTerminalId("");
     setSubMerchantName("");
+    setCardNumber("");
     setCardType("all");
     setPosEntryMode("all");
     setFiltersApplied(false);
@@ -1295,6 +1300,7 @@ function MccTddfTransactionsTab() {
       groupNumber.trim() !== "" ||
       terminalId.trim() !== "" ||
       subMerchantName.trim() !== "" ||
+      cardNumber.trim() !== "" ||
       (cardType !== "all" && cardType !== "");
     setFiltersApplied(hasFilters);
   }, [
@@ -1305,6 +1311,7 @@ function MccTddfTransactionsTab() {
     groupNumber,
     terminalId,
     subMerchantName,
+    cardNumber,
     cardType,
     posEntryMode,
   ]);
@@ -1547,6 +1554,19 @@ function MccTddfTransactionsTab() {
                   placeholder="Terminal ID"
                   className="flex-1"
                   data-testid="input-terminal-id"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-sm font-medium text-gray-700 sm:min-w-24">
+                  Card #:
+                </label>
+                <Input
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  placeholder="Card number or last 4"
+                  className="flex-1"
+                  data-testid="input-card-number"
                 />
               </div>
               
