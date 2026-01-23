@@ -1587,10 +1587,17 @@ function RawDataTab({
               <p className="text-sm">Set your filters above and click Search to load TDDF records</p>
             </div>
           ) : isLoading ? (
-            <div className="p-8 space-y-4">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
+            <div className="p-8 flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-700">Searching records...</p>
+                <p className="text-sm text-gray-500">
+                  {cardholderAccount ? `Searching for card: ${cardholderAccount}` : 'Loading TDDF records'}
+                </p>
+                {dateRange !== 'none' && (
+                  <p className="text-xs text-gray-400 mt-1">Filtering last {dateRange} days</p>
+                )}
+              </div>
             </div>
           ) : error ? (
             <div className="p-8 text-center text-red-600">
