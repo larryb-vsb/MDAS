@@ -184,7 +184,24 @@ export const merchants = pgTable(getTableName("merchants"), {
   lastBatchFilename: text("last_batch_filename"), // Most recent TDDF filename processed for this merchant
   lastBatchDate: timestamp("last_batch_date"), // Processing date of most recent TDDF batch
   lastTransactionAmount: numeric("last_transaction_amount", { precision: 15, scale: 2 }), // Amount of most recent transaction
-  lastTransactionDate: timestamp("last_transaction_date") // Date/time of most recent transaction from TDDF
+  lastTransactionDate: timestamp("last_transaction_date"), // Date/time of most recent transaction from TDDF
+  
+  // ACH Merchant Demographic Fields (Type 3)
+  contactFirst: text("contact_first"), // Contact first name
+  contactMid: text("contact_mid"), // Contact middle name/initial
+  contactLast: text("contact_last"), // Contact last name
+  contactSuffix: text("contact_suffix"), // Contact suffix (Jr, Sr, III, etc.)
+  clientHold: text("client_hold"), // Client hold status
+  county: text("county"), // County
+  primaryCell: text("primary_cell"), // Primary cell phone number
+  mailingAddress: text("mailing_address"), // Mailing address (if different from physical)
+  mailingCity: text("mailing_city"), // Mailing city
+  mailingZip: text("mailing_zip"), // Mailing ZIP code
+  clientType2: text("client_type_2"), // Secondary client type
+  numberLines: text("number_lines"), // Number of lines/terminals
+  locationCenter: text("location_center"), // Location center code
+  clientClass: text("client_class"), // Client classification
+  stei: text("stei") // STEI identifier
 }, (table) => ({
   // Time-based analytics indexes
   createdAtIdx: index("merchants_created_at_idx").on(table.createdAt),
