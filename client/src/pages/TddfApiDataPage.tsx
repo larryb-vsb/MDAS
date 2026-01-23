@@ -1234,9 +1234,40 @@ function RawDataTab({
   const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
   const [queryDuration, setQueryDuration] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  
+  // Chunked loading state for progressive results
+  const [isChunkedLoading, setIsChunkedLoading] = useState(false);
+  const [chunks, setChunks] = useState<Array<{from: string; to: string}>>([]);
+  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
+  const [accumulatedRecords, setAccumulatedRecords] = useState<any[]>([]);
+  const [chunkedHasMore, setChunkedHasMore] = useState(false);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
+
+  // Calculate weekly chunks from a date range
+  const calculateWeeklyChunks = (totalDays: number): Array<{from: string; to: string}> => {
+    const chunks: Array<{from: string; to: string}> = [];
+    const today = new Date();
+    const chunkSize = 7; // 7 days per chunk
+    
+    for (let i = 0; i < totalDays; i += chunkSize) {
+      const endOffset = i;
+      const startOffset = Math.min(i + chunkSize - 1, totalDays - 1);
+      
+      const chunkEnd = new Date(today);
+      chunkEnd.setDate(today.getDate() - endOffset);
+      
+      const chunkStart = new Date(today);
+      chunkStart.setDate(today.getDate() - startOffset);
+      
+      chunks.push({
+        from: format(chunkStart, 'yyyy-MM-dd'),
+        to: format(chunkEnd, 'yyyy-MM-dd')
+      });
+    }
+    return chunks;
+  };
 
   // Handle field selection - auto-set record type to DT
   const handleFieldChange = (value: string) => {
@@ -1302,22 +1333,42 @@ function RawDataTab({
   // Handle search button click
   const handleSearch = () => {
     // Auto-select 90-day range when cardholder search is used without date filter
-    // This improves performance by limiting the data scanned
+    let effectiveDateRange = dateRange;
     if (cardholderAccount.trim() && !selectedDate && dateRange === 'none') {
+      effectiveDateRange = '90';
       setDateRange('90');
     }
+    
     // Start performance timer
     setQueryStartTime(Date.now());
     setQueryDuration(null);
     setElapsedTime(0);
-    setSearchTriggered(true);
     setPage(1);
+    
+    // Use chunked loading for date range queries (30/60/90 days)
+    if (effectiveDateRange !== 'none' && !selectedDate) {
+      const days = parseInt(effectiveDateRange);
+      if (!isNaN(days)) {
+        const weeklyChunks = calculateWeeklyChunks(days);
+        setChunks(weeklyChunks);
+        setCurrentChunkIndex(0);
+        setAccumulatedRecords([]);
+        setChunkedHasMore(false);
+        setIsChunkedLoading(true);
+        setSearchTriggered(false); // Don't use regular query
+        return;
+      }
+    }
+    
+    // Fall back to regular single query
+    setIsChunkedLoading(false);
+    setSearchTriggered(true);
   };
   
-  // Running timer effect during loading
+  // Running timer effect during loading (both regular and chunked)
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    if (isLoading && queryStartTime) {
+    if ((isLoading || isChunkedLoading) && queryStartTime) {
       interval = setInterval(() => {
         setElapsedTime(Date.now() - queryStartTime);
       }, 100);
@@ -1325,7 +1376,7 @@ function RawDataTab({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isLoading, queryStartTime]);
+  }, [isLoading, isChunkedLoading, queryStartTime]);
   
   // Calculate final duration when query completes
   useEffect(() => {
@@ -1333,9 +1384,67 @@ function RawDataTab({
       setQueryDuration(Date.now() - queryStartTime);
     }
   }, [isLoading, queryStartTime, data]);
+  
+  // Chunked loading effect - fetch chunks sequentially
+  useEffect(() => {
+    if (!isChunkedLoading || chunks.length === 0) return;
+    if (currentChunkIndex >= chunks.length) {
+      // All chunks completed
+      setIsChunkedLoading(false);
+      setQueryDuration(Date.now() - (queryStartTime || Date.now()));
+      return;
+    }
+    
+    const chunk = chunks[currentChunkIndex];
+    const fetchChunk = async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append('limit', '500'); // Higher limit per chunk
+        params.append('offset', '0');
+        params.append('date_from', chunk.from);
+        params.append('date_to', chunk.to);
+        
+        if (recordType && recordType !== 'all') {
+          params.append('recordType', recordType);
+        }
+        if (searchQuery.trim()) {
+          params.append('search', searchQuery.trim());
+        }
+        if (globalFilenameFilter) {
+          params.append('filename', globalFilenameFilter);
+        }
+        if (cardholderAccount.trim()) {
+          params.append('cardholder_account', cardholderAccount.trim());
+        }
+        if (selectedField && fieldSearchValue.trim()) {
+          params.append('fieldKey', selectedField);
+          params.append('fieldValue', fieldSearchValue.trim());
+        }
+        
+        const response = await fetch(`/api/tddf-api/all-records?${params.toString()}`);
+        const result = await response.json();
+        
+        if (result.data && Array.isArray(result.data)) {
+          setAccumulatedRecords(prev => [...prev, ...result.data]);
+          if (result.pagination?.hasMore) {
+            setChunkedHasMore(true);
+          }
+        }
+        
+        // Move to next chunk
+        setCurrentChunkIndex(prev => prev + 1);
+      } catch (err) {
+        console.error('Chunk fetch error:', err);
+        setIsChunkedLoading(false);
+      }
+    };
+    
+    fetchChunk();
+  }, [isChunkedLoading, currentChunkIndex, chunks, queryStartTime, recordType, searchQuery, globalFilenameFilter, cardholderAccount, selectedField, fieldSearchValue]);
 
-  const records = data?.data || [];
-  const hasMore = data?.pagination?.hasMore ?? false;
+  // Use chunked records if in chunked mode, otherwise use regular query results
+  const records = isChunkedLoading || accumulatedRecords.length > 0 ? accumulatedRecords : (data?.data || []);
+  const hasMore = isChunkedLoading ? chunkedHasMore : (data?.pagination?.hasMore ?? false);
 
   // Toggle row expansion
   const toggleRow = (recordId: number) => {
@@ -1601,12 +1710,14 @@ function RawDataTab({
       {/* Showing X records indicator with query performance */}
       <div className="text-sm text-muted-foreground flex items-center gap-3">
         <span>
-          {searchTriggered 
+          {searchTriggered || accumulatedRecords.length > 0
             ? `Showing ${records.length} records ${hasMore ? '(more available)' : ''}`
-            : 'Click Search to load records'
+            : isChunkedLoading 
+              ? `Loading... ${accumulatedRecords.length} records found`
+              : 'Click Search to load records'
           }
         </span>
-        {queryDuration !== null && !isLoading && (
+        {queryDuration !== null && !isLoading && !isChunkedLoading && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-mono">
             <Clock className="h-3 w-3" />
             {(queryDuration / 1000).toFixed(2)}s
@@ -1617,11 +1728,49 @@ function RawDataTab({
       {/* Records Display */}
       <Card>
         <CardContent className="p-0">
-          {!searchTriggered ? (
+          {!searchTriggered && !isChunkedLoading && accumulatedRecords.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">Ready to Search</p>
               <p className="text-sm">Set your filters above and click Search to load TDDF records</p>
+            </div>
+          ) : isChunkedLoading ? (
+            <div className="p-8 flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+              <div className="text-center space-y-2">
+                <p className="text-lg font-medium text-gray-700">Loading week by week...</p>
+                
+                {/* Progress bar */}
+                <div className="w-64 mx-auto">
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Week {currentChunkIndex + 1} of {chunks.length}</span>
+                    <span>{Math.round(((currentChunkIndex + 1) / chunks.length) * 100)}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 transition-all duration-300"
+                      style={{ width: `${((currentChunkIndex + 1) / chunks.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Current date range being queried */}
+                {chunks[currentChunkIndex] && (
+                  <p className="text-sm text-gray-600 font-medium">
+                    {format(new Date(chunks[currentChunkIndex].from), 'MMM d')} - {format(new Date(chunks[currentChunkIndex].to), 'MMM d, yyyy')}
+                  </p>
+                )}
+                
+                {/* Records found so far */}
+                <p className="text-sm text-green-600">
+                  {accumulatedRecords.length} records found
+                </p>
+                
+                {/* Timer */}
+                <p className="text-lg font-mono text-blue-600 mt-2">
+                  {(elapsedTime / 1000).toFixed(1)}s
+                </p>
+              </div>
             </div>
           ) : isLoading ? (
             <div className="p-8 flex flex-col items-center justify-center space-y-4">
