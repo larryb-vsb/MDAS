@@ -1771,6 +1771,7 @@ export class DatabaseStorage implements IStorage {
         'clientMID': 'client_mid',
         'status': 'status',
         'lastUpload': 'last_upload_date',
+        'clientSinceDate': 'client_since_date',
         'dailyTransactions': 'name', // No direct DB column, will sort in-memory
         'monthlyTransactions': 'name' // No direct DB column, will sort in-memory
       };
