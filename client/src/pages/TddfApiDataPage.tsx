@@ -1261,12 +1261,15 @@ function RawDataTab({
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
 
-  // Calculate chunks from a date range (daily for <30 days, weekly for >=30 days)
-  const calculateChunks = (totalDays: number): Array<{from: string; to: string}> => {
+  // Calculate chunks from a date range
+  // - Always use daily chunks for cardholder searches (uses fast optimized endpoint)
+  // - Use weekly chunks for non-cardholder searches on 30+ day ranges
+  const calculateChunks = (totalDays: number, forCardholderSearch: boolean = false): Array<{from: string; to: string}> => {
     const chunks: Array<{from: string; to: string}> = [];
     const today = new Date();
-    // Use daily chunks for ranges under 30 days, weekly for larger ranges
-    const chunkSize = totalDays < 30 ? 1 : 7;
+    // Always use daily chunks for cardholder searches to leverage the fast dt-latest endpoint
+    // Use weekly chunks only for non-cardholder searches on 30+ day ranges
+    const chunkSize = forCardholderSearch ? 1 : (totalDays < 30 ? 1 : 7);
     
     for (let i = 0; i < totalDays; i += chunkSize) {
       const endOffset = i;
@@ -1366,7 +1369,9 @@ function RawDataTab({
     if (effectiveDateRange !== 'none' && !selectedDate) {
       const days = parseInt(effectiveDateRange);
       if (!isNaN(days)) {
-        const dateChunks = calculateChunks(days);
+        // Always use daily chunks for cardholder searches to leverage fast endpoint
+        const isCardholderSearch = cardholderAccount.trim().length > 0;
+        const dateChunks = calculateChunks(days, isCardholderSearch);
         setChunks(dateChunks);
         setCurrentChunkIndex(0);
         setAccumulatedRecords([]);
@@ -1775,34 +1780,41 @@ function RawDataTab({
             <div className="p-8 flex flex-col items-center justify-center space-y-4">
               <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
               <div className="text-center space-y-2">
-                {/* Show "day by day" for daily chunks, "week by week" for weekly */}
-                <p className="text-lg font-medium text-gray-700">
-                  Loading {parseInt(dateRange) < 30 ? 'day by day' : 'week by week'}...
-                </p>
-                
-                {/* Progress bar */}
-                <div className="w-64 mx-auto">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>{parseInt(dateRange) < 30 ? 'Day' : 'Week'} {currentChunkIndex + 1} of {chunks.length}</span>
-                    <span>{Math.round(((currentChunkIndex + 1) / chunks.length) * 100)}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-500 transition-all duration-300"
-                      style={{ width: `${((currentChunkIndex + 1) / chunks.length) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Current date being queried */}
-                {chunks[currentChunkIndex] && (
-                  <p className="text-sm text-gray-600 font-medium">
-                    {parseInt(dateRange) < 30 
-                      ? format(new Date(chunks[currentChunkIndex].from), 'MMM d, yyyy')
-                      : `${format(new Date(chunks[currentChunkIndex].from), 'MMM d')} - ${format(new Date(chunks[currentChunkIndex].to), 'MMM d, yyyy')}`
-                    }
-                  </p>
-                )}
+                {/* Detect if using daily chunks by checking if first chunk is single-day */}
+                {(() => {
+                  const isDailyChunks = chunks.length > 0 && chunks[0].from === chunks[0].to;
+                  return (
+                    <>
+                      <p className="text-lg font-medium text-gray-700">
+                        Loading {isDailyChunks ? 'day by day' : 'week by week'}...
+                      </p>
+                      
+                      {/* Progress bar */}
+                      <div className="w-64 mx-auto">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>{isDailyChunks ? 'Day' : 'Week'} {currentChunkIndex + 1} of {chunks.length}</span>
+                          <span>{Math.round(((currentChunkIndex + 1) / chunks.length) * 100)}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${((currentChunkIndex + 1) / chunks.length) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Current date being queried */}
+                      {chunks[currentChunkIndex] && (
+                        <p className="text-sm text-gray-600 font-medium">
+                          {isDailyChunks 
+                            ? format(new Date(chunks[currentChunkIndex].from), 'MMM d, yyyy')
+                            : `${format(new Date(chunks[currentChunkIndex].from), 'MMM d')} - ${format(new Date(chunks[currentChunkIndex].to), 'MMM d, yyyy')}`
+                          }
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
                 
                 {/* Records found so far */}
                 <p className="text-sm text-green-600">
