@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, RefreshCw, Download, Search, Users, Building2, Phone, Mail, MapPin, Calendar, X } from "lucide-react";
+import { AlertCircle, RefreshCw, Download, Search, Users, Building2, Phone, Mail, MapPin, Calendar, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
@@ -45,9 +45,30 @@ interface Type3ReportData {
   generatedAt: string;
 }
 
+type SortColumn = "name" | "clientSinceDate" | null;
+type SortDirection = "asc" | "desc";
+
 export default function Type3DemographicsReport() {
   const [searchTerm, setSearchTerm] = useState("");
   const [asOfDate, setAsOfDate] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("clientSinceDate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+  
+  const renderSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+    return sortDirection === "asc" 
+      ? <ArrowUp className="ml-1 h-3 w-3" />
+      : <ArrowDown className="ml-1 h-3 w-3" />;
+  };
   
   // Build query URL with date filter
   const buildQueryUrl = () => {
@@ -70,7 +91,7 @@ export default function Type3DemographicsReport() {
     setAsOfDate("");
   };
 
-  const filteredMerchants = data?.merchants?.filter((merchant) => {
+  const filteredMerchants = (data?.merchants?.filter((merchant) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
@@ -82,7 +103,28 @@ export default function Type3DemographicsReport() {
       merchant.contactFirst?.toLowerCase().includes(search) ||
       merchant.contactLast?.toLowerCase().includes(search)
     );
-  }) || [];
+  }) || []).sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    let aVal: string | null = null;
+    let bVal: string | null = null;
+    
+    if (sortColumn === "name") {
+      aVal = a.name;
+      bVal = b.name;
+    } else if (sortColumn === "clientSinceDate") {
+      aVal = a.clientSinceDate;
+      bVal = b.clientSinceDate;
+    }
+    
+    // Handle nulls - push them to the end
+    if (!aVal && !bVal) return 0;
+    if (!aVal) return 1;
+    if (!bVal) return -1;
+    
+    const comparison = aVal.localeCompare(bVal);
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
 
   const handleExportCSV = async () => {
     try {
@@ -287,14 +329,30 @@ export default function Type3DemographicsReport() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[200px]">Merchant Name</TableHead>
+                      <TableHead 
+                        className="min-w-[200px] cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("name")}
+                      >
+                        <div className="flex items-center">
+                          Merchant Name
+                          {renderSortIcon("name")}
+                        </div>
+                      </TableHead>
                       <TableHead>DBA Name</TableHead>
                       <TableHead>MID</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Client Since</TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("clientSinceDate")}
+                      >
+                        <div className="flex items-center">
+                          Client Since
+                          {renderSortIcon("clientSinceDate")}
+                        </div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
