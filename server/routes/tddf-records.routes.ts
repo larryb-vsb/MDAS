@@ -2285,9 +2285,10 @@ export function registerTddfRecordsRoutes(app: Express) {
       // Cardholder account search (partial match for quick lookup)
       // When searching by cardholder, enforce 90-day max lookback for performance
       if (cardholder_account) {
-        const cardNumber = (cardholder_account as string).trim();
-        whereConditions.push(`r.extracted_fields->>'cardholderAccountNumber' ILIKE $${paramIndex}`);
-        params.push(`%${cardNumber}%`);
+        const cardNumberSearch = (cardholder_account as string).trim();
+        // Use 'cardNumber' field (not 'cardholderAccountNumber') - this is the actual field name in extracted_fields
+        whereConditions.push(`r.extracted_fields->>'cardNumber' ILIKE $${paramIndex}`);
+        params.push(`%${cardNumberSearch}%`);
         paramIndex++;
         
         // Calculate the 90-day floor date
