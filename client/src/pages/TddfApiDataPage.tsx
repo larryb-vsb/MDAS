@@ -1229,6 +1229,11 @@ function RawDataTab({
   
   // Date range preset state (30/60/90 days)
   const [dateRange, setDateRange] = useState<string>('none');
+  
+  // Query performance tracking
+  const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
+  const [queryDuration, setQueryDuration] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -1301,9 +1306,33 @@ function RawDataTab({
     if (cardholderAccount.trim() && !selectedDate && dateRange === 'none') {
       setDateRange('90');
     }
+    // Start performance timer
+    setQueryStartTime(Date.now());
+    setQueryDuration(null);
+    setElapsedTime(0);
     setSearchTriggered(true);
     setPage(1);
   };
+  
+  // Running timer effect during loading
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isLoading && queryStartTime) {
+      interval = setInterval(() => {
+        setElapsedTime(Date.now() - queryStartTime);
+      }, 100);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isLoading, queryStartTime]);
+  
+  // Calculate final duration when query completes
+  useEffect(() => {
+    if (!isLoading && queryStartTime && data) {
+      setQueryDuration(Date.now() - queryStartTime);
+    }
+  }, [isLoading, queryStartTime, data]);
 
   const records = data?.data || [];
   const hasMore = data?.pagination?.hasMore ?? false;
@@ -1569,12 +1598,20 @@ function RawDataTab({
         )}
       </div>
 
-      {/* Showing X records indicator */}
-      <div className="text-sm text-muted-foreground">
-        {searchTriggered 
-          ? `Showing ${records.length} records ${hasMore ? '(more available)' : ''}`
-          : 'Click Search to load records'
-        }
+      {/* Showing X records indicator with query performance */}
+      <div className="text-sm text-muted-foreground flex items-center gap-3">
+        <span>
+          {searchTriggered 
+            ? `Showing ${records.length} records ${hasMore ? '(more available)' : ''}`
+            : 'Click Search to load records'
+          }
+        </span>
+        {queryDuration !== null && !isLoading && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-mono">
+            <Clock className="h-3 w-3" />
+            {(queryDuration / 1000).toFixed(2)}s
+          </span>
+        )}
       </div>
 
       {/* Records Display */}
@@ -1597,6 +1634,9 @@ function RawDataTab({
                 {dateRange !== 'none' && (
                   <p className="text-xs text-gray-400 mt-1">Filtering last {dateRange} days</p>
                 )}
+                <p className="text-lg font-mono text-blue-600 mt-3">
+                  {(elapsedTime / 1000).toFixed(1)}s
+                </p>
               </div>
             </div>
           ) : error ? (
