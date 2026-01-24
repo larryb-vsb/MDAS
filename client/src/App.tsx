@@ -46,6 +46,7 @@ import QuarterlyMerchantReport from "@/pages/QuarterlyMerchantReport";
 import DailyProcessingReport from "@/pages/DailyProcessingReport";
 import Type3DemographicsReport from "@/pages/Type3DemographicsReport";
 import Reports from "@/pages/Reports";
+import EmailSettings from "@/pages/EmailSettings";
 
 function Router() {
   return (
@@ -100,6 +101,7 @@ function Router() {
       <ProtectedRoute path="/reports/daily-processing" component={DailyProcessingReport} />
       <ProtectedRoute path="/reports/type3-demographics" component={Type3DemographicsReport} />
       <ProtectedRoute path="/logs" component={Logs} />
+      <ProtectedRoute path="/email-settings" component={EmailSettings} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/login" component={AuthPage} />
       <Route component={NotFound} />

@@ -99,6 +99,7 @@ import {
   Edit,
   FileBarChart,
   Store,
+  Mail,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -225,6 +226,11 @@ const navItems = [
         label: "Logs",
         href: "/logs",
         adminOnly: true,
+      },
+      {
+        icon: <Mail className="h-4 w-4 text-blue-400" />,
+        label: "Email Settings",
+        href: "/email-settings",
       },
     ],
   },

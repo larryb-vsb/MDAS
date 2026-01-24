@@ -218,4 +218,74 @@ router.post("/send-processing-complete", async (req, res) => {
   }
 });
 
+// Get email outbox (pending/queued emails)
+router.get("/outbox", async (req, res) => {
+  try {
+    const { pool } = await import("../db");
+    const { getTableName } = await import("../table-config");
+    
+    const tableName = getTableName('email_outbox');
+    const result = await pool.query(`
+      SELECT id, recipient_email, recipient_name, subject, status, 
+             sent_at, created_at, error_message, retry_count
+      FROM ${tableName}
+      WHERE status IN ('pending', 'queued')
+      ORDER BY created_at DESC
+      LIMIT 100
+    `);
+    
+    const emails = result.rows.map(row => ({
+      id: row.id,
+      recipientEmail: row.recipient_email,
+      recipientName: row.recipient_name,
+      subject: row.subject,
+      status: row.status,
+      sentAt: row.sent_at,
+      createdAt: row.created_at,
+      errorMessage: row.error_message,
+      retryCount: row.retry_count
+    }));
+    
+    res.json({ emails, total: emails.length });
+  } catch (error) {
+    logger.error('[EMAIL-ROUTES] Failed to fetch outbox:', error);
+    res.json({ emails: [], total: 0 });
+  }
+});
+
+// Get email history (sent/failed emails)
+router.get("/history", async (req, res) => {
+  try {
+    const { pool } = await import("../db");
+    const { getTableName } = await import("../table-config");
+    
+    const tableName = getTableName('email_outbox');
+    const result = await pool.query(`
+      SELECT id, recipient_email, recipient_name, subject, status, 
+             sent_at, created_at, error_message, retry_count
+      FROM ${tableName}
+      WHERE status IN ('sent', 'failed')
+      ORDER BY COALESCE(sent_at, created_at) DESC
+      LIMIT 100
+    `);
+    
+    const emails = result.rows.map(row => ({
+      id: row.id,
+      recipientEmail: row.recipient_email,
+      recipientName: row.recipient_name,
+      subject: row.subject,
+      status: row.status,
+      sentAt: row.sent_at,
+      createdAt: row.created_at,
+      errorMessage: row.error_message,
+      retryCount: row.retry_count
+    }));
+    
+    res.json({ emails, total: emails.length });
+  } catch (error) {
+    logger.error('[EMAIL-ROUTES] Failed to fetch history:', error);
+    res.json({ emails: [], total: 0 });
+  }
+});
+
 export default router;
