@@ -111,6 +111,56 @@ interface TddfProcessingDatetime {
   environment: string;
 }
 
+// Interface for Last Three Days data (MCC and ACH)
+interface LastThreeDaysData {
+  mcc: Array<{
+    date: string;
+    authCount: number;
+    authAmount: number;
+    purchaseAmount: number;
+  }>;
+  ach: Array<{
+    date: string;
+    batchCount: number;
+    batchAmount: number;
+  }>;
+  generatedAt: string;
+}
+
+// Interface for Daily Activity data
+interface DailyActivityData {
+  mccActivity: Array<{
+    date: string;
+    batchCount: number;
+    transactionCount: number;
+    otherCount: number;
+  }>;
+  achActivity: Array<{
+    date: string;
+    batchCount: number;
+  }>;
+  generatedAt: string;
+}
+
+// Interface for Monthly Totals data (lazy loaded - last 3 months)
+interface MonthlyTotalsData {
+  months: Array<{
+    month: string;
+    monthKey: string;
+    transactionAuthorizations: {
+      count: number;
+      amount: number;
+    };
+    netDeposits: {
+      count: number;
+      amount: number;
+    };
+    totalFiles: number;
+    totalRecords: number;
+  }>;
+  generatedAt: string;
+}
+
 // Enhanced MetricCard with clickable navigation
 interface ClickableMetricCardProps {
   title: string;
@@ -579,6 +629,27 @@ export default function HomeDashboard() {
     gcTime: Infinity, // Keep in cache indefinitely
   });
 
+  // Last Three Days data for MCC and ACH
+  const { data: lastThreeDaysData, isLoading: isLoadingLastThreeDays } = useQuery<LastThreeDaysData>({
+    queryKey: ['/api/dashboard/last-three-days'],
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Daily Activity data for MCC and ACH
+  const { data: dailyActivityData, isLoading: isLoadingDailyActivity } = useQuery<DailyActivityData>({
+    queryKey: ['/api/dashboard/daily-activity'],
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Monthly Totals data - loads at lowest priority (last 3 months)
+  const { data: monthlyTotalsData, isLoading: isLoadingMonthlyTotals } = useQuery<MonthlyTotalsData>({
+    queryKey: ['/api/dashboard/monthly-totals'],
+    refetchOnWindowFocus: false,
+    staleTime: 10 * 60 * 1000, // 10 minutes - lowest priority
+  });
+
   // Cache refresh mutation
   const refreshCacheMutation = useMutation({
     mutationFn: async () => {
@@ -614,6 +685,38 @@ export default function HomeDashboard() {
   };
 
   const metrics = dashboardMetrics || fallbackMetrics;
+
+  // Helper function to format date as short (e.g., "25-Jan")
+  const formatShortDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        // Try parsing YYYYMMDD format
+        if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+          const year = dateStr.substring(0, 4);
+          const month = dateStr.substring(4, 6);
+          const day = dateStr.substring(6, 8);
+          const parsed = new Date(`${year}-${month}-${day}`);
+          return `${parsed.getDate()}-${parsed.toLocaleString('default', { month: 'short' })}`;
+        }
+        return dateStr;
+      }
+      return `${date.getDate()}-${date.toLocaleString('default', { month: 'short' })}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount || 0);
+  };
 
   return (
     <MainLayout>
@@ -695,117 +798,282 @@ export default function HomeDashboard() {
           </div>
         </div>
 
-        {/* Key Performance Indicators */}
+        {/* Key Performance Indicators - MCC */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Key Performance Indicators</h2>
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Card key={index}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <Skeleton className="h-4 w-[100px]" />
-                    <Skeleton className="h-4 w-4" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-8 w-[80px] mb-3" />
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Skeleton className="h-4 w-[40px]" />
-                        <Skeleton className="h-4 w-[60px]" />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <Skeleton className="h-4 w-[70px]" />
-                        <Skeleton className="h-4 w-[60px]" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Failed to load dashboard metrics</p>
-              <div className="text-sm mt-2">
-                <CacheControlWidget initialExpiration="never" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Merchants Total - Clickable to respective pages */}
-              <ClickableMetricCard
-                title="Merchants Total"
-                total={metrics?.merchants?.total ?? 0}
-                ach={metrics?.merchants?.ach ?? 0}
-                mcc={metrics?.merchants?.mcc ?? 0}
-                icon={<Users className="h-4 w-4" />}
-                achTooltip="ACH merchants from merchant table"
-                mccTooltip="MCC merchants from merchant table"
-                achLink="/merchants?tab=ach&status=Active/Open"
-                mccLink="/merchants?tab=mcc&status=Active/Open"
-                isClickable={true}
-              />
-
-              {/* Monthly Processing Amount - Links to Transactions */}
-              <ClickableMetricCard
-                title="Monthly Processing Amount"
-                total={metrics?.monthlyProcessingAmount?.total ?? '$0.00'}
-                ach={metrics?.monthlyProcessingAmount?.ach ?? '$0.00'}
-                mcc={metrics?.monthlyProcessingAmount?.mcc ?? '$0.00'}
-                icon={<DollarSign className="h-4 w-4" />}
-                achTooltip="ACH transaction processing"
-                mccTooltip="MCC transaction processing"
-                format="currency"
-                achLink="/transactions"
-                mccLink="/tddf-json"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Additional Metrics */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Additional Metrics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Total Records */}
-            <ClickableMetricCard
-              title="Records Processed Last 30 Days"
-              total={metrics?.totalRecords?.total ?? '0'}
-              ach={metrics?.totalRecords?.ach ?? '0'}
-              mcc={metrics?.totalRecords?.mcc ?? '0'}
-              icon={<Building2 className="h-4 w-4" />}
-              achTooltip="ACH records (last 30 days)"
-              mccTooltip="MCC daily transaction records"
-            />
-
-            {/* Total Terminals - Clickable to Terminals page */}
-            <ClickableMetricCard
-              title="Total Terminals"
-              total={metrics?.totalTerminals?.total ?? 0}
-              ach={metrics?.totalTerminals?.ach ?? 0}
-              mcc={metrics?.totalTerminals?.mcc ?? 0}
-              icon={<Terminal className="h-4 w-4" />}
-              achTooltip="ACH terminals"
-              mccTooltip="MCC terminals"
-              isClickable={true}
-              terminalLink="/terminals"
-            />
-
-            {/* System Health */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Last Three Days MCC */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  System Health
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Last Three Days MCC</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-3 text-green-600">Healthy</div>
-                <div className="text-sm text-muted-foreground">
-                  All systems operational
-                </div>
+                {isLoadingLastThreeDays ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-1 font-medium"></th>
+                        <th className="text-right py-1 font-medium">auths</th>
+                        <th className="text-right py-1 font-medium">Purchase</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lastThreeDaysData?.mcc?.map((day, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-1">{formatShortDate(day.date)}</td>
+                          <td className="text-right py-1">{formatCurrency(day.authAmount)}</td>
+                          <td className="text-right py-1">{formatCurrency(day.purchaseAmount)}</td>
+                        </tr>
+                      )) || <tr><td colSpan={3} className="text-center py-2 text-muted-foreground">No data</td></tr>}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Monthly MCC Totals */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Monthly MCC Totals</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingMonthlyTotals ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-1 font-medium"></th>
+                        <th className="text-right py-1 font-medium">Transactions</th>
+                        <th className="text-right py-1 font-medium">Net Deposits</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyTotalsData?.months?.map((month, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-1">{month.month.split(' ')[0].substring(0, 3)}</td>
+                          <td className="text-right py-1">{formatCurrency(month.transactionAuthorizations.amount)}</td>
+                          <td className="text-right py-1">{formatCurrency(month.netDeposits.amount)}</td>
+                        </tr>
+                      )) || <tr><td colSpan={3} className="text-center py-2 text-muted-foreground">No data</td></tr>}
+                    </tbody>
+                  </table>
+                )}
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Additional Metrics - ACH */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Additional Metrics</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Last Three Days ACH */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Last Three Days ACH</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingLastThreeDays ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-1 font-medium"></th>
+                        <th className="text-right py-1 font-medium">ACH Batches</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lastThreeDaysData?.ach?.length ? lastThreeDaysData.ach.map((day, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-1">{formatShortDate(day.date)}</td>
+                          <td className="text-right py-1">{formatCurrency(day.batchAmount)}</td>
+                        </tr>
+                      )) : <tr><td colSpan={2} className="text-center py-2 text-muted-foreground">No ACH data</td></tr>}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Last Months Days ACH */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Monthly Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingMonthlyTotals ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-1 font-medium"></th>
+                        <th className="text-right py-1 font-medium">Files</th>
+                        <th className="text-right py-1 font-medium">Records</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyTotalsData?.months?.map((month, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-1">{month.month.split(' ')[0].substring(0, 3)}</td>
+                          <td className="text-right py-1">{month.totalFiles.toLocaleString()}</td>
+                          <td className="text-right py-1">{month.totalRecords.toLocaleString()}</td>
+                        </tr>
+                      )) || <tr><td colSpan={3} className="text-center py-2 text-muted-foreground">No data</td></tr>}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Merchants and Terminals Summary */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Merchants */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Merchants</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              ) : error ? (
+                <div className="text-sm text-muted-foreground">Failed to load</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold mb-2">{metrics?.merchants?.total ?? 0}</div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-green-600 font-medium">MCC</span>
+                      <span>{metrics?.merchants?.mcc ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-600 font-medium">ACH</span>
+                      <span>{metrics?.merchants?.ach ?? 0}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Terminals */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Terminals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              ) : error ? (
+                <div className="text-sm text-muted-foreground">Failed to load</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold mb-2">{metrics?.totalTerminals?.total ?? 0}</div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-green-600 font-medium">MCC</span>
+                      <span>{metrics?.totalTerminals?.mcc ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-600 font-medium">ACH</span>
+                      <span>{metrics?.totalTerminals?.ach ?? 0}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Daily Activity Tables */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* MCC Daily Activity */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">MCC Daily Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDailyActivity ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-1 font-medium"></th>
+                      <th className="text-right py-1 font-medium">Batches (MCC)</th>
+                      <th className="text-right py-1 font-medium">Transaction</th>
+                      <th className="text-right py-1 font-medium">Other</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyActivityData?.mccActivity?.map((day, idx) => (
+                      <tr key={idx} className="border-b last:border-0">
+                        <td className="py-1">{formatShortDate(day.date)}</td>
+                        <td className="text-right py-1">{day.batchCount.toLocaleString()}</td>
+                        <td className="text-right py-1">{day.transactionCount.toLocaleString()}</td>
+                        <td className="text-right py-1">{day.otherCount.toLocaleString()}</td>
+                      </tr>
+                    )) || <tr><td colSpan={4} className="text-center py-2 text-muted-foreground">No data</td></tr>}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ACH Batch Activity */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">ACH Batch Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDailyActivity ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-1 font-medium"></th>
+                      <th className="text-right py-1 font-medium">Batches (ACH)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyActivityData?.achActivity?.length ? dailyActivityData.achActivity.map((day, idx) => (
+                      <tr key={idx} className="border-b last:border-0">
+                        <td className="py-1">{formatShortDate(day.date)}</td>
+                        <td className="text-right py-1">{day.batchCount.toLocaleString()}</td>
+                      </tr>
+                    )) : <tr><td colSpan={2} className="text-center py-2 text-muted-foreground">No ACH data</td></tr>}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* System Widgets */}

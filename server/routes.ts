@@ -3963,6 +3963,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to fetch last month days data' });
     }
   });
+
+  // Get last 3 months totals for dashboard (Transaction Authorizations, Net Deposits, Files, Records)
+  // This is designed to load at lowest priority after rest of dashboard
+  app.get("/api/dashboard/monthly-totals", isAuthenticated, async (req, res) => {
+    try {
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const uploaderUploadsTableName = getTableName('uploader_uploads');
+      
+      const now = new Date();
+      const months: any[] = [];
+      
+      // Get data for last 3 months
+      for (let i = 0; i < 3; i++) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+        
+        const startDateISO = monthStart.toISOString().split('T')[0];
+        const endDateISO = monthEnd.toISOString().split('T')[0];
+        const startDateYMD = startDateISO.replace(/-/g, '');
+        const endDateYMD = endDateISO.replace(/-/g, '');
+        
+        // Transaction Authorizations (DT records)
+        const dtTotalsQuery = `
+          SELECT 
+            COUNT(*) as total_count,
+            COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as total_amount
+          FROM ${tddfJsonbTableName}
+          WHERE record_type = 'DT'
+            AND (
+              (extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+              OR (extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+            )
+        `;
+        
+        // Net Deposits (BH records)
+        const bhTotalsQuery = `
+          SELECT 
+            COUNT(*) as batch_count,
+            COALESCE(SUM((extracted_fields->>'netDeposit')::numeric), 0) as net_deposit
+          FROM ${tddfJsonbTableName}
+          WHERE record_type = 'BH'
+            AND (
+              (extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+              OR (extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+            )
+        `;
+        
+        // Total Files processed this month
+        const filesQuery = `
+          SELECT COUNT(*) as file_count
+          FROM ${uploaderUploadsTableName}
+          WHERE current_phase = 'completed'
+            AND start_time >= $1
+            AND start_time <= $2
+        `;
+        
+        // Total Records (all record types)
+        const recordsQuery = `
+          SELECT COUNT(*) as record_count
+          FROM ${tddfJsonbTableName}
+          WHERE (
+            (extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+            OR (extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+          )
+        `;
+        
+        const [dtResult, bhResult, filesResult, recordsResult] = await Promise.all([
+          pool.query(dtTotalsQuery, [startDateISO, endDateISO, startDateYMD, endDateYMD]),
+          pool.query(bhTotalsQuery, [startDateISO, endDateISO, startDateYMD, endDateYMD]),
+          pool.query(filesQuery, [monthStart, monthEnd]),
+          pool.query(recordsQuery, [startDateISO, endDateISO, startDateYMD, endDateYMD])
+        ]);
+        
+        const dt = dtResult.rows[0] || {};
+        const bh = bhResult.rows[0] || {};
+        const files = filesResult.rows[0] || {};
+        const records = recordsResult.rows[0] || {};
+        
+        months.push({
+          month: monthDate.toLocaleString('default', { month: 'long', year: 'numeric' }),
+          monthKey: `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`,
+          transactionAuthorizations: {
+            count: parseInt(dt.total_count) || 0,
+            amount: parseFloat(dt.total_amount) || 0
+          },
+          netDeposits: {
+            count: parseInt(bh.batch_count) || 0,
+            amount: parseFloat(bh.net_deposit) || 0
+          },
+          totalFiles: parseInt(files.file_count) || 0,
+          totalRecords: parseInt(records.record_count) || 0
+        });
+      }
+      
+      console.log('[MONTHLY-TOTALS] Fetched', months.length, 'months of data');
+      
+      res.json({
+        months,
+        generatedAt: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('[MONTHLY-TOTALS] Error:', error.message);
+      res.status(500).json({ error: 'Failed to fetch monthly totals' });
+    }
+  });
   
   // Get analytics data - Real operational data from ACH and TDDF systems
   app.get("/api/analytics", async (req, res) => {
