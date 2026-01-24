@@ -905,13 +905,13 @@ export default function HomeDashboard() {
               </CardContent>
             </Card>
 
-            {/* Last Months Days ACH */}
+            {/* ACH Batch Activity */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Processing Monthly Summary</CardTitle>
+                <CardTitle className="text-sm font-semibold">ACH Batch Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                {isLoadingMonthlyTotals ? (
+                {isLoadingDailyActivity ? (
                   <div className="space-y-2">
                     {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
                   </div>
@@ -920,18 +920,16 @@ export default function HomeDashboard() {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-1 font-medium"></th>
-                        <th className="text-right py-1 font-medium">Files</th>
-                        <th className="text-right py-1 font-medium">Records</th>
+                        <th className="text-right py-1 font-medium">Batches (ACH)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {monthlyTotalsData?.months?.map((month, idx) => (
+                      {dailyActivityData?.achActivity?.length ? dailyActivityData.achActivity.map((day, idx) => (
                         <tr key={idx} className="border-b last:border-0">
-                          <td className="py-1">{month.month.split(' ')[0].substring(0, 3)}</td>
-                          <td className="text-right py-1">{month.totalFiles.toLocaleString()}</td>
-                          <td className="text-right py-1">{month.totalRecords.toLocaleString()}</td>
+                          <td className="py-1">{formatShortDate(day.date)}</td>
+                          <td className="text-right py-1">{day.batchCount.toLocaleString()}</td>
                         </tr>
-                      )) || <tr><td colSpan={3} className="text-center py-2 text-muted-foreground">No data</td></tr>}
+                      )) : <tr><td colSpan={2} className="text-center py-2 text-muted-foreground">No ACH data</td></tr>}
                     </tbody>
                   </table>
                 )}
@@ -1044,13 +1042,13 @@ export default function HomeDashboard() {
             </CardContent>
           </Card>
 
-          {/* ACH Batch Activity */}
+          {/* Processing Monthly Summary */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">ACH Batch Activity</CardTitle>
+              <CardTitle className="text-sm font-semibold">Processing Monthly Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoadingDailyActivity ? (
+              {isLoadingMonthlyTotals ? (
                 <div className="space-y-2">
                   {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
                 </div>
@@ -1059,16 +1057,18 @@ export default function HomeDashboard() {
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-1 font-medium"></th>
-                      <th className="text-right py-1 font-medium">Batches (ACH)</th>
+                      <th className="text-right py-1 font-medium">Files</th>
+                      <th className="text-right py-1 font-medium">Records</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dailyActivityData?.achActivity?.length ? dailyActivityData.achActivity.map((day, idx) => (
+                    {monthlyTotalsData?.months?.map((month, idx) => (
                       <tr key={idx} className="border-b last:border-0">
-                        <td className="py-1">{formatShortDate(day.date)}</td>
-                        <td className="text-right py-1">{day.batchCount.toLocaleString()}</td>
+                        <td className="py-1">{month.month.split(' ')[0].substring(0, 3)}</td>
+                        <td className="text-right py-1">{month.totalFiles.toLocaleString()}</td>
+                        <td className="text-right py-1">{month.totalRecords.toLocaleString()}</td>
                       </tr>
-                    )) : <tr><td colSpan={2} className="text-center py-2 text-muted-foreground">No ACH data</td></tr>}
+                    )) || <tr><td colSpan={3} className="text-center py-2 text-muted-foreground">No data</td></tr>}
                   </tbody>
                 </table>
               )}
