@@ -1208,13 +1208,17 @@ function RawDataTab({
   setGlobalFilenameFilter,
   getMerchantName,
   cardholderAccount,
-  setCardholderAccount
+  setCardholderAccount,
+  dateRange,
+  setDateRange
 }: { 
   globalFilenameFilter: string; 
   setGlobalFilenameFilter: (filename: string) => void; 
   getMerchantName: (merchantAccountNumber: string | null) => string | null;
   cardholderAccount: string;
   setCardholderAccount: (value: string) => void;
+  dateRange: string;
+  setDateRange: (value: string) => void;
 }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -1227,9 +1231,6 @@ function RawDataTab({
   // DT Field Search state
   const [selectedField, setSelectedField] = useState<string>('');
   const [fieldSearchValue, setFieldSearchValue] = useState<string>('');
-  
-  // Date range preset state (default to 1 week for faster searches)
-  const [dateRange, setDateRange] = useState<string>('7');
   
   // Query performance tracking
   const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
@@ -2466,6 +2467,9 @@ export default function TddfApiDataPage() {
   // Cardholder Account search state (shared with RawDataTab)
   const [cardholderAccount, setCardholderAccount] = useState('');
   
+  // Date range state for Raw Data tab (default 7 days, but 2 days from card search)
+  const [rawDataDateRange, setRawDataDateRange] = useState('7');
+  
   // Separate pagination state for uploaded files section
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
   const [uploadsItemsPerPage, setUploadsItemsPerPage] = useState(5);
@@ -3651,6 +3655,7 @@ export default function TddfApiDataPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && cardSearchTerm.trim()) {
                       setCardholderAccount(cardSearchTerm.trim());
+                      setRawDataDateRange('2');
                       setActiveTab('raw-data');
                     }
                   }}
@@ -3662,6 +3667,7 @@ export default function TddfApiDataPage() {
                 onClick={() => {
                   if (cardSearchTerm.trim()) {
                     setCardholderAccount(cardSearchTerm.trim());
+                    setRawDataDateRange('2');
                     setActiveTab('raw-data');
                   }
                 }}
@@ -5992,6 +5998,8 @@ export default function TddfApiDataPage() {
             getMerchantName={getMerchantName}
             cardholderAccount={cardholderAccount}
             setCardholderAccount={setCardholderAccount}
+            dateRange={rawDataDateRange}
+            setDateRange={setRawDataDateRange}
           />
         </TabsContent>
 
