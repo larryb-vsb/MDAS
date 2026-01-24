@@ -152,11 +152,6 @@ const navItems = [
     href: "/tddf-api",
   },
   {
-    icon: <FileText className="h-5 w-5 text-gray-300" />,
-    label: "Exports",
-    href: "/exports",
-  },
-  {
     icon: <Store className="h-5 w-5 text-emerald-500" />,
     label: "Merchants",
     href: "/merchants",
@@ -185,6 +180,11 @@ const navItems = [
     icon: <FileBarChart className="h-5 w-5 text-blue-400" />,
     label: "Reports",
     href: "/reports",
+  },
+  {
+    icon: <FileText className="h-5 w-5 text-gray-300" />,
+    label: "Exports",
+    href: "/exports",
   },
   {
     icon: <Archive className="h-5 w-5 text-amber-400" />,
