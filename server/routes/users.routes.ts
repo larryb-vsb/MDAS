@@ -179,7 +179,32 @@ export function registerUserRoutes(app: Express) {
       
       await storage.deleteUser(userId);
       
-      // Log user deletion
+      // Log user deletion to security logs
+      try {
+        await storage.createSecurityLog({
+          eventType: 'user_deleted',
+          result: 'success',
+          username: req.user?.username || 'System',
+          userId: req.user?.id || null,
+          ipAddress: getRealClientIP(req),
+          userAgent: req.headers['user-agent'] || 'Unknown',
+          details: {
+            action: 'User account deleted',
+            deletedUser: {
+              id: userId,
+              username: userToDelete.username,
+              email: userToDelete.email,
+              role: userToDelete.role
+            },
+            deletedBy: req.user?.username || 'System',
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (securityLogError) {
+        console.warn("Security logging skipped:", (securityLogError as Error).message);
+      }
+      
+      // Log user deletion to audit logs
       await storage.createAuditLog({
         entityType: "user",
         entityId: `${userId}`,
