@@ -4,9 +4,11 @@ import { logger } from "../../shared/logger";
 
 const router = Router();
 
-// Track email service state
-let emailServiceDisabled = false;
-let emailServiceVerified = false;
+// Track provider states
+const providerState = {
+  graph: { enabled: true, verified: false },
+  resend: { enabled: true, verified: false }
+};
 
 // Email logs stored in memory (last 100 entries)
 const emailLogs: Array<{ id: number; timestamp: string; level: string; message: string; details: string | null }> = [];
@@ -21,86 +23,94 @@ function addEmailLog(level: string, message: string, details?: string) {
     details: details || null
   };
   emailLogs.unshift(log);
-  // Keep only last 100 logs
   if (emailLogs.length > 100) {
     emailLogs.pop();
   }
 }
 
-// Check for Resend configuration
+function isGraphConfigured(): boolean {
+  return graphEmailService.isEnabled();
+}
+
 function isResendConfigured(): boolean {
   return !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
 }
 
-function getActiveProvider(): string {
-  if (isResendConfigured()) return 'resend';
-  if (graphEmailService.isEnabled()) return 'graph';
-  return 'none';
+function getActiveProvider(): string | null {
+  if (isGraphConfigured() && providerState.graph.enabled && providerState.graph.verified) return 'graph';
+  if (isResendConfigured() && providerState.resend.enabled && providerState.resend.verified) return 'resend';
+  return null;
 }
 
 router.get("/status", async (req, res) => {
   try {
-    const graphEnabled = graphEmailService.isEnabled();
-    const resendEnabled = isResendConfigured();
-    const isConfigured = graphEnabled || resendEnabled;
-    const provider = getActiveProvider();
-    
-    let senderEmail = null;
-    if (graphEnabled) {
-      senderEmail = graphEmailService.getSenderEmail();
-    } else if (resendEnabled) {
-      senderEmail = process.env.RESEND_FROM_EMAIL;
-    }
+    const graphConfigured = isGraphConfigured();
+    const resendConfigured = isResendConfigured();
+    const activeProvider = getActiveProvider();
     
     res.json({
-      enabled: isConfigured && emailServiceVerified && !emailServiceDisabled,
-      disabled: emailServiceDisabled,
-      configured: isConfigured,
-      verified: emailServiceVerified,
-      provider,
-      senderEmail,
-      message: emailServiceDisabled 
-        ? 'Email service is disabled'
-        : !isConfigured 
-        ? 'Email service not configured - check credentials' 
-        : !emailServiceVerified
-        ? 'Configuration detected - run Test Connection to verify'
-        : 'Email service is configured and verified'
+      globalEnabled: !!activeProvider,
+      activeProvider,
+      providers: {
+        graph: {
+          configured: graphConfigured,
+          verified: providerState.graph.verified,
+          enabled: providerState.graph.enabled,
+          senderEmail: graphConfigured ? graphEmailService.getSenderEmail() : null
+        },
+        resend: {
+          configured: resendConfigured,
+          verified: providerState.resend.verified,
+          enabled: providerState.resend.enabled,
+          senderEmail: resendConfigured ? process.env.RESEND_FROM_EMAIL : null
+        }
+      },
+      message: activeProvider 
+        ? `Email service active via ${activeProvider}`
+        : 'No active email provider'
     });
   } catch (error) {
     logger.error('[EMAIL-ROUTES] Status check failed:', error);
     res.status(500).json({ 
-      enabled: false, 
-      configured: false,
-      verified: false,
-      disabled: emailServiceDisabled,
+      globalEnabled: false,
+      providers: {
+        graph: { configured: false, verified: false, enabled: false, senderEmail: null },
+        resend: { configured: false, verified: false, enabled: false, senderEmail: null }
+      },
       error: 'Failed to check email service status' 
     });
   }
 });
 
-// Toggle email service on/off
-router.post("/toggle", async (req, res) => {
+// Toggle individual provider on/off
+router.post("/toggle-provider", async (req, res) => {
   try {
-    const { enabled } = req.body;
-    emailServiceDisabled = !enabled;
-    addEmailLog('info', `Email service ${enabled ? 'enabled' : 'disabled'} by user`);
-    logger.info(`[EMAIL-ROUTES] Email service ${enabled ? 'enabled' : 'disabled'}`);
-    res.json({ success: true, disabled: emailServiceDisabled });
+    const { provider, enabled } = req.body;
+    if (provider !== 'graph' && provider !== 'resend') {
+      return res.status(400).json({ success: false, error: 'Invalid provider' });
+    }
+    providerState[provider as 'graph' | 'resend'].enabled = enabled;
+    addEmailLog('info', `${provider} provider ${enabled ? 'enabled' : 'disabled'} by user`);
+    logger.info(`[EMAIL-ROUTES] ${provider} provider ${enabled ? 'enabled' : 'disabled'}`);
+    res.json({ success: true, provider, enabled });
   } catch (error) {
-    logger.error('[EMAIL-ROUTES] Toggle failed:', error);
-    res.status(500).json({ success: false, error: 'Failed to toggle email service' });
+    logger.error('[EMAIL-ROUTES] Toggle provider failed:', error);
+    res.status(500).json({ success: false, error: 'Failed to toggle provider' });
   }
 });
 
 router.post("/test-connection", async (req, res) => {
   try {
-    addEmailLog('info', 'Testing email service connection...');
+    const { provider } = req.body;
+    const targetProvider = provider || 'graph';
     
-    const provider = getActiveProvider();
+    addEmailLog('info', `Testing ${targetProvider} connection...`);
     
-    if (provider === 'resend') {
-      // Test Resend connection
+    if (targetProvider === 'resend') {
+      if (!isResendConfigured()) {
+        addEmailLog('error', 'Resend not configured');
+        return res.json({ success: false, message: 'Resend not configured' });
+      }
       try {
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -117,37 +127,39 @@ router.post("/test-connection", async (req, res) => {
         });
         
         if (response.ok) {
-          emailServiceVerified = true;
+          providerState.resend.verified = true;
           addEmailLog('info', 'Resend connection test successful');
           res.json({ success: true, message: 'Resend API connection verified successfully' });
         } else {
           const errorData = await response.json();
-          emailServiceVerified = false;
+          providerState.resend.verified = false;
           addEmailLog('error', 'Resend connection test failed', JSON.stringify(errorData));
           res.json({ success: false, message: `Resend API error: ${errorData.message || 'Unknown error'}` });
         }
       } catch (err: any) {
-        emailServiceVerified = false;
+        providerState.resend.verified = false;
         addEmailLog('error', 'Resend connection test error', err.message);
         res.json({ success: false, message: `Resend connection error: ${err.message}` });
       }
-    } else if (provider === 'graph') {
+    } else if (targetProvider === 'graph') {
+      if (!isGraphConfigured()) {
+        addEmailLog('error', 'Microsoft Graph not configured');
+        return res.json({ success: false, message: 'Microsoft Graph not configured' });
+      }
       const result = await graphEmailService.testConnection();
       if (result.success) {
-        emailServiceVerified = true;
+        providerState.graph.verified = true;
         addEmailLog('info', 'Microsoft Graph connection test successful');
       } else {
-        emailServiceVerified = false;
+        providerState.graph.verified = false;
         addEmailLog('error', 'Microsoft Graph connection test failed', result.message);
       }
       res.json(result);
     } else {
-      emailServiceVerified = false;
-      addEmailLog('warn', 'No email provider configured');
-      res.json({ success: false, message: 'No email provider configured' });
+      addEmailLog('warn', 'Invalid provider specified');
+      res.json({ success: false, message: 'Invalid provider' });
     }
   } catch (error: any) {
-    emailServiceVerified = false;
     addEmailLog('error', 'Connection test failed unexpectedly', error.message);
     logger.error('[EMAIL-ROUTES] Connection test failed:', error);
     res.status(500).json({ 

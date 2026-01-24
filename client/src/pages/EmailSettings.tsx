@@ -12,19 +12,27 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, RefreshCw, CheckCircle, XCircle, Send, AlertCircle, Settings2, Inbox, History, Power, Clock, MailOpen, ScrollText, Eye, FileText } from "lucide-react";
+import { Mail, RefreshCw, CheckCircle, XCircle, Send, AlertCircle, Settings2, Inbox, History, Power, Clock, MailOpen, ScrollText, Eye, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-interface EmailStatus {
-  enabled: boolean;
-  disabled: boolean;
-  senderEmail: string | null;
+interface ProviderStatus {
   configured: boolean;
   verified: boolean;
-  provider: string;
+  enabled: boolean;
+  senderEmail: string | null;
+}
+
+interface EmailStatus {
+  globalEnabled: boolean;
+  providers: {
+    graph: ProviderStatus;
+    resend: ProviderStatus;
+  };
+  activeProvider: string | null;
   message: string;
 }
 
@@ -61,6 +69,7 @@ export default function EmailSettings() {
   const [testEmail, setTestEmail] = useState("");
   const [testSubject, setTestSubject] = useState("MDAS Email Test");
   const [testBody, setTestBody] = useState("This is a test email from MDAS to verify email configuration.");
+  const [testProvider, setTestProvider] = useState<string>("graph");
 
   const [showAlertDialog, setShowAlertDialog] = useState(false);
   const [alertRecipient, setAlertRecipient] = useState("");
@@ -71,6 +80,11 @@ export default function EmailSettings() {
 
   const [viewEmailDialog, setViewEmailDialog] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailOutboxItem | null>(null);
+  
+  const [providerFilter, setProviderFilter] = useState<string>("all");
+  
+  const [graphExpanded, setGraphExpanded] = useState(true);
+  const [resendExpanded, setResendExpanded] = useState(true);
 
   const { data: emailStatus, isLoading, refetch } = useQuery<EmailStatus>({
     queryKey: ['/api/email/status'],
@@ -89,35 +103,34 @@ export default function EmailSettings() {
     queryKey: ['/api/email/logs'],
   });
 
-  const toggleEmailMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const response = await apiRequest('/api/email/toggle', {
+  const toggleProviderMutation = useMutation({
+    mutationFn: async ({ provider, enabled }: { provider: string; enabled: boolean }) => {
+      const response = await apiRequest('/api/email/toggle-provider', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ provider, enabled }),
       });
       return response;
     },
     onSuccess: () => {
       refetch();
-      toast({
-        title: "Email Service Updated",
-        description: `Email service has been ${emailStatus?.disabled ? 'enabled' : 'disabled'}`,
-      });
+      refetchLogs();
     },
     onError: (error: any) => {
       toast({
         title: "Failed to Update",
-        description: error.message || "Failed to toggle email service",
+        description: error.message || "Failed to toggle provider",
         variant: "destructive",
       });
     },
   });
 
   const testConnectionMutation = useMutation({
-    mutationFn: async (): Promise<ConnectionTestResult> => {
+    mutationFn: async (provider: string): Promise<ConnectionTestResult> => {
       const response = await apiRequest('/api/email/test-connection', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
       });
       return response as unknown as ConnectionTestResult;
     },
@@ -157,6 +170,7 @@ export default function EmailSettings() {
           subject: testSubject,
           body: testBody,
           isHtml: false,
+          provider: testProvider,
         }),
       });
       return response;
@@ -168,7 +182,7 @@ export default function EmailSettings() {
       if (data.success) {
         toast({
           title: "Test Email Queued",
-          description: `Email queued for delivery to ${testEmail}`,
+          description: `Email queued for delivery via ${testProvider.toUpperCase()}`,
         });
         setShowTestDialog(false);
       } else {
@@ -211,7 +225,7 @@ export default function EmailSettings() {
       if (data.success) {
         toast({
           title: "Alert Notification Queued",
-          description: `Alert queued for delivery to ${alertRecipient}`,
+          description: `Alert queued for delivery`,
         });
         setShowAlertDialog(false);
       } else {
@@ -263,13 +277,166 @@ export default function EmailSettings() {
     }
   };
 
+  const getProviderBadge = (provider: string | null) => {
+    switch (provider) {
+      case 'graph':
+        return <Badge className="bg-blue-600">Graph</Badge>;
+      case 'resend':
+        return <Badge className="bg-purple-600">Resend</Badge>;
+      default:
+        return <Badge variant="secondary">{provider || 'Unknown'}</Badge>;
+    }
+  };
+
   const viewEmail = (email: EmailOutboxItem) => {
     setSelectedEmail(email);
     setViewEmailDialog(true);
   };
 
-  const isServiceReady = emailStatus?.enabled && emailStatus?.verified && !emailStatus?.disabled;
-  const isConfigured = emailStatus?.configured;
+  const filteredOutboxEmails = outboxData?.emails?.filter(email => 
+    providerFilter === 'all' || email.provider === providerFilter
+  ) || [];
+
+  const filteredHistoryEmails = historyData?.emails?.filter(email => 
+    providerFilter === 'all' || email.provider === providerFilter
+  ) || [];
+
+  const graphStatus = emailStatus?.providers?.graph;
+  const resendStatus = emailStatus?.providers?.resend;
+  
+  const hasAnyProvider = graphStatus?.configured || resendStatus?.configured;
+  const hasActiveProvider = (graphStatus?.enabled && graphStatus?.verified) || (resendStatus?.enabled && resendStatus?.verified);
+
+  const ProviderCard = ({ 
+    provider, 
+    title, 
+    description, 
+    status, 
+    expanded, 
+    setExpanded,
+    configInstructions 
+  }: { 
+    provider: string;
+    title: string;
+    description: string;
+    status: ProviderStatus | undefined;
+    expanded: boolean;
+    setExpanded: (val: boolean) => void;
+    configInstructions: React.ReactNode;
+  }) => {
+    const isReady = status?.configured && status?.verified && status?.enabled;
+    const isConfigured = status?.configured;
+    const isVerified = status?.verified;
+    const isEnabled = status?.enabled;
+
+    return (
+      <Card className={`${isReady ? 'border-green-500/50' : ''}`}>
+        <Collapsible open={expanded} onOpenChange={setExpanded}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Mail className={`h-5 w-5 ${provider === 'graph' ? 'text-blue-500' : 'text-purple-500'}`} />
+                <div>
+                  <CardTitle className="text-lg">{title}</CardTitle>
+                  <CardDescription className="text-xs">{description}</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {isConfigured && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`${provider}-toggle`} className="text-xs text-muted-foreground">
+                      {isEnabled ? 'Enabled' : 'Disabled'}
+                    </Label>
+                    <Switch
+                      id={`${provider}-toggle`}
+                      checked={isEnabled}
+                      onCheckedChange={(checked) => toggleProviderMutation.mutate({ provider, enabled: checked })}
+                      disabled={toggleProviderMutation.isPending}
+                    />
+                  </div>
+                )}
+                <Badge variant={isReady ? "default" : isConfigured ? "secondary" : "destructive"} className="text-xs">
+                  {isReady ? "Ready" : isConfigured && !isVerified ? "Not Verified" : isConfigured && !isEnabled ? "Disabled" : "Not Configured"}
+                </Badge>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-3">
+                  {isReady ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : isConfigured && !isVerified ? (
+                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-500" />
+                  )}
+                  <div className="text-sm">
+                    {isReady ? "Provider is configured and verified" :
+                     isConfigured && !isVerified ? "Run Test Connection to verify" :
+                     isConfigured && !isEnabled ? "Provider is disabled" :
+                     "Not configured"}
+                    {status?.senderEmail && (
+                      <div className="text-xs text-muted-foreground">
+                        Sender: {status.senderEmail}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {!isConfigured && configInstructions}
+
+              {isConfigured && !isVerified && isEnabled && (
+                <Alert className="border-yellow-500">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <AlertTitle className="text-sm">Verification Required</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Click "Test Connection" to verify this provider is working correctly.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => testConnectionMutation.mutate(provider)}
+                  disabled={testConnectionMutation.isPending || !isConfigured || !isEnabled}
+                >
+                  {testConnectionMutation.isPending ? (
+                    <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-3 w-3" />
+                  )}
+                  Test Connection
+                </Button>
+
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={!isReady}
+                  onClick={() => {
+                    setTestProvider(provider);
+                    setShowTestDialog(true);
+                  }}
+                >
+                  <Send className="mr-2 h-3 w-3" />
+                  Send Test Email
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+    );
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -282,39 +449,20 @@ export default function EmailSettings() {
           <p className="text-muted-foreground">Configure and manage email notifications</p>
         </div>
         <div className="flex items-center gap-3">
-          {isConfigured && (
-            <div className="flex items-center gap-2">
-              <Label htmlFor="email-toggle" className="text-sm text-muted-foreground">
-                {emailStatus?.disabled ? 'Disabled' : 'Enabled'}
-              </Label>
-              <Switch
-                id="email-toggle"
-                checked={!emailStatus?.disabled}
-                onCheckedChange={(checked) => toggleEmailMutation.mutate(checked)}
-                disabled={toggleEmailMutation.isPending}
-              />
-            </div>
-          )}
-          <Badge variant={isServiceReady ? "default" : emailStatus?.disabled ? "secondary" : "destructive"} className="text-sm px-3 py-1">
-            {isServiceReady ? (
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Badge variant={hasActiveProvider ? "default" : "destructive"} className="text-sm px-3 py-1">
+            {hasActiveProvider ? (
               <>
                 <Power className="h-3 w-3 mr-1" />
-                Ready
-              </>
-            ) : emailStatus?.disabled ? (
-              <>
-                <XCircle className="h-3 w-3 mr-1" />
-                Disabled
-              </>
-            ) : isConfigured && !emailStatus?.verified ? (
-              <>
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Not Verified
+                Active
               </>
             ) : (
               <>
                 <XCircle className="h-3 w-3 mr-1" />
-                Not Configured
+                No Active Provider
               </>
             )}
           </Badge>
@@ -346,204 +494,64 @@ export default function EmailSettings() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="settings" className="mt-6 space-y-6">
+        <TabsContent value="settings" className="mt-6 space-y-4">
+          <ProviderCard
+            provider="graph"
+            title="Microsoft Graph API"
+            description="Enterprise email via Microsoft 365"
+            status={graphStatus}
+            expanded={graphExpanded}
+            setExpanded={setGraphExpanded}
+            configInstructions={
+              <Alert>
+                <Settings2 className="h-4 w-4" />
+                <AlertTitle className="text-sm">Configuration Required</AlertTitle>
+                <AlertDescription className="text-xs">
+                  <ul className="list-disc list-inside space-y-1 mt-2">
+                    <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_ID</code></li>
+                    <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_SECRET</code></li>
+                    <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_TENANT_ID</code></li>
+                    <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_SENDER</code></li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            }
+          />
+
+          <ProviderCard
+            provider="resend"
+            title="Resend API"
+            description="Developer-friendly transactional email"
+            status={resendStatus}
+            expanded={resendExpanded}
+            setExpanded={setResendExpanded}
+            configInstructions={
+              <Alert>
+                <Settings2 className="h-4 w-4" />
+                <AlertTitle className="text-sm">Configuration Required</AlertTitle>
+                <AlertDescription className="text-xs">
+                  <ul className="list-disc list-inside space-y-1 mt-2">
+                    <li><code className="bg-muted px-1 rounded">RESEND_API_KEY</code> - Your Resend API key</li>
+                    <li><code className="bg-muted px-1 rounded">RESEND_FROM_EMAIL</code> - Verified sender email</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            }
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email Service Configuration
+                <AlertCircle className="h-5 w-5" />
+                Quick Actions
               </CardTitle>
-              <CardDescription>
-                {emailStatus?.provider === 'resend' ? 'Resend API' : 'Microsoft Graph API'} email notification settings
-              </CardDescription>
+              <CardDescription>Send test alerts using the active provider</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  {isLoading ? (
-                    <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                  ) : isServiceReady ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  ) : isConfigured && !emailStatus?.verified ? (
-                    <AlertCircle className="h-5 w-5 text-yellow-500" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  )}
-                  <div>
-                    <div className="font-medium">
-                      {isLoading ? "Checking status..." : 
-                       emailStatus?.disabled ? "Email service is disabled" :
-                       isServiceReady ? "Email service is configured and verified" :
-                       isConfigured && !emailStatus?.verified ? "Configuration detected - run Test Connection to verify" :
-                       emailStatus?.message}
-                    </div>
-                    {emailStatus?.senderEmail && (
-                      <div className="text-sm text-muted-foreground">
-                        Sender: {emailStatus.senderEmail}
-                      </div>
-                    )}
-                    {emailStatus?.provider && (
-                      <div className="text-sm text-muted-foreground">
-                        Provider: {emailStatus.provider === 'resend' ? 'Resend' : 'Microsoft Graph'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <Badge variant={isServiceReady ? "default" : emailStatus?.disabled ? "secondary" : "destructive"}>
-                  {isServiceReady ? "Ready" : emailStatus?.disabled ? "Disabled" : isConfigured ? "Not Verified" : "Not Configured"}
-                </Badge>
-              </div>
-
-              {!isConfigured && !isLoading && (
-                <Alert>
-                  <Settings2 className="h-4 w-4" />
-                  <AlertTitle>Configuration Required</AlertTitle>
-                  <AlertDescription>
-                    <p className="mb-3">
-                      Configure one of the following email providers:
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <div className="p-3 border rounded-lg">
-                        <h4 className="font-medium mb-2">Option 1: Microsoft Graph API</h4>
-                        <ul className="list-disc list-inside text-sm space-y-1">
-                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_ID</code> - Azure AD Application ID</li>
-                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_SECRET</code> - Client secret</li>
-                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_TENANT_ID</code> - Azure AD Tenant ID</li>
-                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_SENDER</code> - Sender email (M365 mailbox)</li>
-                        </ul>
-                      </div>
-                      
-                      <div className="p-3 border rounded-lg">
-                        <h4 className="font-medium mb-2">Option 2: Resend API (Alternative)</h4>
-                        <ul className="list-disc list-inside text-sm space-y-1">
-                          <li><code className="bg-muted px-1 rounded">RESEND_API_KEY</code> - Resend API key</li>
-                          <li><code className="bg-muted px-1 rounded">RESEND_FROM_EMAIL</code> - Verified sender email</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {isConfigured && !emailStatus?.verified && !emailStatus?.disabled && (
-                <Alert className="border-yellow-500">
-                  <AlertCircle className="h-4 w-4 text-yellow-500" />
-                  <AlertTitle>Verification Required</AlertTitle>
-                  <AlertDescription>
-                    Click "Test Connection" to verify the email service configuration is working correctly.
-                  </AlertDescription>
-                </Alert>
-              )}
-
+            <CardContent>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => testConnectionMutation.mutate()}
-                  disabled={testConnectionMutation.isPending || !isConfigured || emailStatus?.disabled}
-                >
-                  {testConnectionMutation.isPending ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Test Connection
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refetch()}
-                  disabled={isLoading}
-                >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh Status
-                </Button>
-
-                <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      disabled={!isServiceReady}
-                    >
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Test Email
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Send Test Email</DialogTitle>
-                      <DialogDescription>
-                        Send a test email to verify the email service is working correctly. Email will appear in Outbox.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="testEmail">Recipient Email</Label>
-                        <Input
-                          id="testEmail"
-                          type="email"
-                          placeholder="recipient@example.com"
-                          value={testEmail}
-                          onChange={(e) => setTestEmail(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="testSubject">Subject</Label>
-                        <Input
-                          id="testSubject"
-                          value={testSubject}
-                          onChange={(e) => setTestSubject(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="testBody">Message</Label>
-                        <Textarea
-                          id="testBody"
-                          value={testBody}
-                          onChange={(e) => setTestBody(e.target.value)}
-                          rows={4}
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowTestDialog(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={() => sendTestEmailMutation.mutate()}
-                        disabled={!testEmail || sendTestEmailMutation.isPending}
-                      >
-                        {sendTestEmailMutation.isPending ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="mr-2 h-4 w-4" />
-                            Send Email
-                          </>
-                        )}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-
                 <Dialog open={showAlertDialog} onOpenChange={setShowAlertDialog}>
                   <DialogTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={!isServiceReady}
-                    >
+                    <Button variant="secondary" size="sm" disabled={!hasActiveProvider}>
                       <AlertCircle className="mr-2 h-4 w-4" />
                       Send Test Alert
                     </Button>
@@ -552,7 +560,7 @@ export default function EmailSettings() {
                     <DialogHeader>
                       <DialogTitle>Send Test Alert</DialogTitle>
                       <DialogDescription>
-                        Send a formatted alert notification to test the alert email template.
+                        Send a formatted alert notification using the active provider.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
@@ -566,32 +574,34 @@ export default function EmailSettings() {
                           onChange={(e) => setAlertRecipient(e.target.value)}
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="alertType">Alert Type</Label>
-                        <Select value={alertType} onValueChange={setAlertType}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Processing Alert">Processing Alert</SelectItem>
-                            <SelectItem value="System Alert">System Alert</SelectItem>
-                            <SelectItem value="Security Alert">Security Alert</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="alertSeverity">Severity</Label>
-                        <Select value={alertSeverity} onValueChange={setAlertSeverity}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="info">Info</SelectItem>
-                            <SelectItem value="warning">Warning</SelectItem>
-                            <SelectItem value="error">Error</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="alertType">Alert Type</Label>
+                          <Select value={alertType} onValueChange={setAlertType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Processing Alert">Processing Alert</SelectItem>
+                              <SelectItem value="System Alert">System Alert</SelectItem>
+                              <SelectItem value="Security Alert">Security Alert</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="alertSeverity">Severity</Label>
+                          <Select value={alertSeverity} onValueChange={setAlertSeverity}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="info">Info</SelectItem>
+                              <SelectItem value="warning">Warning</SelectItem>
+                              <SelectItem value="error">Error</SelectItem>
+                              <SelectItem value="critical">Critical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <div>
                         <Label htmlFor="alertTitle">Alert Title</Label>
@@ -612,24 +622,13 @@ export default function EmailSettings() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowAlertDialog(false)}>
-                        Cancel
-                      </Button>
+                      <Button variant="outline" onClick={() => setShowAlertDialog(false)}>Cancel</Button>
                       <Button
                         onClick={() => sendAlertMutation.mutate()}
                         disabled={!alertRecipient || sendAlertMutation.isPending}
                       >
-                        {sendAlertMutation.isPending ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="mr-2 h-4 w-4" />
-                            Send Alert
-                          </>
-                        )}
+                        {sendAlertMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
+                        Send Alert
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -646,14 +645,26 @@ export default function EmailSettings() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Inbox className="h-5 w-5" />
-                    Email Outbox
+                    Global Email Outbox
                   </CardTitle>
-                  <CardDescription>All emails (pending, queued, sent, failed)</CardDescription>
+                  <CardDescription>All emails across all providers</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => refetchOutbox()}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${outboxLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={providerFilter} onValueChange={setProviderFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Filter by provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Providers</SelectItem>
+                      <SelectItem value="graph">Graph Only</SelectItem>
+                      <SelectItem value="resend">Resend Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={() => refetchOutbox()}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${outboxLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -661,36 +672,34 @@ export default function EmailSettings() {
                 <div className="flex items-center justify-center py-8">
                   <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : outboxData?.emails && outboxData.emails.length > 0 ? (
+              ) : filteredOutboxEmails.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Provider</TableHead>
                       <TableHead>Recipient</TableHead>
                       <TableHead>Subject</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead>Provider</TableHead>
                       <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {outboxData.emails.map((email) => (
+                    {filteredOutboxEmails.map((email) => (
                       <TableRow key={email.id}>
+                        <TableCell>{getProviderBadge(email.provider)}</TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{email.recipientEmail}</div>
+                            <div className="font-medium text-sm">{email.recipientEmail}</div>
                             {email.recipientName && (
-                              <div className="text-sm text-muted-foreground">{email.recipientName}</div>
+                              <div className="text-xs text-muted-foreground">{email.recipientName}</div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[250px] truncate">{email.subject}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm">{email.subject}</TableCell>
                         <TableCell>{getStatusBadge(email.status)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground">
                           {format(new Date(email.createdAt), 'MMM d, h:mm a')}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {email.provider || 'graph'}
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" onClick={() => viewEmail(email)}>
@@ -722,10 +731,22 @@ export default function EmailSettings() {
                   </CardTitle>
                   <CardDescription>Sent and failed emails</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => refetchHistory()}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${historyLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={providerFilter} onValueChange={setProviderFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Filter by provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Providers</SelectItem>
+                      <SelectItem value="graph">Graph Only</SelectItem>
+                      <SelectItem value="resend">Resend Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={() => refetchHistory()}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${historyLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -733,36 +754,34 @@ export default function EmailSettings() {
                 <div className="flex items-center justify-center py-8">
                   <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : historyData?.emails && historyData.emails.length > 0 ? (
+              ) : filteredHistoryEmails.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Provider</TableHead>
                       <TableHead>Recipient</TableHead>
                       <TableHead>Subject</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Sent At</TableHead>
-                      <TableHead>Error</TableHead>
                       <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {historyData.emails.map((email) => (
+                    {filteredHistoryEmails.map((email) => (
                       <TableRow key={email.id}>
+                        <TableCell>{getProviderBadge(email.provider)}</TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{email.recipientEmail}</div>
+                            <div className="font-medium text-sm">{email.recipientEmail}</div>
                             {email.recipientName && (
-                              <div className="text-sm text-muted-foreground">{email.recipientName}</div>
+                              <div className="text-xs text-muted-foreground">{email.recipientName}</div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[250px] truncate">{email.subject}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm">{email.subject}</TableCell>
                         <TableCell>{getStatusBadge(email.status)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground">
                           {email.sentAt ? format(new Date(email.sentAt), 'MMM d, h:mm a') : '-'}
-                        </TableCell>
-                        <TableCell className="text-sm text-red-500 max-w-[150px] truncate">
-                          {email.errorMessage || '-'}
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" onClick={() => viewEmail(email)}>
@@ -818,7 +837,7 @@ export default function EmailSettings() {
                     <TableBody>
                       {logsData.logs.map((log) => (
                         <TableRow key={log.id}>
-                          <TableCell className="text-sm text-muted-foreground font-mono">
+                          <TableCell className="text-xs text-muted-foreground font-mono">
                             {format(new Date(log.timestamp), 'MM/dd HH:mm:ss')}
                           </TableCell>
                           <TableCell>{getLogLevelBadge(log.level)}</TableCell>
@@ -846,6 +865,56 @@ export default function EmailSettings() {
         </TabsContent>
       </Tabs>
 
+      <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Test Email</DialogTitle>
+            <DialogDescription>
+              Send a test email via {testProvider === 'graph' ? 'Microsoft Graph' : 'Resend'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="testEmail">Recipient Email</Label>
+              <Input
+                id="testEmail"
+                type="email"
+                placeholder="recipient@example.com"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="testSubject">Subject</Label>
+              <Input
+                id="testSubject"
+                value={testSubject}
+                onChange={(e) => setTestSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="testBody">Message</Label>
+              <Textarea
+                id="testBody"
+                value={testBody}
+                onChange={(e) => setTestBody(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => sendTestEmailMutation.mutate()}
+              disabled={!testEmail || sendTestEmailMutation.isPending}
+            >
+              {sendTestEmailMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              Send via {testProvider === 'graph' ? 'Graph' : 'Resend'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={viewEmailDialog} onOpenChange={setViewEmailDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -858,20 +927,20 @@ export default function EmailSettings() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Recipient</Label>
-                  <p className="font-medium">{selectedEmail.recipientEmail}</p>
+                  <Label className="text-muted-foreground">Provider</Label>
+                  <div className="mt-1">{getProviderBadge(selectedEmail.provider)}</div>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
                   <div className="mt-1">{getStatusBadge(selectedEmail.status)}</div>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Created</Label>
-                  <p>{format(new Date(selectedEmail.createdAt), 'MMM d, yyyy h:mm:ss a')}</p>
+                  <Label className="text-muted-foreground">Recipient</Label>
+                  <p className="font-medium">{selectedEmail.recipientEmail}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Sent At</Label>
-                  <p>{selectedEmail.sentAt ? format(new Date(selectedEmail.sentAt), 'MMM d, yyyy h:mm:ss a') : '-'}</p>
+                  <Label className="text-muted-foreground">Created</Label>
+                  <p>{format(new Date(selectedEmail.createdAt), 'MMM d, yyyy h:mm:ss a')}</p>
                 </div>
               </div>
               
@@ -893,19 +962,10 @@ export default function EmailSettings() {
                   <p className="text-red-500 text-sm">{selectedEmail.errorMessage}</p>
                 </div>
               )}
-
-              {selectedEmail.retryCount > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">Retry Count</Label>
-                  <p>{selectedEmail.retryCount}</p>
-                </div>
-              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewEmailDialog(false)}>
-              Close
-            </Button>
+            <Button variant="outline" onClick={() => setViewEmailDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
