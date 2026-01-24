@@ -129,9 +129,18 @@ interface NavSubmenuItem {
   icon: React.ReactNode;
   label: string;
   href: string;
+  adminOnly?: boolean;
 }
 
-const navItems = [
+interface NavItem {
+  icon: React.ReactNode;
+  label: string;
+  href?: string;
+  adminOnly?: boolean;
+  submenu?: NavSubmenuItem[];
+}
+
+const navItems: NavItem[] = [
   {
     icon: <Home className="h-5 w-5 text-gray-300" />,
     label: "Dashboard",
@@ -231,6 +240,12 @@ const navItems = [
         icon: <Mail className="h-4 w-4 text-blue-400" />,
         label: "Email Settings",
         href: "/email-settings",
+      },
+      {
+        icon: <UserCircle className="h-4 w-4 text-orange-400" />,
+        label: "Users",
+        href: "/users",
+        adminOnly: true,
       },
     ],
   },
@@ -405,7 +420,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     location === "/pre-cache-management" ||
     location === "/analytics" ||
     location === "/processing" ||
-    location === "/logs";
+    location === "/logs" ||
+    location === "/users";
 
   // Auto-expand System submenu if any of its items are active
   useEffect(() => {
