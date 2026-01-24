@@ -1210,7 +1210,9 @@ function RawDataTab({
   cardholderAccount,
   setCardholderAccount,
   dateRange,
-  setDateRange
+  setDateRange,
+  triggerSearch,
+  onSearchTriggered
 }: { 
   globalFilenameFilter: string; 
   setGlobalFilenameFilter: (filename: string) => void; 
@@ -1219,6 +1221,8 @@ function RawDataTab({
   setCardholderAccount: (value: string) => void;
   dateRange: string;
   setDateRange: (value: string) => void;
+  triggerSearch: boolean;
+  onSearchTriggered: () => void;
 }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -1401,6 +1405,14 @@ function RawDataTab({
     setIsChunkedLoading(false);
     setSearchTriggered(true);
   };
+  
+  // Effect to trigger search when initiated from upper Card Number Search button
+  useEffect(() => {
+    if (triggerSearch) {
+      onSearchTriggered();
+      handleSearch();
+    }
+  }, [triggerSearch]);
   
   // Running timer effect during loading (both regular and chunked)
   useEffect(() => {
@@ -2514,6 +2526,9 @@ export default function TddfApiDataPage() {
   
   // Cardholder Account search state (shared with RawDataTab)
   const [cardholderAccount, setCardholderAccount] = useState('');
+  
+  // Trigger search from upper Card Number Search button
+  const [triggerCardSearch, setTriggerCardSearch] = useState(false);
   
   // Date range state for Raw Data tab (default 1 day, top search uses 3 days)
   const [rawDataDateRange, setRawDataDateRange] = useState('1');
@@ -3702,8 +3717,10 @@ export default function TddfApiDataPage() {
                   onChange={(e) => setCardSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && cardSearchTerm.trim()) {
-                      setCardholderAccount(cardSearchTerm.trim());
+                      const searchTerm = cardSearchTerm.trim();
+                      setCardholderAccount(searchTerm);
                       setRawDataDateRange('3');
+                      setTriggerCardSearch(true);
                       setActiveTab('raw-data');
                     }
                   }}
@@ -3714,8 +3731,10 @@ export default function TddfApiDataPage() {
               <Button
                 onClick={() => {
                   if (cardSearchTerm.trim()) {
-                    setCardholderAccount(cardSearchTerm.trim());
+                    const searchTerm = cardSearchTerm.trim();
+                    setCardholderAccount(searchTerm);
                     setRawDataDateRange('3');
+                    setTriggerCardSearch(true);
                     setActiveTab('raw-data');
                   }
                 }}
@@ -6061,6 +6080,8 @@ export default function TddfApiDataPage() {
             setCardholderAccount={setCardholderAccount}
             dateRange={rawDataDateRange}
             setDateRange={setRawDataDateRange}
+            triggerSearch={triggerCardSearch}
+            onSearchTriggered={() => setTriggerCardSearch(false)}
           />
         </TabsContent>
 
