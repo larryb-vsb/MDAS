@@ -1,18 +1,18 @@
 # Schema Sanity Check Report
 
-**Generated:** 2026-01-23T18:34:34.361Z
+**Generated:** 2026-01-24T01:28:58.193Z
 
 ## Summary
 
 | Metric | Count |
 |--------|-------|
-| Dev Tables | 93 |
-| Prod Tables | 92 |
-| Matching Tables | 9 |
+| Dev Tables | 94 |
+| Prod Tables | 93 |
+| Matching Tables | 10 |
 | Tables with Differences | 62 |
 | Dev-Only Tables | 12 |
 | Prod-Only Tables | 17 |
-| Total Column Differences | 197 |
+| Total Column Differences | 212 |
 
 ## Tables with Differences
 
@@ -185,6 +185,21 @@
 | exposure_amount | different | Type: dev=text, prod=numeric |
 | merchant_activation_date | different | Type: dev=timestamp without time zone, prod=date |
 | date_of_first_deposit | different | Type: dev=timestamp without time zone, prod=date |
+| contact_first | dev_only | Column exists in dev but not in prod |
+| contact_mid | dev_only | Column exists in dev but not in prod |
+| contact_last | dev_only | Column exists in dev but not in prod |
+| contact_suffix | dev_only | Column exists in dev but not in prod |
+| client_hold | dev_only | Column exists in dev but not in prod |
+| county | dev_only | Column exists in dev but not in prod |
+| primary_cell | dev_only | Column exists in dev but not in prod |
+| mailing_address | dev_only | Column exists in dev but not in prod |
+| mailing_city | dev_only | Column exists in dev but not in prod |
+| mailing_zip | dev_only | Column exists in dev but not in prod |
+| client_type_2 | dev_only | Column exists in dev but not in prod |
+| number_lines | dev_only | Column exists in dev but not in prod |
+| location_center | dev_only | Column exists in dev but not in prod |
+| client_class | dev_only | Column exists in dev but not in prod |
+| stei | dev_only | Column exists in dev but not in prod |
 
 **Index Differences:**
 

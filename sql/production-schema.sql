@@ -761,3 +761,33 @@ COMMIT;
 --   1. Verify all tables exist: SELECT tablename FROM pg_tables WHERE schemaname = 'public';
 --   2. Check indexes: SELECT indexname, tablename FROM pg_indexes WHERE schemaname = 'public';
 -- =====================================================================
+
+-- Email Outbox table for queuing and tracking outgoing emails
+CREATE TABLE IF NOT EXISTS email_outbox (
+    id SERIAL PRIMARY KEY,
+    recipient_email TEXT NOT NULL,
+    recipient_name TEXT,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    body_html TEXT,
+    report_type TEXT,
+    report_date TEXT,
+    attachment_path TEXT,
+    attachment_name TEXT,
+    attachment_type TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    priority INTEGER DEFAULT 5,
+    scheduled_for TIMESTAMP,
+    sent_at TIMESTAMP,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    created_by TEXT,
+    provider TEXT DEFAULT 'graph',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS email_outbox_status_idx ON email_outbox(status);
+CREATE INDEX IF NOT EXISTS email_outbox_created_at_idx ON email_outbox(created_at);
+CREATE INDEX IF NOT EXISTS email_outbox_provider_idx ON email_outbox(provider);

@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-01-23T18:34:34.361Z",
+  "timestamp": "2026-01-24T01:28:58.193Z",
   "summary": {
-    "totalDevTables": 93,
-    "totalProdTables": 92,
-    "matchingTables": 9,
+    "totalDevTables": 94,
+    "totalProdTables": 93,
+    "matchingTables": 10,
     "tablesWithDiffs": 62,
     "devOnlyTables": 12,
     "prodOnlyTables": 17,
-    "totalColumnDiffs": 197
+    "totalColumnDiffs": 212
   },
   "tables": [
     {
@@ -10829,6 +10829,544 @@
       ]
     },
     {
+      "table": "merchant_aliases",
+      "status": "match",
+      "devColumns": [
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "udt_name": "int4",
+          "character_maximum_length": null,
+          "numeric_precision": 32,
+          "numeric_scale": 0,
+          "is_nullable": "NO",
+          "column_default": "nextval('dev_merchant_aliases_id_seq'::regclass)",
+          "ordinal_position": 1
+        },
+        {
+          "column_name": "merchant_id",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": null,
+          "ordinal_position": 2
+        },
+        {
+          "column_name": "alias_type",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": null,
+          "ordinal_position": 3
+        },
+        {
+          "column_name": "alias_value",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": null,
+          "ordinal_position": 4
+        },
+        {
+          "column_name": "normalized_value",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 5
+        },
+        {
+          "column_name": "source",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 6
+        },
+        {
+          "column_name": "merged_from_id",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 7
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp without time zone",
+          "udt_name": "timestamp",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": "now()",
+          "ordinal_position": 8
+        },
+        {
+          "column_name": "created_by",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 9
+        },
+        {
+          "column_name": "notes",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 10
+        }
+      ],
+      "prodColumns": [
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "udt_name": "int4",
+          "character_maximum_length": null,
+          "numeric_precision": 32,
+          "numeric_scale": 0,
+          "is_nullable": "NO",
+          "column_default": "nextval('merchant_aliases_id_seq'::regclass)",
+          "ordinal_position": 1
+        },
+        {
+          "column_name": "merchant_id",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": null,
+          "ordinal_position": 2
+        },
+        {
+          "column_name": "alias_type",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": null,
+          "ordinal_position": 3
+        },
+        {
+          "column_name": "alias_value",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": null,
+          "ordinal_position": 4
+        },
+        {
+          "column_name": "normalized_value",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 5
+        },
+        {
+          "column_name": "source",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 6
+        },
+        {
+          "column_name": "merged_from_id",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 7
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp without time zone",
+          "udt_name": "timestamp",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "NO",
+          "column_default": "now()",
+          "ordinal_position": 8
+        },
+        {
+          "column_name": "created_by",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 9
+        },
+        {
+          "column_name": "notes",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 10
+        }
+      ],
+      "columnDiffs": [
+        {
+          "column": "id",
+          "status": "match",
+          "devInfo": {
+            "column_name": "id",
+            "data_type": "integer",
+            "udt_name": "int4",
+            "character_maximum_length": null,
+            "numeric_precision": 32,
+            "numeric_scale": 0,
+            "is_nullable": "NO",
+            "column_default": "nextval('dev_merchant_aliases_id_seq'::regclass)",
+            "ordinal_position": 1
+          },
+          "prodInfo": {
+            "column_name": "id",
+            "data_type": "integer",
+            "udt_name": "int4",
+            "character_maximum_length": null,
+            "numeric_precision": 32,
+            "numeric_scale": 0,
+            "is_nullable": "NO",
+            "column_default": "nextval('merchant_aliases_id_seq'::regclass)",
+            "ordinal_position": 1
+          },
+          "differences": []
+        },
+        {
+          "column": "merchant_id",
+          "status": "match",
+          "devInfo": {
+            "column_name": "merchant_id",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": null,
+            "ordinal_position": 2
+          },
+          "prodInfo": {
+            "column_name": "merchant_id",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": null,
+            "ordinal_position": 2
+          },
+          "differences": []
+        },
+        {
+          "column": "alias_type",
+          "status": "match",
+          "devInfo": {
+            "column_name": "alias_type",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": null,
+            "ordinal_position": 3
+          },
+          "prodInfo": {
+            "column_name": "alias_type",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": null,
+            "ordinal_position": 3
+          },
+          "differences": []
+        },
+        {
+          "column": "alias_value",
+          "status": "match",
+          "devInfo": {
+            "column_name": "alias_value",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": null,
+            "ordinal_position": 4
+          },
+          "prodInfo": {
+            "column_name": "alias_value",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": null,
+            "ordinal_position": 4
+          },
+          "differences": []
+        },
+        {
+          "column": "normalized_value",
+          "status": "match",
+          "devInfo": {
+            "column_name": "normalized_value",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 5
+          },
+          "prodInfo": {
+            "column_name": "normalized_value",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 5
+          },
+          "differences": []
+        },
+        {
+          "column": "source",
+          "status": "match",
+          "devInfo": {
+            "column_name": "source",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 6
+          },
+          "prodInfo": {
+            "column_name": "source",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 6
+          },
+          "differences": []
+        },
+        {
+          "column": "merged_from_id",
+          "status": "match",
+          "devInfo": {
+            "column_name": "merged_from_id",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 7
+          },
+          "prodInfo": {
+            "column_name": "merged_from_id",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 7
+          },
+          "differences": []
+        },
+        {
+          "column": "created_at",
+          "status": "match",
+          "devInfo": {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": "now()",
+            "ordinal_position": 8
+          },
+          "prodInfo": {
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "NO",
+            "column_default": "now()",
+            "ordinal_position": 8
+          },
+          "differences": []
+        },
+        {
+          "column": "created_by",
+          "status": "match",
+          "devInfo": {
+            "column_name": "created_by",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 9
+          },
+          "prodInfo": {
+            "column_name": "created_by",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 9
+          },
+          "differences": []
+        },
+        {
+          "column": "notes",
+          "status": "match",
+          "devInfo": {
+            "column_name": "notes",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 10
+          },
+          "prodInfo": {
+            "column_name": "notes",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 10
+          },
+          "differences": []
+        }
+      ],
+      "indexDiffs": [
+        {
+          "indexName": "merchant_aliases_pkey",
+          "status": "match",
+          "devDef": "CREATE UNIQUE INDEX merchant_aliases_pkey ON public.merchant_aliases USING btree (id)",
+          "prodDef": "CREATE UNIQUE INDEX merchant_aliases_pkey ON public.merchant_aliases USING btree (id)"
+        },
+        {
+          "indexName": "merchant_aliases_merchant_id_idx",
+          "status": "match",
+          "devDef": "CREATE INDEX merchant_aliases_merchant_id_idx ON public.merchant_aliases USING btree (merchant_id)",
+          "prodDef": "CREATE INDEX merchant_aliases_merchant_id_idx ON public.merchant_aliases USING btree (merchant_id)"
+        },
+        {
+          "indexName": "merchant_aliases_alias_type_idx",
+          "status": "match",
+          "devDef": "CREATE INDEX merchant_aliases_alias_type_idx ON public.merchant_aliases USING btree (alias_type)",
+          "prodDef": "CREATE INDEX merchant_aliases_alias_type_idx ON public.merchant_aliases USING btree (alias_type)"
+        },
+        {
+          "indexName": "merchant_aliases_alias_value_idx",
+          "status": "match",
+          "devDef": "CREATE INDEX merchant_aliases_alias_value_idx ON public.merchant_aliases USING btree (alias_value)",
+          "prodDef": "CREATE INDEX merchant_aliases_alias_value_idx ON public.merchant_aliases USING btree (alias_value)"
+        },
+        {
+          "indexName": "merchant_aliases_normalized_value_idx",
+          "status": "match",
+          "devDef": "CREATE INDEX merchant_aliases_normalized_value_idx ON public.merchant_aliases USING btree (normalized_value)",
+          "prodDef": "CREATE INDEX merchant_aliases_normalized_value_idx ON public.merchant_aliases USING btree (normalized_value)"
+        },
+        {
+          "indexName": "merchant_aliases_type_value_idx",
+          "status": "match",
+          "devDef": "CREATE INDEX merchant_aliases_type_value_idx ON public.merchant_aliases USING btree (alias_type, alias_value)",
+          "prodDef": "CREATE INDEX merchant_aliases_type_value_idx ON public.merchant_aliases USING btree (alias_type, alias_value)"
+        }
+      ]
+    },
+    {
       "table": "merchant_mcc_schema",
       "status": "different",
       "devColumns": [
@@ -14150,6 +14688,171 @@
           "is_nullable": "YES",
           "column_default": null,
           "ordinal_position": 249
+        },
+        {
+          "column_name": "contact_first",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 250
+        },
+        {
+          "column_name": "contact_mid",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 251
+        },
+        {
+          "column_name": "contact_last",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 252
+        },
+        {
+          "column_name": "contact_suffix",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 253
+        },
+        {
+          "column_name": "client_hold",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 254
+        },
+        {
+          "column_name": "county",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 255
+        },
+        {
+          "column_name": "primary_cell",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 256
+        },
+        {
+          "column_name": "mailing_address",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 257
+        },
+        {
+          "column_name": "mailing_city",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 258
+        },
+        {
+          "column_name": "mailing_zip",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 259
+        },
+        {
+          "column_name": "client_type_2",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 260
+        },
+        {
+          "column_name": "number_lines",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 261
+        },
+        {
+          "column_name": "location_center",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 262
+        },
+        {
+          "column_name": "client_class",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 263
+        },
+        {
+          "column_name": "stei",
+          "data_type": "text",
+          "udt_name": "text",
+          "character_maximum_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": "YES",
+          "column_default": null,
+          "ordinal_position": 264
         }
       ],
       "prodColumns": [
@@ -23630,6 +24333,276 @@
             "ordinal_position": 107
           },
           "differences": []
+        },
+        {
+          "column": "contact_first",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "contact_first",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 250
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "contact_mid",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "contact_mid",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 251
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "contact_last",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "contact_last",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 252
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "contact_suffix",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "contact_suffix",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 253
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "client_hold",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "client_hold",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 254
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "county",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "county",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 255
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "primary_cell",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "primary_cell",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 256
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "mailing_address",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "mailing_address",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 257
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "mailing_city",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "mailing_city",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 258
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "mailing_zip",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "mailing_zip",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 259
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "client_type_2",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "client_type_2",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 260
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "number_lines",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "number_lines",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 261
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "location_center",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "location_center",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 262
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "client_class",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "client_class",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 263
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
+        },
+        {
+          "column": "stei",
+          "status": "dev_only",
+          "devInfo": {
+            "column_name": "stei",
+            "data_type": "text",
+            "udt_name": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_scale": null,
+            "is_nullable": "YES",
+            "column_default": null,
+            "ordinal_position": 264
+          },
+          "differences": [
+            "Column exists in dev but not in prod"
+          ]
         }
       ],
       "indexDiffs": [
