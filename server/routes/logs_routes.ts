@@ -75,12 +75,33 @@ router.get("/api/logs", async (req, res) => {
           const queryParts: string[] = [];
           const countParts: string[] = [];
           
-          if (includedTypes.includes('system') || includedTypes.includes('application')) {
+          // System and Application logs both come from the same table but are differentiated by source
+          const includeSystem = includedTypes.includes('system');
+          const includeApplication = includedTypes.includes('application');
+          
+          if (includeSystem && includeApplication) {
+            // Include all logs from system_logs table
             queryParts.push(`
               SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, NULL as ip_address
               FROM ${systemLogsTableName}
             `);
             countParts.push(`(SELECT COUNT(*) FROM ${systemLogsTableName})`);
+          } else if (includeSystem) {
+            // Only system logs (source != 'Application')
+            queryParts.push(`
+              SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, NULL as ip_address
+              FROM ${systemLogsTableName}
+              WHERE source != 'Application'
+            `);
+            countParts.push(`(SELECT COUNT(*) FROM ${systemLogsTableName} WHERE source != 'Application')`);
+          } else if (includeApplication) {
+            // Only application logs (source = 'Application')
+            queryParts.push(`
+              SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, NULL as ip_address
+              FROM ${systemLogsTableName}
+              WHERE source = 'Application'
+            `);
+            countParts.push(`(SELECT COUNT(*) FROM ${systemLogsTableName} WHERE source = 'Application')`);
           }
           
           if (includedTypes.includes('security')) {
