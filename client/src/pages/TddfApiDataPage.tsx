@@ -1384,7 +1384,20 @@ function RawDataTab({
       }
     }
     
-    // Fall back to regular single query
+    // ALSO use chunked loading for single selected date to leverage fast dt-latest endpoint
+    if (selectedDate) {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const singleDayChunk = [{ from: dateStr, to: dateStr, label: dateStr }];
+      setChunks(singleDayChunk);
+      setCurrentChunkIndex(0);
+      setAccumulatedRecords([]);
+      setChunkedHasMore(false);
+      setIsChunkedLoading(true);
+      setSearchTriggered(false); // Don't use regular query
+      return;
+    }
+    
+    // Fall back to regular single query (only when no date is selected and no range)
     setIsChunkedLoading(false);
     setSearchTriggered(true);
   };
@@ -1441,7 +1454,23 @@ function RawDataTab({
           if (recordType === 'all' || !recordType) {
             params.append('recordType', 'all'); // Get both BH and DT records
           } else {
-            params.append('recordType', recordType);
+            params.append('recordType', recordType); // Pass specific type (BH or DT)
+          }
+          // Map fieldKey to dt-latest parameter names for supported fields
+          if (selectedField && fieldSearchValue.trim()) {
+            if (selectedField === 'associationNumber' || selectedField === 'associationNumber1') {
+              params.append('associationNumber', fieldSearchValue.trim());
+            } else if (selectedField === 'groupNumber') {
+              params.append('groupNumber', fieldSearchValue.trim());
+            } else if (selectedField === 'terminalId') {
+              params.append('terminalId', fieldSearchValue.trim());
+            } else if (selectedField === 'merchantAccount' || selectedField === 'merchantAccountNumber') {
+              params.append('merchantAccount', fieldSearchValue.trim());
+            } else {
+              // For unsupported fields, fall back to generic field search
+              params.append('fieldKey', selectedField);
+              params.append('fieldValue', fieldSearchValue.trim());
+            }
           }
         } else {
           // Standard path: use all-records endpoint with date range
@@ -1450,10 +1479,15 @@ function RawDataTab({
           if (cardholderAccount.trim()) {
             params.append('cardholder_account', cardholderAccount.trim());
           }
-        }
-        
-        if (recordType && recordType !== 'all') {
-          params.append('recordType', recordType);
+          // Only add recordType for non-optimized path here
+          if (recordType && recordType !== 'all') {
+            params.append('recordType', recordType);
+          }
+          // Add field search for non-optimized path (uses fieldKey/fieldValue)
+          if (selectedField && fieldSearchValue.trim()) {
+            params.append('fieldKey', selectedField);
+            params.append('fieldValue', fieldSearchValue.trim());
+          }
         }
         if (searchQuery.trim()) {
           params.append('search', searchQuery.trim());
@@ -1461,10 +1495,9 @@ function RawDataTab({
         if (globalFilenameFilter) {
           params.append('filename', globalFilenameFilter);
         }
-        if (selectedField && fieldSearchValue.trim()) {
-          params.append('fieldKey', selectedField);
-          params.append('fieldValue', fieldSearchValue.trim());
-        }
+        // Note: Field search is handled inside the if/else block above
+        // For optimized path: mapped to specific params (associationNumber, groupNumber, etc.)
+        // For standard path: uses fieldKey/fieldValue
         
         // Choose endpoint based on optimization path
         const endpoint = useOptimizedEndpoint 
