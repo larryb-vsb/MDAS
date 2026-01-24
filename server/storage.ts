@@ -1068,7 +1068,15 @@ export class DatabaseStorage implements IStorage {
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async deleteUser(userId: number): Promise<void> {
     const usersTableName = getTableName('users');
+    const securityLogsTableName = getTableName('security_logs');
     
+    // First delete related security logs to avoid foreign key constraint violations
+    await pool.query(`
+      DELETE FROM ${securityLogsTableName} 
+      WHERE user_id = $1
+    `, [userId]);
+    
+    // Now delete the user
     await pool.query(`
       DELETE FROM ${usersTableName} 
       WHERE id = $1
