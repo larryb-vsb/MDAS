@@ -1206,11 +1206,15 @@ function FileViewDisplay({
 function RawDataTab({ 
   globalFilenameFilter, 
   setGlobalFilenameFilter,
-  getMerchantName
+  getMerchantName,
+  cardholderAccount,
+  setCardholderAccount
 }: { 
   globalFilenameFilter: string; 
   setGlobalFilenameFilter: (filename: string) => void; 
   getMerchantName: (merchantAccountNumber: string | null) => string | null;
+  cardholderAccount: string;
+  setCardholderAccount: (value: string) => void;
 }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -1223,9 +1227,6 @@ function RawDataTab({
   // DT Field Search state
   const [selectedField, setSelectedField] = useState<string>('');
   const [fieldSearchValue, setFieldSearchValue] = useState<string>('');
-  
-  // Cardholder Account search state (persistent quick search)
-  const [cardholderAccount, setCardholderAccount] = useState<string>('');
   
   // Date range preset state (default to 1 week for faster searches)
   const [dateRange, setDateRange] = useState<string>('7');
@@ -2459,6 +2460,12 @@ export default function TddfApiDataPage() {
   const [performSearch, setPerformSearch] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   
+  // Card number search state (links to Raw Data tab)
+  const [cardSearchTerm, setCardSearchTerm] = useState('');
+  
+  // Cardholder Account search state (shared with RawDataTab)
+  const [cardholderAccount, setCardholderAccount] = useState('');
+  
   // Separate pagination state for uploaded files section
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
   const [uploadsItemsPerPage, setUploadsItemsPerPage] = useState(5);
@@ -3622,109 +3629,109 @@ export default function TddfApiDataPage() {
         </div>
 
       {/* Global Search Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Global Filename Search */}
-        <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
-          <CardHeader className="p-3 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Card Search - PRIMARY (left, larger) */}
+        <Card className="lg:col-span-2 border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Search className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-              Global Filename Search
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+              Card Number Search
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Search for files in both active uploads and archive. Try full or partial filename match.
+              Search for cardholder accounts by full card number or last 4 digits in transaction records.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
-            {/* Search Input */}
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1">
                 <Input
-                  placeholder="Enter filename or partial match (e.g., 10022025)"
-                  value={globalSearchTerm}
-                  onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                  placeholder="Enter card number or last 4 digits (e.g., 1234 or 4111111111111234)"
+                  value={cardSearchTerm}
+                  onChange={(e) => setCardSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && globalSearchTerm.trim()) {
-                      setPerformSearch(true);
-                      setShowSearchResults(true);
-                      refetchSearch();
+                    if (e.key === 'Enter' && cardSearchTerm.trim()) {
+                      setCardholderAccount(cardSearchTerm.trim());
+                      setActiveTab('raw-data');
                     }
                   }}
                   className="text-sm sm:text-base"
-                  data-testid="input-global-search"
+                  data-testid="input-card-search"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => {
-                    if (globalSearchTerm.trim()) {
-                      setPerformSearch(true);
-                      setShowSearchResults(true);
-                      refetchSearch();
-                    }
-                  }}
-                  disabled={!globalSearchTerm.trim() || isSearching}
-                  data-testid="button-global-search"
-                  className="flex-1 sm:flex-none"
-                >
-                  {isSearching ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      <span className="hidden sm:inline">Searching...</span>
-                      <span className="sm:hidden">...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Search</span>
-                    </>
-                  )}
-                </Button>
-                {showSearchResults && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setGlobalSearchTerm('');
-                      setPerformSearch(false);
-                      setShowSearchResults(false);
-                    }}
-                    data-testid="button-clear-search"
-                    className="flex-1 sm:flex-none"
-                  >
-                    <X className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Clear</span>
-                  </Button>
-                )}
-              </div>
+              <Button
+                onClick={() => {
+                  if (cardSearchTerm.trim()) {
+                    setCardholderAccount(cardSearchTerm.trim());
+                    setActiveTab('raw-data');
+                  }
+                }}
+                disabled={!cardSearchTerm.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700"
+                data-testid="button-card-search"
+              >
+                <CreditCard className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Search Cards</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Card Search - switches to Raw Data tab */}
-        <Card 
-          className="border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 cursor-pointer hover:border-emerald-400 transition-colors"
-          onClick={() => setActiveTab('raw-data')}
-        >
-          <CardHeader className="p-3 sm:p-6">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-              Card Search
+        {/* Filename Search - SECONDARY (right, smaller) */}
+        <Card className="border border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10">
+          <CardHeader className="p-3 pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Search className="h-4 w-4 text-blue-600" />
+              File Search
             </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Search for cardholder accounts by card number or last 4 digits in transaction records.
-            </CardDescription>
           </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-100/50 dark:bg-emerald-900/20">
-              <CreditCard className="h-8 w-8 text-emerald-500" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                  Click to search card transactions
-                </p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                  Opens Raw Data tab with cardholder account search
-                </p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-emerald-500" />
+          <CardContent className="p-3 pt-0">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Filename..."
+                value={globalSearchTerm}
+                onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && globalSearchTerm.trim()) {
+                    setPerformSearch(true);
+                    setShowSearchResults(true);
+                    refetchSearch();
+                  }
+                }}
+                className="text-sm h-9"
+                data-testid="input-global-search"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (globalSearchTerm.trim()) {
+                    setPerformSearch(true);
+                    setShowSearchResults(true);
+                    refetchSearch();
+                  }
+                }}
+                disabled={!globalSearchTerm.trim() || isSearching}
+                data-testid="button-global-search"
+              >
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+              {showSearchResults && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setGlobalSearchTerm('');
+                    setPerformSearch(false);
+                    setShowSearchResults(false);
+                  }}
+                  data-testid="button-clear-search"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -5983,6 +5990,8 @@ export default function TddfApiDataPage() {
             globalFilenameFilter={globalFilenameFilter}
             setGlobalFilenameFilter={setGlobalFilenameFilter}
             getMerchantName={getMerchantName}
+            cardholderAccount={cardholderAccount}
+            setCardholderAccount={setCardholderAccount}
           />
         </TabsContent>
 
