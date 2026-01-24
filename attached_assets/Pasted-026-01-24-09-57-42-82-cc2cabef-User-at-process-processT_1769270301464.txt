@@ -1,0 +1,222 @@
+026-01-24 09:57:42.82
+cc2cabef
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-24 09:57:42.82
+cc2cabef
+User
+dataType: undefined,
+2026-01-24 09:57:42.82
+cc2cabef
+User
+internalPosition: undefined,
+2026-01-24 09:57:42.82
+cc2cabef
+User
+where: undefined,
+2026-01-24 09:57:42.82
+cc2cabef
+User
+file: 'parse_relation.c',
+2026-01-24 09:57:42.82
+cc2cabef
+User
+}
+2026-01-24 09:57:42.82
+cc2cabef
+User
+severity: 'ERROR',
+2026-01-24 09:57:42.82
+cc2cabef
+User
+table: undefined,
+2026-01-24 09:57:42.82
+cc2cabef
+User
+position: '148',
+2026-01-24 09:57:42.82
+cc2cabef
+User
+code: '42703',
+2026-01-24 09:57:42.82
+cc2cabef
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-24 09:57:43.99
+cc2cabef
+User
+dataType: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+file: 'parse_relation.c',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+schema: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+line: '3716',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+at async file:///home/runner/workspace/dist/index.js:41298:23 {
+2026-01-24 09:57:43.99
+cc2cabef
+User
+length: 114,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-24 09:57:43.99
+cc2cabef
+User
+internalPosition: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+constraint: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+}
+2026-01-24 09:57:43.99
+cc2cabef
+User
+routine: 'errorMissingColumn'
+2026-01-24 09:57:43.99
+cc2cabef
+User
+where: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+internalQuery: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+position: '148',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+column: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+severity: 'ERROR',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+hint: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+[TYPE3-DEMOGRAPHICS] Error: error: column "contact_first" does not exist
+2026-01-24 09:57:43.99
+cc2cabef
+User
+code: '42703',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+detail: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+table: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-24 09:57:43.99
+cc2cabef
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-24 09:57:43.99
+cc2cabef
+User
+table: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+detail: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+code: '42703',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+[TYPE3-DEMOGRAPHICS] Error: error: column "contact_first" does not exist
+2026-01-24 09:57:43.99
+cc2cabef
+User
+hint: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+severity: 'ERROR',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+column: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+position: '148',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+internalQuery: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+where: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+routine: 'errorMissingColumn'
+2026-01-24 09:57:43.99
+cc2cabef
+User
+}
+2026-01-24 09:57:43.99
+cc2cabef
+User
+constraint: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+internalPosition: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-24 09:57:43.99
+cc2cabef
+User
+length: 114,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+at async file:///home/runner/workspace/dist/index.js:41298:23 {
+2026-01-24 09:57:43.99
+cc2cabef
+User
+line: '3716',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+schema: undefined,
+2026-01-24 09:57:43.99
+cc2cabef
+User
+file: 'parse_relation.c',
+2026-01-24 09:57:43.99
+cc2cabef
+User
+dataType: undefined,
+Wrap
+Colors

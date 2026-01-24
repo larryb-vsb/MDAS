@@ -100,6 +100,7 @@ import {
   FileBarChart,
   Store,
   Mail,
+  Bell,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -240,6 +241,11 @@ const navItems: NavItem[] = [
         icon: <Mail className="h-4 w-4 text-blue-400" />,
         label: "Email Settings",
         href: "/email-settings",
+      },
+      {
+        icon: <Bell className="h-4 w-4 text-yellow-400" />,
+        label: "Notifications",
+        href: "/notifications",
       },
       {
         icon: <UserCircle className="h-4 w-4 text-orange-400" />,

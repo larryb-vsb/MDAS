@@ -1,6 +1,7 @@
 import { Express } from "express";
 import { pool } from "../db";
 import { getTableName } from "../table-config";
+import { isProd } from "../env-config";
 
 function getQuarterDateRange(year: number, quarter: number): { start: Date; end: Date } {
   const startMonth = (quarter - 1) * 3;
@@ -423,12 +424,17 @@ export function registerReportsRoutes(app: Express) {
         console.log(`[TYPE3-DEMOGRAPHICS] Filtering merchants who were clients by: ${asOfDate}`);
       }
       
+      // contact_first and contact_last columns only exist in dev, not production
+      const contactColumns = isProd 
+        ? "NULL AS contact_first, NULL AS contact_last,"
+        : "contact_first, contact_last,";
+      
       const result = await pool.query(`
         SELECT 
           id, name, dba_name, client_mid, 
           address, city, state, zip_code,
           phone_1, phone_2, email,
-          contact_first, contact_last,
+          ${contactColumns}
           status, client_since_date, merchant_activation_date,
           dda_number, transit_routing_number
         FROM ${merchantsTableName}
@@ -450,8 +456,8 @@ export function registerReportsRoutes(app: Express) {
         phone1: row.phone_1,
         phone2: row.phone_2,
         email: row.email,
-        contactFirst: row.contact_first,
-        contactLast: row.contact_last,
+        contactFirst: row.contact_first || null,
+        contactLast: row.contact_last || null,
         status: row.status,
         clientSinceDate: row.client_since_date,
         merchantActivationDate: row.merchant_activation_date,

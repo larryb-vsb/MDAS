@@ -36,6 +36,7 @@ import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 import { useLocation } from 'wouter';
 import CacheControlWidget from '@/components/shared/CacheControlWidget';
+import { SystemMessageBanner } from '@/components/shared/SystemMessageBanner';
 
 // Interface for dashboard metrics with cache metadata
 interface DashboardMetrics {
@@ -720,6 +721,7 @@ export default function HomeDashboard() {
 
   return (
     <MainLayout>
+      <SystemMessageBanner />
       <div className="space-y-6 p-6">
         {/* Header with Refresh Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

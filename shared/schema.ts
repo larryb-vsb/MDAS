@@ -3480,3 +3480,23 @@ export const emailOutbox = pgTable(getTableName("email_outbox"), {
 export const insertEmailOutboxSchema = createInsertSchema(emailOutbox).omit({ id: true, createdAt: true, updatedAt: true });
 export type EmailOutbox = typeof emailOutbox.$inferSelect;
 export type InsertEmailOutbox = z.infer<typeof insertEmailOutboxSchema>;
+
+// System Messages Table - For dashboard notifications/announcements
+export const systemMessages = pgTable(getTableName("system_messages"), {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  color: text("color").notNull().default("blue"), // red, yellow, orange, green, grey, blue, white
+  isActive: boolean("is_active").notNull().default(true),
+  showPopup: boolean("show_popup").notNull().default(false),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  isActiveIdx: index("system_messages_is_active_idx").on(table.isActive),
+  createdAtIdx: index("system_messages_created_at_idx").on(table.createdAt)
+}));
+
+export const insertSystemMessageSchema = createInsertSchema(systemMessages).omit({ id: true, createdAt: true, updatedAt: true });
+export type SystemMessage = typeof systemMessages.$inferSelect;
+export type InsertSystemMessage = z.infer<typeof insertSystemMessageSchema>;
