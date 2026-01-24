@@ -2467,8 +2467,8 @@ export default function TddfApiDataPage() {
   // Cardholder Account search state (shared with RawDataTab)
   const [cardholderAccount, setCardholderAccount] = useState('');
   
-  // Date range state for Raw Data tab (default 7 days, but 2 days from card search)
-  const [rawDataDateRange, setRawDataDateRange] = useState('7');
+  // Date range state for Raw Data tab (default 1 day/today)
+  const [rawDataDateRange, setRawDataDateRange] = useState('1');
   
   // Separate pagination state for uploaded files section
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
