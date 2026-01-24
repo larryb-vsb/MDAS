@@ -2314,7 +2314,7 @@ function BulkActionToolbar({
 
 export default function TddfApiDataPage() {
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("raw-data");
   const [filesInnerTab, setFilesInnerTab] = useState("uploaded");
   const [selectedSchema, setSelectedSchema] = useState<number | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -4127,8 +4127,8 @@ export default function TddfApiDataPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
           <TabsList className="inline-flex w-max sm:grid sm:w-full sm:grid-cols-8 gap-1">
-            <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap">Overview</TabsTrigger>
             <TabsTrigger value="raw-data" className="text-xs sm:text-sm whitespace-nowrap">Raw Data</TabsTrigger>
+            <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap">Overview</TabsTrigger>
             <TabsTrigger value="files" className="text-xs sm:text-sm whitespace-nowrap">Files</TabsTrigger>
             <TabsTrigger value="processing" className="text-xs sm:text-sm whitespace-nowrap">Processing</TabsTrigger>
             <TabsTrigger value="data" className="text-xs sm:text-sm whitespace-nowrap">Data</TabsTrigger>
