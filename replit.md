@@ -58,6 +58,19 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.10 (2026-01-24)**
+- Created dedicated Email Settings page under System menu with three tabs:
+  - Settings: Email service configuration/status display, connection testing, send test emails and alerts
+  - Outbox: View pending/queued emails with recipient, subject, status, and retry count
+  - History: View sent/failed emails with delivery timestamps and error messages
+- New API endpoints: `/api/email/outbox` and `/api/email/history` for email management
+- Enhanced Merchants page with "Flagged" filter (All, Flagged Only, Not Flagged) to review 224 potential duplicate merchants
+- Added sortable "Client Since" column to merchant tables for tracking customer tenure
+- Client MID now displays abbreviated "...last5" format with full value shown on hover tooltip
+- Sidebar navigation updates:
+  - Changed Merchants icon from Users to Store with emerald-500 color
+  - Moved Exports to appear after Reports and before System section
+
 **Version 2.0.9 (2026-01-22)**
 - Added "Transactions" tab to History page showing individual DT records by actual transaction date
 - Removed "Table View" tab and consolidated content into "Files Processed" tab
