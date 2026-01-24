@@ -1569,7 +1569,7 @@ function RawDataTab({
     if (!parsed) return '-';
     const amount = parsed.transactionAmount || parsed.TransactionAmount || parsed.netDeposit || parsed.NetDeposit;
     if (amount) {
-      return `$${(Number(amount) / 100).toFixed(2)}`;
+      return `$${Number(amount).toFixed(2)}`;
     }
     return '-';
   };
