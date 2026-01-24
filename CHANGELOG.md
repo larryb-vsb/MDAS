@@ -5,9 +5,75 @@ All notable changes to MDAS (Merchant Datawarehouse and Automation System) will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.11] - 2026-01-24
+
+### Changed
+- Dashboard metric improvements:
+  - Replaced redundant "Daily Processing" and "Today's Processing" cards with "Last 3 Days Processing" showing authorizations and purchases for the last 3 transaction dates
+  - Added "TDDF Merchants Today" metric showing unique merchant count with transactions for current day
+  - Updated "Total Records" to "Records Processed Last 30 Days" showing 30-day DT record count
+
+### Added
+- New helper functions: `getLast3DaysProcessing()` and `getTddfMerchantsForDate()`
+
+### Fixed
+- Date format handling to support both YYYYMMDD and YYYY-MM-DD formats in transaction date queries
+- Updated TypeScript interfaces for dashboard metrics
+
+## [2.0.10] - 2026-01-24
+
+### Added
+- Dedicated Email Settings page under System menu with three tabs:
+  - Settings: Email service configuration/status display, connection testing, send test emails and alerts
+  - Outbox: View pending/queued emails with recipient, subject, status, and retry count
+  - History: View sent/failed emails with delivery timestamps and error messages
+- New API endpoints: `/api/email/outbox` and `/api/email/history` for email management
+- Enhanced Merchants page with "Flagged" filter (All, Flagged Only, Not Flagged) to review potential duplicate merchants
+- Sortable "Client Since" column to merchant tables for tracking customer tenure
+
+### Changed
+- Client MID now displays abbreviated "...last5" format with full value shown on hover tooltip
+- Sidebar navigation updates:
+  - Changed Merchants icon from Users to Store with emerald-500 color
+  - Moved Exports to appear after Reports and before System section
+
+## [2.0.9] - 2026-01-22
+
+### Added
+- "Transactions" tab to History page showing individual DT records by actual transaction date
+- Pagination support with "Page X of Y" controls for browsing DT records
+
+### Changed
+- Removed "Table View" tab and consolidated content into "Files Processed" tab
+- History page now has 4 tabs: Files Processed, Processing, Transactions, Merchant Volume
+
+### Fixed
+- Transactions tab displays: DT badge (green), card type, masked account, amount, merchant ID/name, date, customer ID, file reference
+- Uses `/api/tddf-records/dt-latest?batchDate=YYYY-MM-DD` endpoint to filter by transaction date
+
+## [2.0.8] - 2026-01-22
+
+### Added
+- "Processing" tab to History page for TSYS reconciliation
+- New `/api/tddf/daily-processing/:date` endpoint queries transactions by actual transaction date (from `extracted_fields->>'transactionDate'`) instead of file processing date
+
+### Changed
+- Renamed "Daily Overview" tab to "Files Processed" for clarity
+- Tab layout updated from 3 columns to 4 columns
+
+### Fixed
+- Resolved confusion where MDAS appeared to have duplicates when comparing with TSYS daily summaries
+- Processing tab shows Daily Summary (Total Authorizations/Capture with counts and amounts) and BIN Summary
+
 ## [2.0.7] - 2026-01-15
 
 ### Added
+- Enhanced AH0314P1 merchant name fuzzy matching with PostgreSQL pg_trgm similarity function
+- Uses 80% similarity threshold to catch near-duplicates (e.g., "TOROVERDE II INC" vs "TOROVERDE INC")
+- Case-insensitive matching prevents duplicates like "METRO 1996 LLC" vs "Metro 1996 LLC"
+- Normalizes names by removing business suffixes (LLC, INC, CORP, LTD, COMPANY, etc.) before comparison
+- Returns highest similarity match when multiple candidates exist
+- Restore buttons to file search results for both Active Uploads and Archived Files sections
 - One-step `/api/uploader/upload` endpoint for batch uploader compatibility
 - Duplicate file detection returns HTTP 409 with existing file ID
 
