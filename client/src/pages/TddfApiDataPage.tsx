@@ -1936,7 +1936,7 @@ function RawDataTab({
                           {/* Date with icon */}
                           {txnDate && (
                             <span className="flex items-center gap-1 flex-shrink-0">
-                              <Calendar className="h-3 w-3 text-blue-600" />
+                              <CalendarIcon className="h-3 w-3 text-blue-600" />
                               <span className="text-xs">{txnDate}</span>
                             </span>
                           )}
@@ -2054,7 +2054,7 @@ function RawDataTab({
 
                       {/* Date with icon */}
                       <span className="flex items-center gap-1 flex-shrink-0">
-                        <Calendar className="h-3 w-3 text-blue-600" />
+                        <CalendarIcon className="h-3 w-3 text-blue-600" />
                         <span className="text-xs">{batchDate}</span>
                       </span>
 
