@@ -1229,6 +1229,7 @@ function RawDataTab({
   const [recordType, setRecordType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [searchTriggered, setSearchTriggered] = useState(false);
   
@@ -1608,7 +1609,7 @@ function RawDataTab({
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex items-center gap-2">
           <Label>Date:</Label>
-          <Popover>
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1622,6 +1623,7 @@ function RawDataTab({
                 onSelect={(date) => {
                   setSelectedDate(date || null);
                   setPage(1);
+                  setDatePickerOpen(false);
                 }}
               />
             </PopoverContent>
