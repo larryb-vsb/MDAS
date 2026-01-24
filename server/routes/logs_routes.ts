@@ -54,6 +54,10 @@ router.get("/api/logs", async (req, res) => {
       }
     };
     
+    // Get log type inclusion filter (for "all" tab)
+    const includeTypesParam = req.query.includeTypes as string;
+    const includedTypes = includeTypesParam ? includeTypesParam.split(',') : ['system', 'audit', 'security', 'application'];
+    
     // Get logs based on type
     switch (logType) {
       case "all":
@@ -67,26 +71,58 @@ router.get("/api/logs", async (req, res) => {
           const limitNum = params.limit || 10;
           const offset = (pageNum - 1) * limitNum;
           
-          // Get all logs from all tables with UNION (using correct column names)
+          // Build dynamic UNION query based on included types
+          const queryParts: string[] = [];
+          const countParts: string[] = [];
+          
+          if (includedTypes.includes('system') || includedTypes.includes('application')) {
+            queryParts.push(`
+              SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, NULL as ip_address
+              FROM ${systemLogsTableName}
+            `);
+            countParts.push(`(SELECT COUNT(*) FROM ${systemLogsTableName})`);
+          }
+          
+          if (includedTypes.includes('security')) {
+            queryParts.push(`
+              SELECT 'security' as log_type, id, timestamp, CONCAT(event_type, ':', severity) as log_action, 'Security' as source, message as notes, details::text as details_json, username, 'security' as entity_type, CONCAT('SEC-', id) as entity_id, ip_address
+              FROM ${securityLogsTableName}
+            `);
+            countParts.push(`(SELECT COUNT(*) FROM ${securityLogsTableName})`);
+          }
+          
+          if (includedTypes.includes('audit')) {
+            queryParts.push(`
+              SELECT 'audit' as log_type, id, timestamp, action as log_action, entity_type as source, notes, '{}' as details_json, username, entity_type, entity_id, ip_address
+              FROM ${getTableName('audit_logs')}
+            `);
+            countParts.push(`(SELECT COUNT(*) FROM ${getTableName('audit_logs')})`);
+          }
+          
+          // Handle case where no types are selected
+          if (queryParts.length === 0) {
+            responseData = {
+              logs: [],
+              pagination: {
+                currentPage: page,
+                totalPages: 0,
+                totalItems: 0,
+                itemsPerPage: limit
+              }
+            };
+            return res.json(responseData);
+          }
+          
+          // Get all logs from selected tables with UNION
           const queryResult = await pool.query(`
-            SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, NULL as ip_address
-            FROM ${systemLogsTableName}
-            UNION ALL
-            SELECT 'security' as log_type, id, timestamp, CONCAT(event_type, ':', severity) as log_action, 'Security' as source, message as notes, details::text as details_json, username, 'security' as entity_type, CONCAT('SEC-', id) as entity_id, ip_address
-            FROM ${securityLogsTableName}
-            UNION ALL
-            SELECT 'audit' as log_type, id, timestamp, action as log_action, entity_type as source, notes, '{}' as details_json, username, entity_type, entity_id, ip_address
-            FROM ${getTableName('audit_logs')}
+            ${queryParts.join(' UNION ALL ')}
             ORDER BY ${sortBy === 'username' ? 'username' : 'timestamp'} ${sortOrder.toUpperCase()}
             LIMIT $1 OFFSET $2
           `, [limitNum, offset]);
           
-          // Get total count from all tables
+          // Get total count from selected tables
           const countResult = await pool.query(`
-            SELECT 
-              (SELECT COUNT(*) FROM ${systemLogsTableName}) + 
-              (SELECT COUNT(*) FROM ${securityLogsTableName}) + 
-              (SELECT COUNT(*) FROM ${getTableName('audit_logs')}) as total_count
+            SELECT ${countParts.join(' + ')} as total_count
           `);
           
           const totalCount = parseInt(countResult.rows[0].total_count);

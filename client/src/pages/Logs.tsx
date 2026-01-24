@@ -84,6 +84,19 @@ export default function Logs() {
   const [sortOrder, setSortOrder] = useState("desc");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
+  // Log type inclusion filters for "All Logs" tab
+  const [includeLogTypes, setIncludeLogTypes] = useState({
+    system: true,
+    audit: true,
+    security: true,
+    application: true
+  });
+  
+  const toggleLogType = (logType: keyof typeof includeLogTypes) => {
+    setIncludeLogTypes(prev => ({ ...prev, [logType]: !prev[logType] }));
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+  
   // Sorting state for Security Events tab
   const [securitySortKey, setSecuritySortKey] = useState<'timestamp' | 'username' | 'action' | 'details' | 'ipAddress'>('timestamp');
   const [securitySortDirection, setSecuritySortDirection] = useState<'asc' | 'desc'>('desc');
@@ -107,7 +120,7 @@ export default function Logs() {
 
   // Query for logs based on active tab
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['/api/logs', activeTab, currentPage, filters, sortBy, sortOrder],
+    queryKey: ['/api/logs', activeTab, currentPage, filters, sortBy, sortOrder, includeLogTypes],
     queryFn: async () => {
       // Add a specific type parameter for system and security logs
       const params = new URLSearchParams({
@@ -117,6 +130,15 @@ export default function Logs() {
         sortBy: sortBy,
         sortOrder: sortOrder
       } as any);
+      
+      // Add include log types for "all" tab
+      if (activeTab === 'all') {
+        const includedTypes = Object.entries(includeLogTypes)
+          .filter(([_, included]) => included)
+          .map(([type]) => type)
+          .join(',');
+        params.set('includeTypes', includedTypes);
+      }
       
       console.log(`Fetching ${activeTab} logs with params:`, params.toString());
       const res = await fetch(`/api/logs?${params.toString()}`);
@@ -538,11 +560,47 @@ export default function Logs() {
               </div>
             </CardTitle>
             <CardDescription>
+              {activeTab === "all" && "All system activity from audit, system, application, and security logs"}
               {activeTab === "audit" && "Tracking all changes to business data including merchants, transactions, and user actions"}
               {activeTab === "system" && "System-level operations, background processes, and error events"}
               {activeTab === "application" && "MMS application startup, database migration, file processing, and server lifecycle events"}
               {activeTab === "security" && "Authentication attempts, access control, and security-related events"}
             </CardDescription>
+            
+            {/* Log type filter badges for "All Logs" tab */}
+            {activeTab === "all" && (
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-sm text-muted-foreground mr-1">Include:</span>
+                <Badge 
+                  variant={includeLogTypes.system ? "default" : "outline"} 
+                  className={`cursor-pointer transition-colors ${includeLogTypes.system ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-blue-100'}`}
+                  onClick={() => toggleLogType('system')}
+                >
+                  System
+                </Badge>
+                <Badge 
+                  variant={includeLogTypes.audit ? "default" : "outline"} 
+                  className={`cursor-pointer transition-colors ${includeLogTypes.audit ? 'bg-amber-500 hover:bg-amber-600' : 'hover:bg-amber-100'}`}
+                  onClick={() => toggleLogType('audit')}
+                >
+                  Audit
+                </Badge>
+                <Badge 
+                  variant={includeLogTypes.security ? "default" : "outline"} 
+                  className={`cursor-pointer transition-colors ${includeLogTypes.security ? 'bg-green-500 hover:bg-green-600' : 'hover:bg-green-100'}`}
+                  onClick={() => toggleLogType('security')}
+                >
+                  Security
+                </Badge>
+                <Badge 
+                  variant={includeLogTypes.application ? "default" : "outline"} 
+                  className={`cursor-pointer transition-colors ${includeLogTypes.application ? 'bg-purple-500 hover:bg-purple-600' : 'hover:bg-purple-100'}`}
+                  onClick={() => toggleLogType('application')}
+                >
+                  Application
+                </Badge>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
