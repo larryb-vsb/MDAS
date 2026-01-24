@@ -3226,7 +3226,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[DASHBOARD-BUILD] Fetching DT records count for last 30 days...');
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0].replace(/-/g, '');
+      // Use YYYY-MM-DD format to match database date format
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      console.log(`[DASHBOARD-BUILD] 30 days ago date: ${thirtyDaysAgoStr}`);
       
       const records30DayQuery = `
         SELECT COUNT(*) as dt_count
