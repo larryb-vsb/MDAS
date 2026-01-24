@@ -791,3 +791,24 @@ CREATE TABLE IF NOT EXISTS email_outbox (
 CREATE INDEX IF NOT EXISTS email_outbox_status_idx ON email_outbox(status);
 CREATE INDEX IF NOT EXISTS email_outbox_created_at_idx ON email_outbox(created_at);
 CREATE INDEX IF NOT EXISTS email_outbox_provider_idx ON email_outbox(provider);
+
+-- =====================================================================
+-- SYSTEM MESSAGES TABLE
+-- =====================================================================
+-- Used for dashboard-wide system notifications/announcements
+
+CREATE TABLE IF NOT EXISTS system_messages (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT 'blue',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    show_popup BOOLEAN NOT NULL DEFAULT false,
+    created_by TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS system_messages_is_active_idx ON system_messages(is_active);
+
+COMMIT;
