@@ -3998,7 +3998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
         `;
         
-        // Net Deposits (BH records)
+        // Net Deposits (BH records - use batchDate not transactionDate)
         const bhTotalsQuery = `
           SELECT 
             COUNT(*) as batch_count,
@@ -4006,8 +4006,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           FROM ${tddfJsonbTableName}
           WHERE record_type = 'BH'
             AND (
-              (extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
-              OR (extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+              (extracted_fields->>'batchDate' >= $1 AND extracted_fields->>'batchDate' <= $2)
+              OR (extracted_fields->>'batchDate' >= $3 AND extracted_fields->>'batchDate' <= $4)
             )
         `;
         
