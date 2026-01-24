@@ -98,6 +98,7 @@ import {
   UserCircle,
   Edit,
   FileBarChart,
+  Store,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -156,7 +157,7 @@ const navItems = [
     href: "/exports",
   },
   {
-    icon: <Users className="h-5 w-5 text-gray-300" />,
+    icon: <Store className="h-5 w-5 text-emerald-500" />,
     label: "Merchants",
     href: "/merchants",
   },
