@@ -3774,17 +3774,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       const achTransactionsTableName = getTableName('api_achtransactions');
       
-      // Get last 3 dates for MCC daily activity
-      const last3DatesQuery = `
+      // Get last 4 dates for MCC daily activity
+      const last4DatesQuery = `
         SELECT DISTINCT extracted_fields->>'transactionDate' as transaction_date
         FROM ${tddfJsonbTableName}
         WHERE record_type IN ('DT', 'BH', 'P1')
           AND extracted_fields->>'transactionDate' IS NOT NULL
         ORDER BY transaction_date DESC
-        LIMIT 3
+        LIMIT 4
       `;
       
-      const datesResult = await pool.query(last3DatesQuery);
+      const datesResult = await pool.query(last4DatesQuery);
       const transactionDates = datesResult.rows.map((r: any) => r.transaction_date);
       
       // Get MCC daily activity (Batches=BH, Transactions=DT, Other=P1+etc)
@@ -3974,8 +3974,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const months: any[] = [];
       
-      // Get data for last 3 months
-      for (let i = 0; i < 3; i++) {
+      // Get data for last 4 months
+      for (let i = 0; i < 4; i++) {
         const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
         const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
