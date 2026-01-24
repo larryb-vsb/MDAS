@@ -12,10 +12,7 @@ import {
 } from '@/components/ui/tooltip';
 import { 
   Users, 
-  Calendar,
   DollarSign,
-  Activity,
-  BarChart3,
   Building2,
   Terminal,
   CreditCard,
@@ -32,8 +29,7 @@ import {
   Play,
   Pause,
   AlertTriangle,
-  CheckCircle2,
-  ShoppingCart
+  CheckCircle2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -48,36 +44,10 @@ interface DashboardMetrics {
     ach: number;
     mcc: number;
   };
-  newMerchants30Day: {
-    total: number;
-    ach: number;
-    mcc: number;
-  };
   monthlyProcessingAmount: {
     total: string;
     ach: string;
     mcc: string;
-  };
-  todayTransactions: {
-    total: number;
-    ach: number;
-    mcc: number;
-  };
-  avgTransValue: {
-    total: number;
-    ach: number;
-    mcc: number;
-  };
-  last3DaysProcessing: {
-    dateRange: string;
-    authCount: string;
-    authAmount: string;
-    purchaseCount: string;
-    purchaseAmount: string;
-  };
-  tddfMerchantsToday: {
-    date: string;
-    count: number;
   };
   totalRecords: {
     total: string;
@@ -638,12 +608,7 @@ export default function HomeDashboard() {
   // Fallback data while loading
   const fallbackMetrics: DashboardMetrics = {
     merchants: { total: 0, ach: 0, mcc: 0 },
-    newMerchants30Day: { total: 0, ach: 0, mcc: 0 },
     monthlyProcessingAmount: { total: '$0.00', ach: '$0.00', mcc: '$0.00' },
-    todayTransactions: { total: 0, ach: 0, mcc: 0 },
-    avgTransValue: { total: 0, ach: 0, mcc: 0 },
-    last3DaysProcessing: { dateRange: 'No data', authCount: '0', authAmount: '$0.00', purchaseCount: '0', purchaseAmount: '$0.00' },
-    tddfMerchantsToday: { date: '', count: 0 },
     totalRecords: { total: '0', ach: '0', mcc: '0' },
     totalTerminals: { total: 0, ach: 0, mcc: 0 }
   };
@@ -780,20 +745,6 @@ export default function HomeDashboard() {
                 isClickable={true}
               />
 
-              {/* New Merchants (30 day) */}
-              <ClickableMetricCard
-                title="New Merchant (30day)"
-                total={metrics?.newMerchants30Day?.total ?? 0}
-                ach={metrics?.newMerchants30Day?.ach ?? 0}
-                mcc={metrics?.newMerchants30Day?.mcc ?? 0}
-                icon={<Calendar className="h-4 w-4" />}
-                achTooltip="New ACH merchants (last 30 days)"
-                mccTooltip="New MCC merchants (last 30 days)"
-                achLink="/merchants?tab=ach"
-                mccLink="/merchants?tab=mcc"
-                isClickable={true}
-              />
-
               {/* Monthly Processing Amount - Links to Transactions */}
               <ClickableMetricCard
                 title="Monthly Processing Amount"
@@ -807,17 +758,6 @@ export default function HomeDashboard() {
                 achLink="/transactions"
                 mccLink="/tddf-json"
               />
-
-              {/* Today's Transactions Processed */}
-              <ClickableMetricCard
-                title="Last Transaction Processed"
-                total={metrics?.todayTransactions?.total ?? 0}
-                ach={metrics?.todayTransactions?.ach ?? 0}
-                mcc={metrics?.todayTransactions?.mcc ?? 0}
-                icon={<Activity className="h-4 w-4" />}
-                achTooltip="ACH transactions"
-                mccTooltip="MCC transactions"
-              />
             </div>
           )}
         </div>
@@ -826,71 +766,6 @@ export default function HomeDashboard() {
         <div>
           <h2 className="text-xl font-semibold mb-4">Additional Metrics</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Average Transaction Value */}
-            <ClickableMetricCard
-              title="Avg Trans Value"
-              total={metrics?.avgTransValue?.total ?? 0}
-              ach={metrics?.avgTransValue?.ach ?? 0}
-              mcc={metrics?.avgTransValue?.mcc ?? 0}
-              icon={<BarChart3 className="h-4 w-4" />}
-              achTooltip="ACH average transaction value"
-              mccTooltip="MCC average transaction value"
-            />
-
-            {/* Last 3 Days Processing */}
-            <Card className="bg-white hover:bg-slate-50/50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Last 3 Days Processing
-                  </span>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-xs text-muted-foreground mb-2">
-                  {metrics?.last3DaysProcessing?.dateRange ?? 'No data'}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-lg font-bold text-green-600">
-                      {metrics?.last3DaysProcessing?.authAmount ?? '$0.00'}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Authorizations ({metrics?.last3DaysProcessing?.authCount ?? '0'})
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-blue-600">
-                      {metrics?.last3DaysProcessing?.purchaseAmount ?? '$0.00'}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Purchases ({metrics?.last3DaysProcessing?.purchaseCount ?? '0'})
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* TDDF Merchants Today */}
-            <Card className="bg-white hover:bg-slate-50/50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    TDDF Merchants Today
-                  </span>
-                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold">
-                  {metrics?.tddfMerchantsToday?.count ?? 0}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Active merchants with transactions
-                  {metrics?.tddfMerchantsToday?.date && (
-                    <span className="ml-1">- {metrics.tddfMerchantsToday.date}</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Total Records */}
             <ClickableMetricCard
               title="Records Processed Last 30 Days"
@@ -915,7 +790,7 @@ export default function HomeDashboard() {
               terminalLink="/terminals"
             />
 
-            {/* Placeholder for additional metric if needed */}
+            {/* System Health */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
