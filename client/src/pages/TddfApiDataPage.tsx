@@ -2473,8 +2473,8 @@ export default function TddfApiDataPage() {
   // Cardholder Account search state (shared with RawDataTab)
   const [cardholderAccount, setCardholderAccount] = useState('');
   
-  // Date range state for Raw Data tab (default 1 day/today)
-  const [rawDataDateRange, setRawDataDateRange] = useState('1');
+  // Date range state for Raw Data tab (default 3 days to include recent data)
+  const [rawDataDateRange, setRawDataDateRange] = useState('3');
   
   // Separate pagination state for uploaded files section
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
@@ -3661,7 +3661,7 @@ export default function TddfApiDataPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && cardSearchTerm.trim()) {
                       setCardholderAccount(cardSearchTerm.trim());
-                      setRawDataDateRange('1');
+                      setRawDataDateRange('3');
                       setActiveTab('raw-data');
                     }
                   }}
@@ -3673,7 +3673,7 @@ export default function TddfApiDataPage() {
                 onClick={() => {
                   if (cardSearchTerm.trim()) {
                     setCardholderAccount(cardSearchTerm.trim());
-                    setRawDataDateRange('1');
+                    setRawDataDateRange('3');
                     setActiveTab('raw-data');
                   }
                 }}
