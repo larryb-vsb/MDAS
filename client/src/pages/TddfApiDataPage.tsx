@@ -3655,7 +3655,7 @@ export default function TddfApiDataPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && cardSearchTerm.trim()) {
                       setCardholderAccount(cardSearchTerm.trim());
-                      setRawDataDateRange('2');
+                      setRawDataDateRange('1');
                       setActiveTab('raw-data');
                     }
                   }}
@@ -3667,7 +3667,7 @@ export default function TddfApiDataPage() {
                 onClick={() => {
                   if (cardSearchTerm.trim()) {
                     setCardholderAccount(cardSearchTerm.trim());
-                    setRawDataDateRange('2');
+                    setRawDataDateRange('1');
                     setActiveTab('raw-data');
                   }
                 }}
@@ -3678,6 +3678,19 @@ export default function TddfApiDataPage() {
                 <CreditCard className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Search Cards</span>
               </Button>
+              {cardSearchTerm && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCardSearchTerm('');
+                    setCardholderAccount('');
+                  }}
+                  data-testid="button-card-search-cancel"
+                >
+                  <X className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Cancel</span>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
