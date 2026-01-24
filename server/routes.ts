@@ -3123,6 +3123,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Helper function to get last 3 business days processing totals (authorizations + purchases)
+  async function getLast3DaysProcessing() {
+    const jsonbTableName = getTableName('tddf_jsonb');
+    
+    try {
+      // Get the last 3 days with transaction data (business days that have records)
+      const last3DaysQuery = `
+        SELECT DISTINCT (extracted_fields->>'transactionDate')::text as trans_date
+        FROM ${jsonbTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+        ORDER BY trans_date DESC
+        LIMIT 3
+      `;
+      const last3DaysResult = await pool.query(last3DaysQuery);
+      const last3Dates = last3DaysResult.rows.map(r => r.trans_date);
+      
+      if (last3Dates.length === 0) {
+        console.log('[DASHBOARD-BUILD] No transaction dates found for last 3 days');
+        return {
+          dates: [],
+          dateRange: 'No data',
+          authCount: 0,
+          authAmount: 0,
+          purchaseCount: 0,
+          purchaseAmount: 0
+        };
+      }
+      
+      console.log(`[DASHBOARD-BUILD] Last 3 transaction dates: ${last3Dates.join(', ')}`);
+      
+      // Query aggregated totals for these 3 dates
+      const totalsQuery = `
+        SELECT 
+          COUNT(*) as auth_count,
+          COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as auth_amount,
+          COALESCE(SUM(CASE 
+            WHEN (extracted_fields->>'transactionCode')::text LIKE '01%' 
+            THEN (extracted_fields->>'transactionAmount')::numeric 
+            ELSE 0 
+          END), 0) as purchase_amount,
+          COUNT(CASE 
+            WHEN (extracted_fields->>'transactionCode')::text LIKE '01%' 
+            THEN 1 
+          END) as purchase_count
+        FROM ${jsonbTableName}
+        WHERE record_type = 'DT'
+          AND (extracted_fields->>'transactionDate')::text = ANY($1)
+      `;
+      const totalsResult = await pool.query(totalsQuery, [last3Dates]);
+      const totals = totalsResult.rows[0] || {};
+      
+      // Format date range for display
+      const formatDate = (dateStr: string) => {
+        // Handle both YYYY-MM-DD and YYYYMMDD formats
+        const cleanDate = dateStr.includes('-') ? dateStr : 
+          `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+        const d = new Date(cleanDate + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      };
+      
+      const dateRange = last3Dates.length > 1 
+        ? `${formatDate(last3Dates[last3Dates.length - 1])} - ${formatDate(last3Dates[0])}`
+        : formatDate(last3Dates[0]);
+      
+      const result = {
+        dates: last3Dates,
+        dateRange,
+        authCount: parseInt(totals.auth_count) || 0,
+        authAmount: parseFloat(totals.auth_amount) || 0,
+        purchaseCount: parseInt(totals.purchase_count) || 0,
+        purchaseAmount: parseFloat(totals.purchase_amount) || 0
+      };
+      
+      console.log(`[DASHBOARD-BUILD] Last 3 days processing: ${result.authCount} auths ($${result.authAmount.toFixed(2)}), ${result.purchaseCount} purchases ($${result.purchaseAmount.toFixed(2)})`);
+      
+      return result;
+    } catch (error: unknown) {
+      console.error('[DASHBOARD-BUILD] ⚠️ Last 3 days processing query failed:', error instanceof Error ? error.message : String(error));
+      return {
+        dates: [],
+        dateRange: 'Error',
+        authCount: 0,
+        authAmount: 0,
+        purchaseCount: 0,
+        purchaseAmount: 0
+      };
+    }
+  }
+
+  // Helper function to get unique TDDF merchant count for a specific date
+  async function getTddfMerchantsForDate(targetDate?: Date) {
+    const date = targetDate || new Date();
+    // Support both YYYYMMDD and YYYY-MM-DD formats
+    const isoDateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const compactDateStr = isoDateStr.replace(/-/g, ''); // YYYYMMDD
+    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const jsonbTableName = getTableName('tddf_jsonb');
+    
+    try {
+      // Count unique merchants that had DT transactions on this date
+      // Handle both YYYYMMDD and YYYY-MM-DD date formats in the data
+      const merchantCountQuery = `
+        SELECT COUNT(DISTINCT extracted_fields->>'merchantAccountNumber') as merchant_count
+        FROM ${jsonbTableName}
+        WHERE record_type = 'DT'
+          AND ((extracted_fields->>'transactionDate')::text = $1 OR (extracted_fields->>'transactionDate')::text = $2)
+      `;
+      const result = await pool.query(merchantCountQuery, [isoDateStr, compactDateStr]);
+      const merchantCount = parseInt(result.rows[0]?.merchant_count || '0');
+      
+      console.log(`[DASHBOARD-BUILD] TDDF Merchants for ${formattedDate}: ${merchantCount}`);
+      
+      return {
+        date: formattedDate,
+        dateStr: isoDateStr,
+        count: merchantCount
+      };
+    } catch (error: unknown) {
+      console.error('[DASHBOARD-BUILD] ⚠️ TDDF merchants query failed:', error instanceof Error ? error.message : String(error));
+      return {
+        date: formattedDate,
+        dateStr: isoDateStr,
+        count: 0
+      };
+    }
+  }
+
   // Build dashboard cache function
   async function buildDashboardCache() {
     const startTime = Date.now();
@@ -3218,25 +3346,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const todayCountResult = await pool.query(todayCountQuery);
       const todayTddfCount = parseInt(todayCountResult.rows[0]?.today_dt_count || '0');
       
-      // Get actual daily processing totals for today
-      console.log('[DASHBOARD-BUILD] Fetching actual daily processing totals...');
-      const dailyTotals = await getDailyProcessingTotals();
+      // Get last 3 days processing totals (authorizations + purchases)
+      console.log('[DASHBOARD-BUILD] Fetching last 3 days processing totals...');
+      const last3DaysTotals = await getLast3DaysProcessing();
+      
+      // Get TDDF merchants count for today (most recent transaction date)
+      console.log('[DASHBOARD-BUILD] Fetching TDDF merchants for today...');
+      const tddfMerchantsToday = await getTddfMerchantsForDate();
       
       // Get DT (transaction) records count for last 30 days
       console.log('[DASHBOARD-BUILD] Fetching DT records count for last 30 days...');
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      // Use YYYY-MM-DD format to match database date format
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-      console.log(`[DASHBOARD-BUILD] 30 days ago date: ${thirtyDaysAgoStr}`);
+      // Use YYYYMMDD format to match TDDF date format in database
+      const isoThirtyDaysAgo = thirtyDaysAgo.toISOString().split('T')[0];
+      const thirtyDaysAgoCompact = isoThirtyDaysAgo.replace(/-/g, '');
+      console.log(`[DASHBOARD-BUILD] 30 days ago date: ${thirtyDaysAgoCompact} (or ${isoThirtyDaysAgo})`);
       
+      // Handle both YYYYMMDD and YYYY-MM-DD date formats in the data
       const records30DayQuery = `
         SELECT COUNT(*) as dt_count
         FROM ${getTableName('tddf_jsonb')}
         WHERE record_type = 'DT'
-          AND (extracted_fields->>'transactionDate')::text >= $1
+          AND ((extracted_fields->>'transactionDate')::text >= $1 OR (extracted_fields->>'transactionDate')::text >= $2)
       `;
-      const records30DayResult = await pool.query(records30DayQuery, [thirtyDaysAgoStr]);
+      const records30DayResult = await pool.query(records30DayQuery, [thirtyDaysAgoCompact, isoThirtyDaysAgo]);
       const mccRecords30Day = parseInt(records30DayResult.rows[0]?.dt_count || '0');
       console.log(`[DASHBOARD-BUILD] DT records last 30 days: ${mccRecords30Day}`);
       
@@ -3267,17 +3401,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ach: achTransactions > 0 ? Math.round(achTotalAmount / achTransactions) : 0,
           mcc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
         },
-        dailyProcessingAmount: {
-          date: dailyTotals.date,
-          total: `$${(dailyTotals.achAmount + dailyTotals.mccAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          ach: `$${dailyTotals.achAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mcc: `$${dailyTotals.mccAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        last3DaysProcessing: {
+          dateRange: last3DaysTotals.dateRange,
+          authCount: last3DaysTotals.authCount.toLocaleString(),
+          authAmount: `$${last3DaysTotals.authAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          purchaseCount: last3DaysTotals.purchaseCount.toLocaleString(),
+          purchaseAmount: `$${last3DaysTotals.purchaseAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
-        todayTotalTransaction: {
-          date: dailyTotals.date,
-          total: `$${(dailyTotals.achAmount + dailyTotals.mccAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          ach: `$${dailyTotals.achAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mcc: `$${dailyTotals.mccAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        tddfMerchantsToday: {
+          date: tddfMerchantsToday.date,
+          count: tddfMerchantsToday.count
         },
         totalRecords: {
           total: mccRecords30Day.toLocaleString(),

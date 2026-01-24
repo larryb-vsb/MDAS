@@ -58,6 +58,15 @@ The frontend is built with React and TypeScript, utilizing Radix UI primitives a
 
 ### Recent Changes (January 2026)
 
+**Version 2.0.11 (2026-01-24)**
+- Dashboard metric improvements:
+  - Replaced redundant "Daily Processing" and "Today's Processing" cards with "Last 3 Days Processing" showing authorizations and purchases for the last 3 transaction dates
+  - Added "TDDF Merchants Today" metric showing unique merchant count with transactions for current day
+  - Updated "Total Records" to "Records Processed Last 30 Days" showing 30-day DT record count
+- New helper functions: `getLast3DaysProcessing()` and `getTddfMerchantsForDate()` 
+- Fixed date format handling to support both YYYYMMDD and YYYY-MM-DD formats in transaction date queries
+- Updated TypeScript interfaces for dashboard metrics
+
 **Version 2.0.10 (2026-01-24)**
 - Created dedicated Email Settings page under System menu with three tabs:
   - Settings: Email service configuration/status display, connection testing, send test emails and alerts
