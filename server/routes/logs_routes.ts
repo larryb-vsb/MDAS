@@ -55,8 +55,11 @@ router.get("/api/logs", async (req, res) => {
     };
     
     // Get log type inclusion filter (for "all" tab)
-    const includeTypesParam = req.query.includeTypes as string;
-    const includedTypes = includeTypesParam ? includeTypesParam.split(',') : ['system', 'audit', 'security', 'application'];
+    const includeTypesParam = req.query.includeTypes as string | undefined;
+    // Only default to all types if param is not provided at all; empty string means no types selected
+    const includedTypes = includeTypesParam === undefined 
+      ? ['system', 'audit', 'security', 'application'] 
+      : (includeTypesParam === '' ? [] : includeTypesParam.split(','));
     
     // Get logs based on type
     switch (logType) {
