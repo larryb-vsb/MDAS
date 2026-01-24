@@ -181,7 +181,7 @@ router.get("/logs", async (req, res) => {
 
 router.post("/send", async (req, res) => {
   try {
-    const { to, cc, bcc, subject, body, isHtml, importance } = req.body;
+    const { to, subject, body, isHtml, provider } = req.body;
 
     if (!to || !Array.isArray(to) || to.length === 0) {
       return res.status(400).json({ 
@@ -197,32 +197,27 @@ router.post("/send", async (req, res) => {
       });
     }
 
-    const recipients = to.map((email: string) => ({ email }));
-    const ccRecipients = cc?.map((email: string) => ({ email }));
-    const bccRecipients = bcc?.map((email: string) => ({ email }));
-
-    const result = await graphEmailService.sendEmail({
-      to: recipients,
-      cc: ccRecipients,
-      bcc: bccRecipients,
-      subject,
-      body,
-      isHtml: isHtml !== false,
-      importance: importance || 'normal'
-    });
-
-    if (result.success) {
-      logger.info(`[EMAIL-ROUTES] Email sent successfully to ${to.join(', ')}`);
-      res.json(result);
-    } else {
-      logger.error(`[EMAIL-ROUTES] Email send failed: ${result.error}`);
-      res.status(500).json(result);
+    const { pool } = await import("../db");
+    const { getTableName } = await import("../table-config");
+    const tableName = getTableName('email_outbox');
+    
+    // Queue email to outbox for each recipient
+    for (const email of to) {
+      await pool.query(`
+        INSERT INTO ${tableName} (recipient_email, subject, body, status, provider, created_at)
+        VALUES ($1, $2, $3, 'queued', $4, NOW())
+      `, [email, subject, body, provider || 'graph']);
     }
+    
+    addEmailLog('info', `Email queued for ${to.length} recipient(s)`, `Subject: ${subject}`);
+    logger.info(`[EMAIL-ROUTES] Email queued to outbox for ${to.join(', ')}`);
+    res.json({ success: true, message: `Email queued for ${to.length} recipient(s)` });
   } catch (error) {
-    logger.error('[EMAIL-ROUTES] Send email failed:', error);
+    logger.error('[EMAIL-ROUTES] Queue email failed:', error);
+    addEmailLog('error', 'Failed to queue email', String(error));
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to send email' 
+      error: 'Failed to queue email' 
     });
   }
 });
@@ -245,29 +240,33 @@ router.post("/send-alert", async (req, res) => {
       });
     }
 
-    const validSeverities = ['info', 'warning', 'critical'];
+    const validSeverities = ['info', 'warning', 'error', 'critical'];
     const alertSeverity = validSeverities.includes(severity) ? severity : 'info';
 
-    const result = await graphEmailService.sendAlertNotification(
-      recipients,
-      alertType,
-      alertTitle,
-      alertDetails,
-      alertSeverity
-    );
-
-    if (result.success) {
-      logger.info(`[EMAIL-ROUTES] Alert notification sent to ${recipients.join(', ')}`);
-      res.json(result);
-    } else {
-      logger.error(`[EMAIL-ROUTES] Alert notification failed: ${result.error}`);
-      res.status(500).json(result);
+    const { pool } = await import("../db");
+    const { getTableName } = await import("../table-config");
+    const tableName = getTableName('email_outbox');
+    
+    const subject = `[${alertSeverity.toUpperCase()}] ${alertType}: ${alertTitle}`;
+    const body = `Alert Type: ${alertType}\nSeverity: ${alertSeverity}\nTitle: ${alertTitle}\n\nDetails:\n${alertDetails}`;
+    
+    // Queue alert to outbox for each recipient
+    for (const email of recipients) {
+      await pool.query(`
+        INSERT INTO ${tableName} (recipient_email, subject, body, status, provider, created_at)
+        VALUES ($1, $2, $3, 'queued', 'graph', NOW())
+      `, [email, subject, body]);
     }
+    
+    addEmailLog('info', `Alert queued for ${recipients.length} recipient(s)`, `Type: ${alertType}, Severity: ${alertSeverity}`);
+    logger.info(`[EMAIL-ROUTES] Alert notification queued for ${recipients.join(', ')}`);
+    res.json({ success: true, message: `Alert queued for ${recipients.length} recipient(s)` });
   } catch (error) {
-    logger.error('[EMAIL-ROUTES] Send alert failed:', error);
+    logger.error('[EMAIL-ROUTES] Queue alert failed:', error);
+    addEmailLog('error', 'Failed to queue alert', String(error));
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to send alert notification' 
+      error: 'Failed to queue alert notification' 
     });
   }
 });
