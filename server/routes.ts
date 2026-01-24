@@ -3669,6 +3669,300 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Status check failed' });
     }
   });
+
+  // ==================== NEW DASHBOARD WIREFRAME ENDPOINTS ====================
+  
+  // Get Last 3 Days MCC and ACH processing data for dashboard
+  app.get("/api/dashboard/last-three-days", isAuthenticated, async (req, res) => {
+    try {
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      
+      // Get the last 3 transaction dates from TDDF data
+      const last3DatesQuery = `
+        SELECT DISTINCT extracted_fields->>'transactionDate' as transaction_date
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT' 
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+        ORDER BY transaction_date DESC
+        LIMIT 3
+      `;
+      
+      const datesResult = await pool.query(last3DatesQuery);
+      const transactionDates = datesResult.rows.map((r: any) => r.transaction_date);
+      
+      // Query MCC (TDDF) data for each date
+      const mccDataPromises = transactionDates.map(async (date: string) => {
+        const mccQuery = `
+          SELECT 
+            COUNT(*) as auth_count,
+            COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as auth_amount,
+            COALESCE(SUM(CASE 
+              WHEN (extracted_fields->>'transactionCode')::text LIKE '01%' 
+              THEN (extracted_fields->>'transactionAmount')::numeric 
+              ELSE 0 
+            END), 0) as purchase_amount
+          FROM ${tddfJsonbTableName}
+          WHERE record_type = 'DT'
+            AND extracted_fields->>'transactionDate' = $1
+        `;
+        const result = await pool.query(mccQuery, [date]);
+        const row = result.rows[0];
+        return {
+          date,
+          authCount: parseInt(row.auth_count) || 0,
+          authAmount: parseFloat(row.auth_amount) || 0,
+          purchaseAmount: parseFloat(row.purchase_amount) || 0
+        };
+      });
+      
+      // Get the last 3 ACH batch dates
+      const last3AchDatesQuery = `
+        SELECT DISTINCT DATE(transaction_date) as batch_date
+        FROM ${achTransactionsTableName}
+        WHERE transaction_date IS NOT NULL
+        ORDER BY batch_date DESC
+        LIMIT 3
+      `;
+      
+      let achDates: string[] = [];
+      try {
+        const achDatesResult = await pool.query(last3AchDatesQuery);
+        achDates = achDatesResult.rows.map((r: any) => r.batch_date);
+      } catch (e) {
+        console.log('[DASHBOARD-LAST3] ACH table may not exist, skipping ACH data');
+      }
+      
+      // Query ACH data for each date
+      const achDataPromises = achDates.map(async (date: string) => {
+        const achQuery = `
+          SELECT 
+            COUNT(*) as batch_count,
+            COALESCE(SUM(amount::numeric), 0) as batch_amount
+          FROM ${achTransactionsTableName}
+          WHERE DATE(transaction_date) = $1
+        `;
+        const result = await pool.query(achQuery, [date]);
+        const row = result.rows[0];
+        return {
+          date,
+          batchCount: parseInt(row.batch_count) || 0,
+          batchAmount: parseFloat(row.batch_amount) || 0
+        };
+      });
+      
+      const [mccData, achData] = await Promise.all([
+        Promise.all(mccDataPromises),
+        Promise.all(achDataPromises)
+      ]);
+      
+      res.json({
+        mcc: mccData,
+        ach: achData,
+        generatedAt: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('[DASHBOARD-LAST3] Error:', error.message);
+      res.status(500).json({ error: 'Failed to fetch last three days data' });
+    }
+  });
+
+  // Get daily activity breakdown for MCC and ACH
+  app.get("/api/dashboard/daily-activity", isAuthenticated, async (req, res) => {
+    try {
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      
+      // Get last 3 dates for MCC daily activity
+      const last3DatesQuery = `
+        SELECT DISTINCT extracted_fields->>'transactionDate' as transaction_date
+        FROM ${tddfJsonbTableName}
+        WHERE record_type IN ('DT', 'BH', 'P1')
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+        ORDER BY transaction_date DESC
+        LIMIT 3
+      `;
+      
+      const datesResult = await pool.query(last3DatesQuery);
+      const transactionDates = datesResult.rows.map((r: any) => r.transaction_date);
+      
+      // Get MCC daily activity (Batches=BH, Transactions=DT, Other=P1+etc)
+      const mccActivityPromises = transactionDates.map(async (date: string) => {
+        const activityQuery = `
+          SELECT 
+            record_type,
+            COUNT(*) as count
+          FROM ${tddfJsonbTableName}
+          WHERE extracted_fields->>'transactionDate' = $1
+          GROUP BY record_type
+        `;
+        const result = await pool.query(activityQuery, [date]);
+        
+        let batchCount = 0;
+        let transactionCount = 0;
+        let otherCount = 0;
+        
+        result.rows.forEach((row: any) => {
+          if (row.record_type === 'BH') {
+            batchCount = parseInt(row.count) || 0;
+          } else if (row.record_type === 'DT') {
+            transactionCount = parseInt(row.count) || 0;
+          } else {
+            otherCount += parseInt(row.count) || 0;
+          }
+        });
+        
+        return {
+          date,
+          batchCount,
+          transactionCount,
+          otherCount
+        };
+      });
+      
+      // Get ACH batch activity
+      let achActivityData: any[] = [];
+      try {
+        const last3AchDatesQuery = `
+          SELECT DISTINCT DATE(transaction_date) as batch_date
+          FROM ${achTransactionsTableName}
+          WHERE transaction_date IS NOT NULL
+          ORDER BY batch_date DESC
+          LIMIT 3
+        `;
+        const achDatesResult = await pool.query(last3AchDatesQuery);
+        const achDates = achDatesResult.rows.map((r: any) => r.batch_date);
+        
+        const achActivityPromises = achDates.map(async (date: string) => {
+          const achQuery = `
+            SELECT COUNT(*) as batch_count
+            FROM ${achTransactionsTableName}
+            WHERE DATE(transaction_date) = $1
+          `;
+          const result = await pool.query(achQuery, [date]);
+          return {
+            date,
+            batchCount: parseInt(result.rows[0]?.batch_count) || 0
+          };
+        });
+        
+        achActivityData = await Promise.all(achActivityPromises);
+      } catch (e) {
+        console.log('[DASHBOARD-ACTIVITY] ACH table may not exist, skipping');
+      }
+      
+      const mccActivityData = await Promise.all(mccActivityPromises);
+      
+      res.json({
+        mccActivity: mccActivityData,
+        achActivity: achActivityData,
+        generatedAt: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('[DASHBOARD-ACTIVITY] Error:', error.message);
+      res.status(500).json({ error: 'Failed to fetch daily activity data' });
+    }
+  });
+
+  // Get last month's days data for MCC and ACH (for monthly comparison)
+  app.get("/api/dashboard/last-month-days", isAuthenticated, async (req, res) => {
+    try {
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      
+      // Get current month start and end
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      // Format dates for query (YYYY-MM-DD)
+      const startDate = currentMonthStart.toISOString().split('T')[0];
+      const endDate = currentMonthEnd.toISOString().split('T')[0];
+      
+      // Also handle YYYYMMDD format
+      const startDateYMD = startDate.replace(/-/g, '');
+      const endDateYMD = endDate.replace(/-/g, '');
+      
+      // Get MCC data for current month - support both date formats
+      const mccMonthQuery = `
+        SELECT 
+          COALESCE(
+            CASE 
+              WHEN extracted_fields->>'transactionDate' ~ '^\\d{4}-\\d{2}-\\d{2}$' 
+              THEN extracted_fields->>'transactionDate'
+              WHEN extracted_fields->>'transactionDate' ~ '^\\d{8}$'
+              THEN CONCAT(
+                SUBSTRING(extracted_fields->>'transactionDate', 1, 4), '-',
+                SUBSTRING(extracted_fields->>'transactionDate', 5, 2), '-',
+                SUBSTRING(extracted_fields->>'transactionDate', 7, 2)
+              )
+            END
+          , '1970-01-01') as normalized_date,
+          COUNT(*) as auth_count,
+          COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as auth_amount,
+          COALESCE(SUM(CASE 
+            WHEN (extracted_fields->>'transactionCode')::text LIKE '01%' 
+            THEN (extracted_fields->>'transactionAmount')::numeric 
+            ELSE 0 
+          END), 0) as purchase_amount
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT'
+          AND (
+            (extracted_fields->>'transactionDate' >= $1 AND extracted_fields->>'transactionDate' <= $2)
+            OR (extracted_fields->>'transactionDate' >= $3 AND extracted_fields->>'transactionDate' <= $4)
+          )
+        GROUP BY normalized_date
+        ORDER BY normalized_date DESC
+        LIMIT 31
+      `;
+      
+      const mccResult = await pool.query(mccMonthQuery, [startDate, endDate, startDateYMD, endDateYMD]);
+      
+      const mccMonthData = mccResult.rows.map((row: any) => ({
+        date: row.normalized_date,
+        authCount: parseInt(row.auth_count) || 0,
+        authAmount: parseFloat(row.auth_amount) || 0,
+        purchaseAmount: parseFloat(row.purchase_amount) || 0
+      }));
+      
+      // Get ACH data for current month
+      let achMonthData: any[] = [];
+      try {
+        const achMonthQuery = `
+          SELECT 
+            DATE(transaction_date) as batch_date,
+            COUNT(*) as batch_count,
+            COALESCE(SUM(amount::numeric), 0) as batch_amount
+          FROM ${achTransactionsTableName}
+          WHERE transaction_date >= $1 AND transaction_date <= $2
+          GROUP BY batch_date
+          ORDER BY batch_date DESC
+          LIMIT 31
+        `;
+        const achResult = await pool.query(achMonthQuery, [startDate, endDate]);
+        achMonthData = achResult.rows.map((row: any) => ({
+          date: row.batch_date,
+          batchCount: parseInt(row.batch_count) || 0,
+          batchAmount: parseFloat(row.batch_amount) || 0
+        }));
+      } catch (e) {
+        console.log('[DASHBOARD-MONTH] ACH table may not exist, skipping');
+      }
+      
+      res.json({
+        mcc: mccMonthData,
+        ach: achMonthData,
+        month: now.toLocaleString('default', { month: 'long', year: 'numeric' }),
+        generatedAt: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('[DASHBOARD-MONTH] Error:', error.message);
+      res.status(500).json({ error: 'Failed to fetch last month days data' });
+    }
+  });
   
   // Get analytics data - Real operational data from ACH and TDDF systems
   app.get("/api/analytics", async (req, res) => {
