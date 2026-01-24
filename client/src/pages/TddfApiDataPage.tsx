@@ -1592,6 +1592,12 @@ function RawDataTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No Range</SelectItem>
+              <SelectItem value="1">Today (1 Day)</SelectItem>
+              <SelectItem value="2">Last 2 Days</SelectItem>
+              <SelectItem value="3">Last 3 Days</SelectItem>
+              <SelectItem value="4">Last 4 Days</SelectItem>
+              <SelectItem value="5">Last 5 Days</SelectItem>
+              <SelectItem value="6">Last 6 Days</SelectItem>
               <SelectItem value="7">Last 1 Week</SelectItem>
               <SelectItem value="14">Last 2 Weeks</SelectItem>
               <SelectItem value="21">Last 3 Weeks</SelectItem>
