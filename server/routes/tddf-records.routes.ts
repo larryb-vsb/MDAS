@@ -3065,16 +3065,28 @@ export function registerTddfRecordsRoutes(app: Express) {
         groupNumber,
         terminalId,
         batchDate,
-        cardType
+        cardType,
+        recordType // NEW: Support filtering by record type (DT, BH, all)
       } = req.query;
       
-      console.log('[DT-LATEST-DEBUG] Query params:', { batchDate, merchantAccount, cardType, limit, offset });
+      console.log('[DT-LATEST-DEBUG] Query params:', { batchDate, merchantAccount, cardType, recordType, limit, offset });
       
       // Use MASTER table (dev_tddf_jsonb) with deduplicated data instead of TRANSITORY table
       const jsonbTableName = getTableName('tddf_jsonb');
       
       // Build WHERE clause conditions
-      const conditions: string[] = ["r.record_type = 'DT'"];
+      // Support recordType filter: 'DT' (default), 'BH', or 'all' (returns both DT and BH)
+      const conditions: string[] = [];
+      if (!recordType || recordType === 'DT') {
+        conditions.push("r.record_type = 'DT'");
+      } else if (recordType === 'BH') {
+        conditions.push("r.record_type = 'BH'");
+      } else if (recordType === 'all') {
+        conditions.push("r.record_type IN ('DT', 'BH')");
+      } else {
+        // Support other specific record types
+        conditions.push(`r.record_type = '${String(recordType).replace(/'/g, "''")}'`);
+      }
       const params: any[] = [];
       let paramIndex = 1;
       

@@ -1426,14 +1426,23 @@ function RawDataTab({
         params.append('limit', '500'); // Higher limit per chunk
         params.append('offset', '0');
         
-        // Use the faster dt-latest endpoint when searching by cardholder account (DT records only)
-        // This endpoint uses the indexed transactionDate field for single-day queries
-        const useOptimizedEndpoint = cardholderAccount.trim() && chunk.from === chunk.to;
+        // ALWAYS use the faster dt-latest endpoint for single-day queries (like Transactions page)
+        // This endpoint uses the indexed pre-cache table for fast results
+        const isSingleDay = chunk.from === chunk.to;
+        const useOptimizedEndpoint = isSingleDay; // Always use fast path for single day
         
         if (useOptimizedEndpoint) {
           // Fast path: use dt-latest endpoint with batchDate (single date)
           params.append('batchDate', chunk.from);
-          params.append('cardNumber', cardholderAccount.trim());
+          if (cardholderAccount.trim()) {
+            params.append('cardNumber', cardholderAccount.trim());
+          }
+          // Pass recordType to dt-latest: 'all' returns both BH and DT, otherwise use selected type
+          if (recordType === 'all' || !recordType) {
+            params.append('recordType', 'all'); // Get both BH and DT records
+          } else {
+            params.append('recordType', recordType);
+          }
         } else {
           // Standard path: use all-records endpoint with date range
           params.append('date_from', chunk.from);
