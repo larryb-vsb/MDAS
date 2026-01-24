@@ -1605,6 +1605,43 @@ function RawDataTab({
 
   return (
     <div className="space-y-4">
+      {/* Cardholder Account Quick Search - Always Visible */}
+      <div className="flex flex-col gap-2 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-blue-600" />
+            <Label className="text-blue-700 dark:text-blue-300 font-medium">Cardholder Account:</Label>
+          </div>
+          <Input
+            placeholder="Enter card number or last 4 digits..."
+            value={cardholderAccount}
+            onChange={(e) => setCardholderAccount(e.target.value)}
+            className="w-[280px] bg-white dark:bg-gray-800"
+            data-testid="input-cardholder-account"
+          />
+          <Button 
+            onClick={handleSearch}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Search className="mr-2 h-4 w-4" />
+            Search Card
+          </Button>
+          {cardholderAccount && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => { setCardholderAccount(''); setPage(1); }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-blue-600 dark:text-blue-400 ml-7">
+          Auto-applies 90-day lookback for faster search when no date filter is selected
+        </p>
+      </div>
+
       {/* Filter Controls - Like Transactions Page */}
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex items-center gap-2">
@@ -1715,43 +1752,6 @@ function RawDataTab({
         <Button variant="ghost" size="sm" onClick={() => { clearFilters(); setSearchTriggered(false); }}>
           Clear Filters
         </Button>
-      </div>
-
-      {/* Cardholder Account Quick Search - Always Visible */}
-      <div className="flex flex-col gap-2 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-blue-600" />
-            <Label className="text-blue-700 dark:text-blue-300 font-medium">Cardholder Account:</Label>
-          </div>
-          <Input
-            placeholder="Enter card number or last 4 digits..."
-            value={cardholderAccount}
-            onChange={(e) => setCardholderAccount(e.target.value)}
-            className="w-[280px] bg-white dark:bg-gray-800"
-            data-testid="input-cardholder-account"
-          />
-          <Button 
-            onClick={handleSearch}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Search className="mr-2 h-4 w-4" />
-            Search Card
-          </Button>
-          {cardholderAccount && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => { setCardholderAccount(''); setPage(1); }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        <p className="text-xs text-blue-600 dark:text-blue-400 ml-7">
-          Auto-applies 90-day lookback for faster search when no date filter is selected
-        </p>
       </div>
 
       {/* DT Field Search - Second Row */}
