@@ -2781,6 +2781,15 @@ export default function History() {
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackToDashboard}
+                data-testid="button-back-dashboard-left"
+              >
+                <Home className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Dashboard</span>
+              </Button>
               <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {parsedRoute.viewType === 'landing' && 'History'}
                 {parsedRoute.viewType === 'monthly' && parsedRoute.date && format(parsedRoute.date, 'MMMM yyyy')}
@@ -2907,16 +2916,6 @@ export default function History() {
                   <span className="sm:hidden ml-1">PDF</span>
                 </Button>
               )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBackToDashboard}
-                data-testid="button-back-dashboard"
-              >
-                <Home className="h-4 w-4" />
-                <span className="hidden sm:inline ml-1">Dashboard</span>
-              </Button>
               
               {(parsedRoute.viewType === 'monthly' || parsedRoute.viewType === 'quarterly') && (filters.group || filters.association || filters.merchant || filters.merchantName || filters.terminal) && (
                 <Button
