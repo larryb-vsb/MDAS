@@ -1881,27 +1881,72 @@ function RawDataTab({
                   {accumulatedRecords.slice(0, 50).map((record: any, index: number) => {
                     const parsedData = record.parsed_data || {};
                     const cardNumber = parsedData.cardNumber || parsedData.cardholderAccountNumber || '';
+                    const cardType = (parsedData.cardType || '').toUpperCase().trim();
                     const amount = parsedData.transactionAmount || '';
                     const merchantId = parsedData.merchantAccountNumber || '';
+                    const merchantName = parsedData.merchantName || '';
                     const txnDate = parsedData.transactionDate || '';
+                    const terminalId = parsedData.terminalId || '';
                     
                     return (
                       <div key={record.id || index} className="py-2 px-3 hover:bg-gray-50 text-sm">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* DT Badge */}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500 text-white flex-shrink-0">
                             DT
                           </span>
+                          
+                          {/* Card Type Badge */}
+                          {cardType && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border flex-shrink-0 ${getCardTypeBadges(cardType).className}`}>
+                              {getCardTypeBadges(cardType).label}
+                            </span>
+                          )}
+                          
+                          {/* Card Number with icon */}
                           {cardNumber && (
-                            <span className="font-mono text-gray-600">{cardNumber}</span>
+                            <span className="font-mono text-xs text-gray-600 flex-shrink-0">
+                              💳 {cardNumber}
+                            </span>
                           )}
+                          
+                          {/* Amount with icon */}
                           {amount && (
-                            <span className="font-medium text-green-600">${parseFloat(amount).toFixed(2)}</span>
+                            <span className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-green-600">💰</span>
+                              <span className="font-mono text-sm font-medium">${Number(amount).toFixed(2)}</span>
+                            </span>
                           )}
+                          
+                          {/* Merchant Account with icon */}
                           {merchantId && (
-                            <span className="text-gray-500">{merchantId}</span>
+                            <span className="flex items-center gap-1 flex-shrink-0">
+                              <CreditCard className="h-4 w-4 text-blue-600" />
+                              <span className="font-mono text-xs text-blue-600 font-bold">{merchantId}</span>
+                            </span>
                           )}
+                          
+                          {/* Merchant Name Badge */}
+                          {merchantName && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-300 flex-shrink-0">
+                              {merchantName}
+                            </span>
+                          )}
+                          
+                          {/* Date with icon */}
                           {txnDate && (
-                            <span className="text-gray-400">{txnDate}</span>
+                            <span className="flex items-center gap-1 flex-shrink-0">
+                              <Calendar className="h-3 w-3 text-blue-600" />
+                              <span className="text-xs">{txnDate}</span>
+                            </span>
+                          )}
+                          
+                          {/* Terminal ID with icon */}
+                          {terminalId && (
+                            <span className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-purple-600 text-xs">🖥️</span>
+                              <span className="font-mono text-xs">{terminalId}</span>
+                            </span>
                           )}
                         </div>
                       </div>
