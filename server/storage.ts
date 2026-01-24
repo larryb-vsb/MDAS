@@ -1070,9 +1070,11 @@ export class DatabaseStorage implements IStorage {
     const usersTableName = getTableName('users');
     const securityLogsTableName = getTableName('security_logs');
     
-    // First delete related security logs to avoid foreign key constraint violations
+    // Set user_id to NULL in security logs to preserve audit trail
+    // This avoids foreign key constraint violations while keeping the logs
     await pool.query(`
-      DELETE FROM ${securityLogsTableName} 
+      UPDATE ${securityLogsTableName} 
+      SET user_id = NULL 
       WHERE user_id = $1
     `, [userId]);
     
