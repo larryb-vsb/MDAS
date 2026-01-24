@@ -3222,6 +3222,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[DASHBOARD-BUILD] Fetching actual daily processing totals...');
       const dailyTotals = await getDailyProcessingTotals();
       
+      // Get DT (transaction) records count for last 30 days
+      console.log('[DASHBOARD-BUILD] Fetching DT records count for last 30 days...');
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0].replace(/-/g, '');
+      
+      const records30DayQuery = `
+        SELECT COUNT(*) as dt_count
+        FROM ${getTableName('tddf_jsonb')}
+        WHERE record_type = 'DT'
+          AND (extracted_fields->>'transactionDate')::text >= $1
+      `;
+      const records30DayResult = await pool.query(records30DayQuery, [thirtyDaysAgoStr]);
+      const mccRecords30Day = parseInt(records30DayResult.rows[0]?.dt_count || '0');
+      console.log(`[DASHBOARD-BUILD] DT records last 30 days: ${mccRecords30Day}`);
+      
       // Build metrics object
       const metrics = {
         merchants: {
@@ -3262,9 +3278,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mcc: `$${dailyTotals.mccAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         totalRecords: {
-          total: (achTransactions + tddfTransactions).toLocaleString(),
-          ach: achTransactions.toLocaleString(),
-          mcc: tddfTransactions.toLocaleString()
+          total: mccRecords30Day.toLocaleString(),
+          ach: '0',
+          mcc: mccRecords30Day.toLocaleString()
         },
         totalTerminals: {
           total: totalTerminals,

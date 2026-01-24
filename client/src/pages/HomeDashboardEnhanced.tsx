@@ -867,13 +867,13 @@ export default function HomeDashboard() {
 
             {/* Total Records */}
             <ClickableMetricCard
-              title="Total Records"
+              title="Records Processed Last 30 Days"
               total={metrics?.totalRecords?.total ?? '0'}
               ach={metrics?.totalRecords?.ach ?? '0'}
               mcc={metrics?.totalRecords?.mcc ?? '0'}
               icon={<Building2 className="h-4 w-4" />}
-              achTooltip="Total ACH records"
-              mccTooltip="Total MCC records"
+              achTooltip="ACH records (last 30 days)"
+              mccTooltip="MCC daily transaction records"
             />
 
             {/* Total Terminals - Clickable to Terminals page */}
