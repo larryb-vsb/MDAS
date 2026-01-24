@@ -908,7 +908,7 @@ export default function HomeDashboard() {
             {/* Last Months Days ACH */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Monthly Summary</CardTitle>
+                <CardTitle className="text-sm font-semibold">Processing Monthly Summary</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoadingMonthlyTotals ? (
