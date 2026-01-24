@@ -1996,6 +1996,10 @@ function RawDataTab({
                 const merchantName = getMerchantName(merchantAccount);
                 const amount = extractAmount(record);
                 const batchDate = extractDate(record);
+                const parsedData = record.parsed_data || {};
+                const cardType = (parsedData.cardType || '').toUpperCase().trim();
+                const cardNumber = parsedData.cardNumber || parsedData.cardholderAccountNumber || '';
+                const terminalId = parsedData.terminalId || '';
 
                 return (
                   <div key={record.id}>
@@ -2010,21 +2014,59 @@ function RawDataTab({
                         <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />
                       )}
 
-                      <Badge className={`${getRecordTypeBadgeColor(record.record_type)} text-white text-xs`}>
+                      {/* Record Type Badge */}
+                      <Badge className={`${getRecordTypeBadgeColor(record.record_type)} text-white text-xs flex-shrink-0`}>
                         {record.record_type}
                       </Badge>
 
-                      <span className="font-mono text-xs text-gray-600">{merchantAccount}</span>
-                      
-                      {merchantName && (
-                        <Badge variant="outline" className="text-xs">{merchantName}</Badge>
+                      {/* Card Type Badge */}
+                      {cardType && (
+                        <Badge variant="outline" className={`text-xs flex-shrink-0 ${getCardTypeBadges(cardType).className}`}>
+                          {getCardTypeBadges(cardType).label}
+                        </Badge>
                       )}
 
-                      <span className="text-green-600 font-medium">{amount}</span>
-                      
-                      <span className="text-gray-500">{batchDate}</span>
+                      {/* Card Number with icon */}
+                      {cardNumber && (
+                        <span className="font-mono text-xs text-gray-600 flex-shrink-0">
+                          💳 {cardNumber}
+                        </span>
+                      )}
 
-                      <span className="ml-auto text-xs text-gray-400">
+                      {/* Amount with icon */}
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <span className="text-green-600">💰</span>
+                        <span className="font-medium">{amount}</span>
+                      </span>
+
+                      {/* Merchant Account with icon */}
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <CreditCard className="h-4 w-4 text-blue-600" />
+                        <span className="font-mono text-xs text-blue-600 font-bold">{merchantAccount}</span>
+                      </span>
+                      
+                      {/* Merchant Name Badge */}
+                      {merchantName && (
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 flex-shrink-0">
+                          {merchantName}
+                        </Badge>
+                      )}
+
+                      {/* Date with icon */}
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <Calendar className="h-3 w-3 text-blue-600" />
+                        <span className="text-xs">{batchDate}</span>
+                      </span>
+
+                      {/* Terminal ID with icon */}
+                      {terminalId && (
+                        <span className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-purple-600 text-xs">🖥️</span>
+                          <span className="font-mono text-xs">{terminalId}</span>
+                        </span>
+                      )}
+
+                      <span className="ml-auto text-xs text-gray-400 flex-shrink-0">
                         {record.filename?.split('_').slice(3, 5).join('_') || 'Unknown'} | Line {record.line_number}
                       </span>
                     </div>
