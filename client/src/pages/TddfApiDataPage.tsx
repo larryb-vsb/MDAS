@@ -6147,7 +6147,7 @@ export default function TddfApiDataPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold">MCC - TDDF Raw Data</h2>
-              <p className="text-muted-foreground">Search MCC Card Data</p>
+              <p className="text-muted-foreground">Search MCC Transaction Data</p>
             </div>
             <Button 
               variant="outline"
