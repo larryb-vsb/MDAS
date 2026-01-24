@@ -3672,23 +3672,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== NEW DASHBOARD WIREFRAME ENDPOINTS ====================
   
-  // Get Last 3 Days MCC and ACH processing data for dashboard
+  // Get Last 4 Days MCC and ACH processing data for dashboard
   app.get("/api/dashboard/last-three-days", isAuthenticated, async (req, res) => {
     try {
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       const achTransactionsTableName = getTableName('api_achtransactions');
       
-      // Get the last 3 transaction dates from TDDF data
-      const last3DatesQuery = `
+      // Get the last 4 transaction dates from TDDF data
+      const last4DatesQuery = `
         SELECT DISTINCT extracted_fields->>'transactionDate' as transaction_date
         FROM ${tddfJsonbTableName}
         WHERE record_type = 'DT' 
           AND extracted_fields->>'transactionDate' IS NOT NULL
         ORDER BY transaction_date DESC
-        LIMIT 3
+        LIMIT 4
       `;
       
-      const datesResult = await pool.query(last3DatesQuery);
+      const datesResult = await pool.query(last4DatesQuery);
       const transactionDates = datesResult.rows.map((r: any) => r.transaction_date);
       
       // Query MCC (TDDF) data for each date
@@ -3716,18 +3716,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // Get the last 3 ACH batch dates
-      const last3AchDatesQuery = `
+      // Get the last 4 ACH batch dates
+      const last4AchDatesQuery = `
         SELECT DISTINCT DATE(transaction_date) as batch_date
         FROM ${achTransactionsTableName}
         WHERE transaction_date IS NOT NULL
         ORDER BY batch_date DESC
-        LIMIT 3
+        LIMIT 4
       `;
       
       let achDates: string[] = [];
       try {
-        const achDatesResult = await pool.query(last3AchDatesQuery);
+        const achDatesResult = await pool.query(last4AchDatesQuery);
         achDates = achDatesResult.rows.map((r: any) => r.batch_date);
       } catch (e) {
         console.log('[DASHBOARD-LAST3] ACH table may not exist, skipping ACH data');

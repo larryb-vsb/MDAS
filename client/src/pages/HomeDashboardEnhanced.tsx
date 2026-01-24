@@ -802,15 +802,15 @@ export default function HomeDashboard() {
         <div>
           <h2 className="text-xl font-semibold mb-4">Key Performance Indicators</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Last Three Days MCC */}
+            {/* Last Four Days MCC */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Last Three Days MCC</CardTitle>
+                <CardTitle className="text-sm font-semibold">Last Four Days MCC</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoadingLastThreeDays ? (
                   <div className="space-y-2">
-                    {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                    {[1,2,3,4].map(i => <Skeleton key={i} className="h-6 w-full" />)}
                   </div>
                 ) : (
                   <table className="w-full text-sm">
@@ -857,7 +857,10 @@ export default function HomeDashboard() {
                     <tbody>
                       {monthlyTotalsData?.months?.map((month, idx) => (
                         <tr key={idx} className="border-b last:border-0">
-                          <td className="py-1">{month.month.split(' ')[0].substring(0, 3)}</td>
+                          <td className="py-1">
+                            {month.month.split(' ')[0].substring(0, 3)}
+                            {idx === 0 && <span className="text-xs text-muted-foreground ml-1">(current)</span>}
+                          </td>
                           <td className="text-right py-1">{formatCurrency(month.transactionAuthorizations.amount)}</td>
                           <td className="text-right py-1">{formatCurrency(month.netDeposits.amount)}</td>
                         </tr>
@@ -874,15 +877,15 @@ export default function HomeDashboard() {
         <div>
           <h2 className="text-xl font-semibold mb-4">Additional Metrics</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Last Three Days ACH */}
+            {/* Last Four Days ACH */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Last Three Days ACH</CardTitle>
+                <CardTitle className="text-sm font-semibold">Last Four Days ACH</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoadingLastThreeDays ? (
                   <div className="space-y-2">
-                    {[1,2,3].map(i => <Skeleton key={i} className="h-6 w-full" />)}
+                    {[1,2,3,4].map(i => <Skeleton key={i} className="h-6 w-full" />)}
                   </div>
                 ) : (
                   <table className="w-full text-sm">
@@ -1064,7 +1067,10 @@ export default function HomeDashboard() {
                   <tbody>
                     {monthlyTotalsData?.months?.map((month, idx) => (
                       <tr key={idx} className="border-b last:border-0">
-                        <td className="py-1">{month.month.split(' ')[0].substring(0, 3)}</td>
+                        <td className="py-1">
+                          {month.month.split(' ')[0].substring(0, 3)}
+                          {idx === 0 && <span className="text-xs text-muted-foreground ml-1">(current)</span>}
+                        </td>
                         <td className="text-right py-1">{month.totalFiles.toLocaleString()}</td>
                         <td className="text-right py-1">{month.totalRecords.toLocaleString()}</td>
                       </tr>
