@@ -12,7 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, RefreshCw, CheckCircle, XCircle, Send, AlertCircle, Settings2, Inbox, History, Power, Clock, MailOpen, ScrollText, Eye, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, RefreshCw, CheckCircle, XCircle, Send, AlertCircle, Settings2, Inbox, History, Power, Clock, MailOpen, ScrollText, Eye, FileText, ChevronDown, ChevronUp, Home } from "lucide-react";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
@@ -438,15 +439,32 @@ export default function EmailSettings() {
     );
   };
 
+  const [, setLocation] = useLocation();
+
+  const handleBackToDashboard = () => {
+    setLocation("/");
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Mail className="h-6 w-6 text-blue-500" />
-            Email Settings
-          </h1>
-          <p className="text-muted-foreground">Configure and manage email notifications</p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBackToDashboard}
+            data-testid="button-back-dashboard"
+          >
+            <Home className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Dashboard</span>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Mail className="h-6 w-6 text-blue-500" />
+              Email Settings
+            </h1>
+            <p className="text-muted-foreground">Configure and manage email notifications</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
