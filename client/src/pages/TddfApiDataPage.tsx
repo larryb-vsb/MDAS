@@ -1226,7 +1226,7 @@ function RawDataTab({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  const [searchTriggered, setSearchTriggered] = useState(false);
+  const [searchTriggered, setSearchTriggered] = useState(true);
   
   // DT Field Search state
   const [selectedField, setSelectedField] = useState<string>('');
