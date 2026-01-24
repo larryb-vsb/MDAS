@@ -68,11 +68,13 @@ interface DashboardMetrics {
     mcc: number;
   };
   dailyProcessingAmount: {
+    date?: string;
     total: string;
     ach: string;
     mcc: string;
   };
   todayTotalTransaction: {
+    date?: string;
     total: string;
     ach: string;
     mcc: string;
@@ -837,7 +839,9 @@ export default function HomeDashboard() {
 
             {/* Daily Processing Amount */}
             <ClickableMetricCard
-              title="Daily Processing Amount"
+              title={metrics?.dailyProcessingAmount?.date 
+                ? `Daily Processing - ${metrics.dailyProcessingAmount.date}` 
+                : "Daily Processing Amount"}
               total={metrics?.dailyProcessingAmount?.total ?? '$0.00'}
               ach={metrics?.dailyProcessingAmount?.ach ?? '$0.00'}
               mcc={metrics?.dailyProcessingAmount?.mcc ?? '$0.00'}
@@ -849,7 +853,9 @@ export default function HomeDashboard() {
 
             {/* Today's Total Transaction */}
             <ClickableMetricCard
-              title="Recent Processed Transaction"
+              title={metrics?.todayTotalTransaction?.date 
+                ? `Today's Processing - ${metrics.todayTotalTransaction.date}` 
+                : "Recent Processed Transaction"}
               total={metrics?.todayTotalTransaction?.total ?? '$0.00'}
               ach={metrics?.todayTotalTransaction?.ach ?? '$0.00'}
               mcc={metrics?.todayTotalTransaction?.mcc ?? '$0.00'}

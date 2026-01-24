@@ -3080,6 +3080,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Helper function to get actual daily processing totals for a specific date
+  async function getDailyProcessingTotals(targetDate?: Date) {
+    const date = targetDate || new Date();
+    const dateStr = date.toISOString().split('T')[0].replace(/-/g, ''); // Format: YYYYMMDD
+    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    
+    try {
+      // Query TDDF DT records for the specific date (transaction amount from DT records)
+      const dtQuery = `
+        SELECT 
+          COUNT(*) as transaction_count,
+          COALESCE(SUM((extracted_fields->>'transactionAmount')::numeric), 0) as total_amount
+        FROM ${getTableName('tddf_jsonb')}
+        WHERE record_type = 'DT'
+          AND (extracted_fields->>'transactionDate')::text = $1
+      `;
+      const dtResult = await pool.query(dtQuery, [dateStr]);
+      const dtCount = parseInt(dtResult.rows[0]?.transaction_count || '0');
+      const dtAmount = parseFloat(dtResult.rows[0]?.total_amount || '0');
+      
+      console.log(`[DASHBOARD-BUILD] Daily TDDF (${formattedDate}): ${dtCount} transactions, $${dtAmount.toFixed(2)}`);
+      
+      return {
+        date: formattedDate,
+        dateStr: dateStr,
+        mccTransactions: dtCount,
+        mccAmount: dtAmount,
+        achTransactions: 0,
+        achAmount: 0
+      };
+    } catch (error: unknown) {
+      console.error('[DASHBOARD-BUILD] ⚠️ Daily processing query failed:', error instanceof Error ? error.message : String(error));
+      return {
+        date: formattedDate,
+        dateStr: dateStr,
+        mccTransactions: 0,
+        mccAmount: 0,
+        achTransactions: 0,
+        achAmount: 0
+      };
+    }
+  }
+
   // Build dashboard cache function
   async function buildDashboardCache() {
     const startTime = Date.now();
@@ -3175,6 +3218,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const todayCountResult = await pool.query(todayCountQuery);
       const todayTddfCount = parseInt(todayCountResult.rows[0]?.today_dt_count || '0');
       
+      // Get actual daily processing totals for today
+      console.log('[DASHBOARD-BUILD] Fetching actual daily processing totals...');
+      const dailyTotals = await getDailyProcessingTotals();
+      
       // Build metrics object
       const metrics = {
         merchants: {
@@ -3203,14 +3250,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mcc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
         },
         dailyProcessingAmount: {
-          total: `$${((achTotalAmount + tddfAmount) / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mcc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          date: dailyTotals.date,
+          total: `$${(dailyTotals.achAmount + dailyTotals.mccAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          ach: `$${dailyTotals.achAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mcc: `$${dailyTotals.mccAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         todayTotalTransaction: {
-          total: `$${((achTotalAmount + tddfAmount) / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mcc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          date: dailyTotals.date,
+          total: `$${(dailyTotals.achAmount + dailyTotals.mccAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          ach: `$${dailyTotals.achAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mcc: `$${dailyTotals.mccAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         totalRecords: {
           total: (achTransactions + tddfTransactions).toLocaleString(),
