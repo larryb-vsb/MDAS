@@ -4,38 +4,166 @@ import { logger } from "../../shared/logger";
 
 const router = Router();
 
+// Track email service state
+let emailServiceDisabled = false;
+let emailServiceVerified = false;
+
+// Email logs stored in memory (last 100 entries)
+const emailLogs: Array<{ id: number; timestamp: string; level: string; message: string; details: string | null }> = [];
+let logIdCounter = 1;
+
+function addEmailLog(level: string, message: string, details?: string) {
+  const log = {
+    id: logIdCounter++,
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    details: details || null
+  };
+  emailLogs.unshift(log);
+  // Keep only last 100 logs
+  if (emailLogs.length > 100) {
+    emailLogs.pop();
+  }
+}
+
+// Check for Resend configuration
+function isResendConfigured(): boolean {
+  return !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
+}
+
+function getActiveProvider(): string {
+  if (isResendConfigured()) return 'resend';
+  if (graphEmailService.isEnabled()) return 'graph';
+  return 'none';
+}
+
 router.get("/status", async (req, res) => {
   try {
-    const isEnabled = graphEmailService.isEnabled();
-    const senderEmail = graphEmailService.getSenderEmail();
+    const graphEnabled = graphEmailService.isEnabled();
+    const resendEnabled = isResendConfigured();
+    const isConfigured = graphEnabled || resendEnabled;
+    const provider = getActiveProvider();
+    
+    let senderEmail = null;
+    if (graphEnabled) {
+      senderEmail = graphEmailService.getSenderEmail();
+    } else if (resendEnabled) {
+      senderEmail = process.env.RESEND_FROM_EMAIL;
+    }
     
     res.json({
-      enabled: isEnabled,
-      senderEmail: isEnabled ? senderEmail : null,
-      configured: isEnabled,
-      message: isEnabled 
-        ? 'Email service is configured and ready' 
-        : 'Email service not configured - check Azure credentials'
+      enabled: isConfigured && emailServiceVerified && !emailServiceDisabled,
+      disabled: emailServiceDisabled,
+      configured: isConfigured,
+      verified: emailServiceVerified,
+      provider,
+      senderEmail,
+      message: emailServiceDisabled 
+        ? 'Email service is disabled'
+        : !isConfigured 
+        ? 'Email service not configured - check credentials' 
+        : !emailServiceVerified
+        ? 'Configuration detected - run Test Connection to verify'
+        : 'Email service is configured and verified'
     });
   } catch (error) {
     logger.error('[EMAIL-ROUTES] Status check failed:', error);
     res.status(500).json({ 
       enabled: false, 
+      configured: false,
+      verified: false,
+      disabled: emailServiceDisabled,
       error: 'Failed to check email service status' 
     });
   }
 });
 
+// Toggle email service on/off
+router.post("/toggle", async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    emailServiceDisabled = !enabled;
+    addEmailLog('info', `Email service ${enabled ? 'enabled' : 'disabled'} by user`);
+    logger.info(`[EMAIL-ROUTES] Email service ${enabled ? 'enabled' : 'disabled'}`);
+    res.json({ success: true, disabled: emailServiceDisabled });
+  } catch (error) {
+    logger.error('[EMAIL-ROUTES] Toggle failed:', error);
+    res.status(500).json({ success: false, error: 'Failed to toggle email service' });
+  }
+});
+
 router.post("/test-connection", async (req, res) => {
   try {
-    const result = await graphEmailService.testConnection();
-    res.json(result);
-  } catch (error) {
+    addEmailLog('info', 'Testing email service connection...');
+    
+    const provider = getActiveProvider();
+    
+    if (provider === 'resend') {
+      // Test Resend connection
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL,
+            to: [process.env.RESEND_FROM_EMAIL],
+            subject: 'MDAS Connection Test',
+            text: 'This is a connection test from MDAS.',
+          }),
+        });
+        
+        if (response.ok) {
+          emailServiceVerified = true;
+          addEmailLog('info', 'Resend connection test successful');
+          res.json({ success: true, message: 'Resend API connection verified successfully' });
+        } else {
+          const errorData = await response.json();
+          emailServiceVerified = false;
+          addEmailLog('error', 'Resend connection test failed', JSON.stringify(errorData));
+          res.json({ success: false, message: `Resend API error: ${errorData.message || 'Unknown error'}` });
+        }
+      } catch (err: any) {
+        emailServiceVerified = false;
+        addEmailLog('error', 'Resend connection test error', err.message);
+        res.json({ success: false, message: `Resend connection error: ${err.message}` });
+      }
+    } else if (provider === 'graph') {
+      const result = await graphEmailService.testConnection();
+      if (result.success) {
+        emailServiceVerified = true;
+        addEmailLog('info', 'Microsoft Graph connection test successful');
+      } else {
+        emailServiceVerified = false;
+        addEmailLog('error', 'Microsoft Graph connection test failed', result.message);
+      }
+      res.json(result);
+    } else {
+      emailServiceVerified = false;
+      addEmailLog('warn', 'No email provider configured');
+      res.json({ success: false, message: 'No email provider configured' });
+    }
+  } catch (error: any) {
+    emailServiceVerified = false;
+    addEmailLog('error', 'Connection test failed unexpectedly', error.message);
     logger.error('[EMAIL-ROUTES] Connection test failed:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Connection test failed unexpectedly' 
     });
+  }
+});
+
+// Get email logs
+router.get("/logs", async (req, res) => {
+  try {
+    res.json({ logs: emailLogs, total: emailLogs.length });
+  } catch (error) {
+    logger.error('[EMAIL-ROUTES] Failed to fetch logs:', error);
+    res.json({ logs: [], total: 0 });
   }
 });
 
@@ -218,7 +346,7 @@ router.post("/send-processing-complete", async (req, res) => {
   }
 });
 
-// Get email outbox (pending/queued emails)
+// Get email outbox (all emails including sent)
 router.get("/outbox", async (req, res) => {
   try {
     const { pool } = await import("../db");
@@ -226,10 +354,9 @@ router.get("/outbox", async (req, res) => {
     
     const tableName = getTableName('email_outbox');
     const result = await pool.query(`
-      SELECT id, recipient_email, recipient_name, subject, status, 
-             sent_at, created_at, error_message, retry_count
+      SELECT id, recipient_email, recipient_name, subject, body, status, 
+             sent_at, created_at, error_message, retry_count, provider
       FROM ${tableName}
-      WHERE status IN ('pending', 'queued')
       ORDER BY created_at DESC
       LIMIT 100
     `);
@@ -239,11 +366,13 @@ router.get("/outbox", async (req, res) => {
       recipientEmail: row.recipient_email,
       recipientName: row.recipient_name,
       subject: row.subject,
+      body: row.body,
       status: row.status,
       sentAt: row.sent_at,
       createdAt: row.created_at,
       errorMessage: row.error_message,
-      retryCount: row.retry_count
+      retryCount: row.retry_count,
+      provider: row.provider
     }));
     
     res.json({ emails, total: emails.length });
@@ -261,8 +390,8 @@ router.get("/history", async (req, res) => {
     
     const tableName = getTableName('email_outbox');
     const result = await pool.query(`
-      SELECT id, recipient_email, recipient_name, subject, status, 
-             sent_at, created_at, error_message, retry_count
+      SELECT id, recipient_email, recipient_name, subject, body, status, 
+             sent_at, created_at, error_message, retry_count, provider
       FROM ${tableName}
       WHERE status IN ('sent', 'failed')
       ORDER BY COALESCE(sent_at, created_at) DESC
@@ -274,11 +403,13 @@ router.get("/history", async (req, res) => {
       recipientEmail: row.recipient_email,
       recipientName: row.recipient_name,
       subject: row.subject,
+      body: row.body,
       status: row.status,
       sentAt: row.sent_at,
       createdAt: row.created_at,
       errorMessage: row.error_message,
-      retryCount: row.retry_count
+      retryCount: row.retry_count,
+      provider: row.provider
     }));
     
     res.json({ emails, total: emails.length });

@@ -12,15 +12,19 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, RefreshCw, CheckCircle, XCircle, Send, AlertCircle, Settings2, Inbox, History, Power, Clock, MailOpen } from "lucide-react";
+import { Mail, RefreshCw, CheckCircle, XCircle, Send, AlertCircle, Settings2, Inbox, History, Power, Clock, MailOpen, ScrollText, Eye, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface EmailStatus {
   enabled: boolean;
+  disabled: boolean;
   senderEmail: string | null;
   configured: boolean;
+  verified: boolean;
+  provider: string;
   message: string;
 }
 
@@ -29,11 +33,21 @@ interface EmailOutboxItem {
   recipientEmail: string;
   recipientName: string | null;
   subject: string;
+  body: string | null;
   status: string;
   sentAt: string | null;
   createdAt: string;
   errorMessage: string | null;
   retryCount: number;
+  provider: string | null;
+}
+
+interface EmailLogItem {
+  id: number;
+  timestamp: string;
+  level: string;
+  message: string;
+  details: string | null;
 }
 
 interface ConnectionTestResult {
@@ -55,6 +69,9 @@ export default function EmailSettings() {
   const [alertDetails, setAlertDetails] = useState("This is a test alert notification.");
   const [alertSeverity, setAlertSeverity] = useState<string>("info");
 
+  const [viewEmailDialog, setViewEmailDialog] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState<EmailOutboxItem | null>(null);
+
   const { data: emailStatus, isLoading, refetch } = useQuery<EmailStatus>({
     queryKey: ['/api/email/status'],
     refetchInterval: 30000,
@@ -68,6 +85,35 @@ export default function EmailSettings() {
     queryKey: ['/api/email/history'],
   });
 
+  const { data: logsData, isLoading: logsLoading, refetch: refetchLogs } = useQuery<{ logs: EmailLogItem[], total: number }>({
+    queryKey: ['/api/email/logs'],
+  });
+
+  const toggleEmailMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const response = await apiRequest('/api/email/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      refetch();
+      toast({
+        title: "Email Service Updated",
+        description: `Email service has been ${emailStatus?.disabled ? 'enabled' : 'disabled'}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Update",
+        description: error.message || "Failed to toggle email service",
+        variant: "destructive",
+      });
+    },
+  });
+
   const testConnectionMutation = useMutation({
     mutationFn: async (): Promise<ConnectionTestResult> => {
       const response = await apiRequest('/api/email/test-connection', {
@@ -76,6 +122,8 @@ export default function EmailSettings() {
       return response as unknown as ConnectionTestResult;
     },
     onSuccess: (data) => {
+      refetch();
+      refetchLogs();
       if (data.success) {
         toast({
           title: "Connection Test Successful",
@@ -90,6 +138,7 @@ export default function EmailSettings() {
       }
     },
     onError: (error: any) => {
+      refetchLogs();
       toast({
         title: "Connection Test Failed",
         description: error.message || "Failed to test connection",
@@ -113,14 +162,15 @@ export default function EmailSettings() {
       return response;
     },
     onSuccess: (data: any) => {
+      refetchOutbox();
+      refetchHistory();
+      refetchLogs();
       if (data.success) {
         toast({
-          title: "Test Email Sent",
-          description: `Email sent successfully to ${testEmail}`,
+          title: "Test Email Queued",
+          description: `Email queued for delivery to ${testEmail}`,
         });
         setShowTestDialog(false);
-        refetchOutbox();
-        refetchHistory();
       } else {
         toast({
           title: "Failed to Send Email",
@@ -130,6 +180,7 @@ export default function EmailSettings() {
       }
     },
     onError: (error: any) => {
+      refetchLogs();
       toast({
         title: "Failed to Send Email",
         description: error.message || "Failed to send test email",
@@ -154,14 +205,15 @@ export default function EmailSettings() {
       return response;
     },
     onSuccess: (data: any) => {
+      refetchOutbox();
+      refetchHistory();
+      refetchLogs();
       if (data.success) {
         toast({
-          title: "Alert Notification Sent",
-          description: `Alert sent successfully to ${alertRecipient}`,
+          title: "Alert Notification Queued",
+          description: `Alert queued for delivery to ${alertRecipient}`,
         });
         setShowAlertDialog(false);
-        refetchOutbox();
-        refetchHistory();
       } else {
         toast({
           title: "Failed to Send Alert",
@@ -171,6 +223,7 @@ export default function EmailSettings() {
       }
     },
     onError: (error: any) => {
+      refetchLogs();
       toast({
         title: "Failed to Send Alert",
         description: error.message || "Failed to send alert notification",
@@ -194,6 +247,30 @@ export default function EmailSettings() {
     }
   };
 
+  const getLogLevelBadge = (level: string) => {
+    switch (level.toLowerCase()) {
+      case 'error':
+        return <Badge variant="destructive">ERROR</Badge>;
+      case 'warn':
+      case 'warning':
+        return <Badge className="bg-yellow-500">WARN</Badge>;
+      case 'info':
+        return <Badge className="bg-blue-500">INFO</Badge>;
+      case 'debug':
+        return <Badge variant="secondary">DEBUG</Badge>;
+      default:
+        return <Badge variant="outline">{level}</Badge>;
+    }
+  };
+
+  const viewEmail = (email: EmailOutboxItem) => {
+    setSelectedEmail(email);
+    setViewEmailDialog(true);
+  };
+
+  const isServiceReady = emailStatus?.enabled && emailStatus?.verified && !emailStatus?.disabled;
+  const isConfigured = emailStatus?.configured;
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -204,17 +281,40 @@ export default function EmailSettings() {
           </h1>
           <p className="text-muted-foreground">Configure and manage email notifications</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={emailStatus?.enabled ? "default" : "destructive"} className="text-sm px-3 py-1">
-            {emailStatus?.enabled ? (
+        <div className="flex items-center gap-3">
+          {isConfigured && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="email-toggle" className="text-sm text-muted-foreground">
+                {emailStatus?.disabled ? 'Disabled' : 'Enabled'}
+              </Label>
+              <Switch
+                id="email-toggle"
+                checked={!emailStatus?.disabled}
+                onCheckedChange={(checked) => toggleEmailMutation.mutate(checked)}
+                disabled={toggleEmailMutation.isPending}
+              />
+            </div>
+          )}
+          <Badge variant={isServiceReady ? "default" : emailStatus?.disabled ? "secondary" : "destructive"} className="text-sm px-3 py-1">
+            {isServiceReady ? (
               <>
                 <Power className="h-3 w-3 mr-1" />
-                Active
+                Ready
+              </>
+            ) : emailStatus?.disabled ? (
+              <>
+                <XCircle className="h-3 w-3 mr-1" />
+                Disabled
+              </>
+            ) : isConfigured && !emailStatus?.verified ? (
+              <>
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Not Verified
               </>
             ) : (
               <>
                 <XCircle className="h-3 w-3 mr-1" />
-                Inactive
+                Not Configured
               </>
             )}
           </Badge>
@@ -222,7 +322,7 @@ export default function EmailSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings2 className="h-4 w-4" />
             Settings
@@ -230,15 +330,19 @@ export default function EmailSettings() {
           <TabsTrigger value="outbox" className="flex items-center gap-2">
             <Inbox className="h-4 w-4" />
             Outbox
-            {outboxData?.emails && outboxData.emails.filter(e => e.status === 'pending' || e.status === 'queued').length > 0 && (
+            {outboxData?.emails && outboxData.emails.length > 0 && (
               <Badge variant="secondary" className="ml-1">
-                {outboxData.emails.filter(e => e.status === 'pending' || e.status === 'queued').length}
+                {outboxData.emails.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="h-4 w-4" />
             History
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-2">
+            <ScrollText className="h-4 w-4" />
+            Logs
           </TabsTrigger>
         </TabsList>
 
@@ -250,7 +354,7 @@ export default function EmailSettings() {
                 Email Service Configuration
               </CardTitle>
               <CardDescription>
-                Microsoft Graph API email notification settings
+                {emailStatus?.provider === 'resend' ? 'Resend API' : 'Microsoft Graph API'} email notification settings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -258,44 +362,76 @@ export default function EmailSettings() {
                 <div className="flex items-center gap-3">
                   {isLoading ? (
                     <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                  ) : emailStatus?.enabled ? (
+                  ) : isServiceReady ? (
                     <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : isConfigured && !emailStatus?.verified ? (
+                    <AlertCircle className="h-5 w-5 text-yellow-500" />
                   ) : (
                     <XCircle className="h-5 w-5 text-red-500" />
                   )}
                   <div>
                     <div className="font-medium">
-                      {isLoading ? "Checking status..." : emailStatus?.message}
+                      {isLoading ? "Checking status..." : 
+                       emailStatus?.disabled ? "Email service is disabled" :
+                       isServiceReady ? "Email service is configured and verified" :
+                       isConfigured && !emailStatus?.verified ? "Configuration detected - run Test Connection to verify" :
+                       emailStatus?.message}
                     </div>
                     {emailStatus?.senderEmail && (
                       <div className="text-sm text-muted-foreground">
                         Sender: {emailStatus.senderEmail}
                       </div>
                     )}
+                    {emailStatus?.provider && (
+                      <div className="text-sm text-muted-foreground">
+                        Provider: {emailStatus.provider === 'resend' ? 'Resend' : 'Microsoft Graph'}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <Badge variant={emailStatus?.enabled ? "default" : "destructive"}>
-                  {emailStatus?.enabled ? "Active" : "Not Configured"}
+                <Badge variant={isServiceReady ? "default" : emailStatus?.disabled ? "secondary" : "destructive"}>
+                  {isServiceReady ? "Ready" : emailStatus?.disabled ? "Disabled" : isConfigured ? "Not Verified" : "Not Configured"}
                 </Badge>
               </div>
 
-              {!emailStatus?.enabled && !isLoading && (
+              {!isConfigured && !isLoading && (
                 <Alert>
                   <Settings2 className="h-4 w-4" />
                   <AlertTitle>Configuration Required</AlertTitle>
                   <AlertDescription>
-                    <p className="mb-2">
-                      Email notifications require Microsoft Azure AD app registration. Add the following environment variables:
+                    <p className="mb-3">
+                      Configure one of the following email providers:
                     </p>
-                    <ul className="list-disc list-inside text-sm space-y-1">
-                      <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_ID</code> - Azure AD Application (client) ID</li>
-                      <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_SECRET</code> - Client secret value</li>
-                      <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_TENANT_ID</code> - Azure AD Directory (tenant) ID</li>
-                      <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_SENDER</code> - Sender email address (licensed M365 mailbox)</li>
-                    </ul>
-                    <p className="mt-2 text-sm">
-                      The Azure AD app requires <strong>Mail.Send</strong> application permission with admin consent.
-                    </p>
+                    
+                    <div className="space-y-4">
+                      <div className="p-3 border rounded-lg">
+                        <h4 className="font-medium mb-2">Option 1: Microsoft Graph API</h4>
+                        <ul className="list-disc list-inside text-sm space-y-1">
+                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_ID</code> - Azure AD Application ID</li>
+                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_CLIENT_SECRET</code> - Client secret</li>
+                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_TENANT_ID</code> - Azure AD Tenant ID</li>
+                          <li><code className="bg-muted px-1 rounded">GRAPH_EMAIL_SENDER</code> - Sender email (M365 mailbox)</li>
+                        </ul>
+                      </div>
+                      
+                      <div className="p-3 border rounded-lg">
+                        <h4 className="font-medium mb-2">Option 2: Resend API (Alternative)</h4>
+                        <ul className="list-disc list-inside text-sm space-y-1">
+                          <li><code className="bg-muted px-1 rounded">RESEND_API_KEY</code> - Resend API key</li>
+                          <li><code className="bg-muted px-1 rounded">RESEND_FROM_EMAIL</code> - Verified sender email</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isConfigured && !emailStatus?.verified && !emailStatus?.disabled && (
+                <Alert className="border-yellow-500">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <AlertTitle>Verification Required</AlertTitle>
+                  <AlertDescription>
+                    Click "Test Connection" to verify the email service configuration is working correctly.
                   </AlertDescription>
                 </Alert>
               )}
@@ -305,7 +441,7 @@ export default function EmailSettings() {
                   variant="outline"
                   size="sm"
                   onClick={() => testConnectionMutation.mutate()}
-                  disabled={testConnectionMutation.isPending || !emailStatus?.enabled}
+                  disabled={testConnectionMutation.isPending || !isConfigured || emailStatus?.disabled}
                 >
                   {testConnectionMutation.isPending ? (
                     <>
@@ -335,7 +471,7 @@ export default function EmailSettings() {
                     <Button
                       variant="default"
                       size="sm"
-                      disabled={!emailStatus?.enabled}
+                      disabled={!isServiceReady}
                     >
                       <Send className="mr-2 h-4 w-4" />
                       Send Test Email
@@ -345,7 +481,7 @@ export default function EmailSettings() {
                     <DialogHeader>
                       <DialogTitle>Send Test Email</DialogTitle>
                       <DialogDescription>
-                        Send a test email to verify the email service is working correctly.
+                        Send a test email to verify the email service is working correctly. Email will appear in Outbox.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
@@ -406,7 +542,7 @@ export default function EmailSettings() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={!emailStatus?.enabled}
+                      disabled={!isServiceReady}
                     >
                       <AlertCircle className="mr-2 h-4 w-4" />
                       Send Test Alert
@@ -512,7 +648,7 @@ export default function EmailSettings() {
                     <Inbox className="h-5 w-5" />
                     Email Outbox
                   </CardTitle>
-                  <CardDescription>Pending and queued emails</CardDescription>
+                  <CardDescription>All emails (pending, queued, sent, failed)</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => refetchOutbox()}>
                   <RefreshCw className={`h-4 w-4 mr-2 ${outboxLoading ? 'animate-spin' : ''}`} />
@@ -533,7 +669,8 @@ export default function EmailSettings() {
                       <TableHead>Subject</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead>Retries</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -547,12 +684,19 @@ export default function EmailSettings() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[300px] truncate">{email.subject}</TableCell>
+                        <TableCell className="max-w-[250px] truncate">{email.subject}</TableCell>
                         <TableCell>{getStatusBadge(email.status)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(email.createdAt), 'MMM d, yyyy h:mm a')}
+                          {format(new Date(email.createdAt), 'MMM d, h:mm a')}
                         </TableCell>
-                        <TableCell>{email.retryCount}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {email.provider || 'graph'}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={() => viewEmail(email)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -560,7 +704,7 @@ export default function EmailSettings() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <MailOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No pending emails in the outbox</p>
+                  <p>No emails in the outbox</p>
                 </div>
               )}
             </CardContent>
@@ -598,6 +742,7 @@ export default function EmailSettings() {
                       <TableHead>Status</TableHead>
                       <TableHead>Sent At</TableHead>
                       <TableHead>Error</TableHead>
+                      <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -611,13 +756,18 @@ export default function EmailSettings() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[300px] truncate">{email.subject}</TableCell>
+                        <TableCell className="max-w-[250px] truncate">{email.subject}</TableCell>
                         <TableCell>{getStatusBadge(email.status)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {email.sentAt ? format(new Date(email.sentAt), 'MMM d, yyyy h:mm a') : '-'}
+                          {email.sentAt ? format(new Date(email.sentAt), 'MMM d, h:mm a') : '-'}
                         </TableCell>
-                        <TableCell className="text-sm text-red-500 max-w-[200px] truncate">
+                        <TableCell className="text-sm text-red-500 max-w-[150px] truncate">
                           {email.errorMessage || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={() => viewEmail(email)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -632,7 +782,133 @@ export default function EmailSettings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="logs" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ScrollText className="h-5 w-5" />
+                    Email Service Logs
+                  </CardTitle>
+                  <CardDescription>Recent email service activity and errors</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => refetchLogs()}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${logsLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {logsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : logsData?.logs && logsData.logs.length > 0 ? (
+                <ScrollArea className="h-[400px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[140px]">Timestamp</TableHead>
+                        <TableHead className="w-[80px]">Level</TableHead>
+                        <TableHead>Message</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logsData.logs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-sm text-muted-foreground font-mono">
+                            {format(new Date(log.timestamp), 'MM/dd HH:mm:ss')}
+                          </TableCell>
+                          <TableCell>{getLogLevelBadge(log.level)}</TableCell>
+                          <TableCell className="text-sm">
+                            <div>{log.message}</div>
+                            {log.details && (
+                              <div className="text-xs text-muted-foreground mt-1 font-mono">
+                                {log.details}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No email logs available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <Dialog open={viewEmailDialog} onOpenChange={setViewEmailDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Email Details</DialogTitle>
+            <DialogDescription>
+              View full email content and metadata
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEmail && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Recipient</Label>
+                  <p className="font-medium">{selectedEmail.recipientEmail}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <div className="mt-1">{getStatusBadge(selectedEmail.status)}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Created</Label>
+                  <p>{format(new Date(selectedEmail.createdAt), 'MMM d, yyyy h:mm:ss a')}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Sent At</Label>
+                  <p>{selectedEmail.sentAt ? format(new Date(selectedEmail.sentAt), 'MMM d, yyyy h:mm:ss a') : '-'}</p>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-muted-foreground">Subject</Label>
+                <p className="font-medium">{selectedEmail.subject}</p>
+              </div>
+              
+              <div>
+                <Label className="text-muted-foreground">Body</Label>
+                <div className="mt-1 p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap max-h-[200px] overflow-auto">
+                  {selectedEmail.body || '(No body content)'}
+                </div>
+              </div>
+
+              {selectedEmail.errorMessage && (
+                <div>
+                  <Label className="text-muted-foreground text-red-500">Error</Label>
+                  <p className="text-red-500 text-sm">{selectedEmail.errorMessage}</p>
+                </div>
+              )}
+
+              {selectedEmail.retryCount > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Retry Count</Label>
+                  <p>{selectedEmail.retryCount}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewEmailDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
