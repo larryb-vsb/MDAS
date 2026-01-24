@@ -3621,83 +3621,118 @@ export default function TddfApiDataPage() {
           </Badge>
         </div>
 
-      {/* Global Filename Search */}
-      <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
-        <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-            Global Filename Search
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Search for files in both active uploads and archive. Try full or partial filename match.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
-          {/* Search Input */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="Enter filename or partial match (e.g., 10022025)"
-                value={globalSearchTerm}
-                onChange={(e) => setGlobalSearchTerm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && globalSearchTerm.trim()) {
-                    setPerformSearch(true);
-                    setShowSearchResults(true);
-                    refetchSearch();
-                  }
-                }}
-                className="text-sm sm:text-base"
-                data-testid="input-global-search"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  if (globalSearchTerm.trim()) {
-                    setPerformSearch(true);
-                    setShowSearchResults(true);
-                    refetchSearch();
-                  }
-                }}
-                disabled={!globalSearchTerm.trim() || isSearching}
-                data-testid="button-global-search"
-                className="flex-1 sm:flex-none"
-              >
-                {isSearching ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    <span className="hidden sm:inline">Searching...</span>
-                    <span className="sm:hidden">...</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Search</span>
-                  </>
-                )}
-              </Button>
-              {showSearchResults && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setGlobalSearchTerm('');
-                    setPerformSearch(false);
-                    setShowSearchResults(false);
+      {/* Global Search Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Global Filename Search */}
+        <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Search className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              Global Filename Search
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Search for files in both active uploads and archive. Try full or partial filename match.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
+            {/* Search Input */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Enter filename or partial match (e.g., 10022025)"
+                  value={globalSearchTerm}
+                  onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && globalSearchTerm.trim()) {
+                      setPerformSearch(true);
+                      setShowSearchResults(true);
+                      refetchSearch();
+                    }
                   }}
-                  data-testid="button-clear-search"
+                  className="text-sm sm:text-base"
+                  data-testid="input-global-search"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    if (globalSearchTerm.trim()) {
+                      setPerformSearch(true);
+                      setShowSearchResults(true);
+                      refetchSearch();
+                    }
+                  }}
+                  disabled={!globalSearchTerm.trim() || isSearching}
+                  data-testid="button-global-search"
                   className="flex-1 sm:flex-none"
                 >
-                  <X className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Clear</span>
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Searching...</span>
+                      <span className="sm:hidden">...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Search</span>
+                    </>
+                  )}
                 </Button>
-              )}
+                {showSearchResults && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setGlobalSearchTerm('');
+                      setPerformSearch(false);
+                      setShowSearchResults(false);
+                    }}
+                    data-testid="button-clear-search"
+                    className="flex-1 sm:flex-none"
+                  >
+                    <X className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Clear</span>
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Search Results */}
-          {showSearchResults && searchResults && (
-            <div className="space-y-4 mt-4">
+        {/* Card Search - switches to Raw Data tab */}
+        <Card 
+          className="border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 cursor-pointer hover:border-emerald-400 transition-colors"
+          onClick={() => setActiveTab('raw-data')}
+        >
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+              Card Search
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Search for cardholder accounts by card number or last 4 digits in transaction records.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-100/50 dark:bg-emerald-900/20">
+              <CreditCard className="h-8 w-8 text-emerald-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                  Click to search card transactions
+                </p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  Opens Raw Data tab with cardholder account search
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-emerald-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search Results */}
+      {showSearchResults && searchResults && (
+        <div className="space-y-4 mt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Search Results</h3>
                 <Badge variant="secondary">
@@ -3904,10 +3939,8 @@ export default function TddfApiDataPage() {
                   )}
                 </div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
