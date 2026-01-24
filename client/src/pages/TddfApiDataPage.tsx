@@ -1259,6 +1259,25 @@ function RawDataTab({
   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
   const [accumulatedRecords, setAccumulatedRecords] = useState<any[]>([]);
   const [chunkedHasMore, setChunkedHasMore] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  // Auto-trigger search on mount when searchTriggered is true
+  useEffect(() => {
+    if (searchTriggered && !initialLoadDone && dateRange !== 'none') {
+      setInitialLoadDone(true);
+      // Start the chunked loading for today's data
+      const days = parseInt(dateRange);
+      if (!isNaN(days)) {
+        const isCardholderSearch = cardholderAccount.trim().length > 0;
+        const dateChunks = calculateChunks(days, isCardholderSearch);
+        setChunks(dateChunks);
+        setCurrentChunkIndex(0);
+        setAccumulatedRecords([]);
+        setIsChunkedLoading(true);
+        setQueryStartTime(Date.now());
+      }
+    }
+  }, [searchTriggered, initialLoadDone, dateRange]);
 
   // Calculate offset based on page and limit
   const offset = (page - 1) * limit;
@@ -1654,6 +1673,16 @@ function RawDataTab({
         >
           <Search className="mr-2 h-4 w-4" />
           Search
+        </Button>
+
+        <Button 
+          variant={searchTriggered ? "default" : "outline"}
+          size="sm" 
+          onClick={() => setSearchTriggered(!searchTriggered)}
+          className={searchTriggered ? "bg-green-600 hover:bg-green-700" : ""}
+          data-testid="button-auto-load"
+        >
+          {searchTriggered ? "Auto: ON" : "Auto: OFF"}
         </Button>
 
         <Button variant="ghost" size="sm" onClick={() => { clearFilters(); setSearchTriggered(false); }}>
