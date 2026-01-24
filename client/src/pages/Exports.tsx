@@ -15,8 +15,7 @@ import { AlertCircle, Calendar as CalendarIcon, Download, FileSpreadsheet, Refre
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+import MainLayout from "@/components/layout/MainLayout";
 
 // Interface for export history items
 interface ExportHistoryItem {
@@ -30,8 +29,6 @@ interface ExportHistoryItem {
 }
 
 export default function Exports() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [exportType, setExportType] = useState("all-data");
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -44,14 +41,6 @@ export default function Exports() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isFromDateOpen, setIsFromDateOpen] = useState(false);
   const [isToDateOpen, setIsToDateOpen] = useState(false);
-  
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(prev => !prev);
-  };
-  
-  const toggleUploadModal = () => {
-    setIsUploadModalOpen(prev => !prev);
-  };
   
   // Fetch real export history from API
   const {
@@ -147,13 +136,8 @@ export default function Exports() {
   };
   
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar isVisible={!isMobileMenuOpen} />
-      
-      <div className="flex-1 flex flex-col h-full overflow-auto">
-        <Header toggleMobileMenu={toggleMobileMenu} toggleUploadModal={toggleUploadModal} />
-        
-        <div className="flex-1 p-6 space-y-6">
+    <MainLayout>
+      <div className="p-6 space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Export Data</h1>
@@ -451,7 +435,6 @@ export default function Exports() {
             </Card>
           </div>
         </div>
-      </div>
-    </div>
+    </MainLayout>
   );
 }
