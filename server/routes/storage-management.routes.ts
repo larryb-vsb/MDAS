@@ -33,7 +33,8 @@ export function registerStorageManagementRoutes(app: Express) {
           COALESCE(SUM(line_count), 0) as total_lines,
           COUNT(CASE WHEN status = 'deleted' THEN 1 END) as orphaned_objects,
           COUNT(CASE WHEN is_archived = true THEN 1 END) as archived_count,
-          COUNT(CASE WHEN current_phase IN ('complete', 'step-6-complete') OR (is_archived = false AND current_phase NOT IN ('uploading', 'uploaded', 'identified', 'validating', 'encoding', 'processing', 'failed')) THEN 1 END) as processing_complete
+          COUNT(CASE WHEN current_phase IN ('complete', 'step-6-complete') OR (is_archived = false AND current_phase NOT IN ('uploading', 'uploaded', 'identified', 'validating', 'encoding', 'processing', 'failed')) THEN 1 END) as processing_complete,
+          COUNT(CASE WHEN current_phase = 'failed' OR failed_at IS NOT NULL THEN 1 END) as failed_count
         FROM ${sql.raw(uploadsTable)}
       `);
 
@@ -92,7 +93,8 @@ export function registerStorageManagementRoutes(app: Express) {
           totalLines: parseInt(uploadStats.total_lines || '0'),
           orphanedObjects: parseInt(uploadStats.orphaned_objects || '0'),
           markedForPurge: parseInt(uploadStats.archived_count || '0'),
-          processingComplete: parseInt(uploadStats.processing_complete || '0')
+          processingComplete: parseInt(uploadStats.processing_complete || '0'),
+          failedCount: parseInt(uploadStats.failed_count || '0')
         },
         purgeQueue: {
           totalQueued: parseInt(archiveQueue.total_queued || '0'),

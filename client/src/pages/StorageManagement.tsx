@@ -41,6 +41,7 @@ interface StorageStats {
     markedForPurge: number;
     processingComplete: number;
     archivedCount: number;
+    failedCount: number;
   };
   purgeQueue: {
     totalQueued: number;
@@ -845,6 +846,19 @@ export default function StorageManagement() {
                     <div className="text-2xl font-bold text-green-600">{storageStats?.masterKeys?.processingComplete ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
                       Fully processed files
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Failed</CardTitle>
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">{storageStats?.masterKeys?.failedCount ?? 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Files with errors
                     </p>
                   </CardContent>
                 </Card>
