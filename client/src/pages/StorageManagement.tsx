@@ -574,15 +574,19 @@ export default function StorageManagement() {
 
   const businessDays = (businessDaysData as any)?.businessDays || [];
 
-  // Objects list query
+  // Objects list query - build URL with params since default fetcher only uses queryKey[0]
+  const objectsListParams = new URLSearchParams({
+    limit: '50',
+    offset: String(currentPage * 50),
+    status: statusFilter,
+    search: searchTerm,
+    businessDay: businessDayFilter === 'all' ? '' : businessDayFilter
+  });
+  const objectsListUrl = `/api/storage/master-keys/list?${objectsListParams.toString()}`;
+  
   const { data: objectsData, isLoading: objectsLoading, refetch: refetchList } = useQuery({
-    queryKey: ['/api/storage/master-keys/list', {
-      limit: 50,
-      offset: currentPage * 50,
-      status: statusFilter,
-      search: searchTerm,
-      businessDay: businessDayFilter === 'all' ? '' : businessDayFilter
-    }]
+    queryKey: ['/api/storage/master-keys/list', statusFilter, searchTerm, businessDayFilter, currentPage]
+  , queryFn: () => fetch(objectsListUrl, { credentials: 'include' }).then(res => res.json())
   });
 
   // Scan for orphaned objects mutation
