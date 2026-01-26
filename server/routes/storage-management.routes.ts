@@ -4,6 +4,7 @@ import { count, desc, eq, sql, and, isNull, isNotNull } from "drizzle-orm";
 import { getTableName } from "../table-config";
 import { logger } from "../../shared/logger";
 import { ReplitStorageService } from "../replit-storage-service";
+import { extractBusinessDayFromFilename } from "../filename-parser";
 
 // Middleware for authentication check
 function isAuthenticated(req: any, res: any, next: any) {
@@ -164,19 +165,24 @@ export function registerStorageManagementRoutes(app: Express) {
         LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params);
 
-      const objects = objectsQuery.rows.map((row: any) => ({
-        id: row.id,
-        objectKey: row.storage_path || row.filename,
-        filename: row.filename,
-        fileSizeMB: `${row.file_size_mb || 0} MB`,
-        lineCount: row.line_count || 0,
-        createdAt: row.created_at,
-        status: row.status,
-        uploadId: row.upload_id,
-        currentPhase: row.current_phase,
-        fileType: row.file_type || row.detected_file_type,
-        businessDay: null // Will be parsed from filename if needed
-      }));
+      const objects = objectsQuery.rows.map((row: any) => {
+        // Parse business day from filename
+        const parsedDate = extractBusinessDayFromFilename(row.filename || '');
+        return {
+          id: row.id,
+          objectKey: row.storage_path || row.filename,
+          filename: row.filename,
+          fileSizeMB: `${row.file_size_mb || 0} MB`,
+          lineCount: row.line_count || 0,
+          createdAt: row.created_at,
+          status: row.status,
+          uploadId: row.upload_id,
+          currentPhase: row.current_phase,
+          fileType: row.file_type || row.detected_file_type,
+          businessDay: parsedDate.business_day?.toISOString().split('T')[0] || null,
+          fileSequence: parsedDate.file_sequence
+        };
+      });
 
       res.json({
         objects,
