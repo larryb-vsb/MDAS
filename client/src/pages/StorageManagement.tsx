@@ -520,6 +520,7 @@ export default function StorageManagement() {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [businessDayFilter, setBusinessDayFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [scanRunning, setScanRunning] = useState(false);
   const [purgeRunning, setPurgeRunning] = useState(false);
@@ -535,13 +536,22 @@ export default function StorageManagement() {
     queryFn: () => apiRequest('/api/storage/master-keys/stats')
   });
 
+  // Business days query for filter dropdown
+  const { data: businessDaysData } = useQuery({
+    queryKey: ['/api/storage/master-keys/business-days'],
+    queryFn: () => apiRequest('/api/storage/master-keys/business-days')
+  });
+
+  const businessDays = (businessDaysData as any)?.businessDays || [];
+
   // Objects list query
   const { data: objectsData, isLoading: objectsLoading, refetch: refetchList } = useQuery({
     queryKey: ['/api/storage/master-keys/list', {
       limit: 50,
       offset: currentPage * 50,
       status: statusFilter,
-      search: searchTerm
+      search: searchTerm,
+      businessDay: businessDayFilter === 'all' ? '' : businessDayFilter
     }]
   });
 
@@ -897,7 +907,7 @@ export default function StorageManagement() {
                 </div>
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -909,6 +919,27 @@ export default function StorageManagement() {
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="uploaded">Uploaded</SelectItem>
                   <SelectItem value="orphaned">Deleted</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={businessDayFilter} onValueChange={(value) => {
+                setBusinessDayFilter(value);
+                setCurrentPage(0);
+              }}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by business day" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Business Days</SelectItem>
+                  {businessDays.map((day: string) => (
+                    <SelectItem key={day} value={day}>
+                      {new Date(day + 'T00:00:00').toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

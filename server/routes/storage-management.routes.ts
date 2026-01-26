@@ -101,6 +101,39 @@ export function registerStorageManagementRoutes(app: Express) {
     }
   });
 
+  // ===== BUSINESS DAYS ENDPOINT =====
+  // Get unique business days from filenames for filter dropdown
+  app.get('/api/storage/master-keys/business-days', isAuthenticated, async (req, res) => {
+    try {
+      logger.info('[STORAGE-MGMT] Getting available business days');
+      
+      // Get all filenames and extract business days
+      const filesQuery = await pool.query(`
+        SELECT DISTINCT filename
+        FROM ${uploadsTable}
+        WHERE status != 'deleted'
+        ORDER BY filename DESC
+      `);
+      
+      // Extract unique business days from filenames
+      const businessDaysSet = new Set<string>();
+      filesQuery.rows.forEach((row: any) => {
+        const parsed = extractBusinessDayFromFilename(row.filename || '');
+        if (parsed.business_day) {
+          businessDaysSet.add(parsed.business_day.toISOString().split('T')[0]);
+        }
+      });
+      
+      // Sort in descending order (most recent first)
+      const businessDays = Array.from(businessDaysSet).sort((a, b) => b.localeCompare(a));
+      
+      res.json({ businessDays });
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] Failed to get business days:', error);
+      res.status(500).json({ error: 'Failed to retrieve business days' });
+    }
+  });
+
   // ===== LIST ENDPOINT =====
   app.get('/api/storage/master-keys/list', isAuthenticated, async (req, res) => {
     try {
@@ -108,8 +141,9 @@ export function registerStorageManagementRoutes(app: Express) {
       const offset = parseInt(req.query.offset as string) || 0;
       const status = req.query.status as string || 'all';
       const search = req.query.search as string || '';
+      const businessDay = req.query.businessDay as string || '';
 
-      logger.info('[STORAGE-MGMT] Listing files from uploader_uploads', { limit, offset, status, search });
+      logger.info('[STORAGE-MGMT] Listing files from uploader_uploads', { limit, offset, status, search, businessDay });
 
       let whereClause = "WHERE status != 'deleted'";
       const params: any[] = [];
@@ -165,7 +199,7 @@ export function registerStorageManagementRoutes(app: Express) {
         LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params);
 
-      const objects = objectsQuery.rows.map((row: any) => {
+      let objects = objectsQuery.rows.map((row: any) => {
         // Parse business day from filename
         const parsedDate = extractBusinessDayFromFilename(row.filename || '');
         return {
@@ -184,13 +218,20 @@ export function registerStorageManagementRoutes(app: Express) {
         };
       });
 
+      // Apply business day filter if specified (filters parsed dates)
+      let filteredTotal = total;
+      if (businessDay) {
+        objects = objects.filter(obj => obj.businessDay === businessDay);
+        filteredTotal = objects.length;
+      }
+
       res.json({
         objects,
         pagination: {
-          total,
+          total: businessDay ? filteredTotal : total,
           page: Math.floor(offset / limit),
           limit,
-          totalPages: Math.ceil(total / limit)
+          totalPages: Math.ceil((businessDay ? filteredTotal : total) / limit)
         }
       });
     } catch (error: any) {
