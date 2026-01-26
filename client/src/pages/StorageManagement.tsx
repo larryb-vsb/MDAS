@@ -280,6 +280,26 @@ function DuplicatesTab() {
             <RefreshCw className={`w-4 h-4 mr-2 ${duplicatesLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
+          <Button
+            onClick={() => {
+              const allRemovable = new Set<string>();
+              duplicateGroups.forEach(group => {
+                group.objects.filter(obj => !obj.isNewest).forEach(obj => {
+                  allRemovable.add(obj.id);
+                });
+              });
+              setSelectedForRemoval(allRemovable);
+              toast({
+                title: "What-If Analysis",
+                description: `Selected ${allRemovable.size} removable duplicates (${summary.totalSavingsMB} MB potential savings)`
+              });
+            }}
+            variant="secondary"
+            disabled={duplicatesLoading || summary.totalDuplicatesRemovable === 0}
+          >
+            <Activity className="w-4 h-4 mr-2" />
+            Run What-If
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           <Button
