@@ -55,12 +55,15 @@ interface StorageStats {
 interface StorageObject {
   id: string;
   objectKey: string;
+  filename?: string;
   fileSizeMB: string;
   lineCount: number;
   createdAt: string;
   status: string;
   uploadId?: string;
   currentPhase: string;
+  fileType?: string;
+  businessDay?: string;
 }
 
 interface StorageList {
@@ -678,11 +681,26 @@ export default function StorageManagement() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'complete': return 'bg-green-100 text-green-800';
-      case 'orphaned': return 'bg-orange-100 text-orange-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'purged': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-600';
+      case 'complete':
+      case 'step-6-complete':
+        return 'bg-green-100 text-green-800';
+      case 'orphaned':
+        return 'bg-orange-100 text-orange-800';
+      case 'processing':
+      case 'processing-step-6':
+        return 'bg-blue-100 text-blue-800';
+      case 'archived':
+        return 'bg-purple-100 text-purple-800';
+      case 'encoded':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'identified':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'uploaded':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'purged':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-600';
     }
   };
 
@@ -738,24 +756,24 @@ export default function StorageManagement() {
             </div>
           ) : storageStats ? (
             <>
-              {/* Master Keys Statistics */}
+              {/* File Statistics */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Objects</CardTitle>
+                    <CardTitle className="text-sm font-medium">Total Files</CardTitle>
                     <Database className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{storageStats?.masterKeys?.totalObjects?.toLocaleString() ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      {storageStats?.masterKeys?.linkedToUploads ?? 0} linked to uploads
+                      {storageStats?.masterKeys?.linkedToUploads ?? 0} with storage path
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
+                    <CardTitle className="text-sm font-medium">Total Size</CardTitle>
                     <HardDrive className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -768,52 +786,52 @@ export default function StorageManagement() {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Orphaned Objects</CardTitle>
+                    <CardTitle className="text-sm font-medium">Deleted Files</CardTitle>
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-orange-600">{storageStats?.masterKeys?.orphanedObjects ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      {storageStats?.masterKeys?.markedForPurge ?? 0} marked for purge
+                      {storageStats?.masterKeys?.markedForPurge ?? 0} archived
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Processing Status</CardTitle>
+                    <CardTitle className="text-sm font-medium">Completed</CardTitle>
                     <Activity className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-600">{storageStats?.masterKeys?.processingComplete ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      Complete processing
+                      Fully processed files
                     </p>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Purge Queue Statistics */}
+              {/* Archive Statistics */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Trash2 className="w-5 h-5 text-orange-500" />
-                    Purge Queue Statistics
+                    <Database className="w-5 h-5 text-purple-500" />
+                    Archive Statistics
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-orange-600">{storageStats?.purgeQueue?.totalQueued ?? 0}</div>
-                      <p className="text-sm text-muted-foreground">Objects queued</p>
+                      <div className="text-2xl font-bold text-purple-600">{storageStats?.purgeQueue?.totalQueued ?? 0}</div>
+                      <p className="text-sm text-muted-foreground">Files archived</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold">{storageStats?.purgeQueue?.totalSizeMB?.toFixed(1) ?? '0.0'} MB</div>
-                      <p className="text-sm text-muted-foreground">Total size</p>
+                      <p className="text-sm text-muted-foreground">Archive size</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold">{storageStats?.purgeQueue?.avgSizeMB?.toFixed(1) ?? '0.0'} MB</div>
-                      <p className="text-sm text-muted-foreground">Average size</p>
+                      <p className="text-sm text-muted-foreground">Average file size</p>
                     </div>
                   </div>
                 </CardContent>
@@ -885,9 +903,12 @@ export default function StorageManagement() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="complete">Complete</SelectItem>
-                  <SelectItem value="orphaned">Orphaned</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="encoded">Encoded</SelectItem>
+                  <SelectItem value="identified">Identified</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="purged">Purged</SelectItem>
+                  <SelectItem value="uploaded">Uploaded</SelectItem>
+                  <SelectItem value="orphaned">Deleted</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -943,22 +964,34 @@ export default function StorageManagement() {
                           onCheckedChange={(checked) => handleSelectObject(obj.id, checked as boolean)}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">
-                            {obj.objectKey}
+                          <p className="text-sm font-medium truncate" title={obj.objectKey}>
+                            {obj.filename || obj.objectKey}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {obj.fileSizeMB} • {obj.lineCount?.toLocaleString() || 'N/A'} lines • {formatDate(obj.createdAt)}
-                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                            <span>{obj.fileSizeMB}</span>
+                            <span>•</span>
+                            <span>{obj.lineCount?.toLocaleString() || 'N/A'} lines</span>
+                            <span>•</span>
+                            <span>{formatDate(obj.createdAt)}</span>
+                            {obj.businessDay && (
+                              <>
+                                <span>•</span>
+                                <span className="text-blue-600 font-medium">
+                                  Biz Day: {new Date(obj.businessDay).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(obj.status)}>
-                            {obj.status}
-                          </Badge>
-                          {obj.uploadId && (
-                            <Badge variant="outline">
-                              {obj.uploadId.split('_')[1]?.slice(0, 8)}
+                          {obj.fileType && (
+                            <Badge variant="secondary" className="text-xs">
+                              {obj.fileType}
                             </Badge>
                           )}
+                          <Badge className={getStatusColor(obj.currentPhase || obj.status)}>
+                            {obj.currentPhase || obj.status}
+                          </Badge>
                         </div>
                       </div>
                     </CardContent>

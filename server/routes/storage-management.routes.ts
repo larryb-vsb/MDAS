@@ -20,74 +20,79 @@ export function registerStorageManagementRoutes(app: Express) {
   // ===== STATS ENDPOINT =====
   app.get('/api/storage/master-keys/stats', isAuthenticated, async (req, res) => {
     try {
-      logger.info('[STORAGE-MGMT] Getting storage statistics');
+      logger.info('[STORAGE-MGMT] Getting storage statistics from uploader_uploads');
 
-      // Get master keys statistics
-      const masterKeysStatsQuery = await db.execute(sql`
+      // Get uploader_uploads statistics (the actual files table)
+      // Note: Column is 'filename' not 'original_filename', 'status' indicates deleted/active
+      const uploadStatsQuery = await db.execute(sql`
         SELECT 
           COUNT(*) as total_objects,
-          COUNT(upload_id) as linked_to_uploads,
-          COALESCE(SUM(file_size_bytes) / 1024.0 / 1024.0, 0) as total_storage_mb,
+          COUNT(CASE WHEN storage_path IS NOT NULL THEN 1 END) as linked_to_storage,
+          COALESCE(SUM(file_size) / 1024.0 / 1024.0, 0) as total_storage_mb,
           COALESCE(SUM(line_count), 0) as total_lines,
-          COUNT(CASE WHEN status = 'orphaned' THEN 1 END) as orphaned_objects,
-          COUNT(CASE WHEN mark_for_purge = true THEN 1 END) as marked_for_purge,
-          COUNT(CASE WHEN status = 'complete' THEN 1 END) as processing_complete
-        FROM ${sql.raw(tableName)}
+          COUNT(CASE WHEN status = 'deleted' THEN 1 END) as orphaned_objects,
+          COUNT(CASE WHEN current_phase = 'archived' THEN 1 END) as archived_count,
+          COUNT(CASE WHEN current_phase = 'complete' OR current_phase = 'step-6-complete' THEN 1 END) as processing_complete
+        FROM ${sql.raw(uploadsTable)}
       `);
 
-      const masterKeys = (masterKeysStatsQuery.rows[0] as any) || {};
+      const uploadStats = (uploadStatsQuery.rows[0] as any) || {};
 
-      // Get purge queue statistics
-      const purgeQueueQuery = await db.execute(sql`
+      // Get archive queue statistics (files marked for archival or in archived state)
+      const archiveQueueQuery = await db.execute(sql`
         SELECT 
           COUNT(*) as total_queued,
-          COALESCE(SUM(file_size_bytes) / 1024.0 / 1024.0, 0) as total_size_mb,
-          MIN(created_at) as oldest_entry,
-          MAX(created_at) as newest_entry,
-          COALESCE(AVG(file_size_bytes) / 1024.0 / 1024.0, 0) as avg_size_mb
-        FROM ${sql.raw(tableName)}
-        WHERE mark_for_purge = true
+          COALESCE(SUM(file_size) / 1024.0 / 1024.0, 0) as total_size_mb,
+          MIN(start_time) as oldest_entry,
+          MAX(start_time) as newest_entry,
+          COALESCE(AVG(file_size) / 1024.0 / 1024.0, 0) as avg_size_mb
+        FROM ${sql.raw(uploadsTable)}
+        WHERE current_phase = 'archived'
       `);
 
-      const purgeQueue = (purgeQueueQuery.rows[0] as any) || {};
+      const archiveQueue = (archiveQueueQuery.rows[0] as any) || {};
 
-      // Get recent activity (last 10 operations)
+      // Get recent activity (last 10 file operations)
       const recentActivityQuery = await db.execute(sql`
         SELECT 
           CASE 
-            WHEN status = 'complete' THEN 'Completed Processing'
-            WHEN status = 'orphaned' THEN 'Marked Orphaned'
-            WHEN mark_for_purge THEN 'Marked for Purge'
+            WHEN current_phase = 'complete' OR current_phase = 'step-6-complete' THEN 'Completed Processing'
+            WHEN current_phase = 'archived' THEN 'Archived'
+            WHEN current_phase = 'uploaded' THEN 'Uploaded'
+            WHEN current_phase = 'identified' THEN 'Identified'
+            WHEN current_phase = 'encoded' THEN 'Encoded'
+            WHEN current_phase LIKE 'processing%' THEN 'Processing'
+            WHEN status = 'deleted' THEN 'Deleted'
             ELSE 'Created'
           END as action,
-          object_key,
-          updated_at as timestamp
-        FROM ${sql.raw(tableName)}
-        ORDER BY updated_at DESC
+          filename as object_key,
+          COALESCE(last_updated, start_time) as timestamp
+        FROM ${sql.raw(uploadsTable)}
+        ORDER BY COALESCE(last_updated, start_time) DESC
         LIMIT 10
       `);
 
       const stats = {
         masterKeys: {
-          totalObjects: parseInt(masterKeys.total_objects || '0'),
-          linkedToUploads: parseInt(masterKeys.linked_to_uploads || '0'),
-          totalStorageMB: parseFloat(masterKeys.total_storage_mb || '0'),
-          totalLines: parseInt(masterKeys.total_lines || '0'),
-          orphanedObjects: parseInt(masterKeys.orphaned_objects || '0'),
-          markedForPurge: parseInt(masterKeys.marked_for_purge || '0'),
-          processingComplete: parseInt(masterKeys.processing_complete || '0')
+          totalObjects: parseInt(uploadStats.total_objects || '0'),
+          linkedToUploads: parseInt(uploadStats.linked_to_storage || '0'),
+          totalStorageMB: parseFloat(uploadStats.total_storage_mb || '0'),
+          totalLines: parseInt(uploadStats.total_lines || '0'),
+          orphanedObjects: parseInt(uploadStats.orphaned_objects || '0'),
+          markedForPurge: parseInt(uploadStats.archived_count || '0'),
+          processingComplete: parseInt(uploadStats.processing_complete || '0')
         },
         purgeQueue: {
-          totalQueued: parseInt(purgeQueue.total_queued || '0'),
-          totalSizeMB: parseFloat(purgeQueue.total_size_mb || '0'),
-          oldestEntry: purgeQueue.oldest_entry || null,
-          newestEntry: purgeQueue.newest_entry || null,
-          avgSizeMB: parseFloat(purgeQueue.avg_size_mb || '0')
+          totalQueued: parseInt(archiveQueue.total_queued || '0'),
+          totalSizeMB: parseFloat(archiveQueue.total_size_mb || '0'),
+          oldestEntry: archiveQueue.oldest_entry || null,
+          newestEntry: archiveQueue.newest_entry || null,
+          avgSizeMB: parseFloat(archiveQueue.avg_size_mb || '0')
         },
         recentActivity: recentActivityQuery.rows
       };
 
-      logger.info('[STORAGE-MGMT] Stats retrieved successfully');
+      logger.info('[STORAGE-MGMT] Stats retrieved successfully from uploader_uploads');
       res.json(stats);
     } catch (error: any) {
       logger.error('[STORAGE-MGMT] Failed to get stats:', error);
@@ -103,60 +108,74 @@ export function registerStorageManagementRoutes(app: Express) {
       const status = req.query.status as string || 'all';
       const search = req.query.search as string || '';
 
-      logger.info('[STORAGE-MGMT] Listing objects', { limit, offset, status, search });
+      logger.info('[STORAGE-MGMT] Listing files from uploader_uploads', { limit, offset, status, search });
 
-      let whereClause = '';
+      let whereClause = "WHERE status != 'deleted'";
       const params: any[] = [];
 
+      // Map status filter to current_phase values
       if (status !== 'all') {
-        whereClause = 'WHERE status = $1';
-        params.push(status);
+        if (status === 'complete') {
+          whereClause += ` AND (current_phase = 'complete' OR current_phase = 'step-6-complete')`;
+        } else if (status === 'orphaned') {
+          whereClause = "WHERE status = 'deleted'";
+        } else if (status === 'processing') {
+          whereClause += ` AND current_phase LIKE 'processing%'`;
+        } else if (status === 'archived') {
+          whereClause += ` AND current_phase = 'archived'`;
+        } else {
+          whereClause += ` AND current_phase = $${params.length + 1}`;
+          params.push(status);
+        }
       }
 
       if (search) {
-        whereClause = whereClause ? `${whereClause} AND object_key ILIKE $${params.length + 1}` : `WHERE object_key ILIKE $${params.length + 1}`;
+        whereClause += ` AND filename ILIKE $${params.length + 1}`;
         params.push(`%${search}%`);
       }
 
       // Get total count
       const countQuery = await pool.query(`
         SELECT COUNT(*) as total
-        FROM ${tableName}
+        FROM ${uploadsTable}
         ${whereClause}
       `, params);
 
       const total = parseInt((countQuery.rows[0] as any).total || '0');
 
-      // Get objects
+      // Get objects (note: using 'filename' column, not 'original_filename')
       params.push(limit, offset);
       const objectsQuery = await pool.query(`
         SELECT 
           id,
-          object_key,
-          ROUND(file_size_bytes / 1024.0 / 1024.0, 2) || ' MB' as file_size_mb,
+          filename,
+          storage_path,
+          ROUND(COALESCE(file_size, 0) / 1024.0 / 1024.0, 2) as file_size_mb,
           line_count,
-          created_at,
-          status,
-          upload_id,
-          COALESCE(
-            (SELECT current_phase FROM ${uploadsTable} WHERE id = ${tableName}.upload_id LIMIT 1),
-            'N/A'
-          ) as current_phase
-        FROM ${tableName}
+          start_time as created_at,
+          current_phase as status,
+          id as upload_id,
+          current_phase,
+          file_type,
+          detected_file_type
+        FROM ${uploadsTable}
         ${whereClause}
-        ORDER BY created_at DESC
+        ORDER BY start_time DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params);
 
       const objects = objectsQuery.rows.map((row: any) => ({
         id: row.id,
-        objectKey: row.object_key,
-        fileSizeMB: row.file_size_mb,
+        objectKey: row.storage_path || row.filename,
+        filename: row.filename,
+        fileSizeMB: `${row.file_size_mb || 0} MB`,
         lineCount: row.line_count || 0,
         createdAt: row.created_at,
         status: row.status,
         uploadId: row.upload_id,
-        currentPhase: row.current_phase
+        currentPhase: row.current_phase,
+        fileType: row.file_type || row.detected_file_type,
+        businessDay: null // Will be parsed from filename if needed
       }));
 
       res.json({
@@ -169,33 +188,35 @@ export function registerStorageManagementRoutes(app: Express) {
         }
       });
     } catch (error: any) {
-      logger.error('[STORAGE-MGMT] Failed to list objects:', error);
-      res.status(500).json({ error: 'Failed to retrieve objects list' });
+      logger.error('[STORAGE-MGMT] Failed to list files:', error);
+      res.status(500).json({ error: 'Failed to retrieve files list' });
     }
   });
 
   // ===== DUPLICATES ENDPOINT =====
   app.get('/api/storage/master-keys/duplicates', isAuthenticated, async (req, res) => {
     try {
-      logger.info('[STORAGE-MGMT] Finding duplicates');
+      logger.info('[STORAGE-MGMT] Finding duplicate filenames in uploader_uploads');
 
-      // Find duplicate filenames
+      // Find duplicate filenames in uploader_uploads
       const duplicatesQuery = await db.execute(sql`
         WITH duplicate_files AS (
           SELECT 
-            SUBSTRING(object_key FROM '[^/]+$') as filename,
+            filename,
             COUNT(*) as occurrence_count,
-            SUM(file_size_bytes) - MAX(file_size_bytes) as potential_savings_bytes
-          FROM ${sql.raw(tableName)}
+            SUM(COALESCE(file_size, 0)) - MAX(COALESCE(file_size, 0)) as potential_savings_bytes
+          FROM ${sql.raw(uploadsTable)}
+          WHERE status != 'deleted'
           GROUP BY filename
           HAVING COUNT(*) > 1
         ),
         newest_per_file AS (
           SELECT 
-            SUBSTRING(object_key FROM '[^/]+$') as filename,
-            MAX(created_at) as max_created_at
-          FROM ${sql.raw(tableName)}
-          WHERE SUBSTRING(object_key FROM '[^/]+$') IN (SELECT filename FROM duplicate_files)
+            filename,
+            MAX(start_time) as max_created_at
+          FROM ${sql.raw(uploadsTable)}
+          WHERE filename IN (SELECT filename FROM duplicate_files)
+            AND status != 'deleted'
           GROUP BY filename
         )
         SELECT 
@@ -205,22 +226,20 @@ export function registerStorageManagementRoutes(app: Express) {
           ROUND(df.potential_savings_bytes / 1024.0 / 1024.0, 2) || ' MB' as potential_savings_mb,
           json_agg(
             json_build_object(
-              'id', mk.id,
-              'objectKey', mk.object_key,
-              'fileSizeMB', ROUND(mk.file_size_bytes / 1024.0 / 1024.0, 2) || ' MB',
-              'lineCount', mk.line_count,
-              'createdAt', mk.created_at,
-              'uploadId', mk.upload_id,
-              'currentPhase', COALESCE(
-                (SELECT current_phase FROM ${sql.raw(uploadsTable)} WHERE id = mk.upload_id LIMIT 1),
-                'N/A'
-              ),
-              'isNewest', mk.created_at = npf.max_created_at
+              'id', u.id,
+              'objectKey', COALESCE(u.storage_path, u.filename),
+              'filename', u.filename,
+              'fileSizeMB', ROUND(COALESCE(u.file_size, 0) / 1024.0 / 1024.0, 2) || ' MB',
+              'lineCount', u.line_count,
+              'createdAt', u.start_time,
+              'uploadId', u.id,
+              'currentPhase', u.current_phase,
+              'isNewest', u.start_time = npf.max_created_at
             )
-            ORDER BY mk.created_at DESC
+            ORDER BY u.start_time DESC
           ) as objects
         FROM duplicate_files df
-        INNER JOIN ${sql.raw(tableName)} mk ON SUBSTRING(mk.object_key FROM '[^/]+$') = df.filename
+        INNER JOIN ${sql.raw(uploadsTable)} u ON u.filename = df.filename AND u.status != 'deleted'
         LEFT JOIN newest_per_file npf ON npf.filename = df.filename
         GROUP BY df.filename, df.occurrence_count, df.potential_savings_bytes
         ORDER BY df.occurrence_count DESC, df.potential_savings_bytes DESC
