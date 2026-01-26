@@ -552,17 +552,18 @@ export function registerStorageManagementRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid object IDs provided' });
       }
 
-      logger.info('[STORAGE-MGMT] Deleting objects', { count: objectIds.length });
+      logger.info('[STORAGE-MGMT] Deleting objects from uploader_uploads', { count: objectIds.length });
 
+      // Delete from uploader_uploads table (text IDs like "uploader_1769435093568_f3dbasir1")
       const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
       const deleteResult = await pool.query(`
-        DELETE FROM ${tableName}
+        DELETE FROM ${uploadsTable}
         WHERE id IN (${placeholders})
         RETURNING id
       `, objectIds);
 
       const deletedCount = deleteResult.rows.length;
-      logger.info(`[STORAGE-MGMT] Deleted ${deletedCount} objects`);
+      logger.info(`[STORAGE-MGMT] Deleted ${deletedCount} objects from uploader_uploads`);
 
       res.json({
         success: true,
