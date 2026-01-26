@@ -324,14 +324,32 @@ export function registerStorageManagementRoutes(app: Express) {
           GROUP BY filename
           HAVING COUNT(*) > 1
         ),
-        newest_per_file AS (
+        ranked_files AS (
           SELECT 
             filename,
-            MAX(start_time) as max_created_at
+            id,
+            start_time,
+            current_phase,
+            ROW_NUMBER() OVER (
+              PARTITION BY filename 
+              ORDER BY 
+                CASE 
+                  WHEN current_phase IN ('complete', 'step-6-complete', 'archived') THEN 0
+                  ELSE 1
+                END,
+                start_time DESC
+            ) as rank
           FROM ${sql.raw(uploadsTable)}
           WHERE filename IN (SELECT filename FROM duplicate_files)
             AND status != 'deleted'
-          GROUP BY filename
+        ),
+        newest_per_file AS (
+          SELECT 
+            filename,
+            id as best_id,
+            start_time as max_created_at
+          FROM ranked_files
+          WHERE rank = 1
         )
         SELECT 
           df.filename,
@@ -348,7 +366,7 @@ export function registerStorageManagementRoutes(app: Express) {
               'createdAt', u.start_time,
               'uploadId', u.id,
               'currentPhase', u.current_phase,
-              'isNewest', u.start_time = npf.max_created_at
+              'isNewest', u.id = npf.best_id
             )
             ORDER BY u.start_time DESC
           ) as objects
