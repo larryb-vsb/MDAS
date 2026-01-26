@@ -948,7 +948,7 @@ export default function StorageManagement() {
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-2">
               <Archive className="h-4 w-4 text-orange-500" />
-              <span className="font-medium">{storageStats?.masterKeys?.archivedCount?.toLocaleString() || 0}</span>
+              <span className="font-medium">{storageStats?.archiveStats?.totalArchived?.toLocaleString() || 0}</span>
               <span className="text-muted-foreground">Archived</span>
             </div>
           </div>

@@ -32,8 +32,8 @@ export function registerStorageManagementRoutes(app: Express) {
           COALESCE(SUM(file_size) / 1024.0 / 1024.0, 0) as total_storage_mb,
           COALESCE(SUM(line_count), 0) as total_lines,
           COUNT(CASE WHEN status = 'deleted' THEN 1 END) as orphaned_objects,
-          COUNT(CASE WHEN current_phase = 'archived' THEN 1 END) as archived_count,
-          COUNT(CASE WHEN current_phase = 'complete' OR current_phase = 'step-6-complete' THEN 1 END) as processing_complete
+          COUNT(CASE WHEN is_archived = true THEN 1 END) as archived_count,
+          COUNT(CASE WHEN current_phase IN ('complete', 'step-6-complete') OR (is_archived = false AND current_phase NOT IN ('uploading', 'uploaded', 'identified', 'validating', 'encoding', 'processing', 'failed')) THEN 1 END) as processing_complete
         FROM ${sql.raw(uploadsTable)}
       `);
 
