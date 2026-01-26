@@ -102,30 +102,32 @@ export function registerStorageManagementRoutes(app: Express) {
   });
 
   // ===== BUSINESS DAYS ENDPOINT =====
-  // Get unique business days from filenames for filter dropdown
+  // Get unique business days from filenames for filter dropdown with counts
   app.get('/api/storage/master-keys/business-days', isAuthenticated, async (req, res) => {
     try {
-      logger.info('[STORAGE-MGMT] Getting available business days');
+      logger.info('[STORAGE-MGMT] Getting available business days with counts');
       
       // Get all filenames and extract business days
       const filesQuery = await pool.query(`
-        SELECT DISTINCT filename
+        SELECT filename
         FROM ${uploadsTable}
         WHERE status != 'deleted'
-        ORDER BY filename DESC
       `);
       
-      // Extract unique business days from filenames
-      const businessDaysSet = new Set<string>();
+      // Count files per business day
+      const businessDayCounts = new Map<string, number>();
       filesQuery.rows.forEach((row: any) => {
         const parsed = extractBusinessDayFromFilename(row.filename || '');
         if (parsed.business_day) {
-          businessDaysSet.add(parsed.business_day.toISOString().split('T')[0]);
+          const dayStr = parsed.business_day.toISOString().split('T')[0];
+          businessDayCounts.set(dayStr, (businessDayCounts.get(dayStr) || 0) + 1);
         }
       });
       
-      // Sort in descending order (most recent first)
-      const businessDays = Array.from(businessDaysSet).sort((a, b) => b.localeCompare(a));
+      // Sort in descending order (most recent first) and include counts
+      const businessDays = Array.from(businessDayCounts.entries())
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([date, count]) => ({ date, count }));
       
       res.json({ businessDays });
     } catch (error: any) {

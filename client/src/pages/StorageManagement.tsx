@@ -21,7 +21,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  CheckCircle
+  CheckCircle,
+  FileText,
+  Archive
 } from "lucide-react";
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -37,6 +39,7 @@ interface StorageStats {
     orphanedObjects: number;
     markedForPurge: number;
     processingComplete: number;
+    archivedCount: number;
   };
   purgeQueue: {
     totalQueued: number;
@@ -892,6 +895,38 @@ export default function StorageManagement() {
         </TabsContent>
 
         <TabsContent value="objects" className="space-y-6">
+          {/* Compact Stats Bar */}
+          <div className="flex items-center gap-6 p-3 bg-muted/50 rounded-lg text-sm">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{storageStats?.masterKeys?.totalObjects?.toLocaleString() || 0}</span>
+              <span className="text-muted-foreground">Files</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{storageStats?.masterKeys?.totalStorageMB?.toFixed(1) || 0} MB</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{storageStats?.masterKeys?.totalLines?.toLocaleString() || 0}</span>
+              <span className="text-muted-foreground">Lines</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="font-medium">{storageStats?.masterKeys?.processingComplete?.toLocaleString() || 0}</span>
+              <span className="text-muted-foreground">Complete</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <Archive className="h-4 w-4 text-orange-500" />
+              <span className="font-medium">{storageStats?.masterKeys?.archivedCount?.toLocaleString() || 0}</span>
+              <span className="text-muted-foreground">Archived</span>
+            </div>
+          </div>
+
           {/* Filters and Group Actions */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -925,19 +960,18 @@ export default function StorageManagement() {
                 setBusinessDayFilter(value);
                 setCurrentPage(0);
               }}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Filter by business day" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Business Days</SelectItem>
-                  {businessDays.map((day: string) => (
-                    <SelectItem key={day} value={day}>
-                      {new Date(day + 'T00:00:00').toLocaleDateString('en-US', { 
+                  {businessDays.map((item: { date: string; count: number }) => (
+                    <SelectItem key={item.date} value={item.date}>
+                      {new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { 
                         weekday: 'short', 
                         month: 'short', 
-                        day: 'numeric', 
-                        year: 'numeric' 
-                      })}
+                        day: 'numeric'
+                      })} ({item.count})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -954,8 +988,11 @@ export default function StorageManagement() {
                   />
                   <span className="text-sm font-medium">
                     {selectedObjects.size === 0 
-                      ? `Select All (${objectsList.objects.length})` 
+                      ? `Select All on Page` 
                       : `${selectedObjects.size} selected`}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    Showing {currentPage * 50 + 1}-{Math.min((currentPage + 1) * 50, objectsList.pagination?.total || 0)} of {objectsList.pagination?.total?.toLocaleString() || 0}
                   </span>
                 </div>
                 {selectedObjects.size > 0 && (
