@@ -53,14 +53,14 @@ export function registerStorageManagementRoutes(app: Express) {
 
       const archiveQueue = (archiveQueueQuery.rows[0] as any) || {};
 
-      // Get actual archive table statistics (dev_tddf_archive)
-      const archiveTableName = getTableName('tddf_archive');
+      // Get archive statistics from uploader_uploads with is_archived = true (same as API Data page)
       const archiveStatsQuery = await db.execute(sql`
         SELECT 
           COUNT(*) as total_archived,
           COALESCE(SUM(file_size) / 1024.0 / 1024.0, 0) as total_size_mb,
           COALESCE(AVG(file_size) / 1024.0 / 1024.0, 0) as avg_size_mb
-        FROM ${sql.raw(archiveTableName)}
+        FROM ${sql.raw(uploadsTable)}
+        WHERE is_archived = true
       `);
       const archiveStats = (archiveStatsQuery.rows[0] as any) || {};
 
