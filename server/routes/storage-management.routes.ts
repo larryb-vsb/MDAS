@@ -585,21 +585,21 @@ export function registerStorageManagementRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid object IDs provided' });
       }
 
-      logger.info('[STORAGE-MGMT] Removing duplicates', { count: objectIds.length });
+      logger.info('[STORAGE-MGMT] Removing duplicates from uploader_uploads', { count: objectIds.length });
 
-      // Get size info before deletion for reporting
+      // Get size info before deletion for reporting (uploader_uploads uses file_size column)
       const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
       const sizeQuery = await pool.query(`
-        SELECT COALESCE(SUM(file_size_bytes), 0) as total_bytes
-        FROM ${tableName}
+        SELECT COALESCE(SUM(file_size), 0) as total_bytes
+        FROM ${uploadsTable}
         WHERE id IN (${placeholders})
       `, objectIds);
 
       const totalBytes = parseFloat((sizeQuery.rows[0] as any).total_bytes || '0');
 
-      // Delete the duplicates
+      // Delete the duplicates from uploader_uploads (text IDs)
       const deleteResult = await pool.query(`
-        DELETE FROM ${tableName}
+        DELETE FROM ${uploadsTable}
         WHERE id IN (${placeholders})
         RETURNING id
       `, objectIds);
@@ -607,7 +607,7 @@ export function registerStorageManagementRoutes(app: Express) {
       const removedCount = deleteResult.rows.length;
       const spaceFreed = `${(totalBytes / 1024 / 1024).toFixed(2)} MB`;
 
-      logger.info(`[STORAGE-MGMT] Removed ${removedCount} duplicates, freed ${spaceFreed}`);
+      logger.info(`[STORAGE-MGMT] Removed ${removedCount} duplicates from uploader_uploads, freed ${spaceFreed}`);
 
       res.json({
         success: true,
