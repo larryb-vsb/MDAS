@@ -136,6 +136,69 @@ export function registerStorageManagementRoutes(app: Express) {
     }
   });
 
+  // ===== BUSINESS DAY HEATMAP ENDPOINT =====
+  // Get file counts aggregated by business day for heatmap visualization
+  app.get('/api/storage/master-keys/business-day-heatmap', isAuthenticated, async (req, res) => {
+    try {
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const months = req.query.months ? parseInt(req.query.months as string) : undefined;
+      
+      logger.info('[STORAGE-MGMT] Getting business day heatmap data', { year, months });
+      
+      // Get all filenames and extract business days
+      const filesQuery = await pool.query(`
+        SELECT filename
+        FROM ${uploadsTable}
+        WHERE status != 'deleted'
+      `);
+      
+      // Count files per business day
+      const businessDayCounts = new Map<string, number>();
+      filesQuery.rows.forEach((row: any) => {
+        const parsed = extractBusinessDayFromFilename(row.filename || '');
+        if (parsed.business_day) {
+          const dayStr = parsed.business_day.toISOString().split('T')[0];
+          businessDayCounts.set(dayStr, (businessDayCounts.get(dayStr) || 0) + 1);
+        }
+      });
+      
+      // Filter by year or rolling months window
+      const now = new Date();
+      let filteredData: { date: string; count: number }[] = [];
+      
+      if (year) {
+        // Filter for specific year
+        filteredData = Array.from(businessDayCounts.entries())
+          .filter(([date]) => date.startsWith(year.toString()))
+          .map(([date, count]) => ({ date, count }));
+      } else if (months) {
+        // Rolling window of last N months
+        const cutoffDate = new Date(now);
+        cutoffDate.setMonth(cutoffDate.getMonth() - months);
+        
+        filteredData = Array.from(businessDayCounts.entries())
+          .filter(([date]) => new Date(date) >= cutoffDate && new Date(date) <= now)
+          .map(([date, count]) => ({ date, count }));
+      } else {
+        // Default: all data
+        filteredData = Array.from(businessDayCounts.entries())
+          .map(([date, count]) => ({ date, count }));
+      }
+      
+      // Sort by date
+      filteredData.sort((a, b) => a.date.localeCompare(b.date));
+      
+      res.json({ 
+        data: filteredData,
+        year: year || null,
+        months: months || null
+      });
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] Failed to get business day heatmap:', error);
+      res.status(500).json({ error: 'Failed to retrieve heatmap data' });
+    }
+  });
+
   // ===== LIST ENDPOINT =====
   app.get('/api/storage/master-keys/list', isAuthenticated, async (req, res) => {
     try {

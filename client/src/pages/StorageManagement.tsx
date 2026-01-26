@@ -28,6 +28,7 @@ import {
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { BusinessDayHeatmap } from "@/components/storage/BusinessDayHeatmap";
 
 // TypeScript interfaces for Storage Management
 interface StorageStats {
@@ -925,6 +926,12 @@ export default function StorageManagement() {
               <span className="font-medium">{storageStats?.masterKeys?.archivedCount?.toLocaleString() || 0}</span>
               <span className="text-muted-foreground">Archived</span>
             </div>
+          </div>
+
+          {/* Business Day Heatmap */}
+          <div className="mt-4">
+            <h3 className="text-sm font-medium mb-2">Files by Business Day</h3>
+            <BusinessDayHeatmap />
           </div>
 
           {/* Filters and Group Actions */}
