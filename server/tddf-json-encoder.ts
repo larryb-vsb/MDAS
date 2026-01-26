@@ -749,18 +749,30 @@ export async function processAllRecordsToMasterTable(
 }
 
 /**
+ * Generate a deterministic numeric ID from upload_id and line_number
+ * This ensures the same record always gets the same ID, preventing duplicates
+ */
+function generateDeterministicId(uploadId: string, lineNumber: number): number {
+  const hash = crypto.createHash('md5').update(`${uploadId}:${lineNumber}`).digest('hex');
+  // Use first 8 hex chars (32 bits) to get a positive integer within PostgreSQL int range
+  return parseInt(hash.substring(0, 8), 16) % 2147483647;
+}
+
+/**
  * Helper function to insert batch records into master tddfJsonb table
  * With retry logic for connection/deadlock errors
+ * Uses deterministic IDs and ON CONFLICT DO NOTHING to prevent duplicates
  */
 async function insertMasterTableBatch(tableName: string, records: any[]): Promise<void> {
   if (records.length === 0) return;
   
   const values = records.map((_, index) => {
-    const offset = index * 13;
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13})`;
+    const offset = index * 14;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13}, $${offset + 14})`;
   }).join(', ');
   
   const params = records.flatMap(record => [
+    generateDeterministicId(record.uploadId, record.lineNumber), // Deterministic ID
     record.uploadId,
     record.filename,
     record.lineNumber,
@@ -779,10 +791,11 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   await executeWithRetry(async () => {
     await batchPool.query(`
       INSERT INTO ${tableName} (
-        upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
+        id, upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
         extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
         parsed_datetime, record_time_source, created_at
       ) VALUES ${values}
+      ON CONFLICT (id, tddf_processing_date) DO NOTHING
     `, params);
   }, 'insertMasterTableBatch');
 }
