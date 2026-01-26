@@ -360,7 +360,7 @@ function DuplicatesTab() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {object.fileSizeMB} • {object.lineCount.toLocaleString()} lines • {formatDate(object.createdAt)}
+                            {object.fileSizeMB} • {(object.lineCount || 0).toLocaleString()} lines • {formatDate(object.createdAt)}
                           </p>
                         </div>
                       </div>
