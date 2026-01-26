@@ -240,7 +240,7 @@ export function registerStorageManagementRoutes(app: Express) {
         } else if (status === 'processing') {
           whereClause += ` AND current_phase LIKE 'processing%'`;
         } else if (status === 'archived') {
-          whereClause += ` AND current_phase = 'archived'`;
+          whereClause += ` AND is_archived = true`;
         } else if (status === 'failed') {
           whereClause += ` AND (current_phase = 'failed' OR current_phase LIKE 'error%' OR failed_at IS NOT NULL)`;
         } else {
