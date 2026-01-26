@@ -953,6 +953,7 @@ export default function StorageManagement() {
                   <SelectItem value="identified">Identified</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="uploaded">Uploaded</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
                   <SelectItem value="orphaned">Deleted</SelectItem>
                 </SelectContent>
               </Select>

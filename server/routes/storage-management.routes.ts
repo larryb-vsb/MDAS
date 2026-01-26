@@ -160,6 +160,8 @@ export function registerStorageManagementRoutes(app: Express) {
           whereClause += ` AND current_phase LIKE 'processing%'`;
         } else if (status === 'archived') {
           whereClause += ` AND current_phase = 'archived'`;
+        } else if (status === 'failed') {
+          whereClause += ` AND (current_phase = 'failed' OR current_phase LIKE 'error%' OR failed_at IS NOT NULL)`;
         } else {
           whereClause += ` AND current_phase = $${params.length + 1}`;
           params.push(status);
