@@ -49,6 +49,11 @@ interface StorageStats {
     newestEntry: string;
     avgSizeMB: number;
   };
+  archiveStats: {
+    totalArchived: number;
+    totalSizeMB: number;
+    avgSizeMB: number;
+  };
   recentActivity: Array<{
     action: string;
     objectKey: string;
@@ -856,15 +861,15 @@ export default function StorageManagement() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">{storageStats?.purgeQueue?.totalQueued ?? 0}</div>
+                      <div className="text-2xl font-bold text-purple-600">{storageStats?.archiveStats?.totalArchived ?? 0}</div>
                       <p className="text-sm text-muted-foreground">Files archived</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold">{storageStats?.purgeQueue?.totalSizeMB?.toFixed(1) ?? '0.0'} MB</div>
+                      <div className="text-2xl font-bold">{storageStats?.archiveStats?.totalSizeMB?.toFixed(1) ?? '0.0'} MB</div>
                       <p className="text-sm text-muted-foreground">Archive size</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold">{storageStats?.purgeQueue?.avgSizeMB?.toFixed(1) ?? '0.0'} MB</div>
+                      <div className="text-2xl font-bold">{storageStats?.archiveStats?.avgSizeMB?.toFixed(1) ?? '0.0'} MB</div>
                       <p className="text-sm text-muted-foreground">Average file size</p>
                     </div>
                   </div>

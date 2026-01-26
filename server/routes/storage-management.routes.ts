@@ -53,6 +53,17 @@ export function registerStorageManagementRoutes(app: Express) {
 
       const archiveQueue = (archiveQueueQuery.rows[0] as any) || {};
 
+      // Get actual archive table statistics (dev_tddf_archive)
+      const archiveTableName = getTableName('tddf_archive');
+      const archiveStatsQuery = await db.execute(sql`
+        SELECT 
+          COUNT(*) as total_archived,
+          COALESCE(SUM(file_size) / 1024.0 / 1024.0, 0) as total_size_mb,
+          COALESCE(AVG(file_size) / 1024.0 / 1024.0, 0) as avg_size_mb
+        FROM ${sql.raw(archiveTableName)}
+      `);
+      const archiveStats = (archiveStatsQuery.rows[0] as any) || {};
+
       // Get recent activity (last 10 file operations)
       const recentActivityQuery = await db.execute(sql`
         SELECT 
@@ -89,6 +100,11 @@ export function registerStorageManagementRoutes(app: Express) {
           oldestEntry: archiveQueue.oldest_entry || null,
           newestEntry: archiveQueue.newest_entry || null,
           avgSizeMB: parseFloat(archiveQueue.avg_size_mb || '0')
+        },
+        archiveStats: {
+          totalArchived: parseInt(archiveStats.total_archived || '0'),
+          totalSizeMB: parseFloat(archiveStats.total_size_mb || '0'),
+          avgSizeMB: parseFloat(archiveStats.avg_size_mb || '0')
         },
         recentActivity: recentActivityQuery.rows
       };
@@ -366,7 +382,7 @@ export function registerStorageManagementRoutes(app: Express) {
               'createdAt', u.start_time,
               'uploadId', u.id,
               'currentPhase', u.current_phase,
-              'isNewest', u.id = npf.best_id
+              'isNewest', u.id::text = npf.best_id::text
             )
             ORDER BY u.start_time DESC
           ) as objects
