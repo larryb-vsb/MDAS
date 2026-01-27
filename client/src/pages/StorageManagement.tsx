@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   Database, 
   HardDrive, 
@@ -24,7 +25,9 @@ import {
   CheckCircle,
   FileText,
   Archive,
-  RotateCcw
+  RotateCcw,
+  ClipboardCheck,
+  XCircle
 } from "lucide-react";
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -584,6 +587,11 @@ export default function StorageManagement() {
   const [selectedPurgeItems, setSelectedPurgeItems] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  
+  // Audit state
+  const [showAuditDialog, setShowAuditDialog] = useState(false);
+  const [auditResult, setAuditResult] = useState<any>(null);
+  const [auditingId, setAuditingId] = useState<string | null>(null);
 
   // Stats query
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
@@ -744,6 +752,32 @@ export default function StorageManagement() {
       });
     }
   });
+
+  // Audit file mutation
+  const auditFileMutation = useMutation({
+    mutationFn: (uploadId: string) => apiRequest('/api/storage/master-keys/audit-file', {
+      method: 'POST',
+      body: JSON.stringify({ uploadId })
+    }),
+    onSuccess: (data: any) => {
+      setAuditResult(data);
+      setShowAuditDialog(true);
+      setAuditingId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Audit Failed",
+        description: error.message || "Failed to audit file",
+        variant: "destructive"
+      });
+      setAuditingId(null);
+    }
+  });
+
+  const handleAuditFile = (uploadId: string) => {
+    setAuditingId(uploadId);
+    auditFileMutation.mutate(uploadId);
+  };
 
   const handleScan = () => {
     setScanRunning(true);
@@ -1188,10 +1222,32 @@ export default function StorageManagement() {
                         <div className="flex items-center gap-2">
                           {(() => {
                             const badge = getFileTypeBadge(obj.filename || obj.objectKey);
+                            const isTddf = badge.label === 'tddf' && (obj.currentPhase === 'completed' || obj.status === 'completed');
                             return (
-                              <Badge variant="secondary" className={`text-xs ${badge.color}`}>
-                                {badge.label}
-                              </Badge>
+                              <>
+                                {isTddf && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAuditFile(obj.uploadId || obj.id);
+                                    }}
+                                    disabled={auditingId === (obj.uploadId || obj.id)}
+                                    title="Audit file records"
+                                    className="h-8 w-8"
+                                  >
+                                    {auditingId === (obj.uploadId || obj.id) ? (
+                                      <Clock className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <ClipboardCheck className="w-4 h-4 text-blue-500" />
+                                    )}
+                                  </Button>
+                                )}
+                                <Badge variant="secondary" className={`text-xs ${badge.color}`}>
+                                  {badge.label}
+                                </Badge>
+                              </>
                             );
                           })()}
                           <Badge className={getStatusColor(obj.currentPhase || obj.status)}>
@@ -1441,6 +1497,121 @@ export default function StorageManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Audit Results Dialog */}
+      <Dialog open={showAuditDialog} onOpenChange={setShowAuditDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5" />
+              File Audit Results
+            </DialogTitle>
+            <DialogDescription>
+              Comparing file records against database entries
+            </DialogDescription>
+          </DialogHeader>
+          {auditResult && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="font-medium text-sm truncate" title={auditResult.filename}>
+                  {auditResult.filename}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Processed: {auditResult.processedAt ? new Date(auditResult.processedAt).toLocaleString() : 'Unknown'}
+                </p>
+              </div>
+
+              <div className={`p-4 rounded-lg border-2 ${
+                auditResult.auditStatus === 'pass' 
+                  ? 'bg-green-50 border-green-200' 
+                  : auditResult.auditStatus === 'warning'
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {auditResult.auditStatus === 'pass' ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : auditResult.auditStatus === 'warning' ? (
+                    <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-red-600" />
+                  )}
+                  <span className={`font-semibold ${
+                    auditResult.auditStatus === 'pass' 
+                      ? 'text-green-700' 
+                      : auditResult.auditStatus === 'warning'
+                      ? 'text-yellow-700'
+                      : 'text-red-700'
+                  }`}>
+                    {auditResult.auditStatus === 'pass' ? 'AUDIT PASSED' : 
+                     auditResult.auditStatus === 'warning' ? 'WARNING' : 'AUDIT FAILED'}
+                  </span>
+                </div>
+                <p className="text-sm">{auditResult.message}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-blue-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-blue-700">{auditResult.expectedDataRecords?.toLocaleString()}</p>
+                  <p className="text-xs text-blue-600">Expected Records</p>
+                  <p className="text-xs text-muted-foreground">(from {auditResult.lineCount?.toLocaleString()} lines)</p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-purple-700">{auditResult.actualDbRecords?.toLocaleString()}</p>
+                  <p className="text-xs text-purple-600">Database Records</p>
+                  <p className="text-xs text-muted-foreground">
+                    {auditResult.discrepancy !== 0 && (
+                      <span className={auditResult.discrepancy > 0 ? 'text-green-600' : 'text-red-600'}>
+                        ({auditResult.discrepancy > 0 ? '+' : ''}{auditResult.discrepancy})
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {auditResult.recordBreakdown && (
+                <div className="border rounded-lg p-3">
+                  <p className="text-sm font-medium mb-2">Record Type Breakdown</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">DT:</span>
+                      <span className="font-medium">{auditResult.recordBreakdown.dt?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">TS:</span>
+                      <span className="font-medium">{auditResult.recordBreakdown.ts?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">MO:</span>
+                      <span className="font-medium">{auditResult.recordBreakdown.mo?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">MM:</span>
+                      <span className="font-medium">{auditResult.recordBreakdown.mm?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">HD:</span>
+                      <span className="font-medium">{auditResult.recordBreakdown.hd?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">TR:</span>
+                      <span className="font-medium">{auditResult.recordBreakdown.tr?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowAuditDialog(false)}
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       </div>
     </MainLayout>
   );
