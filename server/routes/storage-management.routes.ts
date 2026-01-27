@@ -228,7 +228,8 @@ export function registerStorageManagementRoutes(app: Express) {
 
       logger.info('[STORAGE-MGMT] Listing files from uploader_uploads', { limit, offset, status, search, businessDay });
 
-      let whereClause = "WHERE status != 'deleted'";
+      // Exclude soft-deleted items (they show in Purge Queue instead)
+      let whereClause = "WHERE status != 'deleted' AND deleted_at IS NULL";
       const params: any[] = [];
 
       // Map status filter to current_phase values
@@ -543,8 +544,43 @@ export function registerStorageManagementRoutes(app: Express) {
     }
   });
 
-  // ===== DELETE OBJECTS ENDPOINT =====
+  // ===== SOFT DELETE OBJECTS ENDPOINT (moves to Purge Queue) =====
   app.post('/api/storage/master-keys/delete-objects', isAuthenticated, async (req, res) => {
+    try {
+      const { objectIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+
+      if (!objectIds || !Array.isArray(objectIds) || objectIds.length === 0) {
+        return res.status(400).json({ error: 'Invalid object IDs provided' });
+      }
+
+      logger.info('[STORAGE-MGMT] Soft-deleting objects (moving to Purge Queue)', { count: objectIds.length });
+
+      // Soft delete: set deleted_at and deleted_by instead of actually deleting
+      const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
+      const softDeleteResult = await pool.query(`
+        UPDATE ${uploadsTable}
+        SET deleted_at = NOW(), deleted_by = $${objectIds.length + 1}
+        WHERE id IN (${placeholders}) AND deleted_at IS NULL
+        RETURNING id
+      `, [...objectIds, username]);
+
+      const deletedCount = softDeleteResult.rows.length;
+      logger.info(`[STORAGE-MGMT] Soft-deleted ${deletedCount} objects (moved to Purge Queue)`);
+
+      res.json({
+        success: true,
+        deletedCount,
+        message: `${deletedCount} items moved to Purge Queue`
+      });
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] Soft delete failed:', error);
+      res.status(500).json({ error: 'Failed to delete objects' });
+    }
+  });
+
+  // ===== RESTORE FROM PURGE QUEUE ENDPOINT =====
+  app.post('/api/storage/master-keys/restore-objects', isAuthenticated, async (req, res) => {
     try {
       const { objectIds } = req.body;
 
@@ -552,27 +588,121 @@ export function registerStorageManagementRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid object IDs provided' });
       }
 
-      logger.info('[STORAGE-MGMT] Deleting objects from uploader_uploads', { count: objectIds.length });
+      logger.info('[STORAGE-MGMT] Restoring objects from Purge Queue', { count: objectIds.length });
 
-      // Delete from uploader_uploads table (text IDs like "uploader_1769435093568_f3dbasir1")
+      const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
+      const restoreResult = await pool.query(`
+        UPDATE ${uploadsTable}
+        SET deleted_at = NULL, deleted_by = NULL
+        WHERE id IN (${placeholders}) AND deleted_at IS NOT NULL
+        RETURNING id
+      `, objectIds);
+
+      const restoredCount = restoreResult.rows.length;
+      logger.info(`[STORAGE-MGMT] Restored ${restoredCount} objects from Purge Queue`);
+
+      res.json({
+        success: true,
+        restoredCount,
+        message: `${restoredCount} items restored from Purge Queue`
+      });
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] Restore failed:', error);
+      res.status(500).json({ error: 'Failed to restore objects' });
+    }
+  });
+
+  // ===== PERMANENT DELETE FROM PURGE QUEUE ENDPOINT =====
+  app.post('/api/storage/master-keys/permanent-delete', isAuthenticated, async (req, res) => {
+    try {
+      const { objectIds } = req.body;
+
+      if (!objectIds || !Array.isArray(objectIds) || objectIds.length === 0) {
+        return res.status(400).json({ error: 'Invalid object IDs provided' });
+      }
+
+      logger.info('[STORAGE-MGMT] Permanently deleting objects from Purge Queue', { count: objectIds.length });
+
+      // Only delete items that are already in the purge queue (deleted_at IS NOT NULL)
       const placeholders = objectIds.map((_, i) => `$${i + 1}`).join(', ');
       const deleteResult = await pool.query(`
         DELETE FROM ${uploadsTable}
-        WHERE id IN (${placeholders})
+        WHERE id IN (${placeholders}) AND deleted_at IS NOT NULL
         RETURNING id
       `, objectIds);
 
       const deletedCount = deleteResult.rows.length;
-      logger.info(`[STORAGE-MGMT] Deleted ${deletedCount} objects from uploader_uploads`);
+      logger.info(`[STORAGE-MGMT] Permanently deleted ${deletedCount} objects`);
 
       res.json({
         success: true,
         deletedCount,
-        message: `Successfully deleted ${deletedCount} objects`
+        message: `${deletedCount} items permanently deleted`
       });
     } catch (error: any) {
-      logger.error('[STORAGE-MGMT] Delete failed:', error);
-      res.status(500).json({ error: 'Failed to delete objects' });
+      logger.error('[STORAGE-MGMT] Permanent delete failed:', error);
+      res.status(500).json({ error: 'Failed to permanently delete objects' });
+    }
+  });
+
+  // ===== PURGE QUEUE LIST ENDPOINT (soft-deleted items) =====
+  app.get('/api/storage/master-keys/purge-queue', isAuthenticated, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      logger.info('[STORAGE-MGMT] Listing purge queue (soft-deleted items)', { limit, offset });
+
+      // Get total count of soft-deleted items
+      const countQuery = await pool.query(`
+        SELECT COUNT(*) as total
+        FROM ${uploadsTable}
+        WHERE deleted_at IS NOT NULL
+      `);
+
+      const total = parseInt((countQuery.rows[0] as any).total || '0');
+
+      // Get soft-deleted items
+      const objectsQuery = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          file_size,
+          current_phase,
+          final_file_type,
+          is_archived,
+          business_day,
+          deleted_at,
+          deleted_by,
+          last_updated
+        FROM ${uploadsTable}
+        WHERE deleted_at IS NOT NULL
+        ORDER BY deleted_at DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
+
+      const objects = objectsQuery.rows.map((row: any) => ({
+        id: row.id,
+        filename: row.filename,
+        fileSize: row.file_size,
+        status: row.current_phase,
+        fileType: row.final_file_type || 'unknown',
+        isArchived: row.is_archived || false,
+        businessDay: row.business_day,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+        lastUpdated: row.last_updated
+      }));
+
+      res.json({
+        objects,
+        total,
+        limit,
+        offset
+      });
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] Purge queue list failed:', error);
+      res.status(500).json({ error: 'Failed to list purge queue' });
     }
   });
 
