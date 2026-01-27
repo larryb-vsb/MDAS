@@ -65,6 +65,18 @@ export function registerStorageManagementRoutes(app: Express) {
       `);
       const archiveStats = (archiveStatsQuery.rows[0] as any) || {};
 
+      // Get purge queue (soft-deleted items) statistics
+      const purgeQueueStatsQuery = await db.execute(sql`
+        SELECT 
+          COUNT(*) as total_queued,
+          COALESCE(SUM(file_size) / 1024.0 / 1024.0, 0) as total_size_mb,
+          MIN(deleted_at) as oldest_entry,
+          MAX(deleted_at) as newest_entry
+        FROM ${sql.raw(uploadsTable)}
+        WHERE deleted_at IS NOT NULL
+      `);
+      const purgeQueueStats = (purgeQueueStatsQuery.rows[0] as any) || {};
+
       // Get recent activity (last 10 file operations)
       const recentActivityQuery = await db.execute(sql`
         SELECT 
@@ -97,11 +109,10 @@ export function registerStorageManagementRoutes(app: Express) {
           failedCount: parseInt(uploadStats.failed_count || '0')
         },
         purgeQueue: {
-          totalQueued: parseInt(archiveQueue.total_queued || '0'),
-          totalSizeMB: parseFloat(archiveQueue.total_size_mb || '0'),
-          oldestEntry: archiveQueue.oldest_entry || null,
-          newestEntry: archiveQueue.newest_entry || null,
-          avgSizeMB: parseFloat(archiveQueue.avg_size_mb || '0')
+          totalQueued: parseInt(purgeQueueStats.total_queued || '0'),
+          totalSizeMB: parseFloat(purgeQueueStats.total_size_mb || '0'),
+          oldestEntry: purgeQueueStats.oldest_entry || null,
+          newestEntry: purgeQueueStats.newest_entry || null
         },
         archiveStats: {
           totalArchived: parseInt(archiveStats.total_archived || '0'),

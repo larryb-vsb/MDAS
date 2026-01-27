@@ -23,7 +23,8 @@ import {
   Copy,
   CheckCircle,
   FileText,
-  Archive
+  Archive,
+  RotateCcw
 } from "lucide-react";
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -557,6 +558,7 @@ export default function StorageManagement() {
   
   // Group selection and delete state
   const [selectedObjects, setSelectedObjects] = useState<Set<string>>(new Set());
+  const [selectedPurgeItems, setSelectedPurgeItems] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
@@ -662,6 +664,61 @@ export default function StorageManagement() {
         variant: "destructive"
       });
       setIsDeleting(false);
+    }
+  });
+
+  // Purge queue query (soft-deleted items)
+  const { data: purgeQueueData, refetch: refetchPurgeQueue } = useQuery({
+    queryKey: ['/api/storage/master-keys/purge-queue']
+  });
+  const purgeQueueList = purgeQueueData as { objects: any[], total: number } | undefined;
+
+  // Restore from purge queue mutation
+  const restoreObjectsMutation = useMutation({
+    mutationFn: (objectIds: string[]) => apiRequest('/api/storage/master-keys/restore-objects', {
+      method: 'POST',
+      body: JSON.stringify({ objectIds })
+    }),
+    onSuccess: (data: any) => {
+      toast({
+        title: "Objects Restored",
+        description: data.message
+      });
+      refetchPurgeQueue();
+      refetchStats();
+      refetchList();
+      setSelectedPurgeItems(new Set());
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Restore Failed",
+        description: error.message || "Failed to restore objects",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Permanent delete from purge queue mutation
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (objectIds: string[]) => apiRequest('/api/storage/master-keys/permanent-delete', {
+      method: 'POST',
+      body: JSON.stringify({ objectIds })
+    }),
+    onSuccess: (data: any) => {
+      toast({
+        title: "Permanently Deleted",
+        description: data.message
+      });
+      refetchPurgeQueue();
+      refetchStats();
+      setSelectedPurgeItems(new Set());
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to permanently delete objects",
+        variant: "destructive"
+      });
     }
   });
 
@@ -1154,52 +1211,115 @@ export default function StorageManagement() {
         <TabsContent value="purge" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Purge Queue Management</CardTitle>
-              <CardDescription>
-                Manage orphaned objects marked for permanent deletion
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trash2 className="w-5 h-5 text-orange-500" />
+                    Purge Queue
+                  </CardTitle>
+                  <CardDescription>
+                    {purgeQueueList?.total || 0} deleted items waiting for permanent deletion
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedPurgeItems.size > 0 && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => restoreObjectsMutation.mutate(Array.from(selectedPurgeItems))}
+                        disabled={restoreObjectsMutation.isPending}
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Restore ({selectedPurgeItems.size})
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => permanentDeleteMutation.mutate(Array.from(selectedPurgeItems))}
+                        disabled={permanentDeleteMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Forever ({selectedPurgeItems.size})
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Objects in the purge queue are no longer accessible and can be safely deleted to free up storage space.
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={() => handlePurge(true)}
-                  variant="outline"
-                  disabled={purgeRunning}
-                >
-                  {purgeRunning ? (
-                    <>
-                      <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
-                      Dry Run
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={() => handlePurge(false)}
-                  variant="destructive"
-                  disabled={purgeRunning}
-                  className="w-full"
-                >
-                  {purgeRunning ? (
-                    <>
-                      <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Execute Purge
-                    </>
-                  )}
-                </Button>
-              </div>
+              {!purgeQueueList?.objects?.length ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trash2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p>Purge queue is empty</p>
+                  <p className="text-sm">Deleted items will appear here before permanent deletion</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 border-b">
+                    <Checkbox
+                      checked={selectedPurgeItems.size === purgeQueueList.objects.length && purgeQueueList.objects.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedPurgeItems(new Set(purgeQueueList.objects.map(obj => obj.id)));
+                        } else {
+                          setSelectedPurgeItems(new Set());
+                        }
+                      }}
+                    />
+                    <span className="text-sm font-medium">Select All</span>
+                    <span className="text-sm text-muted-foreground ml-auto">
+                      {purgeQueueList.objects.length} items
+                    </span>
+                  </div>
+                  {purgeQueueList.objects.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={selectedPurgeItems.has(item.id)}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedPurgeItems);
+                          if (checked) {
+                            newSet.add(item.id);
+                          } else {
+                            newSet.delete(item.id);
+                          }
+                          setSelectedPurgeItems(newSet);
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.filename}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Deleted by {item.deletedBy || 'system'} on {item.deletedAt ? new Date(item.deletedAt).toLocaleDateString() : 'unknown'}
+                          {item.fileSize && ` • ${(item.fileSize / 1024 / 1024).toFixed(2)} MB`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => restoreObjectsMutation.mutate([item.id])}
+                          disabled={restoreObjectsMutation.isPending}
+                          title="Restore"
+                        >
+                          <RotateCcw className="w-4 h-4 text-green-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => permanentDeleteMutation.mutate([item.id])}
+                          disabled={permanentDeleteMutation.isPending}
+                          title="Delete Forever"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
