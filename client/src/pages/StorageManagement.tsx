@@ -781,7 +781,10 @@ export default function StorageManagement() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="objects">Objects</TabsTrigger>
           <TabsTrigger value="duplicates">Duplicates</TabsTrigger>
-          <TabsTrigger value="purge">Purge Queue</TabsTrigger>
+          <TabsTrigger value="purge" className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4" />
+            Purge Queue
+          </TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
         </TabsList>
 
