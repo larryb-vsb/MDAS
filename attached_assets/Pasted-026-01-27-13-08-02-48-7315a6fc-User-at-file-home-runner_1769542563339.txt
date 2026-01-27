@@ -1,0 +1,142 @@
+026-01-27 13:08:02.48
+7315a6fc
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-27 13:08:02.48
+7315a6fc
+User
+file: 'nbtinsert.c',
+2026-01-27 13:08:02.48
+7315a6fc
+User
+at async file:///home/runner/workspace/dist/index.js:7048:5
+2026-01-27 13:08:02.48
+7315a6fc
+User
+at async insertMasterTableBatch (file:///home/runner/workspace/dist/index.js:7047:3)
+2026-01-27 13:08:02.48
+7315a6fc
+User
+column: undefined,
+2026-01-27 13:08:02.48
+7315a6fc
+User
+at async processAllRecordsToMasterTable (file:///home/runner/workspace/dist/index.js:6844:9)
+2026-01-27 13:08:02.48
+7315a6fc
+User
+}
+2026-01-27 13:08:14.08
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:08:14.08
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:08:13.785Z
+2026-01-27 13:08:14.08
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:08:13.285Z
+2026-01-27 13:08:14.08
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:08:14.48
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:08:14.385Z
+2026-01-27 13:08:14.48
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:08:22.78
+7315a6fc
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO
+2026-01-27 13:08:22.78
+7315a6fc
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO: duplicate key value violates unique constraint "tddf_jsonb_2026_q1_upload_id_line_number_tddf_processing_da_idx"
+2026-01-27 13:08:26.28
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:08:26.285Z
+2026-01-27 13:08:26.28
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:10:03.48
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:10:02.985Z
+2026-01-27 13:10:04.18
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:10:12.48
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:10:12.384Z
+2026-01-27 13:10:12.48
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:10:16.58
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:10:16.585Z
+2026-01-27 13:10:16.58
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:10:17.58
+7315a6fc
+User
+[NEON-ERROR] ⚠️ Neon connection error detected at 2026-01-27T19:10:17.585Z
+2026-01-27 13:10:17.58
+7315a6fc
+User
+[NEON-ERROR] Error: Cannot set property message of # which has only a getter
+2026-01-27 13:16:33.14
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_830_01262026_083322.TSYSO
+2026-01-27 13:16:33.14
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_830_01262026_083322.TSYSO: Step 6 processing timeout
+2026-01-27 13:17:33.18
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO: Step 6 processing timeout
+2026-01-27 13:17:33.18
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO
+2026-01-27 13:26:33.54
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO: Step 6 processing timeout
+2026-01-27 13:26:33.54
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO
+2026-01-27 13:27:33.54
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_2400_01172026_005618.TSYSO
+2026-01-27 13:27:33.54
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_2400_01172026_005618.TSYSO: Step 6 processing timeout
+2026-01-27 13:27:33.97
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_830_01162026_083355.TSYSO: Step 6 processing timeout
+2026-01-27 13:27:33.97
+6ca63967
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_830_01162026_083355.TSYSO
+Wrap
+Colors
