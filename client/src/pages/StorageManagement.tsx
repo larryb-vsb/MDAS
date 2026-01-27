@@ -578,6 +578,7 @@ export default function StorageManagement() {
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [businessDayFilter, setBusinessDayFilter] = useState('all');
+  const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [scanRunning, setScanRunning] = useState(false);
   const [purgeRunning, setPurgeRunning] = useState(false);
@@ -613,12 +614,13 @@ export default function StorageManagement() {
     offset: String(currentPage * 50),
     status: statusFilter,
     search: searchTerm,
-    businessDay: businessDayFilter === 'all' ? '' : businessDayFilter
+    businessDay: businessDayFilter === 'all' ? '' : businessDayFilter,
+    fileType: fileTypeFilter
   });
   const objectsListUrl = `/api/storage/master-keys/list?${objectsListParams.toString()}`;
   
   const { data: objectsData, isLoading: objectsLoading, refetch: refetchList } = useQuery({
-    queryKey: ['/api/storage/master-keys/list', statusFilter, searchTerm, businessDayFilter, currentPage]
+    queryKey: ['/api/storage/master-keys/list', statusFilter, searchTerm, businessDayFilter, fileTypeFilter, currentPage]
   , queryFn: () => fetch(objectsListUrl, { credentials: 'include' }).then(res => res.json())
   });
 
@@ -1091,7 +1093,35 @@ export default function StorageManagement() {
           {/* Business Day Heatmap */}
           <div className="mt-4">
             <h3 className="text-sm font-medium mb-2">Files by Business Day</h3>
-            <BusinessDayHeatmap />
+            <BusinessDayHeatmap 
+              onDateClick={(date) => {
+                if (businessDayFilter === date) {
+                  setBusinessDayFilter('all');
+                } else {
+                  setBusinessDayFilter(date);
+                }
+                setCurrentPage(0);
+              }}
+              selectedDate={businessDayFilter !== 'all' ? businessDayFilter : null}
+            />
+            {businessDayFilter !== 'all' && (
+              <div className="mt-2 flex items-center gap-2">
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Filtered: {new Date(businessDayFilter + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                  <button 
+                    onClick={() => setBusinessDayFilter('all')}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    <XCircle className="h-3 w-3" />
+                  </button>
+                </Badge>
+              </div>
+            )}
           </div>
 
           {/* Filters and Group Actions */}
@@ -1122,6 +1152,21 @@ export default function StorageManagement() {
                   <SelectItem value="uploaded">Uploaded</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
                   <SelectItem value="orphaned">Deleted</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={fileTypeFilter} onValueChange={(value) => {
+                setFileTypeFilter(value);
+                setCurrentPage(0);
+              }}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="File type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="tddf">TDDF</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                  <SelectItem value="ach">ACH</SelectItem>
+                  <SelectItem value="txt">TXT</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={businessDayFilter} onValueChange={(value) => {

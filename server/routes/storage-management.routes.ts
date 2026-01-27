@@ -236,8 +236,9 @@ export function registerStorageManagementRoutes(app: Express) {
       const status = req.query.status as string || 'all';
       const search = req.query.search as string || '';
       const businessDay = req.query.businessDay as string || '';
+      const fileType = req.query.fileType as string || 'all';
 
-      logger.info('[STORAGE-MGMT] Listing files from uploader_uploads', { limit, offset, status, search, businessDay });
+      logger.info('[STORAGE-MGMT] Listing files from uploader_uploads', { limit, offset, status, search, businessDay, fileType });
 
       // Exclude soft-deleted items (they show in Purge Queue instead)
       let whereClause = "WHERE status != 'deleted' AND deleted_at IS NULL";
@@ -264,6 +265,19 @@ export function registerStorageManagementRoutes(app: Express) {
       if (search) {
         whereClause += ` AND filename ILIKE $${params.length + 1}`;
         params.push(`%${search}%`);
+      }
+
+      // File type filter
+      if (fileType !== 'all') {
+        if (fileType === 'tddf') {
+          whereClause += ` AND (file_type = 'tddf' OR detected_file_type = 'tddf' OR filename ILIKE '%.tsyso' OR filename ILIKE '%TDDF%' OR filename ILIKE '%_2400_%')`;
+        } else if (fileType === 'csv') {
+          whereClause += ` AND ((file_type = 'csv' OR detected_file_type = 'csv' OR filename ILIKE '%.csv') AND filename NOT ILIKE '%AH0314%' AND filename NOT ILIKE '%ach%')`;
+        } else if (fileType === 'ach') {
+          whereClause += ` AND (file_type = 'ach' OR detected_file_type = 'ach' OR filename ILIKE '%AH0314%' OR filename ILIKE '%ach%.csv')`;
+        } else if (fileType === 'txt') {
+          whereClause += ` AND (file_type = 'txt' OR detected_file_type = 'txt' OR filename ILIKE '%.txt')`;
+        }
       }
 
       // Get total count

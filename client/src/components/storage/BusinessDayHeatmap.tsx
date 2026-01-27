@@ -18,6 +18,8 @@ interface HeatmapResponse {
 
 interface BusinessDayHeatmapProps {
   className?: string;
+  onDateClick?: (date: string) => void;
+  selectedDate?: string | null;
 }
 
 const CELL_SIZE = 10;
@@ -46,7 +48,7 @@ function getIntensityColor(level: number): string {
   }
 }
 
-export function BusinessDayHeatmap({ className }: BusinessDayHeatmapProps) {
+export function BusinessDayHeatmap({ className, onDateClick, selectedDate }: BusinessDayHeatmapProps) {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   
@@ -189,6 +191,8 @@ export function BusinessDayHeatmap({ className }: BusinessDayHeatmapProps) {
                       const level = getIntensityLevel(count, maxCount);
                       const isInRange = day >= rangeStart && day <= rangeEnd;
                       
+                      const isSelected = selectedDate === dateStr;
+                      
                       return (
                         <Tooltip key={dayIndex}>
                           <TooltipTrigger asChild>
@@ -196,9 +200,15 @@ export function BusinessDayHeatmap({ className }: BusinessDayHeatmapProps) {
                               className={cn(
                                 "rounded-sm cursor-pointer transition-colors",
                                 isInRange ? getIntensityColor(level) : 'bg-transparent',
-                                isInRange && "hover:ring-1 hover:ring-gray-400"
+                                isInRange && "hover:ring-1 hover:ring-gray-400",
+                                isSelected && "ring-2 ring-primary ring-offset-1"
                               )}
                               style={{ width: CELL_SIZE, height: CELL_SIZE }}
+                              onClick={() => {
+                                if (isInRange && count > 0 && onDateClick) {
+                                  onDateClick(dateStr);
+                                }
+                              }}
                             />
                           </TooltipTrigger>
                           {isInRange && (
