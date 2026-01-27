@@ -114,6 +114,29 @@ interface DuplicatesSummary {
   totalSavingsGB: string;
 }
 
+function getFileTypeBadge(filename: string): { label: string; color: string } {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.csv')) {
+    if (lower.includes('merchantbatch') || lower.includes('merchantdem') || lower.includes('client')) {
+      return { label: 'csv', color: 'bg-green-100 text-green-700' };
+    }
+    if (lower.includes('ah0314') || lower.includes('ach')) {
+      return { label: 'ach', color: 'bg-purple-100 text-purple-700' };
+    }
+    return { label: 'csv', color: 'bg-green-100 text-green-700' };
+  }
+  if (lower.endsWith('.tsyso')) {
+    return { label: 'tddf', color: 'bg-blue-100 text-blue-700' };
+  }
+  if (lower.includes('tddf') || lower.includes('_2400_')) {
+    return { label: 'tddf', color: 'bg-blue-100 text-blue-700' };
+  }
+  if (lower.endsWith('.txt')) {
+    return { label: 'txt', color: 'bg-gray-100 text-gray-700' };
+  }
+  return { label: 'file', color: 'bg-gray-100 text-gray-700' };
+}
+
 function DuplicatesTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1163,11 +1186,14 @@ export default function StorageManagement() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {obj.fileType && (
-                            <Badge variant="secondary" className="text-xs">
-                              {obj.fileType}
-                            </Badge>
-                          )}
+                          {(() => {
+                            const badge = getFileTypeBadge(obj.filename || obj.objectKey);
+                            return (
+                              <Badge variant="secondary" className={`text-xs ${badge.color}`}>
+                                {badge.label}
+                              </Badge>
+                            );
+                          })()}
                           <Badge className={getStatusColor(obj.currentPhase || obj.status)}>
                             {obj.currentPhase || obj.status}
                           </Badge>
