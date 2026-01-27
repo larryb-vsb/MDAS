@@ -880,5 +880,104 @@ export function registerStorageManagementRoutes(app: Express) {
     }
   });
 
+  // ===== TDDF FILE AUDIT ENDPOINT =====
+  app.post('/api/storage/master-keys/audit-file', isAuthenticated, async (req, res) => {
+    try {
+      const { uploadId } = req.body;
+
+      if (!uploadId) {
+        return res.status(400).json({ error: 'Upload ID is required' });
+      }
+
+      logger.info('[STORAGE-MGMT] Auditing file records', { uploadId });
+
+      const tddfJsonbTable = getTableName('tddf_jsonb');
+
+      // Get file info from uploader_uploads
+      const fileResult = await pool.query(`
+        SELECT filename, line_count, file_size, current_phase, file_type, start_time
+        FROM ${uploadsTable}
+        WHERE id = $1
+      `, [uploadId]);
+
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const fileInfo = fileResult.rows[0] as any;
+      const lineCount = parseInt(fileInfo.line_count || '0', 10);
+
+      // Count actual records in tddf_jsonb for this upload
+      const recordsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
+          COUNT(CASE WHEN record_type = 'TS' THEN 1 END) as ts_records,
+          COUNT(CASE WHEN record_type = 'MO' THEN 1 END) as mo_records,
+          COUNT(CASE WHEN record_type = 'MM' THEN 1 END) as mm_records,
+          COUNT(CASE WHEN record_type = 'HD' THEN 1 END) as hd_records,
+          COUNT(CASE WHEN record_type = 'TR' THEN 1 END) as tr_records
+        FROM ${tddfJsonbTable}
+        WHERE upload_id = $1
+      `, [uploadId]);
+
+      const recordCounts = recordsResult.rows[0] as any;
+      const totalDbRecords = parseInt(recordCounts.total_records || '0', 10);
+      const dtRecords = parseInt(recordCounts.dt_records || '0', 10);
+      const tsRecords = parseInt(recordCounts.ts_records || '0', 10);
+
+      // Calculate expected records (line count minus header/trailer if applicable)
+      // TDDF files typically have 1 HD, multiple data records, and 1 TR record
+      // So expected data records = lineCount - 2 (for HD and TR)
+      const expectedDataRecords = Math.max(0, lineCount - 2);
+      const actualDataRecords = totalDbRecords;
+
+      // Determine audit status
+      let auditStatus: 'pass' | 'warning' | 'fail';
+      let discrepancy = actualDataRecords - expectedDataRecords;
+      
+      if (actualDataRecords === expectedDataRecords || Math.abs(discrepancy) <= 2) {
+        auditStatus = 'pass';
+      } else if (actualDataRecords > expectedDataRecords * 0.95 && actualDataRecords < expectedDataRecords * 1.05) {
+        auditStatus = 'warning';
+      } else {
+        auditStatus = 'fail';
+      }
+
+      const auditResult = {
+        uploadId,
+        filename: fileInfo.filename,
+        filePhase: fileInfo.current_phase,
+        fileType: fileInfo.file_type,
+        processedAt: fileInfo.start_time,
+        lineCount,
+        expectedDataRecords,
+        actualDbRecords: actualDataRecords,
+        discrepancy,
+        auditStatus,
+        recordBreakdown: {
+          dt: dtRecords,
+          ts: tsRecords,
+          mo: parseInt(recordCounts.mo_records || '0', 10),
+          mm: parseInt(recordCounts.mm_records || '0', 10),
+          hd: parseInt(recordCounts.hd_records || '0', 10),
+          tr: parseInt(recordCounts.tr_records || '0', 10)
+        },
+        message: auditStatus === 'pass' 
+          ? 'All records verified in database'
+          : auditStatus === 'warning'
+          ? `Minor discrepancy detected: ${discrepancy > 0 ? '+' : ''}${discrepancy} records`
+          : `Significant discrepancy: expected ${expectedDataRecords}, found ${actualDataRecords} records`
+      };
+
+      logger.info('[STORAGE-MGMT] Audit completed', auditResult);
+      res.json(auditResult);
+
+    } catch (error: any) {
+      logger.error('[STORAGE-MGMT] File audit failed:', error);
+      res.status(500).json({ error: 'File audit failed', message: error.message });
+    }
+  });
+
   logger.info('[STORAGE-MGMT] Storage management routes registered');
 }
