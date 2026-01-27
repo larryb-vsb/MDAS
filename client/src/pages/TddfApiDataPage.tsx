@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw, CreditCard, AlertTriangle, RotateCcw } from "lucide-react";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, MoreHorizontal, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw, CreditCard, AlertTriangle, RotateCcw, Undo2 } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
@@ -2871,6 +2871,24 @@ export default function TddfApiDataPage() {
   const archivedFiles = archiveData?.files || [];
   const totalArchivedFiles = archiveData?.total || 0;
 
+  // Fetch hold files (archived but still in processing state - inconsistent state)
+  const { data: holdFilesData, isLoading: isLoadingHoldFiles, refetch: refetchHoldFiles } = useQuery({
+    queryKey: ['/api/tddf-hold-files'],
+    queryFn: async () => {
+      const response = await fetch('/api/tddf-hold-files', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch hold files');
+      }
+      return response.json();
+    },
+    refetchInterval: 5000 // Check for hold files every 5 seconds
+  });
+  
+  const holdFiles = holdFilesData?.files || [];
+  const holdFilesCount = holdFilesData?.count || 0;
+
   // Global filename search query
   const { data: searchResults, isLoading: isSearching, refetch: refetchSearch } = useQuery({
     queryKey: ['/api/tddf-api/search-filename', globalSearchTerm],
@@ -3306,6 +3324,60 @@ export default function TddfApiDataPage() {
     onError: (error: any) => {
       toast({ 
         title: "Restore failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Hold files - Un-archive mutation (move out of archive)
+  const unarchiveHoldFilesMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/tddf-hold-files/unarchive', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-archive'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-hold-files'] });
+      toast({ 
+        title: "Un-archive completed", 
+        description: `${data.unarchived || 0} file(s) moved out of archive`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Un-archive failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Hold files - Reset processing mutation
+  const resetHoldFilesMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/tddf-hold-files/reset', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-archive'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-hold-files'] });
+      toast({ 
+        title: "Reset completed", 
+        description: `${data.reset || 0} file(s) reset for reprocessing`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Reset failed", 
         description: error.message, 
         variant: "destructive" 
       });
@@ -4809,6 +4881,11 @@ export default function TddfApiDataPage() {
               <Badge variant="outline" className="text-xs bg-gray-50">
                 {isLoadingArchive ? '...' : totalArchivedFiles} Archived
               </Badge>
+              {holdFilesCount > 0 && (
+                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
+                  {isLoadingHoldFiles ? '...' : holdFilesCount} Hold
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -5085,6 +5162,15 @@ export default function TddfApiDataPage() {
                   {isLoadingArchive ? '...' : totalArchivedFiles}
                 </Badge>
               </TabsTrigger>
+              {holdFilesCount > 0 && (
+                <TabsTrigger value="hold" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
+                  <span className="hidden sm:inline">Hold</span>
+                  <Badge variant="outline" className="ml-0.5 text-[10px] sm:text-xs bg-orange-100 text-orange-800 border-orange-300">
+                    {isLoadingHoldFiles ? '...' : holdFilesCount}
+                  </Badge>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* UPLOADED TAB - Files in early processing phases */}
@@ -6118,6 +6204,170 @@ export default function TddfApiDataPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {/* HOLD TAB - Files with inconsistent state (archived but still processing) */}
+            {holdFilesCount > 0 && (
+              <TabsContent value="hold" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-orange-700">
+                          <AlertTriangle className="h-5 w-5" />
+                          Hold Files - Inconsistent State
+                        </CardTitle>
+                        <CardDescription>
+                          Files that are marked as archived but are still in a processing state. These need to be resolved.
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refetchHoldFiles()}
+                          className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Refresh
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingHoldFiles ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                      </div>
+                    ) : holdFiles.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                        <p className="text-lg font-medium">No hold files</p>
+                        <p className="text-sm">All files are in a consistent state</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <p className="text-sm text-orange-800">
+                            <strong>{holdFilesCount} file(s)</strong> are in an inconsistent state. 
+                            Use <strong>Un-archive</strong> to move files back to active processing, or <strong>Reset</strong> to restart processing from the beginning.
+                          </p>
+                        </div>
+                        
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Filename</TableHead>
+                              <TableHead>Phase</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Archived At</TableHead>
+                              <TableHead>File Size</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {holdFiles.map((file: any) => (
+                              <TableRow key={file.id} className="bg-orange-50/50">
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                    <span className="font-mono text-sm truncate max-w-[300px]" title={file.filename}>
+                                      {file.filename}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                    {file.current_phase}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                                    {file.upload_status || 'unknown'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {file.archived_at ? format(new Date(file.archived_at), "MMM d, yyyy HH:mm") : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {file.file_size_mb ? `${file.file_size_mb} MB` : '-'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => unarchiveHoldFilesMutation.mutate([file.id])}
+                                      disabled={unarchiveHoldFilesMutation.isPending}
+                                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                                      title="Move out of archive"
+                                    >
+                                      {unarchiveHoldFilesMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Undo2 className="h-4 w-4" />
+                                      )}
+                                      <span className="ml-1">Un-archive</span>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => resetHoldFilesMutation.mutate([file.id])}
+                                      disabled={resetHoldFilesMutation.isPending}
+                                      className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                                      title="Reset and restart processing"
+                                    >
+                                      {resetHoldFilesMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <RefreshCw className="h-4 w-4" />
+                                      )}
+                                      <span className="ml-1">Reset</span>
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+
+                        {/* Bulk Actions */}
+                        <div className="flex items-center justify-between border-t pt-4">
+                          <p className="text-sm text-muted-foreground">
+                            Total: {holdFilesCount} file(s) in hold state
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                const allIds = holdFiles.map((f: any) => f.id);
+                                unarchiveHoldFilesMutation.mutate(allIds);
+                              }}
+                              disabled={unarchiveHoldFilesMutation.isPending || holdFiles.length === 0}
+                              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                            >
+                              <Undo2 className="h-4 w-4 mr-1" />
+                              Un-archive All
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                const allIds = holdFiles.map((f: any) => f.id);
+                                resetHoldFilesMutation.mutate(allIds);
+                              }}
+                              disabled={resetHoldFilesMutation.isPending || holdFiles.length === 0}
+                              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                            >
+                              <RefreshCw className="h-4 w-4 mr-1" />
+                              Reset All
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
           </Tabs>
         </TabsContent>
 

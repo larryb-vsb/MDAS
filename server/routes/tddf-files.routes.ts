@@ -1693,6 +1693,138 @@ export function registerTddfFilesRoutes(app: Express) {
     }
   });
 
+  // ==================== HOLD FILES MANAGEMENT ====================
+  // Hold files = files that are archived but still in processing state (inconsistent state)
+
+  // Get hold files (archived but still processing)
+  app.get('/api/tddf-hold-files', isAuthenticated, async (req, res) => {
+    try {
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      // Hold files: archived=true but current_phase is still processing
+      const query = `
+        SELECT 
+          id,
+          filename,
+          file_size,
+          ROUND(file_size / 1024.0 / 1024.0, 2) as file_size_mb,
+          current_phase,
+          upload_status,
+          is_archived,
+          archived_at,
+          archived_by,
+          uploaded_at,
+          created_by,
+          bh_record_count,
+          dt_record_count,
+          other_record_count,
+          line_count,
+          final_file_type
+        FROM ${uploadsTableName}
+        WHERE is_archived = true 
+          AND current_phase IN ('started', 'uploading', 'uploaded', 'identified', 'validating', 'encoding')
+        ORDER BY archived_at DESC NULLS LAST
+      `;
+      
+      const result = await pool.query(query);
+      
+      res.json({
+        files: result.rows,
+        count: result.rows.length
+      });
+      
+    } catch (error) {
+      console.error('Error fetching hold files:', error);
+      res.status(500).json({ error: 'Failed to fetch hold files' });
+    }
+  });
+
+  // Un-archive hold files (move out of archive)
+  app.post('/api/tddf-hold-files/unarchive', isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: 'uploadIds array is required' });
+      }
+      
+      console.log(`[HOLD-FILES] Un-archiving ${uploadIds.length} files by ${username}`);
+      
+      const updateQuery = `
+        UPDATE ${uploadsTableName}
+        SET 
+          is_archived = false,
+          archived_at = NULL,
+          archived_by = NULL
+        WHERE id = ANY($1)
+        RETURNING id, filename, current_phase
+      `;
+      
+      const result = await pool.query(updateQuery, [uploadIds]);
+      
+      console.log(`[HOLD-FILES] Successfully un-archived ${result.rows.length} files`);
+      
+      res.json({
+        success: true,
+        unarchived: result.rows.length,
+        files: result.rows
+      });
+      
+    } catch (error) {
+      console.error('Error un-archiving hold files:', error);
+      res.status(500).json({ error: 'Failed to un-archive hold files' });
+    }
+  });
+
+  // Reset processing for hold files
+  app.post('/api/tddf-hold-files/reset', isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      const uploadsTableName = getTableName('uploader_uploads');
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: 'uploadIds array is required' });
+      }
+      
+      console.log(`[HOLD-FILES] Resetting processing for ${uploadIds.length} files by ${username}`);
+      
+      // Reset file to 'uploaded' phase so it can be re-processed
+      // Also un-archive it so it goes back to active files
+      const updateQuery = `
+        UPDATE ${uploadsTableName}
+        SET 
+          current_phase = 'uploaded',
+          upload_status = 'pending_reprocess',
+          is_archived = false,
+          archived_at = NULL,
+          archived_by = NULL,
+          encoding_started_at = NULL,
+          encoding_complete = NULL,
+          validation_started_at = NULL,
+          validation_completed_at = NULL
+        WHERE id = ANY($1)
+        RETURNING id, filename, current_phase
+      `;
+      
+      const result = await pool.query(updateQuery, [uploadIds]);
+      
+      console.log(`[HOLD-FILES] Successfully reset ${result.rows.length} files for reprocessing`);
+      
+      res.json({
+        success: true,
+        reset: result.rows.length,
+        files: result.rows
+      });
+      
+    } catch (error) {
+      console.error('Error resetting hold files:', error);
+      res.status(500).json({ error: 'Failed to reset hold files' });
+    }
+  });
+
   // Get file activity heatmap data - counts of files by day
   // Supports: ?months=12 for trailing months, or ?year=2025 for specific calendar year
   app.get('/api/tddf-archive/activity-heatmap', isAuthenticated, async (req, res) => {
