@@ -795,7 +795,7 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
         extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
         parsed_datetime, record_time_source, created_at
       ) VALUES ${values}
-      ON CONFLICT (id, tddf_processing_date) DO NOTHING
+      ON CONFLICT (upload_id, line_number, tddf_processing_date) DO NOTHING
     `, params);
   }, 'insertMasterTableBatch');
 }

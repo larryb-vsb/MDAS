@@ -1,0 +1,164 @@
+2026-01-27 12:49:32.10
+7315a6fc
+User
+at async insertMasterTableBatch (file:///home/runner/workspace/dist/index.js:7047:3)
+2026-01-27 12:49:32.10
+7315a6fc
+User
+at async file:///home/runner/workspace/dist/index.js:7048:5
+2026-01-27 12:49:32.10
+7315a6fc
+User
+line: '667',
+2026-01-27 12:49:32.10
+7315a6fc
+User
+position: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at async withRetry (file:///home/runner/workspace/dist/index.js:4442:14)
+2026-01-27 12:50:31.71
+7315a6fc
+User
+where: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at async insertMasterTableBatch (file:///home/runner/workspace/dist/index.js:7047:3)
+2026-01-27 12:50:31.71
+7315a6fc
+User
+table: 'tddf_jsonb_2026_q1',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+column: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+position: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+file: 'nbtinsert.c',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+schema: 'public',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-27 12:50:31.71
+7315a6fc
+User
+internalPosition: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+code: '23505',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+dataType: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+[STEP-6-PROCESSING] ❌ Error processing VERMNTSB.6759_TDDF_2400_01172026_005618.TSYSO: error: duplicate key value violates unique constraint "tddf_jsonb_2026_q1_upload_id_line_number_tddf_processing_da_idx"
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at async file:///home/runner/workspace/dist/index.js:7048:5
+2026-01-27 12:50:31.71
+7315a6fc
+User
+severity: 'ERROR',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+}
+2026-01-27 12:50:31.71
+7315a6fc
+User
+internalQuery: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+length: 387,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+detail: 'Key (upload_id, line_number, tddf_processing_date)=(uploader_1768664176763_d33mst2l4, 1, 2026-01-17) already exists.',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-27 12:50:31.71
+7315a6fc
+User
+hint: undefined,
+2026-01-27 12:50:31.71
+7315a6fc
+User
+line: '667',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+routine: '_bt_check_unique'
+2026-01-27 12:50:31.71
+7315a6fc
+User
+constraint: 'tddf_jsonb_2026_q1_upload_id_line_number_tddf_processing_da_idx',
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at async MMSWatcher.processStep6FileWithPreacquiredSlot (file:///home/runner/workspace/dist/index.js:39878:32) {
+2026-01-27 12:50:31.71
+7315a6fc
+User
+at async processAllRecordsToMasterTable (file:///home/runner/workspace/dist/index.js:6844:9)
+2026-01-27 12:50:31.76
+7315a6fc
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_830_01162026_083355.TSYSO
+2026-01-27 12:50:31.76
+7315a6fc
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_830_01162026_083355.TSYSO: duplicate key value violates unique constraint "tddf_jsonb_2026_q1_upload_id_line_number_tddf_processing_da_idx"
+2026-01-27 12:50:31.81
+7315a6fc
+User
+[MMS-WATCHER] [AUTO-STEP6] ❌ Error processing VERMNTSB.6759_TDDF_2400_01172026_005618.TSYSO: duplicate key value violates unique constraint "tddf_jsonb_2026_q1_upload_id_line_number_tddf_processing_da_idx"
+2026-01-27 12:50:31.81
+7315a6fc
+User
+[MMS-WATCHER] [AUTO-STEP6] ⚠️ Retry 1/3 for VERMNTSB.6759_TDDF_2400_01172026_005618.TSYSO
+2026-01-27 12:50:32.01
+7315a6fc
+User
+at async file:///home/runner/workspace/dist/index.js:7048:5
+2026-01-27 12:50:32.01
+7315a6fc
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-27 12:50:32.01
+7315a6fc
+User
+length: 387,
+2026-01-27 12:50:32.01
+7315a6fc
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-27 12:50:32.01
+7315a6fc
+User
+[STEP-6-PROCESSING] ❌ Error processing VERMNTSB.6759_TDDF_830_01152026_083336.TSYSO: error: duplicate key value violates unique constraint "tddf_jsonb_2026_q1_upload_id_line_number_tddf_processing_da_idx"
+2026-01-27 12:50:32.01
+7315a6fc
+User
+at async withRetry (file:///home/runner/workspace/dist/index.js:4442:14)
+2026-01-27 12:50:32.01
+7315a6fc
+User
+severity: 'ERROR',
