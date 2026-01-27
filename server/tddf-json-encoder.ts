@@ -392,6 +392,29 @@ export async function processAllRecordsToMasterTable(
     const tddfJsonbTable = getTableName('tddf_jsonb');
     const apiRecordsTable = getTableName('uploader_tddf_jsonb_records');
     
+    // Clean up any existing records for this upload_id before re-processing
+    // This ensures clean re-processing without needing a unique constraint
+    try {
+      const cleanupClient = await batchPool.connect();
+      try {
+        const masterDeleteResult = await cleanupClient.query(
+          `DELETE FROM ${tddfJsonbTable} WHERE upload_id = $1`,
+          [upload.id]
+        );
+        const apiDeleteResult = await cleanupClient.query(
+          `DELETE FROM ${apiRecordsTable} WHERE upload_id = $1`,
+          [upload.id]
+        );
+        if ((masterDeleteResult.rowCount || 0) > 0 || (apiDeleteResult.rowCount || 0) > 0) {
+          console.log(`[STEP-6-CLEANUP] Removed ${masterDeleteResult.rowCount || 0} master records and ${apiDeleteResult.rowCount || 0} API records for re-processing`);
+        }
+      } finally {
+        cleanupClient.release();
+      }
+    } catch (cleanupError: any) {
+      console.warn(`[STEP-6-CLEANUP] Pre-cleanup failed (proceeding anyway): ${cleanupError.message}`);
+    }
+    
     // Extract filename metadata for universal TDDF processing
     const filenameData = extractTddfProcessingDatetime(upload.filename);
     // Provide fallback values if filename parsing fails (e.g., for files with " (1)" suffixes)
@@ -789,13 +812,14 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   ]);
   
   await executeWithRetry(async () => {
+    // Note: No ON CONFLICT needed - we clean up existing records for this upload_id
+    // at the start of processAllRecordsToMasterTable before inserting new records
     await batchPool.query(`
       INSERT INTO ${tableName} (
         id, upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
         extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
         parsed_datetime, record_time_source, created_at
       ) VALUES ${values}
-      ON CONFLICT (upload_id, line_number, tddf_processing_date) DO NOTHING
     `, params);
   }, 'insertMasterTableBatch');
 }
