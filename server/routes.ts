@@ -2462,18 +2462,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get JSONB data for a specific upload (backward compatibility)
+  // NOTE: After Step 6 processing, data is in tddf_jsonb (master table), not uploader_tddf_jsonb_records
   app.get("/api/uploader/:id/jsonb-data", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const { limit = '50', offset = '0', recordType, merchantName, merchantAccountNumber } = req.query;
       
-      const tableName = getTableName('uploader_tddf_jsonb_records');
+      // Query the master table which has the processed Step 6 data
+      const tableName = getTableName('tddf_jsonb');
       
-      // Build the main query
+      // Build the main query - use extracted_fields instead of record_data
       let query = `
         SELECT 
           id, upload_id, record_type, line_number, raw_line,
-          record_data, record_identifier, field_count, created_at
+          extracted_fields as record_data, record_identifier, created_at
         FROM ${tableName} 
         WHERE upload_id = $1
       `;
@@ -2488,27 +2490,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Add merchant name search (search in JSON fields)
+      // NOTE: tddf_jsonb uses extracted_fields, not record_data
       if (merchantName) {
         query += ` AND (
-          record_data->>'merchantAccountNumber' ILIKE $${paramIndex}
-          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${paramIndex + 1}
-          OR record_data->'extractedFields'->>'merchantName' ILIKE $${paramIndex + 2}
-          OR raw_line ILIKE $${paramIndex + 3}
+          extracted_fields->>'merchantAccountNumber' ILIKE $${paramIndex}
+          OR extracted_fields->>'merchantName' ILIKE $${paramIndex + 1}
+          OR raw_line ILIKE $${paramIndex + 2}
         )`;
         const searchPattern = `%${merchantName}%`;
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-        paramIndex += 4;
+        params.push(searchPattern, searchPattern, searchPattern);
+        paramIndex += 3;
       }
       
       // Add merchant account number search  
       if (merchantAccountNumber) {
         query += ` AND (
-          record_data->>'merchantAccountNumber' ILIKE $${paramIndex}
-          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${paramIndex + 1}
+          extracted_fields->>'merchantAccountNumber' ILIKE $${paramIndex}
         )`;
         const accountPattern = `%${merchantAccountNumber}%`;
-        params.push(accountPattern, accountPattern);
-        paramIndex += 2;
+        params.push(accountPattern);
+        paramIndex += 1;
       }
       
       // Add count query for pagination
@@ -2528,24 +2529,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (merchantName) {
         countQuery += ` AND (
-          record_data->>'merchantAccountNumber' ILIKE $${countParamIndex}
-          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${countParamIndex + 1}
-          OR record_data->'extractedFields'->>'merchantName' ILIKE $${countParamIndex + 2}
-          OR raw_line ILIKE $${countParamIndex + 3}
+          extracted_fields->>'merchantAccountNumber' ILIKE $${countParamIndex}
+          OR extracted_fields->>'merchantName' ILIKE $${countParamIndex + 1}
+          OR raw_line ILIKE $${countParamIndex + 2}
         )`;
         const searchPattern = `%${merchantName}%`;
-        countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
-        countParamIndex += 4;
+        countParams.push(searchPattern, searchPattern, searchPattern);
+        countParamIndex += 3;
       }
       
       if (merchantAccountNumber) {
         countQuery += ` AND (
-          record_data->>'merchantAccountNumber' ILIKE $${countParamIndex}
-          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${countParamIndex + 1}
+          extracted_fields->>'merchantAccountNumber' ILIKE $${countParamIndex}
         )`;
         const accountPattern = `%${merchantAccountNumber}%`;
-        countParams.push(accountPattern, accountPattern);
-        countParamIndex += 2;
+        countParams.push(accountPattern);
+        countParamIndex += 1;
       }
       
       query += ` ORDER BY id ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
@@ -2763,22 +2762,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get hierarchical JSONB data with batch-based pagination (5 batches per page)
+  // NOTE: After Step 6 processing, data is in tddf_jsonb (master table)
   app.get("/api/uploader/:id/jsonb-data-hierarchical", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const { page = '1', recordType, merchantName, merchantAccountNumber } = req.query;
       
-      const tableName = getTableName('uploader_tddf_jsonb_records');
+      // Query the master table which has the processed Step 6 data
+      const tableName = getTableName('tddf_jsonb');
       const currentPage = parseInt(page as string);
       const batchesPerPage = 5;
       
       console.log(`[HIERARCHICAL-PAGINATION] Upload ${id}, Page ${currentPage}`);
       
       // Step 1: Get all BH (Batch Header) records with filters
+      // NOTE: tddf_jsonb uses extracted_fields, not record_data
       let bhQuery = `
         SELECT 
-          id, record_type, line_number, raw_line, record_data, 
-          record_identifier, field_count, created_at
+          id, record_type, line_number, raw_line, 
+          extracted_fields as record_data, record_identifier, created_at
         FROM ${tableName}
         WHERE upload_id = $1 AND record_type = 'BH'
       `;
@@ -2788,24 +2790,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add merchant filters to BH query if provided
       if (merchantName) {
         bhQuery += ` AND (
-          record_data->>'merchantAccountNumber' ILIKE $${bhParamIndex}
-          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${bhParamIndex + 1}
-          OR record_data->'extractedFields'->>'merchantName' ILIKE $${bhParamIndex + 2}
-          OR raw_line ILIKE $${bhParamIndex + 3}
+          extracted_fields->>'merchantAccountNumber' ILIKE $${bhParamIndex}
+          OR extracted_fields->>'merchantName' ILIKE $${bhParamIndex + 1}
+          OR raw_line ILIKE $${bhParamIndex + 2}
         )`;
         const searchPattern = `%${merchantName}%`;
-        bhParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
-        bhParamIndex += 4;
+        bhParams.push(searchPattern, searchPattern, searchPattern);
+        bhParamIndex += 3;
       }
       
       if (merchantAccountNumber) {
         bhQuery += ` AND (
-          record_data->>'merchantAccountNumber' ILIKE $${bhParamIndex}
-          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${bhParamIndex + 1}
+          extracted_fields->>'merchantAccountNumber' ILIKE $${bhParamIndex}
         )`;
         const accountPattern = `%${merchantAccountNumber}%`;
-        bhParams.push(accountPattern, accountPattern);
-        bhParamIndex += 2;
+        bhParams.push(accountPattern);
+        bhParamIndex += 1;
       }
       
       bhQuery += ` ORDER BY line_number ASC`;
@@ -2835,10 +2835,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const nextBhLineNumber = nextBhIdx < allBatches.length ? allBatches[nextBhIdx].line_number : 999999;
         
         // Fetch all records in this batch (between this BH and next BH)
+        // NOTE: tddf_jsonb uses extracted_fields, not record_data
         let batchRecordsQuery = `
           SELECT 
             id, upload_id, record_type, line_number, raw_line,
-            record_data, record_identifier, field_count, created_at
+            extracted_fields, record_identifier, processing_time_ms, created_at
           FROM ${tableName}
           WHERE upload_id = $1 
             AND line_number >= $2 
@@ -2853,23 +2854,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Transform records to match expected format
         const transformedBatchRecords = batchRecords.map(row => {
-          let recordData = {};
+          let extractedFields: Record<string, any> = {};
           try {
-            if (typeof row.record_data === 'string') {
-              recordData = JSON.parse(row.record_data);
-            } else if (typeof row.record_data === 'object' && row.record_data !== null) {
-              recordData = row.record_data;
+            if (typeof row.extracted_fields === 'string') {
+              extractedFields = JSON.parse(row.extracted_fields);
+            } else if (typeof row.extracted_fields === 'object' && row.extracted_fields !== null) {
+              extractedFields = row.extracted_fields;
             }
           } catch (parseError) {
-            recordData = {};
-          }
-          
-          let extractedFields: Record<string, any> = {};
-          const typedRecordData = recordData as Record<string, any>;
-          if (typedRecordData.extractedFields && typeof typedRecordData.extractedFields === 'object') {
-            extractedFields = typedRecordData.extractedFields;
-          } else if (Object.keys(typedRecordData).length > 0) {
-            extractedFields = typedRecordData;
+            extractedFields = {};
           }
           
           return {
@@ -2880,7 +2873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             raw_line: row.raw_line || '',
             extracted_fields: extractedFields,
             record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
-            processing_time_ms: row.field_count || 0,
+            processing_time_ms: row.processing_time_ms || 0,
             created_at: row.created_at
           };
         });
