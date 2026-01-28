@@ -2889,6 +2889,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[HIERARCHICAL-PAGINATION] Returning ${hierarchicalData.length} batches with ${totalRecordsInPage} total records`);
       
+      // Get total record counts for the entire upload (for stats display)
+      const totalCountsQuery = `
+        SELECT 
+          record_type,
+          COUNT(*) as count
+        FROM ${tableName}
+        WHERE upload_id = $1
+        GROUP BY record_type
+      `;
+      const totalCountsResult = await pool.query(totalCountsQuery, [id]);
+      
+      // Build totalCounts object
+      const totalCounts: Record<string, number> = {};
+      let grandTotal = 0;
+      for (const row of totalCountsResult.rows) {
+        totalCounts[row.record_type] = parseInt(row.count);
+        grandTotal += parseInt(row.count);
+      }
+      
       res.json({
         batches: hierarchicalData,
         pagination: {
@@ -2899,6 +2918,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recordsInPage: totalRecordsInPage,
           hasMore: endIdx < totalBatches,
           totalPages: Math.ceil(totalBatches / batchesPerPage)
+        },
+        totalCounts: {
+          byType: totalCounts,
+          total: grandTotal,
+          bhCount: (totalCounts['BH'] || 0) + (totalCounts['01'] || 0),
+          dtCount: (totalCounts['DT'] || 0) + (totalCounts['47'] || 0)
         },
         tableName: tableName
       });

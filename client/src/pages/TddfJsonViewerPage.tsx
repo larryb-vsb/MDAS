@@ -1065,7 +1065,7 @@ export default function TddfJsonViewerPage() {
                 <div>
                   <p className="text-sm font-medium text-green-800">BH Records</p>
                   <p className="text-2xl font-bold text-green-900">
-                    {allRecords.filter(r => ['BH', '01'].includes(r.record_type)).length}
+                    {jsonbData?.totalCounts?.bhCount?.toLocaleString() || allRecords.filter(r => ['BH', '01'].includes(r.record_type)).length}
                   </p>
                   <p className="text-xs text-green-600">Batch Headers</p>
                 </div>
@@ -1082,7 +1082,7 @@ export default function TddfJsonViewerPage() {
                 <div>
                   <p className="text-sm font-medium text-blue-800">DT Records</p>
                   <p className="text-2xl font-bold text-blue-900">
-                    {allRecords.filter(r => ['DT', '47'].includes(r.record_type)).length}
+                    {jsonbData?.totalCounts?.dtCount?.toLocaleString() || allRecords.filter(r => ['DT', '47'].includes(r.record_type)).length}
                   </p>
                   <p className="text-xs text-blue-600">Detail Transactions</p>
                 </div>
@@ -1098,7 +1098,7 @@ export default function TddfJsonViewerPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800">Total Records</p>
-                  <p className="text-2xl font-bold text-gray-900">{allRecords.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{jsonbData?.totalCounts?.total?.toLocaleString() || allRecords.length}</p>
                   <p className="text-xs text-gray-600">All Types</p>
                 </div>
               </div>
