@@ -31,7 +31,8 @@ import {
   Play,
   Pause,
   RotateCw,
-  Hash
+  Hash,
+  Calendar
 } from "lucide-react";
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -481,6 +482,8 @@ function TddfDuplicateCleanup() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [recalculateHashes, setRecalculateHashes] = useState(false);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<TddfCleanupStats>({
     queryKey: ['/api/tddf-cleanup/stats'],
@@ -496,7 +499,7 @@ function TddfDuplicateCleanup() {
   });
   
   const startCleanupMutation = useMutation({
-    mutationFn: (options: { recalculateHashes?: boolean }) => 
+    mutationFn: (options: { recalculateHashes?: boolean; startDate?: string; endDate?: string }) => 
       apiRequest('/api/tddf-cleanup/start', {
         method: 'POST',
         body: JSON.stringify(options)
@@ -648,6 +651,64 @@ function TddfDuplicateCleanup() {
           </div>
         )}
         
+        {/* Date Range Selection */}
+        <div className="p-4 bg-muted/30 rounded-lg space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Calendar className="w-4 h-4 text-purple-500" />
+            Date Range (optional)
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="start-date" className="text-sm text-muted-foreground">Start Date</label>
+              <Input
+                id="start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                disabled={progress?.status === 'running'}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="end-date" className="text-sm text-muted-foreground">End Date</label>
+              <Input
+                id="end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                disabled={progress?.status === 'running'}
+                className="w-full"
+              />
+            </div>
+          </div>
+          {(startDate || endDate) && (
+            <div className="text-xs text-muted-foreground">
+              Scanning {startDate || 'earliest'} to {endDate || 'latest'}
+            </div>
+          )}
+        </div>
+        
+        {/* Current Scan Status */}
+        {progress?.status === 'running' && progress.currentDate && (
+          <div className="p-4 bg-purple-50 rounded-lg flex items-center gap-3">
+            <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
+            <div className="flex-1">
+              <div className="font-medium text-purple-800">Currently Scanning</div>
+              <div className="text-lg font-bold text-purple-900">
+                {new Date(progress.currentDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </div>
+            </div>
+            <Badge variant="outline" className="text-purple-700 border-purple-300">
+              {progress.processedDates?.length || 0} dates completed
+            </Badge>
+          </div>
+        )}
+        
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
           {progress?.status !== 'running' ? (
@@ -663,7 +724,11 @@ function TddfDuplicateCleanup() {
                 </label>
               </div>
               <Button
-                onClick={() => startCleanupMutation.mutate({ recalculateHashes })}
+                onClick={() => startCleanupMutation.mutate({ 
+                  recalculateHashes,
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined
+                })}
                 disabled={startCleanupMutation.isPending || (stats?.recordsToDelete === 0 && !recalculateHashes)}
                 className="bg-purple-600 hover:bg-purple-700"
               >
@@ -678,6 +743,15 @@ function TddfDuplicateCleanup() {
                 <RotateCw className="w-4 h-4 mr-2" />
                 Recalculate Hashes Only
               </Button>
+              {(startDate || endDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                >
+                  Clear Dates
+                </Button>
+              )}
             </>
           ) : (
             <Button
