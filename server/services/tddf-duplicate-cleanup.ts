@@ -86,6 +86,7 @@ class TddfDuplicateCleanupService {
       `);
       
       const stats = statsResult.rows[0];
+      console.log(`[TDDF-CLEANUP] Stats query result:`, JSON.stringify(stats));
       
       const dupCountResult = await client.query(`
         SELECT COUNT(*) as dup_count
