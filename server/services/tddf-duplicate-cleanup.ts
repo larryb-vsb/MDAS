@@ -60,6 +60,7 @@ class TddfDuplicateCleanupService {
   
   async getStats(): Promise<{
     totalRecords: number;
+    totalLines: number;
     recordsWithHash: number;
     recordsWithoutHash: number;
     duplicateHashCount: number;
@@ -75,6 +76,7 @@ class TddfDuplicateCleanupService {
       const statsResult = await client.query(`
         SELECT 
           COUNT(*) as total_records,
+          COUNT(*) as total_lines,
           COUNT(raw_line_hash) as with_hash,
           COUNT(*) - COUNT(raw_line_hash) as without_hash,
           MIN(created_at) as oldest,
@@ -108,6 +110,7 @@ class TddfDuplicateCleanupService {
       
       return {
         totalRecords: parseInt(stats.total_records) || 0,
+        totalLines: parseInt(stats.total_lines) || 0,
         recordsWithHash: parseInt(stats.with_hash) || 0,
         recordsWithoutHash: parseInt(stats.without_hash) || 0,
         duplicateHashCount: parseInt(dupCountResult.rows[0]?.dup_count) || 0,

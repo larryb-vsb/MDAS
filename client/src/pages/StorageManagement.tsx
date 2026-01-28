@@ -453,6 +453,7 @@ function DuplicatesTab() {
 // TDDF JSONB Duplicate Cleanup Component
 interface TddfCleanupStats {
   totalRecords: number;
+  totalLines: number;
   recordsWithHash: number;
   recordsWithoutHash: number;
   duplicateHashCount: number;
@@ -582,10 +583,14 @@ function TddfDuplicateCleanup() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="p-3 bg-muted/50 rounded-lg text-center">
             <div className="text-2xl font-bold">{formatNumber(stats?.totalRecords || 0)}</div>
             <div className="text-xs text-muted-foreground">Total Records</div>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-center">
+            <div className="text-2xl font-bold text-blue-600">{formatNumber(stats?.totalLines || 0)}</div>
+            <div className="text-xs text-muted-foreground">Total Lines</div>
           </div>
           <div className="p-3 bg-muted/50 rounded-lg text-center">
             <div className="text-2xl font-bold text-green-600">{formatNumber(stats?.recordsWithHash || 0)}</div>
