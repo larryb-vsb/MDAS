@@ -1638,7 +1638,7 @@ function RawDataTab({
           )}
         </div>
         <p className="text-xs text-blue-600 dark:text-blue-400 ml-7">
-          Auto-applies 90-day lookback for faster search when no date filter is selected
+          Default search range is 3 days when no date filter is selected
         </p>
       </div>
 
@@ -2619,8 +2619,8 @@ export default function TddfApiDataPage() {
   // Trigger search from upper Card Number Search button
   const [triggerCardSearch, setTriggerCardSearch] = useState(false);
   
-  // Date range state for Raw Data tab (default 1 day, top search uses 3 days)
-  const [rawDataDateRange, setRawDataDateRange] = useState('1');
+  // Date range state for Raw Data tab (default 3 days)
+  const [rawDataDateRange, setRawDataDateRange] = useState('3');
   
   // Separate pagination state for uploaded files section
   const [uploadsCurrentPage, setUploadsCurrentPage] = useState(0);
