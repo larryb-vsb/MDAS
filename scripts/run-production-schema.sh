@@ -51,7 +51,8 @@ else
     psql "$NEON_PROD_DATABASE_URL" -c "INSERT INTO schema_dump_tracking (version, environment, action, timestamp, performed_by, notes) VALUES ('$DEV_VERSION', 'production', 'production_synced', NOW(), 'run-production-schema.sh', 'Production database synced with dev schema v$DEV_VERSION');" 2>&1 | grep -v "INSERT 0 1" || true
     
     # Also record in dev database so dev environment can see prod sync status
-    psql "$DATABASE_URL" -c "INSERT INTO schema_dump_tracking (version, environment, action, timestamp, performed_by, notes) VALUES ('$DEV_VERSION', 'production', 'production_synced', NOW(), 'run-production-schema.sh', 'Production database synced with dev schema v$DEV_VERSION');" 2>&1 | grep -v "INSERT 0 1" || true
+    # Use NEON_DEV_DATABASE_URL since the app uses that, not DATABASE_URL
+    psql "$NEON_DEV_DATABASE_URL" -c "INSERT INTO schema_dump_tracking (version, environment, action, timestamp, performed_by, notes) VALUES ('$DEV_VERSION', 'production', 'production_synced', NOW(), 'run-production-schema.sh', 'Production database synced with dev schema v$DEV_VERSION');" 2>&1 | grep -v "INSERT 0 1" || true
     
     echo "✅ Production sync tracked in both databases (version $DEV_VERSION)"
 fi
