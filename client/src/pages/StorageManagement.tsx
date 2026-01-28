@@ -486,6 +486,13 @@ function TddfDuplicateCleanup() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    if (value && !endDate) {
+      setEndDate(value);
+    }
+  };
+  
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<TddfCleanupStats>({
     queryKey: ['/api/tddf-cleanup/stats'],
     refetchInterval: 30000
@@ -669,7 +676,7 @@ function TddfDuplicateCleanup() {
                 id="start-date"
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 disabled={progress?.status === 'running'}
                 className="w-full"
               />
