@@ -2857,6 +2857,7 @@ class MMSWatcher {
       this.step6Progress.set(upload.id, {
         filename: upload.filename,
         totalLines: upload.lineCount || 0,
+        totalRecords: upload.lineCount || 0,  // Used by onBatchProgress callback
         processedRecords: 0,
         startedAt: Date.now()
       });
@@ -2995,6 +2996,7 @@ class MMSWatcher {
       this.step6Progress.set(upload.id, {
         filename: upload.filename,
         totalLines: upload.lineCount || 0,
+        totalRecords: upload.lineCount || 0,  // Used by onBatchProgress callback
         processedRecords: 0,
         startedAt: Date.now()
       });
