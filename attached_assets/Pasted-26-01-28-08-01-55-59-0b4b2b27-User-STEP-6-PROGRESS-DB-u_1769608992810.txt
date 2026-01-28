@@ -1,0 +1,116 @@
+26-01-28 08:01:55.59
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:01:55.82
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:01:58.13
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:01:58.16
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:03.50
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:03.50
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:06.17
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:06.17
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:08.37
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:08.41
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:10.74
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:10.79
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:13.26
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:13.30
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:15.37
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:15.40
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:19.53
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:20.11
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:20.97
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:21.15
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:22.79
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:24.26
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:25.78
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:27.06
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:29.22
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:30.70
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:32.11
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:33.47
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
+2026-01-28 08:02:37.17
+0b4b2b27
+User
+[STEP-6-PROGRESS] DB update failed: column "processed_count" of relation "uploader_uploads" does not exist
