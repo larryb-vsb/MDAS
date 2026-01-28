@@ -21,6 +21,7 @@ import { registerApiUserRoutes } from "./routes/api-users.routes";
 import { registerTddfFilesRoutes } from "./routes/tddf-files.routes";
 import { registerTddfRecordsRoutes } from "./routes/tddf-records.routes";
 import { registerTddfCacheRoutes } from "./routes/tddf-cache.routes";
+import { registerTddfCleanupRoutes } from "./routes/tddf-cleanup.routes";
 import { registerSystemRoutes } from "./routes/system.routes";
 import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerSettingsRoutes } from "./routes/settings.routes";
@@ -435,6 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Phase D: TDDF Routes
   registerTddfFilesRoutes(app);
   registerTddfCacheRoutes(app);      // Register specific routes FIRST (before :id parameter)
+  registerTddfCleanupRoutes(app);    // TDDF duplicate cleanup routes
   registerTddfRecordsRoutes(app);    // Register parameter routes LAST (/:id catch-all)
   
   // Ping endpoint - NO authentication required, connection logged automatically by global middleware

@@ -27,7 +27,11 @@ import {
   Archive,
   RotateCcw,
   ClipboardCheck,
-  XCircle
+  XCircle,
+  Play,
+  Pause,
+  RotateCw,
+  Hash
 } from "lucide-react";
 import { useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -355,7 +359,11 @@ function DuplicatesTab() {
         </div>
       </div>
 
-      {/* Duplicate Groups */}
+      {/* TDDF Record Duplicate Cleanup */}
+      <TddfDuplicateCleanup />
+      
+      {/* Storage Object Duplicate Groups */}
+      <h3 className="text-lg font-medium mt-6">Storage Object Duplicates</h3>
       {duplicateGroups.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
@@ -438,6 +446,259 @@ function DuplicatesTab() {
         </div>
       )}
     </div>
+  );
+}
+
+// TDDF JSONB Duplicate Cleanup Component
+interface TddfCleanupStats {
+  totalRecords: number;
+  recordsWithHash: number;
+  recordsWithoutHash: number;
+  duplicateHashCount: number;
+  recordsToDelete: number;
+  oldestRecord: string | null;
+  newestRecord: string | null;
+}
+
+interface TddfCleanupProgress {
+  status: 'idle' | 'running' | 'paused' | 'completed' | 'error';
+  totalRecords: number;
+  recordsWithHash: number;
+  duplicateHashCount: number;
+  recordsToDelete: number;
+  recordsDeleted: number;
+  currentDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  processedDates: string[];
+  startedAt: string | null;
+  completedAt: string | null;
+  lastError: string | null;
+  batchSize: number;
+}
+
+function TddfDuplicateCleanup() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [recalculateHashes, setRecalculateHashes] = useState(false);
+  
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<TddfCleanupStats>({
+    queryKey: ['/api/tddf-cleanup/stats'],
+    refetchInterval: 30000
+  });
+  
+  const { data: progress, isLoading: progressLoading, refetch: refetchProgress } = useQuery<TddfCleanupProgress>({
+    queryKey: ['/api/tddf-cleanup/progress'],
+    refetchInterval: (query) => {
+      const data = query.state.data as TddfCleanupProgress | undefined;
+      return data?.status === 'running' ? 2000 : 10000;
+    }
+  });
+  
+  const startCleanupMutation = useMutation({
+    mutationFn: (options: { recalculateHashes?: boolean }) => 
+      apiRequest('/api/tddf-cleanup/start', {
+        method: 'POST',
+        body: JSON.stringify(options)
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Cleanup Started",
+        description: "TDDF duplicate cleanup is now running in the background"
+      });
+      refetchProgress();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Start Failed",
+        description: error.message || "Failed to start cleanup",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  const stopCleanupMutation = useMutation({
+    mutationFn: () => apiRequest('/api/tddf-cleanup/stop', { method: 'POST' }),
+    onSuccess: () => {
+      toast({ title: "Stop Requested", description: "Cleanup will pause after current batch" });
+      refetchProgress();
+    }
+  });
+  
+  const recalculateHashesMutation = useMutation({
+    mutationFn: () => apiRequest('/api/tddf-cleanup/recalculate-hashes', { method: 'POST' }),
+    onSuccess: () => {
+      toast({ title: "Hash Recalculation Started", description: "Running in background..." });
+    }
+  });
+  
+  const formatNumber = (num: number) => num?.toLocaleString() || '0';
+  
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'running': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'paused': return 'bg-yellow-100 text-yellow-800';
+      case 'error': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+  
+  const progressPercent = progress?.recordsToDelete ? 
+    Math.round((progress.recordsDeleted / progress.recordsToDelete) * 100) : 0;
+  
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Hash className="w-5 h-5 text-purple-500" />
+              TDDF Record Duplicate Cleanup
+            </CardTitle>
+            <CardDescription>
+              Detect and remove duplicate DT records based on raw line hash
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {progress?.status && (
+              <Badge className={getStatusColor(progress.status)}>
+                {progress.status.toUpperCase()}
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { refetchStats(); refetchProgress(); }}
+              disabled={statsLoading || progressLoading}
+            >
+              <RefreshCw className={`w-4 h-4 ${statsLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="p-3 bg-muted/50 rounded-lg text-center">
+            <div className="text-2xl font-bold">{formatNumber(stats?.totalRecords || 0)}</div>
+            <div className="text-xs text-muted-foreground">Total Records</div>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-center">
+            <div className="text-2xl font-bold text-green-600">{formatNumber(stats?.recordsWithHash || 0)}</div>
+            <div className="text-xs text-muted-foreground">With Hash</div>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-center">
+            <div className="text-2xl font-bold text-orange-600">{formatNumber(stats?.recordsWithoutHash || 0)}</div>
+            <div className="text-xs text-muted-foreground">Missing Hash</div>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-center">
+            <div className="text-2xl font-bold text-purple-600">{formatNumber(stats?.duplicateHashCount || 0)}</div>
+            <div className="text-xs text-muted-foreground">Duplicate Hashes</div>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-center">
+            <div className="text-2xl font-bold text-red-600">{formatNumber(stats?.recordsToDelete || 0)}</div>
+            <div className="text-xs text-muted-foreground">To Delete</div>
+          </div>
+        </div>
+        
+        {/* Progress Section (when running) */}
+        {progress?.status === 'running' && (
+          <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Cleanup Progress</span>
+              <span className="text-sm">{progressPercent}%</span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Deleted: {formatNumber(progress.recordsDeleted)}</span>
+              <span>Processing: {progress.currentDate || 'Starting...'}</span>
+              <span>Dates done: {progress.processedDates?.length || 0}</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Completed Status */}
+        {progress?.status === 'completed' && progress.recordsDeleted > 0 && (
+          <div className="p-4 bg-green-50 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div>
+              <div className="font-medium text-green-800">Cleanup Complete</div>
+              <div className="text-sm text-green-600">
+                Removed {formatNumber(progress.recordsDeleted)} duplicate records
+                {progress.completedAt && ` at ${new Date(progress.completedAt).toLocaleString()}`}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Error Status */}
+        {progress?.status === 'error' && (
+          <div className="p-4 bg-red-50 rounded-lg flex items-center gap-3">
+            <XCircle className="w-5 h-5 text-red-600" />
+            <div>
+              <div className="font-medium text-red-800">Cleanup Error</div>
+              <div className="text-sm text-red-600">{progress.lastError}</div>
+            </div>
+          </div>
+        )}
+        
+        {/* Controls */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+          {progress?.status !== 'running' ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="recalc-hashes" 
+                  checked={recalculateHashes}
+                  onCheckedChange={(checked) => setRecalculateHashes(checked as boolean)}
+                />
+                <label htmlFor="recalc-hashes" className="text-sm">
+                  Recalculate hashes first
+                </label>
+              </div>
+              <Button
+                onClick={() => startCleanupMutation.mutate({ recalculateHashes })}
+                disabled={startCleanupMutation.isPending || (stats?.recordsToDelete === 0 && !recalculateHashes)}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Start Cleanup
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => recalculateHashesMutation.mutate()}
+                disabled={recalculateHashesMutation.isPending}
+              >
+                <RotateCw className="w-4 h-4 mr-2" />
+                Recalculate Hashes Only
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="destructive"
+              onClick={() => stopCleanupMutation.mutate()}
+              disabled={stopCleanupMutation.isPending}
+            >
+              <Pause className="w-4 h-4 mr-2" />
+              Stop Cleanup
+            </Button>
+          )}
+        </div>
+        
+        {/* Info */}
+        <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded">
+          <strong>How it works:</strong> Duplicates are identified by MD5 hash of the raw line content. 
+          When duplicates exist, the oldest record (lowest ID) is kept and newer duplicates are removed. 
+          Cleanup processes day-by-day to handle large datasets safely.
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
