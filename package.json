@@ -93,7 +93,7 @@
     "google-auth-library": "^10.2.1",
     "input-otp": "^1.4.2",
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
+    "jest-environment-jsdom": "^30.2.0",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.453.0",
