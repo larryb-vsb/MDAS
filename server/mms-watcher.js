@@ -2874,11 +2874,35 @@ class MMSWatcher {
       // Process with timeout protection and progress callback
       const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
       
-      // Create progress callback
-      const onBatchProgress = (processedCount, batchSize) => {
+      // Create progress callback with database updates for real-time UI display
+      const { batchPool } = await import('./db.js');
+      const { getTableName: getProgressTableName } = await import('./table-config.js');
+      const progressTableName = getProgressTableName('uploader_uploads');
+      let lastProgressUpdate = 0;
+      
+      const onBatchProgress = async (processedCount, batchSize) => {
         const progress = this.step6Progress.get(upload.id);
         if (progress) {
           progress.processedRecords = processedCount;
+          
+          // Update database every 1000 records or every second for real-time UI progress
+          const now = Date.now();
+          if (now - lastProgressUpdate > 1000 || processedCount % 1000 === 0) {
+            lastProgressUpdate = now;
+            const totalCount = progress.totalRecords || upload.totalCount || 0;
+            const progressPercentage = totalCount > 0 ? Math.floor((processedCount / totalCount) * 100) : 0;
+            
+            try {
+              await batchPool.query(`
+                UPDATE ${progressTableName}
+                SET processed_count = $1, progress_percentage = $2, 
+                    status_message = $3, updated_at = NOW()
+                WHERE id = $4
+              `, [processedCount, progressPercentage, `Processing: ${processedCount}/${totalCount} records (${progressPercentage}%)`, upload.id]);
+            } catch (dbErr) {
+              console.warn(`[STEP-6-PROGRESS] DB update failed:`, dbErr.message);
+            }
+          }
         }
       };
       
@@ -2986,11 +3010,35 @@ class MMSWatcher {
       // Process with timeout protection and progress callback
       const { processAllRecordsToMasterTable } = await import('./tddf-json-encoder.ts');
       
-      // Create progress callback
-      const onBatchProgress = (processedCount, batchSize) => {
+      // Create progress callback with database updates for real-time UI display
+      const { batchPool } = await import('./db.js');
+      const { getTableName: getProgressTableName } = await import('./table-config.js');
+      const progressTableName = getProgressTableName('uploader_uploads');
+      let lastProgressUpdate = 0;
+      
+      const onBatchProgress = async (processedCount, batchSize) => {
         const progress = this.step6Progress.get(upload.id);
         if (progress) {
           progress.processedRecords = processedCount;
+          
+          // Update database every 1000 records or every second for real-time UI progress
+          const now = Date.now();
+          if (now - lastProgressUpdate > 1000 || processedCount % 1000 === 0) {
+            lastProgressUpdate = now;
+            const totalCount = progress.totalRecords || upload.totalCount || 0;
+            const progressPercentage = totalCount > 0 ? Math.floor((processedCount / totalCount) * 100) : 0;
+            
+            try {
+              await batchPool.query(`
+                UPDATE ${progressTableName}
+                SET processed_count = $1, progress_percentage = $2, 
+                    status_message = $3, updated_at = NOW()
+                WHERE id = $4
+              `, [processedCount, progressPercentage, `Processing: ${processedCount}/${totalCount} records (${progressPercentage}%)`, upload.id]);
+            } catch (dbErr) {
+              console.warn(`[STEP-6-PROGRESS] DB update failed:`, dbErr.message);
+            }
+          }
         }
       };
       
