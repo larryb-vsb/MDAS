@@ -2892,6 +2892,8 @@ class MMSWatcher {
             const totalCount = progress.totalRecords || upload.totalCount || 0;
             const progressPercentage = totalCount > 0 ? Math.floor((processedCount / totalCount) * 100) : 0;
             
+            console.log(`[STEP-6-PROGRESS] ${upload.filename}: ${processedCount}/${totalCount} records (${progressPercentage}%)`);
+            
             try {
               await batchPool.query(`
                 UPDATE ${progressTableName}
@@ -3027,6 +3029,8 @@ class MMSWatcher {
             lastProgressUpdate = now;
             const totalCount = progress.totalRecords || upload.totalCount || 0;
             const progressPercentage = totalCount > 0 ? Math.floor((processedCount / totalCount) * 100) : 0;
+            
+            console.log(`[STEP-6-PROGRESS] ${upload.filename}: ${processedCount}/${totalCount} records (${progressPercentage}%)`);
             
             try {
               await batchPool.query(`
