@@ -579,13 +579,13 @@ export async function processAllRecordsToMasterTable(
     
     console.log(`[STEP-6-VALIDATION] Starting duplicate validation and cleanup...`);
     
-    // Update status to 'validating'
+    // Update status_message only (phase is managed by MMS-Watcher to prevent conflicts)
     const { getTableName: getUploaderTableName } = await import("./table-config");
     const uploaderTableName = getUploaderTableName('uploader_uploads');
     await batchPool.query(`
       UPDATE ${uploaderTableName}
-      SET current_phase = 'validating', 
-          status_message = 'Validating & removing duplicates...'
+      SET status_message = 'Validating & removing duplicates...',
+          updated_at = NOW()
       WHERE id = $1
     `, [upload.id]);
     
@@ -662,18 +662,17 @@ export async function processAllRecordsToMasterTable(
     const totalRecords = masterRecordCount + apiRecordCount;
     const recordsPerSecond = totalRecords > 0 && durationSeconds > 0 ? totalRecords / durationSeconds : 0;
     
-    // Update to 'completed' status with duplicate stats and record type counts
+    // Update status_message and record counts only (phase 'completed' is managed by MMS-Watcher)
     const statusMessage = validationTimedOut 
       ? `Completed: ${recordsBeforeCleanup} records (duplicate check skipped - timeout)`
       : `Completed: ${recordsAfterCleanup} records, ${duplicatesRemoved} duplicates removed`;
     await batchPool.query(`
       UPDATE ${uploaderTableName}
-      SET current_phase = 'completed', 
-          status_message = $1,
+      SET status_message = $1,
           bh_record_count = $3,
           dt_record_count = $4,
           other_record_count = $5,
-          completed_at = NOW()
+          updated_at = NOW()
       WHERE id = $2
     `, [
       statusMessage, 
@@ -729,23 +728,21 @@ export async function processAllRecordsToMasterTable(
   } catch (error: any) {
     console.error(`[STEP-6-PROCESSING] ❌ Error processing ${upload.filename}:`, error);
     
-    // Revert upload status to 'encoded' for automatic retry
+    // Update status_message only - phase and retry_count managed by MMS-Watcher
+    // This prevents double retry_count increment and phase conflicts
     try {
       const { getTableName: getUploaderTableName } = await import("./table-config");
       const uploaderTableName = getUploaderTableName('uploader_uploads');
       await batchPool.query(`
         UPDATE ${uploaderTableName}
-        SET current_phase = 'encoded',
-            status_message = $1,
-            retry_count = COALESCE(retry_count, 0) + 1,
-            last_retry_at = NOW(),
-            last_updated = NOW()
+        SET status_message = $1,
+            updated_at = NOW()
         WHERE id = $2
-      `, [`Validation failed: ${error.message} - will retry`, upload.id]);
+      `, [`Step 6 error: ${error.message}`, upload.id]);
       
-      console.log(`[STEP-6-RECOVERY] File reverted to 'encoded' status for retry (retry_count incremented)`);
+      console.log(`[STEP-6-RECOVERY] Status message updated, MMS-Watcher will handle retry logic`);
     } catch (revertError: any) {
-      console.error(`[STEP-6-RECOVERY] Failed to revert file status:`, revertError);
+      console.error(`[STEP-6-RECOVERY] Failed to update status message:`, revertError);
     }
     
     // Update timing log with failure status
