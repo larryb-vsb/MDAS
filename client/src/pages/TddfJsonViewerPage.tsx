@@ -29,12 +29,50 @@ interface EncodingTimingData {
   startTime: string;
   finishTime: string;
   totalProcessingTime: number;
+  totalRecords?: number;
+  totalEncodingTimeMs?: number;
+  encodingStartTime?: string;
+  queryTime?: number;
+  recordTypeBreakdown?: Record<string, number>;
   batchTimes: Array<{
     batchNumber: number;
     recordsInBatch: number;
     insertTimeMs: number;
     cumulativeRecords: number;
   }>;
+}
+
+// API Response interfaces for proper typing
+interface HierarchicalPaginationResponse {
+  batches: any[];
+  pagination: {
+    batchesInPage: number;
+    recordsInPage: number;
+    totalBatches: number;
+    totalPages?: number;
+    hasMore: boolean;
+    currentPage: number;
+  };
+  totalCounts?: {
+    total: number;
+    bhCount?: number;
+    dtCount?: number;
+    byType?: Record<string, number>;
+  };
+  tableName?: string;
+}
+
+interface RecordTypesResponse {
+  data: JsonbRecord[];
+}
+
+interface UploadDetailsResponse {
+  filename: string;
+  file_size?: number;
+  line_count?: number;
+  start_time?: string;
+  current_phase?: string;
+  isArchiveFile?: boolean;
 }
 
 // Custom BH field ordering - batchId appears last
@@ -566,7 +604,7 @@ export default function TddfJsonViewerPage() {
         const endpoint = `/api/uploader/${uploadId}/jsonb-data-hierarchical?${params}`;
         
         console.log(`[TDDF-JSON-VIEWER] Using hierarchical endpoint: ${endpoint}`);
-        const result = await apiRequest(endpoint);
+        const result = await apiRequest<HierarchicalPaginationResponse>(endpoint);
         console.log(`[TDDF-JSON-VIEWER] Successfully fetched ${result.pagination.batchesInPage} batches with ${result.pagination.recordsInPage} records`);
         return result;
       } catch (error: any) {
@@ -588,7 +626,7 @@ export default function TddfJsonViewerPage() {
           ? `/api/tddf-api/records/${uploadId}?limit=1000`
           : `/api/uploader/${uploadId}/jsonb-data?limit=1000`;
         
-        const data: any = await apiRequest(endpoint);
+        const data = await apiRequest<RecordTypesResponse>(endpoint);
         const types = Array.from(new Set(data.data.map((record: JsonbRecord) => record.record_type)));
         return types.sort();
       } catch (error: any) {
@@ -612,9 +650,9 @@ export default function TddfJsonViewerPage() {
             filename: filename,
             isArchiveFile: true,
             // Archive files don't have uploader details, but we'll show the filename
-          };
+          } as UploadDetailsResponse;
         }
-        return await apiRequest(`/api/uploader/${uploadId}`);
+        return await apiRequest<UploadDetailsResponse>(`/api/uploader/${uploadId}`);
       } catch (error) {
         console.warn('[TDDF-JSON-VIEWER] Upload details fetch failed');
         return null;
@@ -625,10 +663,10 @@ export default function TddfJsonViewerPage() {
   });
 
   // Extract records from hierarchical structure
-  const batches = (jsonbData as any)?.batches || [];
+  const batches = jsonbData?.batches || [];
   const allRecords: JsonbRecord[] = batches.flatMap((batch: any) => batch.allRecords);
-  const paginationInfo = (jsonbData as any)?.pagination;
-  const timingMetadata = null; // Timing metadata not available in hierarchical pagination
+  const paginationInfo = jsonbData?.pagination;
+  const timingMetadata = null as EncodingTimingData | null; // Timing metadata not available in hierarchical pagination
   
   const filteredRecords = allRecords.filter(record => {
     // Note: Hierarchical pagination always returns complete batches (BH + all records)
@@ -796,7 +834,7 @@ export default function TddfJsonViewerPage() {
     console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
     
     // Debug: Log all record types present
-    const recordTypes = [...new Set(records.map(r => r.record_type))];
+    const recordTypes = Array.from(new Set(records.map(r => r.record_type)));
     console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
     
     // For TDDF files where all records are type "02", treat every 1-3 records as a batch
@@ -1027,15 +1065,15 @@ export default function TddfJsonViewerPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Total Records:</span>
-                <span className="ml-1 font-medium">{timingMetadata.totalRecords?.toLocaleString()}</span>
+                <span className="ml-1 font-medium">{timingMetadata.totalRecords?.toLocaleString() || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-gray-600">Processing Time:</span>
-                <span className="ml-1 font-medium">{(timingMetadata.totalEncodingTimeMs / 1000).toFixed(2)}s</span>
+                <span className="ml-1 font-medium">{timingMetadata.totalEncodingTimeMs ? (timingMetadata.totalEncodingTimeMs / 1000).toFixed(2) + 's' : 'N/A'}</span>
               </div>
               <div>
                 <span className="text-gray-600">Records/sec:</span>
-                <span className="ml-1 font-medium">{Math.round(timingMetadata.totalRecords / (timingMetadata.totalEncodingTimeMs / 1000)).toLocaleString()}</span>
+                <span className="ml-1 font-medium">{timingMetadata.totalRecords && timingMetadata.totalEncodingTimeMs ? Math.round(timingMetadata.totalRecords / (timingMetadata.totalEncodingTimeMs / 1000)).toLocaleString() : 'N/A'}</span>
               </div>
               <div>
                 <span className="text-gray-600">Started:</span>
@@ -1275,18 +1313,19 @@ export default function TddfJsonViewerPage() {
                   <input
                     type="number"
                     min="1"
-                    max={paginationInfo.totalPages}
+                    max={paginationInfo.totalPages || paginationInfo.totalBatches}
                     value={currentPage}
                     onChange={(e) => {
                       const page = parseInt(e.target.value);
-                      if (page >= 1 && page <= paginationInfo.totalPages) {
+                      const maxPage = paginationInfo.totalPages || paginationInfo.totalBatches || 1;
+                      if (page >= 1 && page <= maxPage) {
                         setCurrentPage(page);
                       }
                     }}
                     className="w-16 px-2 py-1 text-sm border rounded text-center"
                     disabled={isLoading}
                   />
-                  <span className="text-sm">of {paginationInfo.totalPages.toLocaleString()}</span>
+                  <span className="text-sm">of {(paginationInfo.totalPages || paginationInfo.totalBatches || 1).toLocaleString()}</span>
                 </div>
                 
                 {/* Next Button */}
@@ -1442,7 +1481,7 @@ export default function TddfJsonViewerPage() {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Status:</label>
-                        <p className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900">
                           <Badge className={`
                             ${uploadDetails?.current_phase === 'encoded' ? 'bg-green-500' : 
                               uploadDetails?.current_phase === 'encoding' ? 'bg-yellow-500' :
@@ -1452,7 +1491,7 @@ export default function TddfJsonViewerPage() {
                           `}>
                             {uploadDetails?.current_phase || 'Unknown'}
                           </Badge>
-                        </p>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1510,11 +1549,11 @@ export default function TddfJsonViewerPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                           <label className="text-sm font-medium text-gray-700">Processing Time:</label>
-                          <p className="text-sm text-gray-900">{(timingMetadata.totalEncodingTimeMs / 1000).toFixed(2)}s</p>
+                          <p className="text-sm text-gray-900">{timingMetadata.totalEncodingTimeMs ? (timingMetadata.totalEncodingTimeMs / 1000).toFixed(2) + 's' : 'N/A'}</p>
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-700">Records/sec:</label>
-                          <p className="text-sm text-gray-900">{Math.round(timingMetadata.totalRecords / (timingMetadata.totalEncodingTimeMs / 1000)).toLocaleString()}</p>
+                          <p className="text-sm text-gray-900">{timingMetadata.totalRecords && timingMetadata.totalEncodingTimeMs ? Math.round(timingMetadata.totalRecords / (timingMetadata.totalEncodingTimeMs / 1000)).toLocaleString() : 'N/A'}</p>
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-700">Started:</label>
@@ -1522,7 +1561,7 @@ export default function TddfJsonViewerPage() {
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-700">Query Time:</label>
-                          <p className="text-sm text-gray-900">{timingMetadata.queryTime || 'N/A'}ms</p>
+                          <p className="text-sm text-gray-900">{timingMetadata.queryTime ? `${timingMetadata.queryTime}ms` : 'N/A'}</p>
                         </div>
                       </div>
                     </CardContent>
