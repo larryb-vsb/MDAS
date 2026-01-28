@@ -31,7 +31,8 @@ class TddfDuplicateCleanupService {
   private tableName: string;
   
   constructor() {
-    this.tableName = getTableName('tddf_jsonb');
+    // Use the uploader JSONB records table which contains the actual TDDF data
+    this.tableName = getTableName('uploader_tddf_jsonb_records');
     this.progress = this.getInitialProgress();
   }
   
