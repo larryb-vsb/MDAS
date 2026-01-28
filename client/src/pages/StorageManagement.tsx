@@ -450,6 +450,295 @@ function DuplicatesTab() {
   );
 }
 
+// Filename-based Duplicate Scanner Component
+interface FilenameDuplicateResult {
+  filename: string;
+  recordCount: number;
+  oldestDate: string | null;
+  newestDate: string | null;
+  sampleIds: number[];
+}
+
+interface FilenameScanProgress {
+  status: 'idle' | 'scanning' | 'cleaning' | 'completed' | 'error';
+  totalFilenames: number;
+  duplicateFilenames: number;
+  totalDuplicateRecords: number;
+  recordsToDelete: number;
+  recordsDeleted: number;
+  duplicates: FilenameDuplicateResult[];
+  startedAt: string | null;
+  completedAt: string | null;
+  lastError: string | null;
+}
+
+function FilenameDuplicateScanner() {
+  const { toast } = useToast();
+  const [selectedFilenames, setSelectedFilenames] = useState<Set<string>>(new Set());
+  
+  const { data: progress, isLoading, refetch: refetchProgress } = useQuery<FilenameScanProgress>({
+    queryKey: ['/api/filename-duplicates/progress'],
+    refetchInterval: 2000
+  });
+
+  const scanMutation = useMutation({
+    mutationFn: () => apiRequest('/api/filename-duplicates/scan', { method: 'POST' }),
+    onSuccess: () => {
+      toast({ title: "Scan Started", description: "Scanning for duplicate filenames..." });
+      refetchProgress();
+    },
+    onError: (error: any) => {
+      toast({ title: "Scan Failed", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const cleanupMutation = useMutation({
+    mutationFn: (filenames?: string[]) => apiRequest('/api/filename-duplicates/cleanup', { 
+      method: 'POST',
+      body: JSON.stringify({ filenames: filenames?.length ? filenames : undefined })
+    }),
+    onSuccess: () => {
+      toast({ title: "Cleanup Started", description: "Removing duplicate records..." });
+      setSelectedFilenames(new Set());
+      refetchProgress();
+    },
+    onError: (error: any) => {
+      toast({ title: "Cleanup Failed", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const stopMutation = useMutation({
+    mutationFn: () => apiRequest('/api/filename-duplicates/stop', { method: 'POST' }),
+    onSuccess: () => {
+      toast({ title: "Stop Requested", description: "Stopping operation..." });
+      refetchProgress();
+    }
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: () => apiRequest('/api/filename-duplicates/reset', { method: 'POST' }),
+    onSuccess: () => {
+      toast({ title: "Reset Complete" });
+      setSelectedFilenames(new Set());
+      refetchProgress();
+    }
+  });
+
+  const handleSelectFilename = (filename: string, checked: boolean) => {
+    const newSelection = new Set(selectedFilenames);
+    if (checked) {
+      newSelection.add(filename);
+    } else {
+      newSelection.delete(filename);
+    }
+    setSelectedFilenames(newSelection);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && progress?.duplicates) {
+      setSelectedFilenames(new Set(progress.duplicates.map(d => d.filename)));
+    } else {
+      setSelectedFilenames(new Set());
+    }
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const isActive = progress?.status === 'scanning' || progress?.status === 'cleaning';
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Duplicate Filename Scanner
+            </CardTitle>
+            <CardDescription>
+              Find records where the same source file was processed multiple times
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {progress?.status && (
+              <Badge variant={
+                progress.status === 'completed' ? 'default' :
+                progress.status === 'error' ? 'destructive' :
+                isActive ? 'secondary' : 'outline'
+              }>
+                {progress.status === 'scanning' && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
+                {progress.status === 'cleaning' && <Trash2 className="w-3 h-3 mr-1 animate-pulse" />}
+                {progress.status}
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => scanMutation.mutate()}
+            disabled={isActive || scanMutation.isPending}
+            variant="default"
+          >
+            {scanMutation.isPending || progress?.status === 'scanning' ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Scan for Duplicates
+              </>
+            )}
+          </Button>
+
+          {progress?.duplicates && progress.duplicates.length > 0 && (
+            <Button
+              onClick={() => cleanupMutation.mutate(
+                selectedFilenames.size > 0 ? Array.from(selectedFilenames) : undefined
+              )}
+              disabled={isActive || cleanupMutation.isPending}
+              variant="destructive"
+            >
+              {cleanupMutation.isPending || progress?.status === 'cleaning' ? (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2 animate-pulse" />
+                  Cleaning...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {selectedFilenames.size > 0 
+                    ? `Clean ${selectedFilenames.size} Selected`
+                    : `Clean All (${progress.recordsToDelete})`}
+                </>
+              )}
+            </Button>
+          )}
+
+          {isActive && (
+            <Button onClick={() => stopMutation.mutate()} variant="outline">
+              <Pause className="w-4 h-4 mr-2" />
+              Stop
+            </Button>
+          )}
+
+          {(progress?.status === 'completed' || progress?.status === 'error') && (
+            <Button onClick={() => resetMutation.mutate()} variant="outline">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset
+            </Button>
+          )}
+        </div>
+
+        {/* Stats Summary */}
+        {progress && progress.status !== 'idle' && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+            <div className="text-center">
+              <p className="text-2xl font-bold">{progress.totalFilenames.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Unique Filenames</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-orange-600">{progress.duplicateFilenames.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">With Duplicates</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-red-600">{progress.recordsToDelete.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Records to Delete</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-600">{progress.recordsDeleted.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Deleted</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {progress?.lastError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <AlertCircle className="w-4 h-4 inline mr-2" />
+            {progress.lastError}
+          </div>
+        )}
+
+        {/* Duplicate List */}
+        {progress?.duplicates && progress.duplicates.length > 0 && (
+          <div className="border rounded-lg">
+            <div className="p-3 bg-muted/50 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedFilenames.size === progress.duplicates.length}
+                  onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                />
+                <span className="text-sm font-medium">
+                  Select All ({progress.duplicates.length} files)
+                </span>
+              </div>
+              {selectedFilenames.size > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {selectedFilenames.size} selected
+                </span>
+              )}
+            </div>
+            <div className="max-h-80 overflow-y-auto divide-y">
+              {progress.duplicates.slice(0, 50).map((dup, idx) => (
+                <div key={idx} className="p-3 hover:bg-muted/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Checkbox
+                      checked={selectedFilenames.has(dup.filename)}
+                      onCheckedChange={(checked) => handleSelectFilename(dup.filename, checked as boolean)}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate" title={dup.filename}>
+                        {dup.filename}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(dup.oldestDate)} - {formatDate(dup.newestDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                      {dup.recordCount.toLocaleString()} records
+                    </Badge>
+                    <Badge variant="secondary" className="text-red-600">
+                      -{(dup.recordCount - 1).toLocaleString()}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+              {progress.duplicates.length > 50 && (
+                <div className="p-3 text-center text-sm text-muted-foreground bg-muted/30">
+                  + {progress.duplicates.length - 50} more files not shown
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {progress?.status === 'completed' && progress.duplicateFilenames === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500" />
+            <p className="font-medium">No duplicate filenames found</p>
+            <p className="text-sm">All source files appear to have been processed only once</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // TDDF JSONB Duplicate Cleanup Component
 interface TddfCleanupStats {
   totalRecords: number;
@@ -1799,6 +2088,9 @@ export default function StorageManagement() {
         </TabsContent>
 
         <TabsContent value="operations" className="space-y-6">
+          {/* Filename Duplicate Scanner - Primary Tool */}
+          <FilenameDuplicateScanner />
+
           {/* Scan Operations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
