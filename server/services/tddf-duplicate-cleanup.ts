@@ -74,54 +74,121 @@ class TddfDuplicateCleanupService {
     try {
       console.log(`[TDDF-CLEANUP] Fetching stats from ${this.tableName}...`);
       
-      const statsResult = await client.query(`
-        SELECT 
-          COUNT(*) as total_records,
-          COUNT(*) as total_lines,
-          COUNT(raw_line_hash) as with_hash,
-          COUNT(*) - COUNT(raw_line_hash) as without_hash,
-          MIN(created_at) as oldest,
-          MAX(created_at) as newest
-        FROM ${this.tableName}
-      `);
+      // Set a statement timeout to prevent long-running queries from hanging
+      await client.query('SET statement_timeout = 30000'); // 30 seconds max
       
-      const stats = statsResult.rows[0];
-      console.log(`[TDDF-CLEANUP] Stats query result:`, JSON.stringify(stats));
+      // Use fast approximate count from pg_class for total records
+      const approxCountResult = await client.query(`
+        SELECT reltuples::bigint as approx_count
+        FROM pg_class
+        WHERE relname = $1
+      `, [this.tableName]);
       
-      const dupCountResult = await client.query(`
-        SELECT COUNT(*) as dup_count
-        FROM (
-          SELECT raw_line_hash
-          FROM ${this.tableName}
-          WHERE raw_line_hash IS NOT NULL
-          GROUP BY raw_line_hash
-          HAVING COUNT(*) > 1
-        ) d
-      `);
+      const approxTotal = parseInt(approxCountResult.rows[0]?.approx_count) || 0;
+      console.log(`[TDDF-CLEANUP] Approximate total records: ${approxTotal}`);
       
-      const toDeleteResult = await client.query(`
-        WITH duplicates AS (
-          SELECT id,
-            ROW_NUMBER() OVER (PARTITION BY raw_line_hash ORDER BY id ASC) as rn
-          FROM ${this.tableName}
-          WHERE raw_line_hash IS NOT NULL
-        )
-        SELECT COUNT(*) as to_delete
-        FROM duplicates WHERE rn > 1
-      `);
+      // Get basic stats with a limit-based sampling approach for large tables
+      let totalRecords = 0;
+      let withHash = 0;
+      let withoutHash = 0;
+      let oldest: string | null = null;
+      let newest: string | null = null;
+      
+      if (approxTotal > 0) {
+        // For very large tables, use estimated counts
+        if (approxTotal > 1000000) {
+          console.log(`[TDDF-CLEANUP] Large table detected (${approxTotal} rows), using estimates`);
+          
+          // Get min/max dates quickly using index
+          const dateResult = await client.query(`
+            SELECT MIN(created_at) as oldest, MAX(created_at) as newest
+            FROM ${this.tableName}
+          `);
+          oldest = dateResult.rows[0]?.oldest;
+          newest = dateResult.rows[0]?.newest;
+          
+          // Sample-based hash count (check 10000 random records)
+          const sampleResult = await client.query(`
+            SELECT 
+              COUNT(*) as total,
+              COUNT(raw_line_hash) as with_hash
+            FROM (
+              SELECT raw_line_hash 
+              FROM ${this.tableName} 
+              TABLESAMPLE SYSTEM(1) 
+              LIMIT 10000
+            ) sample
+          `);
+          
+          const sampleTotal = parseInt(sampleResult.rows[0]?.total) || 0;
+          const sampleWithHash = parseInt(sampleResult.rows[0]?.with_hash) || 0;
+          const hashRatio = sampleTotal > 0 ? sampleWithHash / sampleTotal : 0;
+          
+          totalRecords = approxTotal;
+          withHash = Math.round(approxTotal * hashRatio);
+          withoutHash = approxTotal - withHash;
+        } else {
+          // For smaller tables, use exact counts
+          const statsResult = await client.query(`
+            SELECT 
+              COUNT(*) as total_records,
+              COUNT(raw_line_hash) as with_hash,
+              MIN(created_at) as oldest,
+              MAX(created_at) as newest
+            FROM ${this.tableName}
+          `);
+          
+          const stats = statsResult.rows[0];
+          totalRecords = parseInt(stats.total_records) || 0;
+          withHash = parseInt(stats.with_hash) || 0;
+          withoutHash = totalRecords - withHash;
+          oldest = stats.oldest;
+          newest = stats.newest;
+        }
+      }
+      
+      console.log(`[TDDF-CLEANUP] Stats: total=${totalRecords}, withHash=${withHash}, withoutHash=${withoutHash}`);
+      
+      // For duplicate counts, use a faster estimation approach
+      let duplicateHashCount = 0;
+      let recordsToDelete = 0;
+      
+      if (withHash > 0) {
+        // Use a limited query to estimate duplicates - check first 100k hashes
+        const dupEstResult = await client.query(`
+          SELECT COUNT(*) as dup_groups, SUM(cnt - 1) as to_delete
+          FROM (
+            SELECT raw_line_hash, COUNT(*) as cnt
+            FROM ${this.tableName}
+            WHERE raw_line_hash IS NOT NULL
+            GROUP BY raw_line_hash
+            HAVING COUNT(*) > 1
+            LIMIT 100000
+          ) d
+        `);
+        
+        duplicateHashCount = parseInt(dupEstResult.rows[0]?.dup_groups) || 0;
+        recordsToDelete = parseInt(dupEstResult.rows[0]?.to_delete) || 0;
+        console.log(`[TDDF-CLEANUP] Duplicates: groups=${duplicateHashCount}, toDelete=${recordsToDelete}`);
+      }
+      
+      // Reset statement timeout
+      await client.query('RESET statement_timeout');
       
       return {
-        totalRecords: parseInt(stats.total_records) || 0,
-        totalLines: parseInt(stats.total_lines) || 0,
-        recordsWithHash: parseInt(stats.with_hash) || 0,
-        recordsWithoutHash: parseInt(stats.without_hash) || 0,
-        duplicateHashCount: parseInt(dupCountResult.rows[0]?.dup_count) || 0,
-        recordsToDelete: parseInt(toDeleteResult.rows[0]?.to_delete) || 0,
-        oldestRecord: stats.oldest ? new Date(stats.oldest).toISOString() : null,
-        newestRecord: stats.newest ? new Date(stats.newest).toISOString() : null
+        totalRecords,
+        totalLines: totalRecords,
+        recordsWithHash: withHash,
+        recordsWithoutHash: withoutHash,
+        duplicateHashCount,
+        recordsToDelete,
+        oldestRecord: oldest ? new Date(oldest).toISOString() : null,
+        newestRecord: newest ? new Date(newest).toISOString() : null
       };
     } catch (error) {
       console.error('[TDDF-CLEANUP] Error fetching stats:', error);
+      // Reset timeout on error
+      try { await client.query('RESET statement_timeout'); } catch (e) {}
       throw error;
     } finally {
       client.release();
