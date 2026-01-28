@@ -1425,7 +1425,7 @@ export default function TddfJsonViewerPage() {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Total Records:</label>
-                        <p className="text-sm text-gray-900">{allRecords.length.toLocaleString()}</p>
+                        <p className="text-sm text-gray-900">{(jsonbData?.totalCounts?.total || allRecords.length).toLocaleString()}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Database Table:</label>
@@ -1468,18 +1468,31 @@ export default function TddfJsonViewerPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {allRecordTypes?.map((type) => {
-                        const count = allRecords.filter(r => r.record_type === type).length;
-                        return (
-                          <div key={type as string} className="text-center p-3 border rounded-lg">
-                            <Badge className={`mb-2 text-white ${getRecordTypeBadgeColor(type as string)}`}>
-                              {type as string}
+                      {/* Use totalCounts from API for accurate counts across all pages */}
+                      {jsonbData?.totalCounts?.byType ? (
+                        Object.entries(jsonbData.totalCounts.byType).map(([type, count]) => (
+                          <div key={type} className="text-center p-3 border rounded-lg">
+                            <Badge className={`mb-2 text-white ${getRecordTypeBadgeColor(type)}`}>
+                              {type}
                             </Badge>
-                            <p className="text-lg font-semibold">{count.toLocaleString()}</p>
-                            <p className="text-sm text-gray-600">{getRecordTypeName(type as string)}</p>
+                            <p className="text-lg font-semibold">{(count as number).toLocaleString()}</p>
+                            <p className="text-sm text-gray-600">{getRecordTypeName(type)}</p>
                           </div>
-                        );
-                      })}
+                        ))
+                      ) : (
+                        allRecordTypes?.map((type) => {
+                          const count = allRecords.filter(r => r.record_type === type).length;
+                          return (
+                            <div key={type as string} className="text-center p-3 border rounded-lg">
+                              <Badge className={`mb-2 text-white ${getRecordTypeBadgeColor(type as string)}`}>
+                                {type as string}
+                              </Badge>
+                              <p className="text-lg font-semibold">{count.toLocaleString()}</p>
+                              <p className="text-sm text-gray-600">{getRecordTypeName(type as string)}</p>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </CardContent>
                 </Card>
