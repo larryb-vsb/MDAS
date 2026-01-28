@@ -2880,6 +2880,7 @@ class MMSWatcher {
       const { getTableName: getProgressTableName } = await import('./table-config.js');
       const progressTableName = getProgressTableName('uploader_uploads');
       let lastProgressUpdate = 0;
+      let progressColumnMissing = false; // Track if processed_count column exists
       
       const onBatchProgress = async (processedCount, batchSize) => {
         const progress = this.step6Progress.get(upload.id);
@@ -2895,6 +2896,9 @@ class MMSWatcher {
             
             console.log(`[STEP-6-PROGRESS] ${upload.filename}: ${processedCount}/${totalCount} records (${progressPercentage}%)`);
             
+            // Skip DB update if column is missing (only warn once)
+            if (progressColumnMissing) return;
+            
             try {
               await batchPool.query(`
                 UPDATE ${progressTableName}
@@ -2903,7 +2907,13 @@ class MMSWatcher {
                 WHERE id = $4
               `, [processedCount, progressPercentage, `Processing: ${processedCount}/${totalCount} records (${progressPercentage}%)`, upload.id]);
             } catch (dbErr) {
-              console.warn(`[STEP-6-PROGRESS] DB update failed:`, dbErr.message);
+              // If column doesn't exist, flag it and only warn once
+              if (dbErr.message && dbErr.message.includes('does not exist')) {
+                progressColumnMissing = true;
+                console.warn(`[STEP-6-PROGRESS] Progress column missing in ${progressTableName}, skipping DB updates (progress still visible in logs)`);
+              } else {
+                console.warn(`[STEP-6-PROGRESS] DB update failed:`, dbErr.message);
+              }
             }
           }
         }
@@ -3019,6 +3029,7 @@ class MMSWatcher {
       const { getTableName: getProgressTableName } = await import('./table-config.js');
       const progressTableName = getProgressTableName('uploader_uploads');
       let lastProgressUpdate = 0;
+      let progressColumnMissing = false; // Track if processed_count column exists
       
       const onBatchProgress = async (processedCount, batchSize) => {
         const progress = this.step6Progress.get(upload.id);
@@ -3034,6 +3045,9 @@ class MMSWatcher {
             
             console.log(`[STEP-6-PROGRESS] ${upload.filename}: ${processedCount}/${totalCount} records (${progressPercentage}%)`);
             
+            // Skip DB update if column is missing (only warn once)
+            if (progressColumnMissing) return;
+            
             try {
               await batchPool.query(`
                 UPDATE ${progressTableName}
@@ -3042,7 +3056,13 @@ class MMSWatcher {
                 WHERE id = $4
               `, [processedCount, progressPercentage, `Processing: ${processedCount}/${totalCount} records (${progressPercentage}%)`, upload.id]);
             } catch (dbErr) {
-              console.warn(`[STEP-6-PROGRESS] DB update failed:`, dbErr.message);
+              // If column doesn't exist, flag it and only warn once
+              if (dbErr.message && dbErr.message.includes('does not exist')) {
+                progressColumnMissing = true;
+                console.warn(`[STEP-6-PROGRESS] Progress column missing in ${progressTableName}, skipping DB updates (progress still visible in logs)`);
+              } else {
+                console.warn(`[STEP-6-PROGRESS] DB update failed:`, dbErr.message);
+              }
             }
           }
         }

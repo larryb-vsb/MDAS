@@ -35,6 +35,9 @@ export async function migrateDatabase() {
       // Fix production uploader_uploads table missing upload_status column
       await fixProductionUploaderUploadsTable(db);
       
+      // Fix uploader_uploads tables missing processed_count column (for Step 6 progress)
+      await fixProductionUploaderUploadsProcessedCount(db);
+      
       // Check and create TDDF cache tables for current environment
       await ensureTddfCacheTables();
       
@@ -48,6 +51,9 @@ export async function migrateDatabase() {
       
       // Fix production uploader_uploads table missing upload_status column
       await fixProductionUploaderUploadsTable(db);
+      
+      // Fix uploader_uploads tables missing processed_count column (for Step 6 progress)
+      await fixProductionUploaderUploadsProcessedCount(db);
       
       // Always ensure TDDF cache tables exist after table creation
       await ensureTddfCacheTables();
@@ -986,6 +992,68 @@ async function fixProductionUploaderUploadsTable(db: any) {
     
   } catch (error: any) {
     console.error('[SCHEMA FIX] ❌ Error fixing production uploader_uploads table:', error);
+    // Don't throw - continue with other migrations
+  }
+}
+
+/**
+ * Fix production uploader_uploads table - add missing processed_count column
+ * This column was added for Step 6 progress tracking but may be missing in production
+ */
+async function fixProductionUploaderUploadsProcessedCount(db: any) {
+  try {
+    console.log('[SCHEMA FIX] Checking uploader_uploads tables for missing processed_count column...');
+    
+    // Check both production (uploader_uploads) and dev (dev_uploader_uploads) tables
+    const tablesToCheck = ['uploader_uploads', 'dev_uploader_uploads'];
+    
+    for (const tableName of tablesToCheck) {
+      // Check if table exists AND is a real table (not a view)
+      const tableCheck = await db.execute(sql`
+        SELECT table_name, table_type
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = ${tableName}
+      `);
+      
+      if (tableCheck.rows.length === 0) {
+        console.log(`[SCHEMA FIX] ${tableName} does not exist, skipping`);
+        continue;
+      }
+      
+      // Skip if it's a view (can't ALTER a view)
+      const tableType = tableCheck.rows[0]?.table_type;
+      if (tableType === 'VIEW') {
+        console.log(`[SCHEMA FIX] ${tableName} is a VIEW, skipping column addition (code handles this gracefully)`);
+        continue;
+      }
+      
+      // Check if processed_count column exists
+      const columnCheck = await db.execute(sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = ${tableName}
+        AND column_name = 'processed_count'
+      `);
+      
+      if (columnCheck.rows.length > 0) {
+        console.log(`[SCHEMA FIX] processed_count column already exists in ${tableName}`);
+        continue;
+      }
+      
+      console.log(`[SCHEMA FIX] Adding missing processed_count column to ${tableName}...`);
+      
+      // Add the missing processed_count column - use raw query for dynamic table name
+      await db.execute(sql.raw(`
+        ALTER TABLE ${tableName} 
+        ADD COLUMN processed_count INTEGER DEFAULT 0
+      `));
+      
+      console.log(`[SCHEMA FIX] ✅ Successfully added processed_count column to ${tableName}`);
+    }
+    
+  } catch (error: any) {
+    console.error('[SCHEMA FIX] ❌ Error adding processed_count column:', error);
     // Don't throw - continue with other migrations
   }
 }
