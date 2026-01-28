@@ -817,6 +817,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get single upload details by ID
+  app.get("/api/uploader/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const tableName = getTableName('uploader_uploads');
+      
+      const result = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+      
+      const row = result.rows[0];
+      const toNumber = (val: any) => val !== null && val !== undefined ? Number(val) : undefined;
+      
+      res.json({
+        id: row.id,
+        filename: row.filename,
+        currentPhase: row.current_phase,
+        uploadStatus: row.upload_status,
+        fileSize: toNumber(row.file_size),
+        lineCount: toNumber(row.line_count),
+        startTime: row.start_time,
+        uploadStartedAt: row.upload_started_at,
+        uploadedAt: row.uploaded_at,
+        identifiedAt: row.identified_at,
+        detectedFileType: row.detected_file_type,
+        finalFileType: row.final_file_type,
+        storagePath: row.storage_path,
+        encodingAt: row.encoding_at,
+        encodingComplete: row.encoding_complete,
+        encodingTimeMs: toNumber(row.encoding_time_ms),
+        jsonRecordsCreated: toNumber(row.json_records_created),
+        createdAt: row.created_at,
+        current_phase: row.current_phase,
+        file_size: toNumber(row.file_size),
+        line_count: toNumber(row.line_count),
+        start_time: row.start_time
+      });
+    } catch (error: any) {
+      console.error('Get single upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   // Bulk delete uploader files (soft-delete with audit logging)
   app.delete("/api/uploader/bulk-delete", isAuthenticated, async (req, res) => {
     try {
