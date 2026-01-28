@@ -418,8 +418,8 @@ export async function processAllRecordsToMasterTable(
         try {
           let totalApiDeleted = 0;
           let batchDeleted = 0;
-          const maxBatches = 10; // Limit batches to prevent infinite loops
           let batchCount = 0;
+          const maxSafetyBatches = 500; // Safety limit to prevent infinite loops (500 * 1000 = 500k records max)
           
           do {
             // Delete in batches of 1000 using the partial index
@@ -434,13 +434,13 @@ export async function processAllRecordsToMasterTable(
             batchDeleted = apiDeleteResult.rowCount || 0;
             totalApiDeleted += batchDeleted;
             batchCount++;
-          } while (batchDeleted > 0 && batchCount < maxBatches);
+          } while (batchDeleted > 0 && batchCount < maxSafetyBatches);
           
           if (totalApiDeleted > 0) {
             console.log(`[STEP-6-CLEANUP] Removed ${totalApiDeleted} API records for re-processing (${batchCount} batches)`);
           }
-          if (batchCount >= maxBatches && batchDeleted > 0) {
-            console.warn(`[STEP-6-CLEANUP] Hit batch limit, some API records may remain (will be deduplicated on insert)`);
+          if (batchCount >= maxSafetyBatches && batchDeleted > 0) {
+            console.warn(`[STEP-6-CLEANUP] Hit safety batch limit (${maxSafetyBatches}), some API records may remain`);
           }
         } catch (apiError: any) {
           console.warn(`[STEP-6-CLEANUP] API records cleanup timed out or failed: ${apiError.message}`);
@@ -846,14 +846,15 @@ async function insertMasterTableBatch(tableName: string, records: any[]): Promis
   ]);
   
   await executeWithRetry(async () => {
-    // Note: No ON CONFLICT needed - we clean up existing records for this upload_id
-    // at the start of processAllRecordsToMasterTable before inserting new records
+    // Use ON CONFLICT DO NOTHING as a safety net in case cleanup was incomplete
+    // This handles edge cases like cleanup timeout or very large files
     await batchPool.query(`
       INSERT INTO ${tableName} (
         id, upload_id, filename, line_number, record_type, raw_line, raw_line_hash,
         extracted_fields, record_identifier, tddf_processing_datetime, tddf_processing_date,
         parsed_datetime, record_time_source, created_at
       ) VALUES ${values}
+      ON CONFLICT (id, tddf_processing_date) DO NOTHING
     `, params);
   }, 'insertMasterTableBatch');
 }
