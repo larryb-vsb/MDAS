@@ -410,3 +410,258 @@ class TddfDuplicateCleanupService {
 }
 
 export const tddfDuplicateCleanupService = new TddfDuplicateCleanupService();
+
+// Filename-based duplicate scanning service
+interface FilenameDuplicateResult {
+  filename: string;
+  recordCount: number;
+  oldestDate: string | null;
+  newestDate: string | null;
+  sampleIds: number[];
+}
+
+interface FilenameScanProgress {
+  status: 'idle' | 'scanning' | 'cleaning' | 'completed' | 'error';
+  totalFilenames: number;
+  duplicateFilenames: number;
+  totalDuplicateRecords: number;
+  recordsToDelete: number;
+  recordsDeleted: number;
+  duplicates: FilenameDuplicateResult[];
+  startedAt: string | null;
+  completedAt: string | null;
+  lastError: string | null;
+}
+
+class FilenameDuplicateService {
+  private progress: FilenameScanProgress;
+  private isRunning: boolean = false;
+  private shouldStop: boolean = false;
+  private tableName: string;
+
+  constructor() {
+    this.tableName = getTableName('uploader_tddf_jsonb_records');
+    this.progress = this.getInitialProgress();
+  }
+
+  private getInitialProgress(): FilenameScanProgress {
+    return {
+      status: 'idle',
+      totalFilenames: 0,
+      duplicateFilenames: 0,
+      totalDuplicateRecords: 0,
+      recordsToDelete: 0,
+      recordsDeleted: 0,
+      duplicates: [],
+      startedAt: null,
+      completedAt: null,
+      lastError: null
+    };
+  }
+
+  getProgress(): FilenameScanProgress {
+    return { ...this.progress, duplicates: [...this.progress.duplicates] };
+  }
+
+  async scanForDuplicateFilenames(): Promise<FilenameScanProgress> {
+    if (this.isRunning) {
+      throw new Error('Scan is already running');
+    }
+
+    this.isRunning = true;
+    this.shouldStop = false;
+    this.progress = {
+      ...this.getInitialProgress(),
+      status: 'scanning',
+      startedAt: new Date().toISOString()
+    };
+
+    const client = await pool.connect();
+
+    try {
+      console.log(`[FILENAME-DUP] Starting duplicate filename scan on ${this.tableName}...`);
+      
+      // Set a reasonable timeout
+      await client.query('SET statement_timeout = 60000'); // 60 seconds max
+
+      // Count total unique filenames
+      const totalResult = await client.query(`
+        SELECT COUNT(DISTINCT source_filename) as cnt
+        FROM ${this.tableName}
+        WHERE source_filename IS NOT NULL AND source_filename != ''
+      `);
+      this.progress.totalFilenames = parseInt(totalResult.rows[0]?.cnt) || 0;
+      console.log(`[FILENAME-DUP] Found ${this.progress.totalFilenames} unique filenames`);
+
+      // Find filenames that appear more than once (with record counts)
+      const dupResult = await client.query(`
+        SELECT 
+          source_filename,
+          COUNT(*) as record_count,
+          MIN(created_at) as oldest_date,
+          MAX(created_at) as newest_date,
+          ARRAY_AGG(id ORDER BY id LIMIT 5) as sample_ids
+        FROM ${this.tableName}
+        WHERE source_filename IS NOT NULL AND source_filename != ''
+        GROUP BY source_filename
+        HAVING COUNT(*) > 1
+        ORDER BY COUNT(*) DESC
+        LIMIT 500
+      `);
+
+      const duplicates: FilenameDuplicateResult[] = dupResult.rows.map(row => ({
+        filename: row.source_filename,
+        recordCount: parseInt(row.record_count) || 0,
+        oldestDate: row.oldest_date ? new Date(row.oldest_date).toISOString() : null,
+        newestDate: row.newest_date ? new Date(row.newest_date).toISOString() : null,
+        sampleIds: row.sample_ids || []
+      }));
+
+      this.progress.duplicates = duplicates;
+      this.progress.duplicateFilenames = duplicates.length;
+      this.progress.totalDuplicateRecords = duplicates.reduce((sum, d) => sum + d.recordCount, 0);
+      
+      // Calculate records to delete (keep 1 per filename)
+      this.progress.recordsToDelete = duplicates.reduce((sum, d) => sum + (d.recordCount - 1), 0);
+
+      console.log(`[FILENAME-DUP] Found ${duplicates.length} duplicate filenames with ${this.progress.totalDuplicateRecords} total records`);
+      console.log(`[FILENAME-DUP] ${this.progress.recordsToDelete} records can be deleted (keeping 1 per filename)`);
+
+      await client.query('RESET statement_timeout');
+
+      this.progress.status = 'completed';
+      this.progress.completedAt = new Date().toISOString();
+
+    } catch (error) {
+      console.error('[FILENAME-DUP] Scan error:', error);
+      this.progress.status = 'error';
+      this.progress.lastError = error instanceof Error ? error.message : 'Unknown error';
+      try { await client.query('RESET statement_timeout'); } catch (e) {}
+    } finally {
+      client.release();
+      this.isRunning = false;
+    }
+
+    return this.getProgress();
+  }
+
+  async cleanupDuplicateFilenames(filenames?: string[], batchSize: number = 5000): Promise<{ deleted: number }> {
+    if (this.isRunning) {
+      throw new Error('Cleanup is already running');
+    }
+
+    this.isRunning = true;
+    this.shouldStop = false;
+    this.progress.status = 'cleaning';
+    this.progress.recordsDeleted = 0;
+    this.progress.startedAt = new Date().toISOString();
+    this.progress.completedAt = null;
+
+    const client = await batchPool.connect();
+    let totalDeleted = 0;
+
+    try {
+      console.log(`[FILENAME-DUP] Starting cleanup of duplicate filenames...`);
+
+      // Get the list of filenames to clean
+      let targetFilenames: string[] = [];
+      
+      if (filenames && filenames.length > 0) {
+        targetFilenames = filenames;
+      } else {
+        // Get all duplicate filenames from current scan
+        targetFilenames = this.progress.duplicates.map(d => d.filename);
+      }
+
+      if (targetFilenames.length === 0) {
+        console.log('[FILENAME-DUP] No filenames to clean up');
+        this.progress.status = 'completed';
+        this.progress.completedAt = new Date().toISOString();
+        this.isRunning = false;
+        return { deleted: 0 };
+      }
+
+      console.log(`[FILENAME-DUP] Processing ${targetFilenames.length} filenames...`);
+
+      // Process each filename
+      for (const filename of targetFilenames) {
+        if (this.shouldStop) {
+          console.log('[FILENAME-DUP] Stop requested');
+          break;
+        }
+
+        // Find the oldest record ID to keep for this filename
+        const keeperResult = await client.query(`
+          SELECT id FROM ${this.tableName}
+          WHERE source_filename = $1
+          ORDER BY id ASC
+          LIMIT 1
+        `, [filename]);
+
+        if (keeperResult.rows.length === 0) continue;
+        
+        const keeperId = keeperResult.rows[0].id;
+
+        // Delete all other records with this filename in batches
+        let hasMore = true;
+        while (hasMore && !this.shouldStop) {
+          const deleteResult = await client.query(`
+            DELETE FROM ${this.tableName}
+            WHERE id IN (
+              SELECT id FROM ${this.tableName}
+              WHERE source_filename = $1 AND id != $2
+              LIMIT $3
+            )
+          `, [filename, keeperId, batchSize]);
+
+          const deleted = deleteResult.rowCount || 0;
+          totalDeleted += deleted;
+          this.progress.recordsDeleted = totalDeleted;
+          hasMore = deleted === batchSize;
+
+          if (deleted > 0) {
+            console.log(`[FILENAME-DUP] Deleted ${deleted} duplicates for ${filename} (total: ${totalDeleted})`);
+          }
+
+          if (hasMore) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        }
+      }
+
+      if (this.shouldStop) {
+        this.progress.status = 'idle';
+      } else {
+        this.progress.status = 'completed';
+        this.progress.completedAt = new Date().toISOString();
+      }
+
+      console.log(`[FILENAME-DUP] Cleanup complete: ${totalDeleted} records deleted`);
+
+    } catch (error) {
+      console.error('[FILENAME-DUP] Cleanup error:', error);
+      this.progress.status = 'error';
+      this.progress.lastError = error instanceof Error ? error.message : 'Unknown error';
+    } finally {
+      client.release();
+      this.isRunning = false;
+    }
+
+    return { deleted: totalDeleted };
+  }
+
+  stopCleanup(): void {
+    if (this.isRunning) {
+      console.log('[FILENAME-DUP] Stop requested...');
+      this.shouldStop = true;
+    }
+  }
+
+  resetProgress(): void {
+    if (!this.isRunning) {
+      this.progress = this.getInitialProgress();
+    }
+  }
+}
+
+export const filenameDuplicateService = new FilenameDuplicateService();
